@@ -17,16 +17,23 @@ fn main() {
     voicevox_dir.to_string_lossy()
   );
 
-  let bindings = bindgen::Builder::default()
-    .header(header.to_str().unwrap())
-    .generate()
-    .expect("Unable to generate bindings");
-
   let binding_dir = PathBuf::from("src/voicevox_sys/binding/");
-  fs::create_dir_all(&binding_dir).expect("Couldn't create binding directory");
+  if !binding_dir.exists() {
+    fs::create_dir_all(&binding_dir).expect("Couldn't create binding directory");
+  }
   let binding_path = binding_dir.join("voicevox_core.rs");
-  bindings
-    .write_to_file(binding_path)
-    .expect("Couldn't write bindings!");
+  // Do not regenerate bindings if they already exist
+  // while this makes the build faster, it also means that
+  // we need to delete the bindings if the header changes
+  // and it can't be done automatically
+  if !binding_path.exists() {
+    let bindings = bindgen::Builder::default()
+      .header(header.to_str().unwrap())
+      .generate()
+      .expect("Unable to generate bindings");
+    bindings
+      .write_to_file(binding_path)
+      .expect("Couldn't write bindings!");
+  }
   tauri_build::build()
 }

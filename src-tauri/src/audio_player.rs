@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use rodio::{OutputStream, Sink, Source};
 use std::error::Error;
 
@@ -48,29 +49,13 @@ impl Iterator for SampleSource {
 pub fn play_samples(samples: Vec<u8>) -> Result<(), Box<dyn Error>> {
     let (_stream, stream_handle) = OutputStream::try_default()?;
     let sink = Sink::try_new(&stream_handle)?;
-    
+
     let source = SampleSource {
         samples,
         position: 0,
     };
-    
+
     sink.append(source);
     sink.sleep_until_end();
-    
     Ok(())
-}
-
-// Optional: Add a non-blocking version
-// usage: play_samples_async(samples).unwrap().sleep_until_end();
-pub fn play_samples_async(samples: Vec<u8>) -> Result<Sink, Box<dyn Error>> {
-    let (_stream, stream_handle) = OutputStream::try_default()?;
-    let sink = Sink::try_new(&stream_handle)?;
-    
-    let source = SampleSource {
-        samples,
-        position: 0,
-    };
-    
-    sink.append(source);
-    Ok(sink)
 }

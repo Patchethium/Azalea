@@ -1,5 +1,6 @@
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
+use anyhow::Result;
 
 pub fn c_char_to_string(c_char_ptr: *const c_char) -> Option<String> {
   if c_char_ptr.is_null() {
@@ -14,6 +15,6 @@ pub fn c_char_to_string(c_char_ptr: *const c_char) -> Option<String> {
 }
 
 // the reverse function
-pub fn string_to_c_char(s: &str) -> *const c_char {
-  CString::new(s).unwrap().into_raw()
+pub fn string_to_c_char(s: &str) -> Result<*const c_char> {
+  Ok(CString::new(s)?.into_raw())
 }

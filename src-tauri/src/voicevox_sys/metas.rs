@@ -1,4 +1,4 @@
-//! copied from voicevox_core
+//! copied from voicevox_core/crates/voicevox_core/src/metas.rs
 #![allow(dead_code)]
 use std::fmt::{Debug, Display};
 
