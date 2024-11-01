@@ -32,7 +32,7 @@ fn decode(audio_query: AudioQuery, speaker_id: u32) -> std::result::Result<Vec<u
 /// play audio through Rust side
 /// for safety and to avoid using the webaudio apis, they're terrible
 #[tauri::command]
-fn play_audio(waveform: Vec<u8>) {
+async fn play_audio(waveform: Vec<u8>) {
   // send to a new thread to avoid blocking the main thread
   std::thread::spawn(move || {
     audio_player::play_samples(waveform).unwrap();
