@@ -1,13 +1,15 @@
 //! Copied from voicevox_core/crates/voicevox_core/src/engine/model.rs
 //! renamed into audio_query.rs
-//! and removed the tests
+//! removed the tests
+//! add typescript export with ts_rs
 #![allow(dead_code)]
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 /* 各フィールドのjsonフィールド名はsnake_caseとする*/
 
 /// モーラ（子音＋母音）ごとの情報。
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, TS)]
 pub struct Mora {
     /// 文字。
     pub text: String,
@@ -24,7 +26,7 @@ pub struct Mora {
 }
 
 /// AccentPhrase (アクセント句ごとの情報)。
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, TS)]
 pub struct AccentPhrase {
     /// モーラの配列。
     pub moras: Vec<Mora>,
@@ -48,7 +50,8 @@ impl AccentPhrase {
 }
 
 /// AudioQuery (音声合成用のクエリ)。
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize, TS)]
+#[ts(export)]
 pub struct AudioQuery {
     /// アクセント句の配列。
     pub accent_phrases: Vec<AccentPhrase>,
