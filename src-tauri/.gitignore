@@ -7,4 +7,4 @@
 /gen/schemas
 
 # The binding
-src/voicevox_sys/binding/
+src/voicevox_sys/binding/voicevox_core.rs

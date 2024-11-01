@@ -1,9 +1,19 @@
 pub mod voicevox_sys;
+mod audio_player;
+
+use voicevox_sys::VOICEVOX_CORE;
+use audio_player::play_samples;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
-fn greet(name: &str) -> String {
-  format!("Hello, {}! You've been greeted from Rust!", name)
+fn greet(name: &str) {
+  let waveform = VOICEVOX_CORE.tts(
+    name,
+    1,
+    None
+  ).unwrap();
+
+  play_samples(waveform).unwrap();
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

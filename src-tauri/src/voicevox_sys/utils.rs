@@ -1,4 +1,4 @@
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
 pub fn c_char_to_string(c_char_ptr: *const c_char) -> Option<String> {
@@ -11,4 +11,9 @@ pub fn c_char_to_string(c_char_ptr: *const c_char) -> Option<String> {
     // Step 2: Convert `CStr` to `&str` and then to `String`
     c_str.to_str().ok().map(|s| s.to_string())
   }
+}
+
+// the reverse function
+pub fn string_to_c_char(s: &str) -> *const c_char {
+  CString::new(s).unwrap().into_raw()
 }

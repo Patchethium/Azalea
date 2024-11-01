@@ -46,7 +46,7 @@ bun tauri build
 
 ## Contributing
 
-Please open an issue before making a PR :pleading_face:
+We welcome PRs, please open an issue before making a PR.
 
 I can read and write directly in Japanese and English, feel free to reach out to in any of these languages.
 

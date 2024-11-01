@@ -1,15 +1,20 @@
 #[cfg(test)]
 mod test {
-  use azalea_lib::voicevox_sys::wrapper::{self, Wrapper};
+  use azalea_lib::voicevox_sys::VOICEVOX_CORE;
 
   #[test]
   fn test_init_voicevox() {
-    let _ = Wrapper::new().unwrap();
+    let _ = VOICEVOX_CORE.get_metas();
   }
   #[test]
   fn test_metas() {
-    let wrapper = Wrapper::new().unwrap();
-    let metas = wrapper.get_metas().unwrap();
+    let metas = VOICEVOX_CORE.get_metas().unwrap();
     println!("{:?}", metas[0].styles[0].id);
+  }
+
+  #[test]
+  fn test_tts() {
+    let waveform = VOICEVOX_CORE.tts("こんにちは", 1, None).unwrap();
+    println!("{:?}", waveform);
   }
 }
