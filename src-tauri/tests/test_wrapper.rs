@@ -14,25 +14,49 @@ mod test {
 
   #[test]
   fn test_tts() {
-    let _ = VOICEVOX_CORE.write().unwrap().tts("こんにちは", 1, None).unwrap();
+    let _ = VOICEVOX_CORE
+      .read()
+      .unwrap()
+      .tts("こんにちは", 1, None)
+      .unwrap();
   }
 
   #[test]
   fn test_encode() {
-    let audio_query = VOICEVOX_CORE.write().unwrap().encode("こんにちは", 1, None).unwrap();
+    let audio_query = VOICEVOX_CORE
+      .read()
+      .unwrap()
+      .encode("こんにちは", 1, None)
+      .unwrap();
     println!("{:?}", to_string(&audio_query));
   }
 
   #[test]
   fn test_decode() {
-    let audio_query = VOICEVOX_CORE.write().unwrap().encode("こんにちは", 1, None).unwrap();
-    let _ = VOICEVOX_CORE.write().unwrap().decode(&audio_query, 1, None).unwrap();
+    let audio_query = VOICEVOX_CORE
+      .read()
+      .unwrap()
+      .encode("こんにちは", 1, None)
+      .unwrap();
+    let _ = VOICEVOX_CORE
+      .read()
+      .unwrap()
+      .decode(&audio_query, 1, None)
+      .unwrap();
   }
 
   #[test]
   fn test_play_audio() {
-    let audio_query = VOICEVOX_CORE.write().unwrap().encode("こんにちは", 1, None).unwrap();
-    let waveform = VOICEVOX_CORE.write().unwrap().decode(&audio_query, 1, None).unwrap();
+    let audio_query = VOICEVOX_CORE
+      .read()
+      .unwrap()
+      .encode("こんにちは", 1, None)
+      .unwrap();
+    let waveform = VOICEVOX_CORE
+      .read()
+      .unwrap()
+      .decode(&audio_query, 1, None)
+      .unwrap();
     use azalea_lib::audio_player::play_samples;
     play_samples(waveform).unwrap();
   }

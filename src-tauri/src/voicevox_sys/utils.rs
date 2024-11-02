@@ -1,5 +1,6 @@
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
+
 use anyhow::Result;
 
 pub fn c_char_to_string(c_char_ptr: *const c_char) -> Option<String> {

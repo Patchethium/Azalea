@@ -1,6 +1,6 @@
 //! TODO: there's no reason we pass the audio to frontend, we can keep it in the buffer and avoid the IPC overhead
-pub mod voicevox_sys;
 pub mod audio_player;
+pub mod voicevox_sys;
 
 use voicevox_sys::{audio_query::AudioQuery, metas::VoiceModelMeta, VOICEVOX_CORE};
 
@@ -14,7 +14,11 @@ fn get_metas() -> VoiceModelMeta {
 /// encode text to audio query
 #[tauri::command]
 fn encode(text: &str, speaker_id: u32) -> std::result::Result<AudioQuery, String> {
-  match VOICEVOX_CORE.write().unwrap().encode(text, speaker_id, None) {
+  match VOICEVOX_CORE
+    .read()
+    .unwrap()
+    .encode(text, speaker_id, None)
+  {
     Ok(audio_query) => Ok(audio_query),
     Err(e) => Err(e.to_string()),
   }
@@ -22,11 +26,14 @@ fn encode(text: &str, speaker_id: u32) -> std::result::Result<AudioQuery, String
 
 /// decode audio query to waveform
 #[tauri::command]
-fn decode(audio_query: AudioQuery, speaker_id: u32) -> std::result::Result<Vec<u8>, String> {
-  match VOICEVOX_CORE.write().unwrap().decode(&audio_query, speaker_id, None) {
-    Ok(waveform) => Ok(waveform),
-    Err(e) => Err(e.to_string()),
-  }
+async fn decode(audio_query: AudioQuery, speaker_id: u32) -> Vec<u8> {
+  let waveform = VOICEVOX_CORE
+    .read()
+    .unwrap()
+    .decode(&audio_query, speaker_id, None)
+    .unwrap();
+  play_audio(waveform.clone()).await;
+  waveform
 }
 
 /// play audio through Rust side
@@ -34,16 +41,16 @@ fn decode(audio_query: AudioQuery, speaker_id: u32) -> std::result::Result<Vec<u
 #[tauri::command]
 async fn play_audio(waveform: Vec<u8>) {
   // send to a new thread to avoid blocking the main thread
-  std::thread::spawn(move || {
-    audio_player::play_samples(waveform).unwrap();
-  });
+  audio_player::play_samples(waveform).unwrap();
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
     .plugin(tauri_plugin_shell::init())
-    .invoke_handler(tauri::generate_handler![get_metas, encode, decode, play_audio])
+    .invoke_handler(tauri::generate_handler![
+      get_metas, encode, decode, play_audio
+    ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }

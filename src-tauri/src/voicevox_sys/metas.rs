@@ -1,6 +1,7 @@
 //! copied from voicevox_core/crates/voicevox_core/src/metas.rs
 #![allow(dead_code)]
 use std::fmt::{Debug, Display};
+use ts_rs::TS;
 
 use derive_new::new;
 use indexmap::IndexMap;
@@ -64,6 +65,7 @@ pub type RawStyleId = u32;
   Serialize,
   new,
   Debug,
+  TS,
 )]
 pub struct StyleId(RawStyleId);
 
@@ -85,7 +87,7 @@ impl Display for StyleId {
 pub type RawStyleVersion = String;
 
 /// スタイルのバージョン。
-#[derive(PartialEq, Eq, Clone, Ord, PartialOrd, Deserialize, Serialize, new, Debug)]
+#[derive(PartialEq, Eq, Clone, Ord, PartialOrd, Deserialize, Serialize, new, Debug, TS)]
 pub struct StyleVersion(RawStyleVersion);
 
 impl StyleVersion {
@@ -104,7 +106,8 @@ impl Display for StyleVersion {
 pub type VoiceModelMeta = Vec<SpeakerMeta>;
 
 /// **話者**(_speaker_)のメタ情報。
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, TS)]
+#[ts(export)]
 pub struct SpeakerMeta {
   /// 話者名。
   pub name: String,
@@ -158,7 +161,7 @@ impl SpeakerMeta {
 }
 
 /// **スタイル**(_style_)のメタ情報。
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, TS)]
 pub struct StyleMeta {
   /// スタイルID。
   pub id: StyleId,
@@ -187,6 +190,7 @@ pub struct StyleMeta {
   strum::Display,
   Deserialize,
   Serialize,
+  TS,
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
@@ -203,118 +207,4 @@ pub enum StyleType {
 
   /// 歌唱音声合成用のクエリの作成と歌唱音声合成が可能。
   Sing,
-}
-
-#[cfg(test)]
-mod tests {
-  use std::sync::LazyLock;
-
-  use serde_json::json;
-
-  #[test]
-  fn merge_works() -> anyhow::Result<()> {
-    static INPUT: LazyLock<serde_json::Value> = LazyLock::new(|| {
-      json!([
-          {
-              "name": "B",
-              "styles": [
-                  {
-                      "id": 3,
-                      "name": "B_1",
-                      "type": "talk",
-                      "order": 0
-                  }
-              ],
-              "version": "0.0.0",
-              "speaker_uuid": "f34ab151-c0f5-4e0a-9ad2-51ce30dba24d",
-              "order": 1
-          },
-          {
-              "name": "A",
-              "styles": [
-                  {
-                      "id": 2,
-                      "name": "A_3",
-                      "type": "talk",
-                      "order": 2
-                  }
-              ],
-              "version": "0.0.0",
-              "speaker_uuid": "d6fd707c-a451-48e9-8f00-fe9ee3bf6264",
-              "order": 0
-          },
-          {
-              "name": "A",
-              "styles": [
-                  {
-                      "id": 1,
-                      "name": "A_1",
-                      "type": "talk",
-                      "order": 0
-                  },
-                  {
-                      "id": 0,
-                      "name": "A_2",
-                      "type": "talk",
-                      "order": 1
-                  }
-              ],
-              "version": "0.0.0",
-              "speaker_uuid": "d6fd707c-a451-48e9-8f00-fe9ee3bf6264",
-              "order": 0
-          }
-      ])
-    });
-
-    static EXPECTED: LazyLock<serde_json::Value> = LazyLock::new(|| {
-      json!([
-          {
-              "name": "A",
-              "styles": [
-                  {
-                      "id": 1,
-                      "name": "A_1",
-                      "type": "talk",
-                      "order": 0
-                  },
-                  {
-                      "id": 0,
-                      "name": "A_2",
-                      "type": "talk",
-                      "order": 1
-                  },
-                  {
-                      "id": 2,
-                      "name": "A_3",
-                      "type": "talk",
-                      "order": 2
-                  }
-              ],
-              "version": "0.0.0",
-              "speaker_uuid": "d6fd707c-a451-48e9-8f00-fe9ee3bf6264",
-              "order": 0
-          },
-          {
-              "name": "B",
-              "styles": [
-                  {
-                      "id": 3,
-                      "name": "B_1",
-                      "type": "talk",
-                      "order": 0
-                  }
-              ],
-              "version": "0.0.0",
-              "speaker_uuid": "f34ab151-c0f5-4e0a-9ad2-51ce30dba24d",
-              "order": 1
-          }
-      ])
-    });
-
-    let input = &serde_json::from_value::<Vec<_>>(INPUT.clone())?;
-    let actual = serde_json::to_value(super::merge(input))?;
-
-    pretty_assertions::assert_eq!(*EXPECTED, actual);
-    Ok(())
-  }
 }

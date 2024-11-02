@@ -6,18 +6,18 @@
 //! And they (yet) don't provide a Rust API, or I'm to dumb to find how to use it.
 #![allow(non_upper_case_globals)]
 use std::ffi::c_char;
-use std::num::NonZeroUsize;
+use std::path::PathBuf;
 use std::ptr;
 use std::sync::{LazyLock, RwLock};
 
-use super::binding::*;
 use super::audio_query::AudioQuery;
+use super::binding::*;
 use super::metas::VoiceModelMeta;
-use super::utils::{string_to_c_char, c_char_to_string};
+use super::utils::{c_char_to_string, string_to_c_char};
 
 use anyhow::{Error, Result};
 use serde_json::{from_str, to_string};
-
+use walkdir::WalkDir;
 
 /// Error type for Voicevox Core
 #[derive(Debug, thiserror::Error)]
@@ -32,74 +32,60 @@ impl From<VoicevoxResultCode> for VoicevoxError {
   }
 }
 
-pub static VOICEVOX_CORE: LazyLock<RwLock<Wrapper>> = LazyLock::new(|| RwLock::new(Wrapper::new(None).unwrap()));
+pub static VOICEVOX_CORE: LazyLock<RwLock<Wrapper>> =
+  LazyLock::new(|| RwLock::new(Wrapper::new(None).unwrap()));
 
 #[allow(dead_code)]
 pub struct Wrapper {
   pub metas: VoiceModelMeta,
-  pub query_cache: Option<lru::LruCache<String, AudioQuery>>,
-  pub wav_cache: Option<lru::LruCache<String, Vec<u8>>>,
 }
 
-pub struct WrapperInitializeOptions {
-  pub voicevox_initialize_options: VoicevoxInitializeOptions,
-  pub cache_size: usize,
-}
-
-impl From<VoicevoxInitializeOptions> for WrapperInitializeOptions {
-  fn from(options: VoicevoxInitializeOptions) -> Self {
-    Self {
-      voicevox_initialize_options: options,
-      cache_size: 1024,
+fn search_openjtalk(search_dir: &PathBuf) -> Option<PathBuf> {
+  for entry in WalkDir::new(search_dir) {
+    if let Ok(entry) = entry {
+      if entry.file_name() == "matrix.bin" {
+        return entry.path().parent().map(|p| p.to_path_buf());
+      }
     }
   }
-}
-
-impl Into<VoicevoxInitializeOptions> for WrapperInitializeOptions {
-  fn into(self) -> VoicevoxInitializeOptions {
-    self.voicevox_initialize_options
-  }
+  None
 }
 
 impl Wrapper {
   /// We don't expose the new function to outside
   /// so we can keep it a singleton
-  fn new(
-    option: Option<WrapperInitializeOptions>,
-  ) -> Result<Self> {
+  fn new(option: Option<VoicevoxInitializeOptions>) -> Result<Self> {
     // set up default openjtalk dict dir
-    let default_dir = std::path::Path::new(&std::env::var("VOICEVOX_CORE_DIR")?)
-      .join("openjtalk");
-    let default_dir = default_dir.to_string_lossy();
-
-    // set up caches
-    let mut wav_cache = None;
-    let mut query_cache = None;
-    if let Some(option) = &option {
-      query_cache = match option.cache_size {
-        0 => None,
-        size => Some(lru::LruCache::new(NonZeroUsize::new(size).unwrap())),
-      };
-      wav_cache = match option.cache_size {
-        0 => None,
-        size => Some(lru::LruCache::new(NonZeroUsize::new(size).unwrap())),
-      };
-    }
+    let core_dir = PathBuf::from(std::env::var("VOICEVOX_CORE_DIR")?);
+    let default_dir = core_dir.join("open_jtalk");
     // initialize voicevox
     unsafe {
+      // handle the openjtalk dict dir
       let option = option.unwrap_or_else(|| {
         let mut option = voicevox_make_default_initialize_options();
-        if let Ok(dir) = string_to_c_char(&default_dir) {
-          option.open_jtalk_dict_dir = dir;
+        // use the set env var if it exists
+        if let Ok(dir) = std::env::var("OPENJTALK_DIR") {
+          if let Ok(dir) = string_to_c_char(&dir) {
+            option.open_jtalk_dict_dir = dir;
+          }
+        } else if let Some(dir) = search_openjtalk(&core_dir) {
+          // search for openjtalk dict dir, use the found dir if it exists
+          if let Ok(dir) = string_to_c_char(&dir.to_string_lossy()) {
+            option.open_jtalk_dict_dir = dir;
+          }
+        } else {
+          // try anyway with the default dir
+          option.open_jtalk_dict_dir = string_to_c_char(&default_dir.to_string_lossy()).unwrap();
         }
-        WrapperInitializeOptions::from(option)
+        option
       });
-      match voicevox_initialize(option.into()) {
-        VoicevoxResultCode_VOICEVOX_RESULT_OK => {}
+      match voicevox_initialize(option) {
+        VoicevoxResultCode_VOICEVOX_RESULT_OK => {
+          let metas = Self::load_metas()?;
+          Ok(Self { metas })
+        }
         code => return Err(VoicevoxError::from(code).into()),
       }
-      let metas = Self::load_metas()?;
-      Ok(Self { metas, wav_cache, query_cache })
     }
   }
 
@@ -141,7 +127,7 @@ impl Wrapper {
   /// production purpose
   /// I call it encode accroding to the manner of AI papers which makes no sense at all.
   pub fn encode(
-    &mut self,
+    &self,
     text: &str,
     speaker_id: u32,
     options: Option<VoicevoxAudioQueryOptions>,
@@ -174,7 +160,7 @@ impl Wrapper {
   /// production purpose
   /// I call it decode for the same reason
   pub fn decode(
-    &mut self,
+    &self,
     audio_query: &AudioQuery,
     speaker_id: u32,
     options: Option<VoicevoxSynthesisOptions>,
@@ -214,7 +200,7 @@ impl Wrapper {
   /// all-in-one function for generating waveform, no middle steps
   /// test purpose only
   pub fn tts(
-    &mut self,
+    &self,
     text: &str,
     speaker_id: u32,
     options: Option<VoicevoxTtsOptions>,

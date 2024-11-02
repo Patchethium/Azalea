@@ -8,3 +8,5 @@
 
 # The binding
 src/voicevox_sys/binding/voicevox_core.rs
+# The TypeScript bindings
+bindings/
