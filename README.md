@@ -38,7 +38,6 @@ your_dir/
 Then set the `VOICEVOX_CORE_DIR` environment variable to the path of the core directory.
 
 ```sh
-
 export VOICEVOX_CORE_DIR=/path/to/your_dir/voicevox_core_*/
 ```
 
