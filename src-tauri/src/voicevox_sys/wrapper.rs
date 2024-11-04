@@ -124,7 +124,6 @@ impl Wrapper {
   }
 
   /// text -> audio query
-  /// production purpose
   /// I call it encode accroding to the manner of AI papers which makes no sense at all.
   pub fn encode(
     &self,
@@ -157,7 +156,6 @@ impl Wrapper {
   }
 
   /// audio query -> waveform
-  /// production purpose
   /// I call it decode for the same reason
   pub fn decode(
     &self,
@@ -197,7 +195,7 @@ impl Wrapper {
     }
   }
 
-  /// all-in-one function for generating waveform, no middle steps
+  /// all-in-one function for generating waveform, no middle steps,
   /// test purpose only
   pub fn tts(
     &self,

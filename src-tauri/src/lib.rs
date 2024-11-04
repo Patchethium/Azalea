@@ -1,8 +1,9 @@
 //! TODO: there's no reason we pass the audio to frontend, we can keep it in the buffer and avoid the IPC overhead
-pub mod audio_player;
+pub mod audio;
 pub mod voicevox_sys;
 
 use voicevox_sys::{audio_query::AudioQuery, metas::VoiceModelMeta, VOICEVOX_CORE};
+use audio::player;
 
 /// get metas from voicevox core
 #[tauri::command]
@@ -13,35 +14,37 @@ fn get_metas() -> VoiceModelMeta {
 
 /// encode text to audio query
 #[tauri::command]
-fn encode(text: &str, speaker_id: u32) -> std::result::Result<AudioQuery, String> {
+async fn encode(text: &str, speaker_id: u32) -> std::result::Result<AudioQuery, String> {
   match VOICEVOX_CORE
     .read()
     .unwrap()
     .encode(text, speaker_id, None)
   {
     Ok(audio_query) => Ok(audio_query),
-    Err(e) => Err(e.to_string()),
+    Err(e) => Err(format!("Error encoding phonemes: {:?}", e.to_string())),
   }
 }
 
 /// decode audio query to waveform
 #[tauri::command]
-async fn decode(audio_query: AudioQuery, speaker_id: u32) -> Vec<u8> {
+async fn decode(audio_query: AudioQuery, speaker_id: u32) -> std::result::Result<Vec<u8>, String> {
   let waveform = VOICEVOX_CORE
     .read()
     .unwrap()
     .decode(&audio_query, speaker_id, None)
     .unwrap();
-  play_audio(waveform.clone()).await;
-  waveform
+  play_audio(waveform.clone()).await?;
+  Ok(waveform)
 }
 
-/// play audio through Rust side
-/// for safety and to avoid using the webaudio apis, they're terrible
 #[tauri::command]
-async fn play_audio(waveform: Vec<u8>) {
+/// play audio through Rust side
+async fn play_audio(waveform: Vec<u8>) -> std::result::Result<(), String> {
   // send to a new thread to avoid blocking the main thread
-  audio_player::play_samples(waveform).unwrap();
+  match player::play_samples(waveform) {
+    Ok(_) => Ok(()),
+    Err(e) => Err(format!("Error playing audio: {:?}", e.to_string()))
+  }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

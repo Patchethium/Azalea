@@ -1,6 +1,6 @@
 # Azalea
 
-`Azalea` is a simple and (relatively) lightweight unofficial GUI for VOICEVOX. [I](https://github.com/Patchethium) aim to provide a simple and easy-to-use interface for VOICEVOX, with my own personal touch.
+`Azalea`(アザレア) is a simple and (relatively) lightweight unofficial GUI for VOICEVOX. [I](https://github.com/Patchethium) aim to provide a simple and easy-to-use interface for VOICEVOX, with my own personal touch.
 
 I also put Developer Experience as a priority, by making the codebase as clean and readable as possible and providing a simple structure.
 
@@ -69,9 +69,9 @@ git clone https://github.com/Patchethium/Azalea.git
 cd Azalea
 
 bun i
-
+# it takes a few minutes to compile the first time, half a minute or so after that
 bun tauri dev
-
+# this is even slower, 10 minutes or so
 bun tauri build
 ```
 

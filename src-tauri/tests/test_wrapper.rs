@@ -1,7 +1,9 @@
 #[cfg(test)]
 mod test {
-  use azalea_lib::voicevox_sys::VOICEVOX_CORE;
   use serde_json::to_string;
+  use azalea_lib::voicevox_sys::VOICEVOX_CORE;
+  use azalea_lib::audio::player::play_samples;
+
   #[test]
   fn test_init_voicevox() {
     let _ = VOICEVOX_CORE.read().unwrap().metas;
@@ -57,7 +59,6 @@ mod test {
       .unwrap()
       .decode(&audio_query, 1, None)
       .unwrap();
-    use azalea_lib::audio_player::play_samples;
     play_samples(waveform).unwrap();
   }
 }
