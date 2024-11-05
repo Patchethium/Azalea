@@ -6,6 +6,12 @@ I also put Developer Experience as a priority, by making the codebase as clean a
 
 :construction: **This project is still in development and is not ready for use.** :construction:
 
+## Installation
+
+Download from the releases page and execute the installer.
+
+Only Linux amd64 binaries are bundled for now, but you can build it yourself for other platforms.
+
 ## Development
 
 ### Prerequisites
@@ -22,8 +28,8 @@ By default Azalea downloads the core from official VOICEVOX servers, but you can
 You can refer to the [official VOICEVOX documentation](https://github.com/VOICEVOX/voicevox_core?tab=readme-ov-file#%E7%92%B0%E5%A2%83%E6%A7%8B%E7%AF%89) (Japanese), you just need to download their script and execute it.
 #### Manually downloading the core
 
- - Download the core from the [official VOICEVOX releases](https://github.com/VOICEVOX/voicevox_core/releases) and extract it to a directory.
- - Download the OpenJTalk dictionary from the [official OpenJTalk releases](https://jaist.dl.sourceforge.net/project/open-jtalk/Dictionary/open_jtalk_dic-1.11/open_jtalk_dic_utf_8-1.11.tar.gz) and extract it to the same directory.
+ - Download the core from the [VOICEVOX releases](https://github.com/VOICEVOX/voicevox_core/releases) and extract it to a directory.
+ - Download the OpenJTalk dictionary from the [OpenJTalk releases](https://jaist.dl.sourceforge.net/project/open-jtalk/Dictionary/open_jtalk_dic-1.11/open_jtalk_dic_utf_8-1.11.tar.gz) and extract it to the same directory.
 
 The directory should look like this:
 
@@ -83,6 +89,9 @@ bun i
 bun tauri dev
 # this is even slower, 10 minutes or so
 bun tauri build
+# You may also want to clean the artifacts after building, it's 10 GB or so
+cd src-tauri
+cargo clean
 ```
 
 ## Contributing
@@ -93,7 +102,7 @@ I can read and write directly in Japanese and English, feel free to reach out to
 
 ## License
 
-GPLv2 or later.
+GPLv3 or later. See [LICENSE](LICENSE) for more information.
 
 ## Credits
 
