@@ -5,8 +5,6 @@ mod test {
   use serde_json::to_string;
   use std::sync::{LazyLock, Mutex};
 
-  const CORE_PATH: &str = "libvoicevox_core.so";
-
   /// A lock to make the core thread-safe.
   /// TODO: Build the core with thread-safety.
   static SEMAPHORE: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
@@ -14,7 +12,7 @@ mod test {
   fn get_core() -> DynWrapper {
     let path = std::env::var("VOICEVOX_CORE_DIR").unwrap();
     let path = std::path::PathBuf::from(&path);
-    let core_path = path.join(CORE_PATH).to_string_lossy().to_string();
+    let core_path = path.to_string_lossy().to_string();
     if let Ok(ojt_path) = std::env::var("OPENJTALK_DIR") {
       // if it's set, use the openjtalk path
       DynWrapper::new(&core_path, Some(&ojt_path)).unwrap()
