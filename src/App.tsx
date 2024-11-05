@@ -1,4 +1,9 @@
-import { createSignal, onMount } from "solid-js";
+import {
+  createEffect,
+  createResource,
+  createSignal,
+  onMount,
+} from "solid-js";
 import { AudioQuery } from "./binding/AudioQuery";
 import { invoke } from "@tauri-apps/api/core";
 import { Select } from "@kobalte/core/select";
@@ -8,29 +13,53 @@ import { StyleMeta } from "./binding/StyleMeta";
 import { StyleId } from "./binding/StyleId";
 import { TextField } from "@kobalte/core/text-field";
 
+
 function App() {
+  const [core_path, setCorePath] = createSignal<string>(
+    import.meta.env.VOICEVOX_CORE_PATH ?? ""
+  );
   const [text, setText] = createSignal("こんにちは、ボイスボックス。");
   const [metas, setMetas] = createSignal<SpeakerMeta[]>([]);
-  const [audio_query, setAudioQuery] = createSignal<AudioQuery>();
+  const [audio_query, setAudioQuery] = createSignal<AudioQuery | null>(null);
   const [audio_data, setAudioData] = createSignal<Uint8Array>();
-  const [selected_style_id, setSelectedStyleId] = createSignal<StyleId>();
+  const [selected_style_id, setSelectedStyleId] = createSignal<StyleId | null>(
+    null
+  );
 
-  const query = (text: string, style_id: StyleId) => {
+  const combined = () => ({
+    text: text(),
+    style_id: selected_style_id(),
+  });
+
+  const query = async (props: {
+    text: string;
+    style_id: StyleId | null;
+  }): Promise<AudioQuery | null> => {
     // do nothing if text or style_id is undefined
-    if (text.length === 0 || selected_style_id() === undefined) {
-      return;
+    if (props.text === undefined || props.style_id === null) {
+      return null;
     }
-    invoke("encode", { text, speakerId: style_id }).then((query) => {
-      setAudioQuery(query as AudioQuery);
-    });
+    try {
+      return invoke<AudioQuery>("audio_query", {
+        text: props.text,
+        speakerId: props.style_id,
+      });
+    } catch (e) {
+      console.log(e);
+      return null;
+    }
   };
+
+  const [query_resource] = createResource(combined, query, {
+    initialValue: null,
+  });
 
   const speak = (query: AudioQuery, style_id: StyleId) => {
     // do nothing if audio_query or style_id is undefined
     if (audio_query() === undefined || selected_style_id() === undefined) {
       return;
     }
-    invoke("decode", { audioQuery: query, speakerId: style_id }).then(
+    invoke("synthesis", { audioQuery: query, speakerId: style_id }).then(
       (data) => {
         setAudioData(data as Uint8Array);
         // invoke("play_audio", { waveform: data });
@@ -38,45 +67,74 @@ function App() {
     );
   };
 
-  onMount(() => {
-    invoke("get_metas").then((metas) => {
-      let metas_sanity = metas as SpeakerMeta[];
-      metas_sanity.forEach((m) => {
-        m.styles = m.styles.filter((s) => s.type === "talk");
+  const load_core = async (path: string) => {
+    try {
+      await invoke("load_core", { path: path });
+    } catch (e) {
+      console.log(e);
+    }
+  };
+
+  onMount(async () => {
+    setCorePath(await invoke("get_core_path"));
+    if (core_path() !== "") {
+      await load_core(core_path());
+      invoke("get_metas").then((metas) => {
+        let metas_sanity = metas as SpeakerMeta[];
+        metas_sanity.forEach((m) => {
+          m.styles = m.styles.filter((s) => s.type === "talk");
+        });
+        setMetas(metas_sanity);
       });
-      setMetas(metas_sanity);
-    });
+    }
+  });
+
+  createEffect(() => {
+    setAudioQuery(query_resource());
   });
 
   return (
     <main class="h-full w-full absolute left-0 right-0 flex flex-col p3">
       <div class="font-bold">VOICEVOX Tauri Demo</div>
-      <div class="flex flex-row gap-3 p3 items-center">
-        <TextField>
-          <TextField.Input
-            class="h-8 w-128 p-2 rounded-md border-1 border-gray focus:ring-blue-5 focus:ring-1 focus:border-white"
-            value={text()}
-            placeholder="Enter text here"
-            onInput={(e) => setText((e.target as HTMLInputElement).value)}
-          />
-        </TextField>
-        <Button
-          onClick={() => {}}
-          class="w-auto bg-blue-5 p-2 color-white rounded-md hover:bg-blue-6 active:bg-blue-7 disabled:bg-gray-3 disabled:color-gray-5 disabled:hover:cursor-not-allowed"
-          disabled={text().length === 0}
-          onclick={() => query(text(), selected_style_id() ?? 0)}
-        >
-          Query
-        </Button>
-        <Button
-          onClick={() => {}}
-          class="w-auto bg-blue-5 p-2 color-white rounded-md hover:bg-blue-6 active:bg-blue-7 disabled:bg-gray-3 disabled:color-gray-5 disabled:hover:cursor-not-allowed"
-          disabled={audio_query() === undefined}
-          onclick={() => speak(audio_query()!, selected_style_id() ?? 0)}
-        >
-          Speak
-        </Button>
+      <div>
+        <div class="flex flex-row gap-3 p3 items-center">
+          <TextField>
+            <TextField.Input
+              class="h-8 w-128 p-2 rounded-md border-1 border-gray focus:ring-blue-5 focus:ring-1 focus:border-white"
+              value={text()}
+              placeholder="Enter text here"
+              onInput={(e) => setText((e.target as HTMLInputElement).value)}
+            />
+          </TextField>
+          <Button
+            onClick={() => {}}
+            class="w-auto bg-blue-5 p-2 color-white rounded-md hover:bg-blue-6 active:bg-blue-7 disabled:bg-gray-3 disabled:color-gray-5 disabled:hover:cursor-not-allowed"
+            disabled={audio_query() === undefined || query_resource.loading}
+            onclick={() => speak(audio_query()!, selected_style_id() ?? 0)}
+          >
+            {query_resource.loading ? "Querying..." : "Speak"}
+          </Button>
+        </div>
+        <div class="flex flex-row gap-3 p3 items-center">
+          <TextField>
+            <TextField.Input
+              class="h-8 w-128 p-2 rounded-md border-1 border-gray focus:ring-blue-5 focus:ring-1 focus:border-white"
+              value={core_path()}
+              placeholder="Enter path here"
+              onInput={(e) => setCorePath((e.target as HTMLInputElement).value)}
+            />
+          </TextField>
+          <Button
+            onClick={() => {}}
+            class="w-auto bg-blue-5 p-2 color-white rounded-md hover:bg-blue-6 active:bg-blue-7 disabled:bg-gray-3 disabled:color-gray-5 disabled:hover:cursor-not-allowed"
+            disabled={core_path() === ""}
+            onclick={() => load_core(core_path())}
+          >
+            Load
+          </Button>
+        </div>
       </div>
+
       <div>
         Selected Speaker:
         {metas().find(
@@ -101,7 +159,7 @@ function App() {
             {props.section.rawValue.name}
           </Select.Section>
         )}
-        onChange={(value) => setSelectedStyleId(value?.id)}
+        onChange={(value) => setSelectedStyleId(value?.id ?? 0)}
       >
         <Select.Trigger
           aria-label="Style"

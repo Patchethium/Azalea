@@ -16,10 +16,10 @@ I also put Developer Experience as a priority, by making the codebase as clean a
 
 By default Azalea downloads the core from official VOICEVOX servers, but you can also use your own core by setting the `VOICEVOX_CORE` environment variable.
 
+### Setting up the core
 #### Using the official downloader
 
-Refer to the [official VOICEVOX documentation](https://github.com/VOICEVOX/voicevox_core?tab=readme-ov-file#%E7%92%B0%E5%A2%83%E6%A7%8B%E7%AF%89) [Japanese].
-
+You can refer to the [official VOICEVOX documentation](https://github.com/VOICEVOX/voicevox_core?tab=readme-ov-file#%E7%92%B0%E5%A2%83%E6%A7%8B%E7%AF%89) (Japanese), you just need to download their script and execute it.
 #### Manually downloading the core
 
  - Download the core from the [official VOICEVOX releases](https://github.com/VOICEVOX/voicevox_core/releases) and extract it to a directory.
@@ -30,15 +30,25 @@ The directory should look like this:
 ```
 your_dir/
 - voicevox_core_*
-    - open_jtalk_dic_utf_8-1.11/
+    - libvoicevox_core.so
+    - libonnxruntime.so
+    - ...
+    - open_jtalk_dic_utf_8/
         - *.def
         - ...
 ```
 
-Then set the `VOICEVOX_CORE_DIR` environment variable to the path of the core directory.
+If the `.so` files are not there, you may be on MacOS(`dylib`) or Windows(`dll`). As long as the extension name matches your platform, it should be fine.
+
+### Setting the environment variables
+
+> [!NOTE]
+> The environment variables are only needed in development. In production, users set the core directory in the GUI.
+
+You need to set the `VOICEVOX_CORE_DIR` environment variable to the path of the core directory.
 
 ```sh
-export VOICEVOX_CORE_DIR=/path/to/your_dir/voicevox_core_*/
+export VOICEVOX_CORE_DIR=/path/to/your_dir/voicevox_core/
 ```
 
 #### Using VOICEVOX
@@ -49,7 +59,7 @@ If you have VOICEVOX installed, you can use the existing instance. The core shou
 export VOICEVOX_CORE_DIR=/path/to/VOICEVOX/vv-engine/
 ```
 
-or add them into your shell profile so that you don't have to set them every time. The path should be **absolute**.
+or add them into your shell profile so that you don't have to set them every time. The path should be **absolute**. You can use `(pwd -P)` to get the current directory.
 
 ```sh
 # bash
@@ -60,7 +70,7 @@ echo "export VOICEVOX_CORE_DIR=/path/to/core" >> ~/.zshrc
 echo "set -x VOICEVOX_CORE_DIR /path/to/core" >> ~/.config/fish/config.fish
 ```
 
-As the VOICEVOX core also needs OpenJTalk's dictionary, the crate will search for it under the `VOICEVOX_CORE_DIR`. You can also set the `OPENJTALK_DIR` environment variable to override the default path, just the same as `VOICEVOX_CORE_DIR`.
+As the VOICEVOX core also needs OpenJTalk's dictionary, the crate will search for it under the `VOICEVOX_CORE_DIR`. You can also manually set the `OPENJTALK_DIR` environment variable, just the same as `VOICEVOX_CORE_DIR`.
 
 ### Setup
 

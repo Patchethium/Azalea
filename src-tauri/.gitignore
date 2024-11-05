@@ -6,7 +6,5 @@
 # will have schema files for capabilities auto-completion
 /gen/schemas
 
-# The binding
-src/voicevox_sys/binding/voicevox_core.rs
-# The TypeScript bindings
+# The TypeScript bindings generated from rust
 bindings/

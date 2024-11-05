@@ -8,7 +8,6 @@
 use std::ffi::c_char;
 use std::path::PathBuf;
 use std::ptr;
-use std::sync::{LazyLock, RwLock};
 
 use super::audio_query::AudioQuery;
 use super::binding::*;
@@ -18,6 +17,13 @@ use super::utils::{c_char_to_string, string_to_c_char};
 use anyhow::{Error, Result};
 use serde_json::{from_str, to_string};
 use walkdir::WalkDir;
+
+#[cfg(target_os = "linux")]
+const VOICEVOX_LIB_NAME: &str = "libvoicevox_core.so";
+#[cfg(target_os = "macos")]
+const VOICEVOX_LIB_NAME: &str = "libvoicevox_core.dylib";
+#[cfg(target_os = "windows")]
+const VOICEVOX_LIB_NAME: &str = "voicevox_core.dll";
 
 /// Error type for Voicevox Core
 #[derive(Debug, thiserror::Error)]
@@ -32,75 +38,76 @@ impl From<VoicevoxResultCode> for VoicevoxError {
   }
 }
 
-pub static VOICEVOX_CORE: LazyLock<RwLock<Wrapper>> =
-  LazyLock::new(|| RwLock::new(Wrapper::new(None).unwrap()));
-
-#[allow(dead_code)]
-pub struct Wrapper {
-  pub metas: VoiceModelMeta,
-}
-
-fn search_openjtalk(search_dir: &PathBuf) -> Option<PathBuf> {
+fn search_openjtalk(search_dir: &str) -> Option<String> {
+  let search_dir = PathBuf::from(search_dir);
+  let search_dir = search_dir.parent()?;
   for entry in WalkDir::new(search_dir) {
     if let Ok(entry) = entry {
       if entry.file_name() == "matrix.bin" {
-        return entry.path().parent().map(|p| p.to_path_buf());
+        return Some(
+          entry
+            .path()
+            .parent()
+            .map(|p| p.to_path_buf())?
+            .to_string_lossy()
+            .into(),
+        );
       }
     }
   }
   None
 }
 
-impl Wrapper {
-  /// We don't expose the new function to outside
-  /// so we can keep it a singleton
-  fn new(option: Option<VoicevoxInitializeOptions>) -> Result<Self> {
-    // set up default openjtalk dict dir
-    let core_dir = PathBuf::from(std::env::var("VOICEVOX_CORE_DIR")?);
-    let default_dir = core_dir.join("open_jtalk");
-    // initialize voicevox
+pub struct DynWrapper {
+  core: VoicevoxCore,
+  pub metas: VoiceModelMeta,
+}
+
+impl DynWrapper {
+  pub fn new(path: &str, openjtalk_path: Option<&str>) -> Result<Self> {
+    let lib_path = PathBuf::from(path).join(VOICEVOX_LIB_NAME);
+    let core = unsafe { VoicevoxCore::new(lib_path)? };
+    // init
+    let mut option = unsafe { core.voicevox_make_default_initialize_options() };
+    if let Some(openjtalk_path) = openjtalk_path {
+      option.open_jtalk_dict_dir = string_to_c_char(openjtalk_path)?;
+    } else {
+      if let Some(p) = search_openjtalk(path) {
+        option.open_jtalk_dict_dir = string_to_c_char(&p)?;
+      } else {
+        return Err(Error::msg(
+          "OpenJTalk dict dir not found, specify it manually or put it under the core dir",
+        ));
+      }
+    }
     unsafe {
-      // handle the openjtalk dict dir
-      let option = option.unwrap_or_else(|| {
-        let mut option = voicevox_make_default_initialize_options();
-        // use the set env var if it exists
-        if let Ok(dir) = std::env::var("OPENJTALK_DIR") {
-          if let Ok(dir) = string_to_c_char(&dir) {
-            option.open_jtalk_dict_dir = dir;
-          }
-        } else if let Some(dir) = search_openjtalk(&core_dir) {
-          // search for openjtalk dict dir, use the found dir if it exists
-          if let Ok(dir) = string_to_c_char(&dir.to_string_lossy()) {
-            option.open_jtalk_dict_dir = dir;
-          }
-        } else {
-          // try anyway with the default dir
-          option.open_jtalk_dict_dir = string_to_c_char(&default_dir.to_string_lossy()).unwrap();
-        }
-        option
-      });
-      match voicevox_initialize(option) {
-        VoicevoxResultCode_VOICEVOX_RESULT_OK => {
-          let metas = Self::load_metas()?;
-          Ok(Self { metas })
-        }
+      match core.voicevox_initialize(option) {
+        VoicevoxResultCode_VOICEVOX_RESULT_OK => {}
         code => return Err(VoicevoxError::from(code).into()),
       }
     }
+    let metas = unsafe {
+      let meta_str = core.voicevox_get_metas_json();
+      serde_json::from_str::<VoiceModelMeta>(
+        &c_char_to_string(meta_str).ok_or(Error::msg("Empty meta json string"))?,
+      )?
+    };
+    Ok(Self { core, metas })
   }
 
-  fn load_metas() -> Result<VoiceModelMeta> {
+  pub fn load_metas(&self) -> Result<VoiceModelMeta> {
     unsafe {
-      let meta_str = voicevox_get_metas_json();
-      Ok(serde_json::from_str(
+      let meta_str = self.core.voicevox_get_metas_json();
+      let metas = serde_json::from_str::<VoiceModelMeta>(
         &c_char_to_string(meta_str).ok_or(Error::msg("Empty meta json string"))?,
-      )?)
+      )?;
+      Ok(metas)
     }
   }
 
   pub fn load_speaker(&self, speaker_id: u32) -> Result<()> {
     unsafe {
-      match voicevox_load_model(speaker_id) {
+      match self.core.voicevox_load_model(speaker_id) {
         VoicevoxResultCode_VOICEVOX_RESULT_OK => Ok(()),
         _ => Err(Error::msg("Failed to load speaker")),
       }
@@ -108,24 +115,18 @@ impl Wrapper {
   }
 
   pub fn is_speaker_loaded(&self, speaker_id: u32) -> bool {
-    unsafe { voicevox_is_model_loaded(speaker_id) }
+    unsafe { self.core.voicevox_is_model_loaded(speaker_id) }
   }
 
-  pub fn make_default_audio_query_options() -> VoicevoxAudioQueryOptions {
-    unsafe { voicevox_make_default_audio_query_options() }
+  pub fn make_default_audio_query_options(&self) -> VoicevoxAudioQueryOptions {
+    unsafe { self.core.voicevox_make_default_audio_query_options() }
   }
 
-  pub fn make_default_synthesis_options() -> VoicevoxSynthesisOptions {
-    unsafe { voicevox_make_default_synthesis_options() }
+  pub fn make_default_synthesis_options(&self) -> VoicevoxSynthesisOptions {
+    unsafe { self.core.voicevox_make_default_synthesis_options() }
   }
 
-  pub fn make_default_tts_options() -> VoicevoxTtsOptions {
-    unsafe { voicevox_make_default_tts_options() }
-  }
-
-  /// text -> audio query
-  /// I call it encode accroding to the manner of AI papers which makes no sense at all.
-  pub fn encode(
+  pub fn audio_query(
     &self,
     text: &str,
     speaker_id: u32,
@@ -136,28 +137,32 @@ impl Wrapper {
     }
     let options = match options {
       Some(options) => options,
-      None => Self::make_default_audio_query_options(),
+      None => self.make_default_audio_query_options(),
     };
     let mut data_ptr: *mut c_char = ptr::null_mut();
     unsafe {
-      match voicevox_audio_query(string_to_c_char(text)?, speaker_id, options, &mut data_ptr) {
+      match self.core.voicevox_audio_query(
+        string_to_c_char(text)?,
+        speaker_id,
+        options,
+        &mut data_ptr,
+      ) {
         VoicevoxResultCode_VOICEVOX_RESULT_OK => {
           let data = c_char_to_string(data_ptr).ok_or(Error::msg("Empty audio query string"))?;
           // clean it up
-          voicevox_audio_query_json_free(data_ptr);
+          self.core.voicevox_audio_query_json_free(data_ptr);
           Ok(from_str::<AudioQuery>(&data)?)
         }
         _ => {
-          voicevox_audio_query_json_free(data_ptr);
+          self.core.voicevox_audio_query_json_free(data_ptr);
           Err(Error::msg("Failed to encode text"))
         }
       }
     }
   }
 
-  /// audio query -> waveform
-  /// I call it decode for the same reason
-  pub fn decode(
+  /// TODO: Is it possible to make this zero-copy?
+  pub fn synthesis(
     &self,
     audio_query: &AudioQuery,
     speaker_id: u32,
@@ -168,13 +173,13 @@ impl Wrapper {
     }
     let options = match options {
       Some(options) => options,
-      None => Self::make_default_synthesis_options(),
+      None => self.make_default_synthesis_options(),
     };
     let mut data_length = 0;
     let mut data_ptr: *mut u8 = ptr::null_mut();
     unsafe {
       let audio_query_json_str_raw = string_to_c_char(&to_string(audio_query)?).unwrap();
-      match voicevox_synthesis(
+      match self.core.voicevox_synthesis(
         audio_query_json_str_raw,
         speaker_id,
         options,
@@ -184,55 +189,22 @@ impl Wrapper {
         VoicevoxResultCode_VOICEVOX_RESULT_OK => {
           let slice = std::slice::from_raw_parts(data_ptr, data_length);
           let vec = slice.to_vec();
-          voicevox_wav_free(data_ptr);
+          self.core.voicevox_wav_free(data_ptr);
           Ok(vec)
         }
         _ => {
-          voicevox_wav_free(data_ptr);
+          self.core.voicevox_wav_free(data_ptr);
           Err(Error::msg("Failed to decode audio query"))
         }
       }
     }
   }
-
-  /// all-in-one function for generating waveform, no middle steps,
-  /// test purpose only
-  pub fn tts(
-    &self,
-    text: &str,
-    speaker_id: u32,
-    options: Option<VoicevoxTtsOptions>,
-  ) -> Result<Vec<u8>> {
-    let mut data_length = 0;
-    let mut data_ptr: *mut u8 = ptr::null_mut();
-
-    let result = unsafe {
-      voicevox_tts(
-        string_to_c_char(text)?,
-        speaker_id,
-        options.unwrap_or(voicevox_make_default_tts_options()),
-        &mut data_length,
-        &mut data_ptr,
-      )
-    };
-    if result != VoicevoxResultCode_VOICEVOX_RESULT_OK {
-      return Err(VoicevoxError::from(result).into());
-    }
-    let out_data = unsafe {
-      let slice = std::slice::from_raw_parts(data_ptr, data_length);
-      let vec = slice.to_vec();
-
-      voicevox_wav_free(data_ptr);
-      vec
-    };
-    Ok(out_data)
-  }
 }
 
-impl Drop for Wrapper {
+impl Drop for DynWrapper {
   fn drop(&mut self) {
     unsafe {
-      voicevox_finalize();
+      self.core.voicevox_finalize();
     }
   }
 }

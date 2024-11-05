@@ -1,6 +1,6 @@
+use anyhow::Result;
 use rodio::{OutputStream, Sink};
 use std::io::Cursor;
-use anyhow::Result;
 
 pub fn play_samples(samples: Vec<u8>) -> Result<()> {
   let (_stream, stream_handle) = OutputStream::try_default()?;

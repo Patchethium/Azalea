@@ -4,4 +4,4 @@ pub mod metas;
 mod utils;
 pub mod wrapper;
 
-pub use wrapper::{VoicevoxError, VOICEVOX_CORE};
+pub use wrapper::{DynWrapper, VoicevoxError};
