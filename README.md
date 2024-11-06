@@ -6,11 +6,16 @@ I also put Developer Experience as a priority, by making the codebase as clean a
 
 :construction: **This project is still in development and is not ready for use.** :construction:
 
-## Installation
+## Usage
+### Installation
 
 Download from the releases page and execute the installer.
 
 Only Linux amd64 binaries are bundled for now, but you can build it yourself for other platforms.
+
+### Setup
+
+You will be prompted to set the VOICEVOX core directory on the first launch, you can also set it later in the settings or let `Azalea` download it for you.
 
 ## Development
 
@@ -104,6 +109,8 @@ I can read and write directly in Japanese and English, feel free to reach out to
 
 GPLv3 or later. See [LICENSE](LICENSE) for more information.
 
+> I'd just like to interject for a moment. What you're referring to as Azalea, is in fact, GNU/Azalea, or as I've recently taken to calling it, GNU plus Azalea. Azalea is not an operating system unto itself, but rather another free component of a fully functioning GNU system made useful by the GNU corelibs, shell utilities and vital system components comprising a full OS as defined by POSIX.
+
 ## Credits
 
 A great thank for these projects, which Azalea is based on:
@@ -113,6 +120,6 @@ A great thank for these projects, which Azalea is based on:
 
 ## About the name
 
-Azalea is a flower that blooms in spring, and is also the name of a character in the game "Azur Lane". I usually use flower names for my projects.
+Azalea is a flower that blooms in spring, their flowers often lasting several weeks. Shade tolerant, they prefer living near or under trees. I use flower names for my side projects.
 
 <p><a href="https://commons.wikimedia.org/wiki/File:Azalea,_a_member_of_the_genus_Rhododendron.jpg#/media/File:Azalea,_a_member_of_the_genus_Rhododendron.jpg"><img src="https://upload.wikimedia.org/wikipedia/commons/1/17/Azalea%2C_a_member_of_the_genus_Rhododendron.jpg" alt="Flowers"></a><br>By <a href="//commons.wikimedia.org/wiki/User:Jim_Evans" title="User:Jim Evans">Jim Evans</a> - <span class="int-own-work" lang="en">Own work</span>, <a href="https://creativecommons.org/licenses/by-sa/4.0" title="Creative Commons Attribution-Share Alike 4.0">CC BY-SA 4.0</a>, <a href="https://commons.wikimedia.org/w/index.php?curid=56492422">Link</a></p>

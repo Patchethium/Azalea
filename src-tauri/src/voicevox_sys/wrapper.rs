@@ -12,11 +12,11 @@ use std::ptr;
 use super::audio_query::AudioQuery;
 use super::binding::*;
 use super::metas::VoiceModelMeta;
-use super::utils::{c_char_to_string, string_to_c_char};
+use super::utils::{c_char_to_string, search_file, string_to_c_char};
 
 use anyhow::{Error, Result};
+use libloading::Library;
 use serde_json::{from_str, to_string};
-use walkdir::WalkDir;
 
 #[cfg(target_os = "linux")]
 const VOICEVOX_LIB_NAME: &str = "libvoicevox_core.so";
@@ -24,6 +24,13 @@ const VOICEVOX_LIB_NAME: &str = "libvoicevox_core.so";
 const VOICEVOX_LIB_NAME: &str = "libvoicevox_core.dylib";
 #[cfg(target_os = "windows")]
 const VOICEVOX_LIB_NAME: &str = "voicevox_core.dll";
+
+#[cfg(target_os = "linux")]
+const candidate: [&'static str; 2] = ["libonnxruntime.so", "libonnxruntime.so.1.13.1"];
+#[cfg(target_os = "macos")]
+const candidate: [&'static str; 2] = ["libonnxruntime.dylib", "libonnxruntime.1.13.1.dylib"];
+#[cfg(target_os = "windows")]
+const candidate: [&'static str; 2] = ["onnxruntime.dll", "onnxruntime.1.13.1.dll"];
 
 /// Error type for Voicevox Core
 #[derive(Debug, thiserror::Error)]
@@ -38,48 +45,46 @@ impl From<VoicevoxResultCode> for VoicevoxError {
   }
 }
 
-fn search_openjtalk(search_dir: &str) -> Option<String> {
-  let search_dir = PathBuf::from(search_dir);
-  let search_dir = search_dir.parent()?;
-  for entry in WalkDir::new(search_dir) {
-    if let Ok(entry) = entry {
-      if entry.file_name() == "matrix.bin" {
-        return Some(
-          entry
-            .path()
-            .parent()
-            .map(|p| p.to_path_buf())?
-            .to_string_lossy()
-            .into(),
-        );
-      }
-    }
-  }
-  None
-}
-
 pub struct DynWrapper {
   core: VoicevoxCore,
+  _ort: Library, // placeholder for onnxruntime, it's not directly used in azalea
   pub metas: VoiceModelMeta,
 }
 
 impl DynWrapper {
   pub fn new(path: &str, openjtalk_path: Option<&str>) -> Result<Self> {
     let lib_path = PathBuf::from(path).join(VOICEVOX_LIB_NAME);
+    // load onnxruntime before core
+    let mut ort_path = None;
+    for c in candidate {
+      if let Some(p) = search_file(c, path) {
+        ort_path = Some(p);
+        break;
+      }
+    }
+    let ort = if let Some(ort_path) = ort_path {
+      unsafe { Ok(Library::new(ort_path)?) }
+    } else {
+      Err(Error::msg("Onnxruntime not found"))
+    }?;
+    // load core after onnxruntime
     let core = unsafe { VoicevoxCore::new(lib_path)? };
-    // init
+    // find ojt dict dir
+    let ojt_matrix = "matrix.bin";
     let mut option = unsafe { core.voicevox_make_default_initialize_options() };
     if let Some(openjtalk_path) = openjtalk_path {
       option.open_jtalk_dict_dir = string_to_c_char(openjtalk_path)?;
     } else {
-      if let Some(p) = search_openjtalk(path) {
-        option.open_jtalk_dict_dir = string_to_c_char(&p)?;
+      if let Some(p) = search_file(ojt_matrix, path) {
+        option.open_jtalk_dict_dir =
+          string_to_c_char(&p.parent().unwrap().to_string_lossy().into_owned())?;
       } else {
         return Err(Error::msg(
           "OpenJTalk dict dir not found, specify it manually or put it under the core dir",
         ));
       }
     }
+    // init core
     unsafe {
       match core.voicevox_initialize(option) {
         VoicevoxResultCode_VOICEVOX_RESULT_OK => {}
@@ -92,7 +97,11 @@ impl DynWrapper {
         &c_char_to_string(meta_str).ok_or(Error::msg("Empty meta json string"))?,
       )?
     };
-    Ok(Self { core, metas })
+    Ok(Self {
+      core,
+      _ort: ort,
+      metas,
+    })
   }
 
   pub fn load_metas(&self) -> Result<VoiceModelMeta> {

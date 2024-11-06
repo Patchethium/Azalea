@@ -50,7 +50,7 @@ impl AccentPhrase {
 }
 
 /// AudioQuery (音声合成用のクエリ)。
-#[derive(Clone, Deserialize, Serialize, TS)]
+#[derive(Clone, Deserialize, Serialize, TS, PartialEq)]
 #[ts(export)]
 pub struct AudioQuery {
   /// アクセント句の配列。
@@ -85,3 +85,12 @@ impl AudioQuery {
     Self { kana, ..self }
   }
 }
+
+impl std::hash::Hash for AudioQuery {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    let serialized = serde_json::to_string(self).expect("Unable to serialize AudioQuery");
+    serialized.hash(state);
+  }
+}
+
+impl Eq for AudioQuery {}

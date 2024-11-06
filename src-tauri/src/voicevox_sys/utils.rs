@@ -1,8 +1,11 @@
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
+use std::path::PathBuf;
 
 use anyhow::Result;
+use walkdir::WalkDir;
 
+#[allow(dead_code)]
 pub fn c_char_to_string(c_char_ptr: *const c_char) -> Option<String> {
   if c_char_ptr.is_null() {
     None
@@ -16,6 +19,33 @@ pub fn c_char_to_string(c_char_ptr: *const c_char) -> Option<String> {
 }
 
 // the reverse function
+#[allow(dead_code)]
 pub fn string_to_c_char(s: &str) -> Result<*const c_char> {
   Ok(CString::new(s)?.into_raw())
+}
+
+#[allow(dead_code)]
+pub fn search_file(filename: &str, dir: &str) -> Option<PathBuf> {
+  let search_dir = PathBuf::from(dir);
+  for entry in WalkDir::new(search_dir) {
+    if let Ok(entry) = entry {
+      if entry.file_name() == filename && entry.path().is_file() {
+        return Some(entry.path().to_owned());
+      }
+    }
+  }
+  None
+}
+
+#[allow(dead_code)]
+pub fn search_dir(dirname: &str, dir: &str) -> Option<PathBuf> {
+  let search_dir = PathBuf::from(dir);
+  for entry in WalkDir::new(search_dir) {
+    if let Ok(entry) = entry {
+      if entry.file_name() == dirname && entry.path().is_dir() {
+        return Some(entry.path().to_owned());
+      }
+    }
+  }
+  None
 }
