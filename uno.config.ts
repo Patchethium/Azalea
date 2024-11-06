@@ -1,5 +1,13 @@
-import { defineConfig } from 'unocss'
+import { defineConfig, presetUno, transformerVariantGroup } from "unocss";
+import presetIcons from "@unocss/preset-icons";
+import { presetKobalte } from "unocss-preset-primitives";
 
 export default defineConfig({
-  // ...UnoCSS options
-})
+  presets: [
+    presetUno(),
+    presetIcons(),
+    // @ts-ignore-next-line
+    presetKobalte(),
+  ],
+  transformers: [transformerVariantGroup()],
+});

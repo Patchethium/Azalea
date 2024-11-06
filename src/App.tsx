@@ -1,29 +1,23 @@
-import {
-  createEffect,
-  createResource,
-  createSignal,
-  onMount,
-} from "solid-js";
-import { AudioQuery } from "./binding/AudioQuery";
-import { invoke } from "@tauri-apps/api/core";
-import { Select } from "@kobalte/core/select";
 import { Button } from "@kobalte/core/button";
-import { SpeakerMeta } from "./binding/SpeakerMeta";
-import { StyleMeta } from "./binding/StyleMeta";
-import { StyleId } from "./binding/StyleId";
+import { Select } from "@kobalte/core/select";
 import { TextField } from "@kobalte/core/text-field";
-
+import { invoke } from "@tauri-apps/api/core";
+import { createEffect, createResource, createSignal, onMount } from "solid-js";
+import { AudioQuery } from "./binding/AudioQuery";
+import { SpeakerMeta } from "./binding/SpeakerMeta";
+import { StyleId } from "./binding/StyleId";
+import { StyleMeta } from "./binding/StyleMeta";
 
 function App() {
   const [core_path, setCorePath] = createSignal<string>(
-    import.meta.env.VOICEVOX_CORE_PATH ?? ""
+    import.meta.env.VOICEVOX_CORE_PATH ?? "",
   );
   const [text, setText] = createSignal("こんにちは、ボイスボックス。");
   const [metas, setMetas] = createSignal<SpeakerMeta[]>([]);
   const [audio_query, setAudioQuery] = createSignal<AudioQuery | null>(null);
   const [audio_data, setAudioData] = createSignal<Uint8Array>();
   const [selected_style_id, setSelectedStyleId] = createSignal<StyleId | null>(
-    null
+    null,
   );
 
   const combined = () => ({
@@ -63,7 +57,7 @@ function App() {
       (data) => {
         setAudioData(data as Uint8Array);
         // invoke("play_audio", { waveform: data });
-      }
+      },
     );
   };
 
@@ -80,7 +74,7 @@ function App() {
     if (core_path() !== "") {
       await load_core(core_path());
       invoke("get_metas").then((metas) => {
-        let metas_sanity = metas as SpeakerMeta[];
+        const metas_sanity = metas as SpeakerMeta[];
         metas_sanity.forEach((m) => {
           m.styles = m.styles.filter((s) => s.type === "talk");
         });
@@ -139,7 +133,7 @@ function App() {
         Selected Speaker:
         {metas().find(
           (m) =>
-            m.styles.find((s) => s.id === selected_style_id()) !== undefined
+            m.styles.find((s) => s.id === selected_style_id()) !== undefined,
         )?.name ?? "None"}
       </div>
       <div>Selected style id: {selected_style_id()}</div>
