@@ -4,6 +4,7 @@ use crate::voicevox_sys::DynWrapper;
 use crate::AppState;
 
 use super::audio::player;
+use dotenvy::dotenv;
 use tauri::State;
 
 /// macro to do the stupid lock().unwrap().as_ref().ok_or("Not initialized")? dance,
@@ -15,7 +16,7 @@ macro_rules! wrapper_ref {
       .read()
       .unwrap()
       .as_ref()
-      .ok_or("Not initialized")?
+      .ok_or("Core not initialized")?
   };
 }
 
@@ -34,7 +35,7 @@ macro_rules! wav_lru_ref {
       .read()
       .unwrap()
       .as_ref()
-      .ok_or("Not initialized")?
+      .ok_or("Core not initialized")?
   };
 }
 
@@ -64,17 +65,27 @@ macro_rules! query_lru_mut_option {
   };
 }
 
+#[allow(dead_code)]
+fn get_core_path_dev() -> std::result::Result<String, String> {
+  dotenv().map_err(|e| e.to_string())?;
+  match std::env::var("VOICEVOX_CORE_DIR") {
+    Ok(path) => Ok(path),
+    Err(_) => Err("VOICEVOX_CORE_DIR not set".into()),
+  }
+}
+
+#[allow(dead_code)]
+fn get_core_path_release() -> std::result::Result<String, String> {
+  Err("Not implemented".into())
+}
+
 /// try get the voicevox core path
 #[tauri::command]
 pub(crate) async fn get_core_path() -> std::result::Result<String, String> {
-  // use env var in debug mode
   #[cfg(debug_assertions)]
-  let path = std::env::var("VOICEVOX_CORE_DIR").map_err(|e| e.to_string())?;
-  #[cfg(debug_assertions)]
-  return Ok(path);
-  // TODO: grab the core path from config file in release mode
+  return get_core_path_dev();
   #[cfg(not(debug_assertions))]
-  Err("Not implemented".into())
+  return get_core_path_release();
 }
 
 /// load the voicevox core and create lru cache
@@ -99,6 +110,17 @@ pub(crate) async fn initialize(
       _ => {
         let lru = lru::LruCache::new(std::num::NonZeroUsize::new(cache_size).unwrap());
         wav_lru_mut_option!(state).replace(lru);
+      }
+    }
+  } else {
+    return Err("LRU cache already initialized".into());
+  }
+  if state.query_lru.read().unwrap().is_none() {
+    match cache_size {
+      0 => {} // keep it None
+      _ => {
+        let lru = lru::LruCache::new(std::num::NonZeroUsize::new(cache_size).unwrap());
+        query_lru_mut_option!(state).replace(lru);
       }
     }
   } else {

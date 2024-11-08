@@ -30,17 +30,21 @@ tracing = "0.1.40"
 derive_more = { version = "1.0.0", features = ["from_str"] }
 strum = { version = "0.26.3", features = ["derive"] }
 thiserror = "2.0.0"
-rodio = "0.19.0"
-ts-rs = {version="10.0.0", features = ["serde_json"] }
+rodio = { version = "0.20.1", default-features = false, features = [
+    "wav",
+    "hound",
+] }
+ts-rs = { version = "10.0.0", features = ["serde_json"] }
 walkdir = "2.5.0"
 libloading = "0.8.5"
 lru = "0.12.5"
+dotenvy = "0.15.7"
 
 [profile.dev]
 incremental = true
 
 [profile.release]
 strip = true
-opt-level = "z"
-lto=true
+opt-level = "s"
+lto = true
 panic = "abort"

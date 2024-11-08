@@ -2,27 +2,26 @@
 #[cfg(test)]
 mod test {
   use azalea_lib::voicevox_sys::DynWrapper;
+  use dotenvy::dotenv;
   use serde_json::to_string;
   use std::{
     panic,
     sync::{LazyLock, Mutex},
   };
 
-  /// A lock to make the core thread-safe.
+  /// A lock to make the core thread-safe. In the application tauri will take care of this.
   /// TODO: Build the core with thread-safety.
   static SEMAPHORE: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
+  fn get_core_dir() -> String {
+    dotenv().ok();
+    std::env::var("VOICEVOX_CORE_DIR").unwrap()
+  }
+
   fn get_core() -> DynWrapper {
-    let path = std::env::var("VOICEVOX_CORE_DIR").unwrap();
-    let path = std::path::PathBuf::from(&path);
-    let core_path = path.to_string_lossy().to_string();
-    if let Ok(ojt_path) = std::env::var("OPENJTALK_DIR") {
-      // if it's set, use the openjtalk path
-      DynWrapper::new(&core_path, Some(&ojt_path)).unwrap()
-    } else {
-      // let the wrapper search for the openjtalk path
-      DynWrapper::new(&core_path, None).unwrap()
-    }
+    let core_path = get_core_dir();
+
+    DynWrapper::new(&core_path, None).unwrap()
   }
   #[test]
   fn test_init_voicevox() {

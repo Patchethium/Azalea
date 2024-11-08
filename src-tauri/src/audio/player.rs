@@ -8,7 +8,7 @@ pub fn play_samples(samples: Vec<u8>) -> Result<()> {
 
   let cursor = Cursor::new(samples);
 
-  sink.append(rodio::Decoder::new(cursor)?);
+  sink.append(rodio::Decoder::new_wav(cursor)?);
   sink.sleep_until_end();
   Ok(())
 }
