@@ -1,17 +1,19 @@
-import { useTextStore } from "../store/text";
-import { useMetaStore } from "../store/meta";
-import { createEffect, createMemo, Show } from "solid-js";
-import { query, synthesize } from "../commands";
-import _ from "lodash";
-import { AudioQuery } from "../types/AudioQuery";
-import { StyleId } from "../types/StyleId";
+import { Button } from "@kobalte/core/button";
 import { NumberField } from "@kobalte/core/number-field";
 import { TextField } from "@kobalte/core/text-field";
-import { Button } from "@kobalte/core/button";
+import _ from "lodash";
+import { Show, createEffect, createMemo } from "solid-js";
+import { query, synthesize } from "../commands";
+import { useMetaStore } from "../store/meta";
+import { useTextStore } from "../store/text";
+import { useUIStore } from "../store/ui";
+import { AudioQuery } from "../types/AudioQuery";
+import { StyleId } from "../types/StyleId";
 
 function TextBlock(props: { index: number }) {
   const { textStore, setTextStore } = useTextStore()!;
   const { metas, availableSpeakerIds } = useMetaStore()!;
+  const { uiStore, setUIStore } = useUIStore()!;
   const data = createMemo(() => textStore[props.index]);
   const speakerName = createMemo(() => {
     const speakerId = data().styleId;
@@ -66,16 +68,30 @@ function TextBlock(props: { index: number }) {
       }
     }
   });
+
+  const selected = createMemo(
+    () => uiStore.selectedTextBlockIndex === props.index,
+  );
+
+  const setSelected = () => {
+    console.log("setSelected");
+    setUIStore("selectedTextBlockIndex", props.index);
+  };
   return (
-    <div class="p3 border border-gray-100 rounded-2xl my-2 flex flex-col gap-2">
+    <div
+      class="p3 border border-gray-100 rounded-2xl my-2 flex flex-col gap-2"
+      classList={{ "!border-blue-500": selected() }}
+    >
       <div class="flex flex-row items-center justify-center gap-1">
         <Button
-          class="i-lucide:play w-6 h-6 border-1 border-gray rounded hover:(border border-blue-5 bg-blue-3)"
+          class="i-lucide:play w-6 h-6 border-1 border-gray rounded 
+                hover:bg-blue-5 active:bg-blue-6"
           onClick={speak}
         />
         <TextField
           onChange={(value: string) => setText(value)}
           value={data().text}
+          onFocusIn={() => setSelected()}
           class="flex-1"
         >
           <TextField.Label />

@@ -12,4 +12,4 @@ bindgen --dynamic-loading VoicevoxCore voicevox_core.h > voicevox_core.rs
 mv voicevox_core.rs path_to_voicevox_sys/voicevox_core.rs # replace the path to your own
 ```
 
-Usually you don't need to do this.
+If you changed the platform, you may need to regenerate the binding. The pre-built binding is on Arch Linux AMD64.

@@ -1,7 +1,7 @@
 {
   "name": "azalea",
   "version": "0.1.0",
-  "description": "",
+  "description": "A lightweight, unofficial VOICEVOX GUI",
   "type": "module",
   "scripts": {
     "start": "vite",
@@ -9,8 +9,6 @@
     "build": "vite build",
     "serve": "vite preview",
     "tauri": "tauri",
-    "format": "biome format --write ./src/",
-    "lint": "biome lint --write ./src/",
     "check": "biome check --write ./src/"
   },
   "license": "MIT",

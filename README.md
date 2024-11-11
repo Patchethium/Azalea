@@ -1,8 +1,6 @@
 # Azalea
 
-`Azalea`(アザレア) is a simple and (relatively) lightweight unofficial GUI for VOICEVOX. [I](https://github.com/Patchethium) aim to provide a simple and easy-to-use interface for VOICEVOX, with my own personal touch.
-
-I also put Developer Experience as a priority, by making the codebase as clean and readable as possible and providing a simple structure.
+`Azalea`(アザレア) is a simple and (relatively) lightweight unofficial GUI for [VOICEVOX](https://github.com/VOICEVOX/voicevox), a **Japanese only** TTS app. [The Author](https://github.com/Patchethium) aims to provide a simple and easy-to-use interface for VOICEVOX, with their own personal touch.
 
 :construction: **This project is still in development and is not ready for use.** :construction:
 
@@ -39,17 +37,15 @@ your_dir/
         - *.def
         - ...
 ```
-
-If the `.so` files are not there, you may be on MacOS(`dylib`) or Windows(`dll`). As long as the extension name matches your platform, it should be fine.
+> [!NOTE]
+> It would be `.dylib` for MacOS and `.dll` for Windows.
 
 ### Setting the environment variables
 
-> [!NOTE]
-> The environment variables are only needed in development. In production, users set the core directory in the GUI.
+> [!WARNING]
+> The environment variables are only needed in development. In production, users set the core directory in the GUI. This approach will be deprecated after the config system is implemented.
 
-You need to set the `VOICEVOX_CORE_DIR` environment variable to the path of the core directory.
-
-Copy the `.env.dev` and rename it to `.env`, then set the variable like below:
+Copy the `.env.dev` and rename it to `.env`, set the variable like below:
 
 ```ini
 VOICEVOX_CORE_DIR=your_dir/voicevox_core/
@@ -77,11 +73,13 @@ bun tauri build
 # You may also want to clean the artifacts after building, it's 10 GB or so
 cd src-tauri
 cargo clean
+# Frontend lint&format with
+bun check
 ```
 
 ## Contributing
 
-We welcome PRs, please open an issue before making a PR.
+Azalea welcomes PRs, please open an issue before making one.
 
 I can read and write directly in Japanese and English, feel free to reach out to in any of these languages.
 
@@ -97,9 +95,12 @@ A great thank for these projects, which Azalea is based on:
 
 - [VOICEVOX](https://github.com/VOICEVOX/voicevox)
 - [tauri](https://github.com/tauri-apps/tauri)
+- [bindgen](https://github.com/rust-lang/rust-bindgen)
 
 ## About the name
 
-Azalea<sup>[Wikipedia](https://en.wikipedia.org/wiki/Azalea)</sup> is a flower that blooms in spring, their flowers often lasting several weeks. Shade tolerant, they prefer living near or under trees. I use flower names for my side projects.
+I use flower names for my side projects.
+
+Azalea<sup>[Wikipedia](https://en.wikipedia.org/wiki/Azalea)</sup> is a flower that blooms in spring, the flowers often last several weeks. Shade tolerant, they prefer living near or under trees.
 
 <p><a href="https://commons.wikimedia.org/wiki/File:Azalea,_a_member_of_the_genus_Rhododendron.jpg#/media/File:Azalea,_a_member_of_the_genus_Rhododendron.jpg"><img src="https://upload.wikimedia.org/wikipedia/commons/1/17/Azalea%2C_a_member_of_the_genus_Rhododendron.jpg" alt="Flowers"></a><br>By <a href="//commons.wikimedia.org/wiki/User:Jim_Evans" title="User:Jim Evans">Jim Evans</a> - <span class="int-own-work" lang="en">Own work</span>, <a href="https://creativecommons.org/licenses/by-sa/4.0" title="Creative Commons Attribution-Share Alike 4.0">CC BY-SA 4.0</a>, <a href="https://commons.wikimedia.org/w/index.php?curid=56492422">Link</a></p>

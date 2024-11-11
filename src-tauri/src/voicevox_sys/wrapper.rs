@@ -1,9 +1,6 @@
 //! Voicevox Core Wrapper
 //! Provides a safe Rust interface to the Voicevox Core library.
-//! Do I really need this? Since the Voicevox Core library itself is written in Rust
-//! I could just use the library directly, right? Well, no.
-//! The Core is distributed in binary form only to prevent abuse.
-//! And they (yet) don't provide a Rust API, or I'm to dumb to find how to use it.
+//! This module is not thread-safe, you should your own synchronization mechanism.
 #![allow(non_upper_case_globals)]
 use std::ffi::c_char;
 use std::path::PathBuf;

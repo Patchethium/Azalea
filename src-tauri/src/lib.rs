@@ -11,8 +11,8 @@ use voicevox_sys::DynWrapper;
 
 pub(crate) struct AppState {
   pub wrapper: RwLock<Option<DynWrapper>>,
-  pub query_lru: RwLock<Option<lru::LruCache<String, AudioQuery>>>,
-  pub wav_lru: RwLock<Option<lru::LruCache<AudioQuery, Vec<u8>>>>,
+  pub query_lru: RwLock<Option<lru::LruCache<(String, u32), AudioQuery>>>,
+  pub wav_lru: RwLock<Option<lru::LruCache<(AudioQuery, u32), Vec<u8>>>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { AudioQuery } from "./types/AudioQuery";
-import { StyleId } from "./types/StyleId";
 import { SpeakerMeta } from "./types/SpeakerMeta";
+import { StyleId } from "./types/StyleId";
 
 const get_core_path = async (): Promise<string> => {
   try {

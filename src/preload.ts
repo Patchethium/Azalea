@@ -1,5 +1,5 @@
-import { useMetaStore } from "./store/meta";
 import * as commands from "./commands";
+import { useMetaStore } from "./store/meta";
 
 const useCoreInitialization = () => {
   const { setMetas } = useMetaStore()!;
