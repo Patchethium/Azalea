@@ -2,6 +2,7 @@
 pub mod audio;
 pub mod commands;
 pub mod voicevox_sys;
+pub mod spectal;
 
 use commands::*;
 use std::sync::RwLock;

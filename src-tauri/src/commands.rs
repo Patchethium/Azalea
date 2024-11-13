@@ -5,6 +5,7 @@ use crate::AppState;
 
 use super::audio::player;
 use dotenvy::dotenv;
+use ndarray::{Array1, Array2};
 use tauri::State;
 
 /// macro to do the stupid lock().unwrap().as_ref().ok_or("Not initialized")? dance,
@@ -180,4 +181,16 @@ pub(crate) async fn synthesize(
     cache.put((audio_query.clone(), speaker_id), waveform.clone());
   }
   Ok(waveform)
+}
+
+#[tauri::command]
+pub(crate) async fn stop_audio() -> Result<(), String> {
+  player::stop_audio().map_err(|e| e.to_string())?;
+  Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn spectrogram(signal: Array1<u16>) -> Array2<f64> {
+  let mut mel = crate::spectal::mel::MelSpec::new(1024, 128, 256, 24000);
+  mel.process(signal.mapv(|x| x as f64))
 }

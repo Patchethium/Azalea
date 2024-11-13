@@ -12,3 +12,10 @@ pub fn play_samples(samples: Vec<u8>) -> Result<()> {
   sink.sleep_until_end();
   Ok(())
 }
+
+pub fn stop_audio() -> Result<()> {
+  let (_stream, stream_handle) = OutputStream::try_default()?;
+  let sink = Sink::try_new(&stream_handle)?;
+  sink.stop();
+  Ok(())
+}
