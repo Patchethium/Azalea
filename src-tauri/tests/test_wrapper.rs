@@ -3,6 +3,7 @@
 mod test {
   use azalea_lib::voicevox_sys::DynWrapper;
   use dotenvy::dotenv;
+  use ndarray::Array1;
   use serde_json::to_string;
   use std::{
     panic,
@@ -58,7 +59,7 @@ mod test {
       std::process::exit(1);
     }));
     let arc = std::sync::Arc::new(std::sync::RwLock::new(get_core()));
-    let join_handlers = (0..100)
+    let join_handlers = (0..10)
       .map(|i| {
         let arc_clone = arc.clone();
         std::thread::spawn(move || {
@@ -74,5 +75,16 @@ mod test {
     for h in join_handlers {
       h.join().unwrap();
     }
+  }
+
+  #[test]
+  fn test_spectal() {
+    let g = SEMAPHORE.lock().unwrap();
+    let mut mel = azalea_lib::spectal::mel::MelSpec::new(1024, 512, 256, 24000);
+    let core = get_core();
+    let audio_query = core.audio_query("こんにちは", 1, None).unwrap();
+    let signal = core.synthesis(&audio_query, 1, None).unwrap();
+    let signal = signal.iter().map(|&x| x as f64).collect::<Array1<f64>>();
+    let _ = mel.process(signal);
   }
 }

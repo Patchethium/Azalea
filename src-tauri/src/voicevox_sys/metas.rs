@@ -1,12 +1,12 @@
 //! copied from voicevox_core/crates/voicevox_core/src/metas.rs
 #![allow(dead_code)]
 use std::fmt::{Debug, Display};
-use ts_rs::TS;
 
 use derive_new::new;
 use indexmap::IndexMap;
 use itertools::Itertools as _;
 use serde::{Deserialize, Serialize};
+use specta::Type;
 use tracing::warn;
 
 /// [`speaker_uuid`]をキーとして複数の[`SpeakerMeta`]をマージする。
@@ -65,7 +65,7 @@ pub type RawStyleId = u32;
   Serialize,
   new,
   Debug,
-  TS,
+  Type,
 )]
 pub struct StyleId(RawStyleId);
 
@@ -87,7 +87,7 @@ impl Display for StyleId {
 pub type RawStyleVersion = String;
 
 /// スタイルのバージョン。
-#[derive(PartialEq, Eq, Clone, Ord, PartialOrd, Deserialize, Serialize, new, Debug, TS)]
+#[derive(PartialEq, Eq, Clone, Ord, PartialOrd, Deserialize, Serialize, new, Debug, Type)]
 pub struct StyleVersion(RawStyleVersion);
 
 impl StyleVersion {
@@ -106,8 +106,7 @@ impl Display for StyleVersion {
 pub type VoiceModelMeta = Vec<SpeakerMeta>;
 
 /// **話者**(_speaker_)のメタ情報。
-#[derive(Deserialize, Serialize, Clone, TS)]
-#[ts(export)]
+#[derive(Deserialize, Serialize, Clone, Type)]
 pub struct SpeakerMeta {
   /// 話者名。
   pub name: String,
@@ -161,7 +160,7 @@ impl SpeakerMeta {
 }
 
 /// **スタイル**(_style_)のメタ情報。
-#[derive(Deserialize, Serialize, Clone, TS)]
+#[derive(Deserialize, Serialize, Clone, Type)]
 pub struct StyleMeta {
   /// スタイルID。
   pub id: StyleId,
@@ -190,7 +189,7 @@ pub struct StyleMeta {
   strum::Display,
   Deserialize,
   Serialize,
-  TS,
+  Type,
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]

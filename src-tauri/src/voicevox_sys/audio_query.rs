@@ -4,12 +4,12 @@
 //! add typescript export with ts_rs
 #![allow(dead_code)]
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
+use specta::Type;
 
 /* 各フィールドのjsonフィールド名はsnake_caseとする*/
 
 /// モーラ（子音＋母音）ごとの情報。
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Type)]
 pub struct Mora {
   /// 文字。
   pub text: String,
@@ -26,7 +26,7 @@ pub struct Mora {
 }
 
 /// AccentPhrase (アクセント句ごとの情報)。
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Type)]
 pub struct AccentPhrase {
   /// モーラの配列。
   pub moras: Vec<Mora>,
@@ -50,8 +50,7 @@ impl AccentPhrase {
 }
 
 /// AudioQuery (音声合成用のクエリ)。
-#[derive(Clone, Deserialize, Serialize, TS, PartialEq)]
-#[ts(export)]
+#[derive(Clone, Deserialize, Serialize, PartialEq, Type)]
 pub struct AudioQuery {
   /// アクセント句の配列。
   pub accent_phrases: Vec<AccentPhrase>,

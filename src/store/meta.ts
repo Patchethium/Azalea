@@ -2,7 +2,7 @@
 import { createContextProvider } from "@solid-primitives/context";
 import _ from "lodash";
 import { createStore } from "solid-js/store";
-import { SpeakerMeta } from "../types/SpeakerMeta";
+import { SpeakerMeta } from "../binding";
 
 const [MetaProvider, useMetaStore] = createContextProvider(() => {
   const [metas, _setMetas] = createStore<SpeakerMeta[]>([]);

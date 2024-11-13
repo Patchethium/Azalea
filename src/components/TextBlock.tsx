@@ -3,12 +3,12 @@ import { NumberField } from "@kobalte/core/number-field";
 import { TextField } from "@kobalte/core/text-field";
 import _ from "lodash";
 import { Show, createEffect, createMemo } from "solid-js";
-import { query, synthesize } from "../commands";
+import { commands } from "../binding";
+import { AudioQuery } from "../binding";
+import { StyleId } from "../binding";
 import { useMetaStore } from "../store/meta";
 import { useTextStore } from "../store/text";
 import { useUIStore } from "../store/ui";
-import { AudioQuery } from "../types/AudioQuery";
-import { StyleId } from "../types/StyleId";
 
 function TextBlock(props: { index: number }) {
   const { textStore, setTextStore } = useTextStore()!;
@@ -51,20 +51,21 @@ function TextBlock(props: { index: number }) {
   const speak = () => {
     const curData = data();
     if (isStyleIdValid() && curData.query !== undefined) {
-      synthesize(curData.query, curData.styleId!);
+      commands.synthesize(curData.query, curData.styleId!);
     }
   };
 
   createEffect(async () => {
     const curData = data();
     if (isStyleIdValid()) {
-      try {
-        const audio_query = await query(curData.text, curData.styleId!);
-        if (audio_query !== undefined) {
-          setQuery(audio_query);
-        }
-      } catch (e) {
-        console.error(e);
+      const audio_query = await commands.audioQuery(
+        curData.text,
+        curData.styleId!,
+      );
+      if (audio_query.status === "ok") {
+        setQuery(audio_query.data);
+      } else {
+        console.error(audio_query.error);
       }
     }
   });

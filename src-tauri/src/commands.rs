@@ -5,7 +5,7 @@ use crate::AppState;
 
 use super::audio::player;
 use dotenvy::dotenv;
-use ndarray::{Array1, Array2};
+use ndarray::Array1;
 use tauri::State;
 
 /// macro to do the stupid lock().unwrap().as_ref().ok_or("Not initialized")? dance,
@@ -82,6 +82,7 @@ fn get_core_path_release() -> std::result::Result<String, String> {
 
 /// Try get the voicevox core path
 #[tauri::command]
+#[specta::specta]
 pub(crate) async fn get_core_path() -> std::result::Result<String, String> {
   #[cfg(debug_assertions)]
   return get_core_path_dev();
@@ -91,6 +92,7 @@ pub(crate) async fn get_core_path() -> std::result::Result<String, String> {
 
 /// Load the voicevox core and create lru cache
 #[tauri::command]
+#[specta::specta]
 pub(crate) async fn initialize(
   state: State<'_, AppState>,
   core_path: String,
@@ -132,6 +134,7 @@ pub(crate) async fn initialize(
 
 /// Gets metas from voicevox core
 #[tauri::command]
+#[specta::specta]
 pub(crate) async fn get_metas(
   state: State<'_, AppState>,
 ) -> std::result::Result<VoiceModelMeta, String> {
@@ -141,6 +144,7 @@ pub(crate) async fn get_metas(
 
 /// Encodes text into audio query
 #[tauri::command]
+#[specta::specta]
 pub(crate) async fn audio_query(
   state: State<'_, AppState>,
   text: &str,
@@ -162,6 +166,7 @@ pub(crate) async fn audio_query(
 
 /// Decode audio query to waveform
 #[tauri::command]
+#[specta::specta]
 pub(crate) async fn synthesize(
   state: State<'_, AppState>,
   audio_query: AudioQuery,
@@ -184,13 +189,21 @@ pub(crate) async fn synthesize(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub(crate) async fn stop_audio() -> Result<(), String> {
   player::stop_audio().map_err(|e| e.to_string())?;
   Ok(())
 }
 
 #[tauri::command]
-pub(crate) async fn spectrogram(signal: Array1<u16>) -> Array2<f64> {
+#[specta::specta]
+pub(crate) async fn spectrogram(signal: Vec<u16>) -> Vec<Vec<f64>> {
   let mut mel = crate::spectal::mel::MelSpec::new(1024, 128, 256, 24000);
-  mel.process(signal.mapv(|x| x as f64))
+  let signal = Array1::from(signal);
+  let spec = mel
+    .process(signal.mapv(|x| x as f64))
+    .outer_iter()
+    .map(|x| x.to_vec())
+    .collect::<Vec<_>>();
+  spec
 }

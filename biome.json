@@ -4,7 +4,7 @@
     "enabled": true,
     "indentWidth": 2,
     "indentStyle": "space",
-    "ignore": ["src/binding/*"]
+    "ignore": ["src/binding.ts"]
   },
   "linter": {
     "enabled": true,
@@ -17,7 +17,7 @@
         "noNonNullAssertion": "off"
       }
     },
-    "ignore": ["src/binding/*"]
+    "ignore": ["src/binding.ts"]
   },
   "organizeImports": {
     "enabled": true

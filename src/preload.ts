@@ -1,21 +1,23 @@
-import * as commands from "./commands";
+import { commands } from "./binding";
 import { useMetaStore } from "./store/meta";
 
 const useCoreInitialization = () => {
   const { setMetas } = useMetaStore()!;
 
   const initializeCore = async () => {
-    const corePath = await commands.get_core_path();
-    if (corePath !== "") {
+    const corePath = await commands.getCorePath();
+    if (corePath.status === "ok") {
       try {
-        await commands.initialize_core(corePath, 1024);
-        const newMetas = await commands.metas();
-        if (newMetas !== undefined) {
-          setMetas(newMetas);
+        await commands.initialize(corePath.data!, 1024);
+        const newMetas = await commands.getMetas();
+        if (newMetas.status === "ok") {
+          setMetas(newMetas.data);
         }
       } catch (e) {
         console.error(e);
       }
+    } else {
+      console.error(corePath.error);
     }
   };
 

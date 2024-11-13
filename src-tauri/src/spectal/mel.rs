@@ -1,6 +1,6 @@
 //! A very simple mel spectrogram implementation
 //! used for users to refer how the audio looks like in frequency domain
-use ndarray::{Array1, Array2, s};
+use ndarray::{s, Array1, Array2};
 use rustfft::num_complex::Complex;
 use rustfft::FftPlanner;
 
@@ -85,12 +85,16 @@ impl MelSpec {
     for i in 0..n_frames {
       let start = i * self.hop_length;
       let frame = signal.slice(s![start..start + self.n_fft]);
-      let mut windowed = frame.iter().zip(self.window.iter()).map(|(&x, &w)| Complex::new(x * w, 0.)).collect::<Vec<_>>();
+      let mut windowed = frame
+        .iter()
+        .zip(self.window.iter())
+        .map(|(&x, &w)| Complex::new(x * w, 0.))
+        .collect::<Vec<_>>();
 
       fft.process(&mut windowed);
-      
+
       // compute power spectrum
-      for (j, complex_val) in windowed.iter().take(self.n_fft/2+1).enumerate() {
+      for (j, complex_val) in windowed.iter().take(self.n_fft / 2 + 1).enumerate() {
         spec[[j, i]] = (complex_val.norm() / self.n_fft as f64).powi(2);
       }
     }

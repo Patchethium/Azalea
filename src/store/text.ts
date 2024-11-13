@@ -1,7 +1,7 @@
 // The store that holds the text block data
 import { createContextProvider } from "@solid-primitives/context";
 import { createStore } from "solid-js/store";
-import { AudioQuery } from "../types/AudioQuery";
+import { AudioQuery } from "../binding";
 
 type TextBlockProps = {
   text: string;
