@@ -9,25 +9,11 @@ use std::ptr;
 use super::audio_query::AudioQuery;
 use super::binding::*;
 use super::metas::VoiceModelMeta;
-use super::utils::{c_char_to_string, search_file, string_to_c_char};
+use super::utils::{c_char_to_string, CANDIDATES, search_file, string_to_c_char, VOICEVOX_LIB_NAME};
 
 use anyhow::{Error, Result};
 use libloading::Library;
 use serde_json::{from_str, to_string};
-
-#[cfg(target_os = "linux")]
-const VOICEVOX_LIB_NAME: &str = "libvoicevox_core.so";
-#[cfg(target_os = "macos")]
-const VOICEVOX_LIB_NAME: &str = "libvoicevox_core.dylib";
-#[cfg(target_os = "windows")]
-const VOICEVOX_LIB_NAME: &str = "voicevox_core.dll";
-
-#[cfg(target_os = "linux")]
-const candidate: [&'static str; 2] = ["libonnxruntime.so", "libonnxruntime.so.1.13.1"];
-#[cfg(target_os = "macos")]
-const candidate: [&'static str; 2] = ["libonnxruntime.dylib", "libonnxruntime.1.13.1.dylib"];
-#[cfg(target_os = "windows")]
-const candidate: [&'static str; 2] = ["onnxruntime.dll", "onnxruntime.1.13.1.dll"];
 
 /// Error type for Voicevox Core
 #[derive(Debug, thiserror::Error)]
@@ -53,7 +39,7 @@ impl DynWrapper {
     let lib_path = PathBuf::from(path).join(VOICEVOX_LIB_NAME);
     // load onnxruntime before core
     let mut ort_path = None;
-    for c in candidate {
+    for c in CANDIDATES {
       if let Some(p) = search_file(c, path) {
         ort_path = Some(p);
         break;

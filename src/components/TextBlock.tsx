@@ -75,7 +75,6 @@ function TextBlock(props: { index: number }) {
   );
 
   const setSelected = () => {
-    console.log("setSelected");
     setUIStore("selectedTextBlockIndex", props.index);
   };
   return (

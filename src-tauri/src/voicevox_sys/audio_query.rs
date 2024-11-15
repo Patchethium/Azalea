@@ -80,7 +80,7 @@ pub struct AudioQuery {
 }
 
 impl AudioQuery {
-  pub(crate) fn with_kana(self, kana: Option<String>) -> Self {
+  pub fn with_kana(self, kana: Option<String>) -> Self {
     Self { kana, ..self }
   }
 }

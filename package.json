@@ -16,6 +16,7 @@
     "@kobalte/core": "^0.13.7",
     "@solid-primitives/context": "^0.2.3",
     "@tauri-apps/api": "^2.0.3",
+    "@tauri-apps/plugin-dialog": "~2",
     "@tauri-apps/plugin-shell": "^2.0.1",
     "@types/lodash": "^4.17.13",
     "@unocss/reset": "^0.64.0",

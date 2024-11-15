@@ -5,6 +5,7 @@ import "virtual:uno.css";
 import "@unocss/reset/tailwind-compat.css";
 import { MultiProvider } from "@solid-primitives/context";
 import _ from "lodash";
+import { ConfigProvider } from "./store/config";
 import { MetaProvider } from "./store/meta";
 import { TextProvider } from "./store/text";
 import { UIProvider } from "./store/ui";
@@ -22,6 +23,7 @@ render(() => {
         [MetaProvider, []],
         [TextProvider, texts],
         [UIProvider, { selectedTextBlockIndex: 0 }],
+        [ConfigProvider, null],
       ]}
     >
       <App />

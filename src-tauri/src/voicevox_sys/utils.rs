@@ -5,6 +5,20 @@ use std::path::PathBuf;
 use anyhow::Result;
 use walkdir::WalkDir;
 
+#[cfg(target_os = "linux")]
+pub const VOICEVOX_LIB_NAME: &str = "libvoicevox_core.so";
+#[cfg(target_os = "macos")]
+pub const VOICEVOX_LIB_NAME: &str = "libvoicevox_core.dylib";
+#[cfg(target_os = "windows")]
+pub const VOICEVOX_LIB_NAME: &str = "voicevox_core.dll";
+
+#[cfg(target_os = "linux")]
+pub const CANDIDATES: [&'static str; 2] = ["libonnxruntime.so", "libonnxruntime.so.1.13.1"];
+#[cfg(target_os = "macos")]
+pub const CANDIDATES: [&'static str; 2] = ["libonnxruntime.dylib", "libonnxruntime.1.13.1.dylib"];
+#[cfg(target_os = "windows")]
+pub const CANDIDATES: [&'static str; 2] = ["onnxruntime.dll", "onnxruntime.1.13.1.dll"];
+
 #[allow(dead_code)]
 pub fn c_char_to_string(c_char_ptr: *const c_char) -> Option<String> {
   if c_char_ptr.is_null() {

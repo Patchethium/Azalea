@@ -15,6 +15,9 @@
       "style": {
         "useImportType": "off",
         "noNonNullAssertion": "off"
+      },
+      "a11y": {
+        "useKeyWithClickEvents": "off"
       }
     },
     "ignore": ["src/binding.ts"]

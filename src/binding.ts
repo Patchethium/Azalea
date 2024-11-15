@@ -6,11 +6,59 @@
 
 export const commands = {
 /**
- * Try get the voicevox core path
+ * So, the `libvoicevox.so` is not in the same directory as the executable,
+ * so we search for it in the executable's directory and return the dir that
+ * actually contains the `libvoicevox.so` file.
  */
-async getCorePath() : Promise<Result<string, string>> {
+async sanitizeVvExePath(path: string) : Promise<string | null> {
+    return await TAURI_INVOKE("sanitize_vv_exe_path", { path });
+},
+async pickCore(pickExec: boolean) : Promise<Result<string, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("get_core_path") };
+    return { status: "ok", data: await TAURI_INVOKE("pick_core", { pickExec }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async downloadCore(url: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("download_core", { url }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async initConfig() : Promise<Result<AzaleaConfig, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("init_config") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getConfig() : Promise<Result<AzaleaConfig, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_config") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async setConfig(config: AzaleaConfig) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_config", { config }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Load the voicevox core and create lru cache
+ */
+async initCore(corePath: string, cacheSize: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("init_core", { corePath, cacheSize }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -22,25 +70,6 @@ async getCorePath() : Promise<Result<string, string>> {
 async getMetas() : Promise<Result<SpeakerMeta[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_metas") };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-async stopAudio() : Promise<Result<null, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("stop_audio") };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-/**
- * Load the voicevox core and create lru cache
- */
-async initialize(corePath: string, cacheSize: number) : Promise<Result<null, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("initialize", { corePath, cacheSize }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -68,8 +97,19 @@ async synthesize(audioQuery: AudioQuery, speakerId: number) : Promise<Result<num
     else return { status: "error", error: e  as any };
 }
 },
+async stopAudio() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("stop_audio") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async spectrogram(signal: number[]) : Promise<number[][]> {
     return await TAURI_INVOKE("spectrogram", { signal });
+},
+async quit() : Promise<void> {
+    await TAURI_INVOKE("quit");
 }
 }
 
@@ -152,6 +192,14 @@ output_stereo: boolean;
  * [`Synthesizer::audio_query`]: crate::blocking::Synthesizer::audio_query
  */
 kana: string | null }
+export type AzaleaConfig = { core_config: CoreConfig }
+export type CoreConfig = { 
+/**
+ * The Path to the core directory, it should be the directory containing the dynamic library.
+ * For example, if the lib is in `/home/user/VOICEVOX/vv-engine/libvoicevox_core.so`,
+ * the path should be `/home/user/VOICEVOX/vv-engine`.
+ */
+core_path: string | null; ojt_path: string | null; cache_size: number }
 /**
  * モーラ（子音＋母音）ごとの情報。
  */
