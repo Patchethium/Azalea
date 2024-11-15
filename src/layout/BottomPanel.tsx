@@ -17,7 +17,8 @@ function BottomPanel() {
   const currentText = () => textStore[uiStore.selectedTextBlockIndex];
   const selectedIdx = () => uiStore.selectedTextBlockIndex;
 
-  const durStore = () => {
+  const durStore = createMemo(() => {
+    if (currentText().query == null) return [];
     const durs: [number, (v: number) => void][] = [];
     currentText().query?.accent_phrases.forEach((ap, i) => {
       ap.moras.forEach((m, j) => {
@@ -76,9 +77,10 @@ function BottomPanel() {
       }
     });
     return durs;
-  };
+  });
 
   const phonemes = () => {
+    if (currentText().query == null) return [];
     const phs: string[] = [];
     currentText().query?.accent_phrases.forEach((ap) => {
       ap.moras.forEach((m) => {
@@ -139,25 +141,13 @@ function BottomPanel() {
   };
 
   return (
-    <div class="p3 wfull hfull flex flex-col gap1">
-      <div class="m-none p-none flex flex-row gap2">
-        <div class="w-20">Scale: {scale()}</div>
-        <input
-          class="w-50"
-          type="range"
-          value={scale()}
-          min={100}
-          max={1000}
-          onInput={(e) => setScale(Number.parseInt(e.target.value))}
-        />
-      </div>
+    <div class="wfull hfull flex flex-col gap1 border-t-1 border-slate-2 p5">
       <div
         ref={scrollAreaRef}
-        class="w-full h-auto relative flex left-0 top-0 overflow-scroll
-        border border-dashed border-cyan"
+        class="w-full h-full relative flex left-0 top-0 overflow-scroll rounded-xl border border-slate-2"
       >
         <div
-          class="w-full h-16 flex flex-row select-none overflow-hidden"
+          class="w-full h-full flex flex-row select-none overflow-hidden"
           style="min-width: min-content"
           classList={{ "cursor-ew-resize": draggingIdx() !== null }}
           onMouseMove={handleDrag}

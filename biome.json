@@ -6,6 +6,9 @@
     "indentStyle": "space",
     "ignore": ["src/binding.ts"]
   },
+  "files": {
+    "ignore": ["src/binding.ts"]
+  },
   "linter": {
     "enabled": true,
     "rules": {

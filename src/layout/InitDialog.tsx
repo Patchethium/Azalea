@@ -6,10 +6,10 @@
 ///   - If failed, go back to the first option
 import { Button } from "@kobalte/core/button";
 import { RadioGroup } from "@kobalte/core/radio-group";
-import { createMemo, createSignal, For } from "solid-js";
-import { useConfigStore } from "../store/config";
 import { open as openShell } from "@tauri-apps/plugin-shell";
+import { For, createMemo, createSignal } from "solid-js";
 import { commands } from "../binding";
+import { useConfigStore } from "../store/config";
 import { useUIStore } from "../store/ui";
 
 function InitDialog() {
@@ -78,7 +78,7 @@ function InitDialog() {
           </span>
           , an unofficial
           <span
-            class="underline underline-green-4 m1 hover:(text-green-5 cursor-pointer)"
+            class="underline underline-green-4 m1 hover:(text-green-6 cursor-pointer)"
             onClick={() => openShell("https://github.com/VOICEVOX/VOICEVOX")}
           >
             VOICEVOX
@@ -114,7 +114,9 @@ function InitDialog() {
               </RadioGroup.Item>
             )}
           </For>
-          <RadioGroup.ErrorMessage class="text-red-5">{lastError()}</RadioGroup.ErrorMessage>
+          <RadioGroup.ErrorMessage class="text-red-5">
+            {lastError()}
+          </RadioGroup.ErrorMessage>
         </RadioGroup>
         <div class="flex flex-row justify-center items-center w-full">
           <div class="m-auto" />
