@@ -9,12 +9,15 @@
 
 We don't provide a pre-built binary yet, as the project is still in heavy development. You can build it yourself by following the instructions below.
 
+> [!IMPORTANT]
+> Accroding to [here](https://github.com/oven-sh/pnpm/issues/13076), `pnpm` has a bug on platforms other than Linux. The issue is with `css-tree` which `UnoCSS` depends on. If you're on other platform, using other package managers `npm` or `pnpm` is recommended.
+
 ## Development
 
 ### Prerequisites
 
 - [Rust](https://rustup.rs)
-- [bun](https://bun.sh)
+- [pnpm](https://pnpm.io)
 - [mold](https://github.com/rui314/mold), if you're on Linux
 
 ### Setting up the core
@@ -63,16 +66,16 @@ VOICEVOX_CORE_DIR=your_dir/voicevox_core/
 git clone https://github.com/Patchethium/Azalea.git
 cd Azalea
 # install the dependencies
-bun i
+pnpm i
 # dev build
-bun tauri dev
+pnpm tauri dev
 # production build
-bun tauri build
+pnpm tauri build
 # You may also want to clean the artifacts after building, it's 10 GB or so
 cd src-tauri
 cargo clean
 # Frontend lint&format, dev only
-bun check
+pnpm check
 ```
 
 ## Contributing

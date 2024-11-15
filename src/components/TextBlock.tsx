@@ -170,7 +170,7 @@ function TextBlock(props: { index: number }) {
       >
         <Show when={selected() || hovered() || toolbarHovered()}>
           <div
-            class="absolute right-4 flex overflow-hidden rounded-lg p1 bg-white shadow-md -top-8 pointer-events-auto z-20"
+            class="absolute right-4 flex overflow-hidden rounded-lg p1 bg-white shadow-md -top-8 pointer-events-auto z-20 py1 px2"
             classList={{
               "opacity-50": hovered() && !selected() && !toolbarHovered(),
             }}
@@ -198,7 +198,7 @@ function TextBlock(props: { index: number }) {
           class="group w-6 h-6 flex bg-transparent items-center justify-center"
           onClick={speak}
         >
-          <div class="i-lucide:play w-5 h-5 bg-gray-8 hover:bg-blue-5 active:bg-blue-6" />
+          <div class="i-lucide:play w-5 h-5 bg-gray-8 group-hover:bg-blue-5 group-active:bg-blue-6" />
         </Button>
         <TextField
           onChange={(value: string) => setText(value)}

@@ -16,7 +16,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     core_config: {
       core_path: null,
       ojt_path: null,
-      cache_size: 0,
+      cache_size: 1024,
     },
   });
 

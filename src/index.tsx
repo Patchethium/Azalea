@@ -12,9 +12,7 @@ import { UIProvider } from "./store/ui";
 
 render(() => {
   const texts = [
-    { text: "こんにちは、地球人。" },
-    { text: "我々は宇宙人。" },
-    { text: "お前らの惑星を侵略しに来たんだ。" },
+    { text: "", styleId: 0 },
   ];
 
   return (
