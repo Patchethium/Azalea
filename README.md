@@ -1,12 +1,13 @@
 # Azalea
 
-`Azalea`(アザレア) is a simple and (relatively) lightweight unofficial GUI for [VOICEVOX](https://github.com/VOICEVOX/voicevox), a **Japanese only** TTS app. [The Author](https://github.com/Patchethium) aims to provide a simple and easy-to-use interface for VOICEVOX, with their own personal touch.
+`Azalea`(アザレア) is a simple and (relatively) lightweight unofficial GUI for [VOICEVOX](https://github.com/VOICEVOX/voicevox), a **Japanese only** TTS app. [The Author](https://github.com/Patchethium) aims to provide a simple and easy-to-use interface for VOICEVOX, with his own personal touch.
 
-:construction: **This project is still in development and is not ready for use.** :construction:
+> [!WARNING]
+> :construction: **This project is still in development and is not ready for production use.** :construction:
 
 ## Installation
 
-WIP
+We don't provide a pre-built binary yet, as the project is still in heavy development. You can build it yourself by following the instructions below.
 
 ## Development
 
@@ -17,6 +18,11 @@ WIP
 - [mold](https://github.com/rui314/mold), if you're on Linux
 
 ### Setting up the core
+
+#### Using VOICEVOX
+
+If you have VOICEVOX installed, you already have a core. You can find it in the `vv-engine` directory under the VOICEVOX installation directory.
+
 #### Using the official downloader
 
 You can refer to the [official VOICEVOX documentation](https://github.com/VOICEVOX/voicevox_core?tab=readme-ov-file#%E7%92%B0%E5%A2%83%E6%A7%8B%E7%AF%89) (Japanese), you just need to download their script and execute it.
@@ -43,20 +49,12 @@ your_dir/
 ### Setting the environment variables
 
 > [!WARNING]
-> The environment variables are only needed in development. In production, users set the core directory in the GUI. This approach will be deprecated after the config system is implemented.
+> The environment variables are only needed in development. In production, users set the core directory in the GUI. This approach will be deprecated after the config system is implemented. Frankly, if you don't want to run `cargo test`, you can skip this step.
 
 Copy the `.env.dev` and rename it to `.env`, set the variable like below:
 
 ```ini
 VOICEVOX_CORE_DIR=your_dir/voicevox_core/
-```
-
-#### Using VOICEVOX
-
-If you have VOICEVOX installed, you can use the existing instance. The core should be located at `VOICEVOX/vv-engine/`.
-
-```ini
-VOICEVOX_CORE_DIR=path/to/VOICEVOX/vv-engine
 ```
 
 ### Setup
@@ -66,20 +64,20 @@ git clone https://github.com/Patchethium/Azalea.git
 cd Azalea
 # install the dependencies
 bun i
-# it takes a few minutes to compile the first time, 10 secs or so after that
+# dev build
 bun tauri dev
-# don't do this, I haven't implemented the config system yet
+# production build
 bun tauri build
 # You may also want to clean the artifacts after building, it's 10 GB or so
 cd src-tauri
 cargo clean
-# Frontend lint&format with
+# Frontend lint&format, dev only
 bun check
 ```
 
 ## Contributing
 
-Azalea welcomes PRs, please open an issue before making one.
+Azalea welcomes PRs, please open an issue before making one, as in the early stage, running `git push --force` is common for me.
 
 I can read and write directly in Japanese and English, feel free to reach out to in any of these languages.
 
