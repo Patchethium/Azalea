@@ -11,9 +11,7 @@ import { TextProvider } from "./store/text";
 import { UIProvider } from "./store/ui";
 
 render(() => {
-  const texts = [
-    { text: "", styleId: 0 },
-  ];
+  const texts = [{ text: "", styleId: 0 }];
 
   return (
     <MultiProvider

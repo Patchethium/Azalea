@@ -3,10 +3,12 @@ import _ from "lodash";
 import { For, createMemo, createSignal } from "solid-js";
 import { useTextStore } from "../store/text";
 import { useUIStore } from "../store/ui";
+import { Button } from "@kobalte/core/button";
+import { commands } from "../binding";
 
 function BottomPanel() {
   const { textStore, setTextStore } = useTextStore()!;
-  const { uiStore } = useUIStore()!;
+  const { uiStore, setUIStore } = useUIStore()!;
   const [draggingIdx, setDraggingIdx] = createSignal<number | null>(null);
   const [scale, setScale] = createSignal(360);
 
@@ -36,7 +38,7 @@ function BottomPanel() {
                 "moras",
                 j,
                 "consonant_length",
-                v,
+                v
               );
             },
           ]);
@@ -53,7 +55,7 @@ function BottomPanel() {
                 "moras",
                 j,
                 "vowel_length",
-                v,
+                v
               );
             },
           ]);
@@ -70,7 +72,7 @@ function BottomPanel() {
               i,
               "pause_mora",
               "vowel_length",
-              v,
+              v
             );
           },
         ]);
@@ -101,11 +103,18 @@ function BottomPanel() {
       if (i === 0) return [d];
       acc.push(d + acc[i - 1]);
       return acc;
-    }, []),
+    }, [])
   );
 
   const handleDragStart = (e: MouseEvent) => {
-    if (currentText().query == null) return;
+    if (
+      currentText().query === undefined ||
+      currentText().query?.accent_phrases.length === 0
+    ) {
+      console.log("no query");
+      setDraggingIdx(null);
+      return;
+    }
     let located = _.sortedIndex(accumulatedDur(), e.offsetX / scale());
     if (located === durStore().length) {
       located = durStore().length - 1;
@@ -140,16 +149,48 @@ function BottomPanel() {
     }
   };
 
+  const focusNext= () => {
+    if (uiStore.selectedTextBlockIndex < textStore.length - 1) {
+      setUIStore("selectedTextBlockIndex", uiStore.selectedTextBlockIndex + 1);
+    }
+  }
+
+  const focusPrev = () => {
+    if (uiStore.selectedTextBlockIndex > 0) {
+      setUIStore("selectedTextBlockIndex", uiStore.selectedTextBlockIndex - 1);
+    }
+  }
+
+  const speak = () => {
+    commands.synthesize(currentText().query!, currentText().styleId!);
+  }
+
+  const playable = createMemo(() => {
+    return currentText().query != null && currentText().query!.accent_phrases.length > 0;
+  });
+
   return (
-    <div class="wfull hfull flex flex-col gap1 border-t-1 border-slate-2 p5">
+    <div class="wfull hfull flex flex-col">
+      {/* Control bar */}
+      <div class="h-8 p2 flex flex-row items-center justify-center gap-1 b-t b-slate-2">
+        <Button class="group h-5 w-5 bg-transparent rounded-md ui-disabled:cursor-not-allowed" onClick={focusPrev}>
+          <div class="i-lucide:skip-back w-full h-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+        </Button>
+        <Button class="group h-6 w-6 bg-transparent rounded-md ui-disabled:cursor-not-allowed" onClick={speak} disabled={!playable()}>
+          <div class="i-lucide:play w-full h-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+        </Button>
+        <Button class="group h-5 w-5 bg-transparent rounded-md ui-disabled:cursor-not-allowed" onClick={focusNext}>
+          <div class="i-lucide:skip-forward w-full h-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+        </Button>
+      </div>
       <div
         ref={scrollAreaRef}
-        class="w-full h-full relative flex left-0 top-0 overflow-scroll rounded-xl border border-slate-2"
+        class="w-full h-full relative flex left-0 top-0 overflow-scroll"
       >
         <div
-          class="w-full h-full flex flex-row select-none overflow-hidden"
+          class="w-full h-full flex flex-row select-none active:cursor-default"
           style="min-width: min-content"
-          classList={{ "cursor-ew-resize": draggingIdx() !== null }}
+          classList={{ "!cursor-ew-resize": draggingIdx() !== null }}
           onMouseMove={handleDrag}
           onMouseDown={handleDragStart}
           onMouseUp={handleDragFinish}
@@ -166,7 +207,7 @@ function BottomPanel() {
                 >
                   {phonemes()[i()]}
                 </div>
-                <div class="h-full w-1px bg-blue-8 pointer-events-none" />
+                <div class="h-full w-1px bg-slate-4 pointer-events-none" />
               </>
             )}
           </For>

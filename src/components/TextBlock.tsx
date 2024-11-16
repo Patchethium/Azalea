@@ -23,7 +23,7 @@ const EditButton: ParentComponent<{
   const disabled = createMemo(() => props.disable?.() ?? false);
   return (
     <Button
-      class="group h-6 w-6 bg-white rounded-md ui-disabled:cursor-not-allowed"
+      class="group h-6 w-6 bg-transparent rounded-md ui-disabled:cursor-not-allowed"
       disabled={disabled()}
       onClick={props.edit}
     >
@@ -41,7 +41,7 @@ function TextBlock(props: { index: number }) {
     const speakerId = data().styleId;
     if (speakerId !== undefined) {
       const speaker = metas.find((meta) =>
-        meta.styles.some((style) => style.id === speakerId),
+        meta.styles.some((style) => style.id === speakerId)
       );
       const style = speaker?.styles.find((style) => style.id === speakerId);
       return _.join([speaker?.name, style?.name], "-");
@@ -85,7 +85,7 @@ function TextBlock(props: { index: number }) {
     if (isStyleIdValid()) {
       const audio_query = await commands.audioQuery(
         curData.text,
-        curData.styleId!,
+        curData.styleId!
       );
       if (audio_query.status === "ok") {
         setQuery(audio_query.data);
@@ -96,7 +96,7 @@ function TextBlock(props: { index: number }) {
   });
 
   const selected = createMemo(
-    () => uiStore.selectedTextBlockIndex === props.index,
+    () => uiStore.selectedTextBlockIndex === props.index
   );
 
   const setSelected = (index: number) => {
@@ -155,12 +155,21 @@ function TextBlock(props: { index: number }) {
     setTextStore(textStore.filter((_, i) => i !== props.index));
   };
 
+  let inputFieldRef: HTMLInputElement|undefined;
+
+  const handleBlockClicked = (e: MouseEvent) => {
+    if (e.target === e.currentTarget){
+      inputFieldRef?.focus();
+    }
+  } 
+
   return (
     <div
-      class="p3 border border-slate-2 rounded-2xl my-2 flex flex-col gap-3 relative"
-      classList={{ "!border-blue-500": selected() }}
+      class="rounded-xl flex flex-col pt-2 relative px3 pb1"
+      classList={{ "shadow-lg": selected() }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onClick={handleBlockClicked}
     >
       {/* The jupyter/Google Colab notebook style code block */}
       <div
@@ -170,7 +179,7 @@ function TextBlock(props: { index: number }) {
       >
         <Show when={selected() || hovered() || toolbarHovered()}>
           <div
-            class="absolute right-4 flex overflow-hidden rounded-lg p1 bg-white shadow-md -top-8 pointer-events-auto z-20 py1 px2"
+            class="absolute right-4 flex p1 rounded-lg bg-white shadow-md -top-6 pointer-events-auto z-20"
             classList={{
               "opacity-50": hovered() && !selected() && !toolbarHovered(),
             }}
@@ -194,22 +203,16 @@ function TextBlock(props: { index: number }) {
         </Show>
       </div>
       <div class="flex flex-row items-center justify-center gap-1">
-        <Button
-          class="group w-6 h-6 flex bg-transparent items-center justify-center"
-          onClick={speak}
-        >
-          <div class="i-lucide:play w-5 h-5 bg-gray-8 group-hover:bg-blue-5 group-active:bg-blue-6" />
-        </Button>
         <TextField
           onChange={(value: string) => setText(value)}
           value={data().text}
-          onFocus={() => setSelected(props.index)}
-          onFocusIn={() => setSelected(props.index)}
-          class="flex-1"
+          class="w-full pb-1"
         >
           <TextField.Label />
           <TextField.Input
-            class="w-full h-10 p1 px-3 rounded-xl border border-slate-2 outline-none"
+            onFocus={() => setSelected(props.index)}
+            ref={inputFieldRef}
+            class="w-full h-10 p1 px-3 rounded-lg border border-slate-2 outline-none"
             classList={{ "ring-1 ring-blue-500": selected() }}
           />
         </TextField>
@@ -241,12 +244,14 @@ function TextBlock(props: { index: number }) {
           </div>
         </NumberField>
         <div class="flex-1" />
-        <Show
-          when={isStyleIdValid()}
-          fallback={<p>Choose a Style from Left Input</p>}
-        >
-          <p>{speakerName()}</p>
-        </Show>
+        <div class="text-sm text-slate-8">
+          <Show
+            when={isStyleIdValid()}
+            fallback={<p>Choose a Style from Left Input</p>}
+          >
+            <p>{speakerName()}</p>
+          </Show>
+        </div>
       </div>
     </div>
   );
