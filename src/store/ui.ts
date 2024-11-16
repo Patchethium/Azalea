@@ -5,6 +5,7 @@ type UIStoreType = {
   selectedTextBlockIndex: number;
   coreInitialized: boolean;
   lastError: string | null;
+  tunableScale: number;
 };
 
 const [UIProvider, useUIStore] = createContextProvider(() => {
@@ -12,6 +13,7 @@ const [UIProvider, useUIStore] = createContextProvider(() => {
     selectedTextBlockIndex: 0,
     coreInitialized: false,
     lastError: null,
+    tunableScale: 360,
   });
   return {
     uiStore,
