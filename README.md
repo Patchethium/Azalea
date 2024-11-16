@@ -10,7 +10,7 @@
 We don't provide a pre-built binary yet, as the project is still in heavy development. You can build it yourself by following the instructions below.
 
 > [!IMPORTANT]
-> Accroding to [here](https://github.com/oven-sh/pnpm/issues/13076), `pnpm` has a bug on platforms other than Linux. The issue is with `css-tree` which `UnoCSS` depends on. If you're on other platform, using other package managers `npm` or `pnpm` is recommended.
+> Accroding to [here](https://github.com/oven-sh/pnpm/issues/13076), `bun` has a bug on non-Linux platforms. The issue is with `css-tree` which `UnoCSS` depends on. Before it gets fixed, we will be using `pnpm` instead.
 
 ## Development
 
@@ -18,7 +18,7 @@ We don't provide a pre-built binary yet, as the project is still in heavy develo
 
 - [Rust](https://rustup.rs)
 - [pnpm](https://pnpm.io)
-- [mold](https://github.com/rui314/mold), if you're on Linux
+- [mold](https://github.com/rui314/mold) and clang, if you're on Linux
 
 ### Setting up the core
 
@@ -28,7 +28,8 @@ If you have VOICEVOX installed, you already have a core. You can find it in the 
 
 #### Using the official downloader
 
-You can refer to the [official VOICEVOX documentation](https://github.com/VOICEVOX/voicevox_core?tab=readme-ov-file#%E7%92%B0%E5%A2%83%E6%A7%8B%E7%AF%89) (Japanese), you just need to download their script and execute it.
+You can refer to the [official VOICEVOX documentation](https://github.com/VOICEVOX/voicevox_core?tab=readme-ov-file#%E7%92%B0%E5%A2%83%E6%A7%8B%E7%AF%89) (Japanese), you just need to download their script and execute it. The downloaded artifacts will be located in the `voicevox_core` directory created in where you execute it.
+
 #### Manually downloading the core
 
  - Download the core from the [VOICEVOX releases](https://github.com/VOICEVOX/voicevox_core/releases) and extract it to a directory.
@@ -46,13 +47,14 @@ your_dir/
         - *.def
         - ...
 ```
+
 > [!NOTE]
 > It would be `.dylib` for MacOS and `.dll` for Windows.
 
 ### Setting the environment variables
 
 > [!WARNING]
-> The environment variables are only needed in development. In production, users set the core directory in the GUI. This approach will be deprecated after the config system is implemented. Frankly, if you don't want to run `cargo test`, you can skip this step.
+> The environment variables are only needed in development, while in production, users set the core directory in the GUI. Basically, if you don't need to run `cargo test`, you can skip this step.
 
 Copy the `.env.dev` and rename it to `.env`, set the variable like below:
 
