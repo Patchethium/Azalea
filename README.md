@@ -10,7 +10,7 @@
 We don't provide a pre-built binary yet, as the project is still in heavy development. You can build it yourself by following the instructions below.
 
 > [!IMPORTANT]
-> Accroding to [here](https://github.com/oven-sh/pnpm/issues/13076), `bun` has a bug on non-Linux platforms. The issue is with `css-tree` which `UnoCSS` depends on. Before it gets fixed, we will be using `pnpm` instead.
+> Accroding to [here](https://github.com/oven-sh/bun/issues/13076), `bun` has a bug on non-Linux platforms. The issue is with `css-tree` which `UnoCSS` depends on. Before it gets fixed, we will be using `pnpm` instead.
 
 ## Development
 
