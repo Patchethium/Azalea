@@ -3,10 +3,10 @@
   "formatter": {
     "enabled": true,
     "indentWidth": 2,
-    "indentStyle": "space",
-    "ignore": ["src/binding.ts"]
+    "indentStyle": "space"
   },
   "files": {
+    "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.json"],
     "ignore": ["src/binding.ts"]
   },
   "linter": {
@@ -22,8 +22,7 @@
       "a11y": {
         "useKeyWithClickEvents": "off"
       }
-    },
-    "ignore": ["src/binding.ts"]
+    }
   },
   "organizeImports": {
     "enabled": true

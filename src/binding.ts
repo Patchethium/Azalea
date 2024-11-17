@@ -75,6 +75,14 @@ async getMetas() : Promise<Result<SpeakerMeta[], string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async getRange() : Promise<Result<{ [key in StyleId]: [number, number] }, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_range") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 /**
  * Encodes text into audio query
  */

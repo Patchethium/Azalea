@@ -32,6 +32,7 @@ pub fn run() {
     set_config,
     init_core,
     get_metas,
+    get_range,
     audio_query,
     synthesize,
     stop_audio,

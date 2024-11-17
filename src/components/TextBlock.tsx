@@ -12,6 +12,7 @@ import {
 import { commands } from "../binding";
 import { AudioQuery } from "../binding";
 import { StyleId } from "../binding";
+import { useConfigStore } from "../store/config";
 import { useMetaStore } from "../store/meta";
 import { useTextStore } from "../store/text";
 import { useUIStore } from "../store/ui";

@@ -1,9 +1,9 @@
 import { Button } from "@kobalte/core/button";
-import { throttle } from "@solid-primitives/scheduled";
-import _, { set } from "lodash";
+import _ from "lodash";
 // the bottom panel where users do most of their tuning
-import { For, createMemo, createSignal } from "solid-js";
+import { For, Show, createMemo, createSignal } from "solid-js";
 import { commands } from "../binding";
+import { useConfigStore } from "../store/config";
 import { useTextStore } from "../store/text";
 import { useUIStore } from "../store/ui";
 
@@ -12,8 +12,7 @@ function BottomPanel() {
   const { uiStore, setUIStore } = useUIStore()!;
   const [draggingIdx, setDraggingIdx] = createSignal<number | null>(null);
   const [scale, setScale] = createSignal(360);
-  const [minPitch, setMinPitch] = createSignal(4.7);
-  const [maxPitch, setMaxPitch] = createSignal(6.5);
+  const { range } = useConfigStore()!;
 
   const epsilon = 0.01;
 
@@ -21,6 +20,17 @@ function BottomPanel() {
 
   const currentText = () => textStore[uiStore.selectedTextBlockIndex];
   const selectedIdx = () => uiStore.selectedTextBlockIndex;
+
+  const computedRange = createMemo(() => {
+    const id = currentText().styleId;
+    const r = range();
+    if (id === undefined || r === null) return [0, 0];
+    const [mean, std] = r[id];
+    return [mean - 3 * std, mean + 3 * std];
+  });
+
+  const minPitch = createMemo(() => computedRange()[0]);
+  const maxPitch = createMemo(() => computedRange()[1]);
 
   const setConsonantLength = (i: number, j: number, v: number) => {
     setTextStore(
@@ -249,7 +259,7 @@ function BottomPanel() {
       ((totalHeight - y) / totalHeight) * (maxPitch() - minPitch());
     const mora_idx = moraMap()[draggingIdx()!];
     const setter = setPitches()[mora_idx];
-    setter(pitch);
+    if (setter) setter(pitch);
   };
 
   const handleDragFinish = (_e: MouseEvent) => {
@@ -332,24 +342,26 @@ function BottomPanel() {
           onMouseLeave={handleDragFinish}
           onWheel={handleWheel}
         >
-          <For each={pitches()}>
-            {(p, i) => (
-              <>
-                <div class="h-full flex flex-col justify-end pointer-events-none content-empty b-r b-r-slate-4 b-b b-b-slate-2">
-                  <div
-                    class="h-full b-t b-slate-4 pointer-events-none text-sm flex items-center justify-center"
-                    classList={{ "b-none": p < minPitch() }}
-                    style={{
-                      height: `${pitchRatio()[i()]}%`,
-                      width: `${moraDurs()[i()] * scale() - 1}px`,
-                    }}
-                  >
-                    {p.toFixed(2)}
+          <Show when={!(minPitch() === 0 && maxPitch() === 0)}>
+            <For each={pitches()}>
+              {(p, i) => (
+                <>
+                  <div class="h-full flex flex-col justify-end pointer-events-none content-empty b-r b-r-slate-4">
+                    <div
+                      class="h-full b-t b-slate-4 pointer-events-none text-sm flex items-center justify-center"
+                      classList={{ "b-none": p < minPitch() }}
+                      style={{
+                        height: `${pitchRatio()[i()]}%`,
+                        width: `${moraDurs()[i()] * scale() - 1}px`,
+                      }}
+                    >
+                      {p.toFixed(2)}
+                    </div>
                   </div>
-                </div>
-              </>
-            )}
-          </For>
+                </>
+              )}
+            </For>
+          </Show>
         </div>
         {/* Duration segments */}
         <div
@@ -370,7 +382,7 @@ function BottomPanel() {
             {(d, i) => (
               <>
                 <div
-                  class="items-center justify-center flex pointer-events-none b-r b-r-slate-4 b-b b-b-slate-2"
+                  class="items-center justify-center flex pointer-events-none b-r b-r-slate-4 b-b b-b-slate-2 b-t b-t-slate-2"
                   style={{ width: `${d[0] * scale()}px` }}
                 >
                   {phonemes()[i()]}

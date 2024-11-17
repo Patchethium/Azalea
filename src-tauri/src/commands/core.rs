@@ -144,7 +144,7 @@ pub async fn spectrogram(signal: Vec<u16>) -> Vec<Vec<f64>> {
 
 #[tauri::command]
 #[specta::specta]
-pub async fn download_core(url: String) -> Result<(), String> {
+pub async fn download_core(_url: String) -> Result<(), String> {
   todo!()
 }
 

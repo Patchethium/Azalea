@@ -3,7 +3,7 @@ import { createContextProvider } from "@solid-primitives/context";
 import _ from "lodash";
 import { createEffect, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
-import { AzaleaConfig } from "../binding";
+import { AzaleaConfig, StyleId } from "../binding";
 import { commands } from "../binding";
 import { useMetaStore } from "./meta";
 import { useUIStore } from "./ui";
@@ -20,6 +20,10 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     },
   });
 
+  type RangeMap = { [key in StyleId]: [number, number] };
+
+  const [range, setRange] = createSignal<RangeMap | null>(null);
+
   const [configInitialized, setConfigInitialized] = createSignal(false);
 
   const load_meta = async () => {
@@ -31,6 +35,15 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     }
   };
 
+  const load_range = async () => {
+    const res = await commands.getRange();
+    if (res.status === "ok") {
+      setRange(res.data as RangeMap);
+    } else {
+      console.error("Failed to get range:", res.error);
+    }
+  };
+
   createEffect(async () => {
     if (config.core_config.core_path !== null) {
       const res = await commands.initCore(
@@ -39,13 +52,14 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
       );
       if (res.status === "error") {
         if (res.error === "Core already loaded") {
+          load_range();
           load_meta();
           setUIStore("coreInitialized", true);
         } else {
           console.error("Failed to initialize core:", res.error);
-          setUIStore("lastError", "The core path is invalid.");
         }
       } else {
+        load_range();
         load_meta();
         setUIStore("coreInitialized", true);
       }
@@ -61,7 +75,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     }
   });
 
-  return { config, setConfig, configInitialized, setConfigInitialized };
+  return { config, setConfig, configInitialized, setConfigInitialized, range };
 });
 
 export { ConfigProvider, useConfigStore };

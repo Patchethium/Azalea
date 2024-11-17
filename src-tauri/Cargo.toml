@@ -52,6 +52,16 @@ incremental = true
 
 [profile.release]
 strip = true
-opt-level = "s"
+opt-level = "z"
 lto = true
 panic = "abort"
+
+[[bench]]
+name = "pitch_range"
+harness = false
+
+# for faster compilation
+[profile.bench]
+strip = false
+lto = false
+opt-level = 1

@@ -18,7 +18,7 @@ render(() => {
       values={[
         [MetaProvider, []],
         [TextProvider, texts],
-        [UIProvider, { selectedTextBlockIndex: 0 }],
+        [UIProvider, null],
         [ConfigProvider, null],
       ]}
     >

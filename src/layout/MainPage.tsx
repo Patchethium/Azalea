@@ -18,7 +18,7 @@ function MainPage() {
           )}
         </For>
       </div>
-      <div class="h-40 bg-white">
+      <div class="h-50 bg-white">
         <BottomPanel />
       </div>
     </div>

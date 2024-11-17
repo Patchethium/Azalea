@@ -7,19 +7,15 @@
 import { Button } from "@kobalte/core/button";
 import { RadioGroup } from "@kobalte/core/radio-group";
 import { open as openShell } from "@tauri-apps/plugin-shell";
-import { For, createMemo, createSignal } from "solid-js";
+import { For, createSignal } from "solid-js";
 import { commands } from "../binding";
 import { useConfigStore } from "../store/config";
-import { useUIStore } from "../store/ui";
 
 function InitDialog() {
   const { setConfig } = useConfigStore()!;
   const setCorePath = (path: string) => {
     setConfig("core_config", { core_path: path });
   };
-  const { uiStore } = useUIStore()!;
-
-  const lastError = createMemo(() => uiStore.lastError);
 
   type ActionType = "later" | "installed";
   const actions: ActionType[] = ["installed", "later"];
@@ -92,7 +88,6 @@ function InitDialog() {
         <RadioGroup
           value={action()}
           onChange={setAction}
-          validationState={lastError() ? "invalid" : "valid"}
           class="flex flex-col gap2"
         >
           <RadioGroup.Label class="text-gray-9 font-bold text-lg select-none cursor-default">
@@ -114,9 +109,6 @@ function InitDialog() {
               </RadioGroup.Item>
             )}
           </For>
-          <RadioGroup.ErrorMessage class="text-red-5">
-            {lastError()}
-          </RadioGroup.ErrorMessage>
         </RadioGroup>
         <div class="flex flex-row justify-center items-center w-full">
           <div class="m-auto" />

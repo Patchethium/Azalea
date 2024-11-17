@@ -1,6 +1,8 @@
 use super::utils::{state_mut, state_ref};
 use crate::config::{AzaleaConfig, ConfigManager};
 use crate::AppState;
+use crate::config::range::{get_range as _get_range, RangeMap};
+
 
 use tauri::State;
 
@@ -39,4 +41,10 @@ pub async fn set_config(
     .save()
     .map_err(|e| e.to_string())?;
   Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_range() -> std::result::Result<RangeMap, String> {
+  Ok(_get_range())
 }
