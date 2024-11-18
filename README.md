@@ -28,9 +28,9 @@ If you have VOICEVOX installed, you already have a core. You can find it in the 
 
 #### Using the official downloader
 
-You can refer to the [official VOICEVOX documentation](https://github.com/VOICEVOX/voicevox_core?tab=readme-ov-file#%E7%92%B0%E5%A2%83%E6%A7%8B%E7%AF%89) (Japanese), you just need to download their script and execute it. The downloaded artifacts will be located in the `voicevox_core` directory created in where you execute it.
+You can refer to the [official VOICEVOX documentation](https://github.com/VOICEVOX/voicevox_core?tab=readme-ov-file#%E7%92%B0%E5%A2%83%E6%A7%8B%E7%AF%89) (Japanese), download their script and execute it. The downloaded artifacts will be located in the `voicevox_core` directory.
 
-#### Manually downloading the core
+#### Manually downloading
 
  - Download the core from the [VOICEVOX releases](https://github.com/VOICEVOX/voicevox_core/releases) and extract it to a directory.
  - Download the OpenJTalk dictionary from the [OpenJTalk releases](https://jaist.dl.sourceforge.net/project/open-jtalk/Dictionary/open_jtalk_dic-1.11/open_jtalk_dic_utf_8-1.11.tar.gz) and extract it to the same directory.
@@ -51,16 +51,18 @@ your_dir/
 > [!NOTE]
 > It would be `.dylib` for MacOS and `.dll` for Windows.
 
-### Setting the environment variables
+### Setting the dev config
 
-> [!WARNING]
-> The environment variables are only needed in development, while in production, users set the core directory in the GUI. Basically, if you don't need to run `cargo test`, you can skip this step.
+The config file used in devlopment is located in `config_dev/config.json`. You can set the core path in the GUI launched by `pnpm tauri dev` and this file will be created automatically.
 
-Copy the `.env.dev` and rename it to `.env`, set the variable like below:
+If you want to manually modify the config file, we also provide a `config_dev/config.template.json`, copy it to `config_dev/config.json` and modify it as below:
 
-```ini
-VOICEVOX_CORE_DIR=your_dir/voicevox_core/
+```json
+{"core_config":{"core_path":"/path/to/core","ojt_path":null,"cache_size":1024}}
 ```
+
+> [!NOTE]
+> The `ojt_path` is not functional yet.
 
 ### Setup
 
@@ -83,7 +85,7 @@ pnpm check
 ### Pitch Range
 
 `Azalea` comes with a pre-computed pitch range for every speakers in VOICEVOX, for a higher utilization of the tuning panel space.
-The pitch range is computed by $\mu \pm 3\sigma$ of the pitch data of each speaker, where $\mu$ is the mean and $\sigma$ is the standard deviation.
+The pitch range is computed by $ \mu \pm 3\sigma $ of the pitch data of each speaker, where $ \mu $ is the mean and $ \sigma $ is the standard deviation.
 
 Every time the core gets updated, we need to recompute the pitch range, by
 
@@ -100,9 +102,7 @@ I can read and write directly in Japanese and English, feel free to reach out to
 
 ## License
 
-GPLv3 or later. See [LICENSE](LICENSE) for more information.
-
-> I'd just like to interject for a moment. What you're referring to as Azalea, is in fact, GNU/Azalea, or as I've recently taken to calling it, GNU plus Azalea. Azalea is not an operating system unto itself, but rather another free component of a fully functioning GNU system made useful by the GNU corelibs, shell utilities and vital system components comprising a full OS as defined by POSIX.
+[GPLv3](LICENSE) or later.
 
 ## Credits
 

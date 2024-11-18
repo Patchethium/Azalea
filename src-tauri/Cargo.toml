@@ -29,7 +29,7 @@ itertools = "0.13.0"
 tracing = "0.1.40"
 derive_more = { version = "1.0.0", features = ["from_str"] }
 strum = { version = "0.26.3", features = ["derive"] }
-thiserror = "2.0.0"
+thiserror = "2.0.3"
 rodio = { version = "0.20.1", default-features = false, features = [
     "wav",
     "hound",
@@ -37,7 +37,6 @@ rodio = { version = "0.20.1", default-features = false, features = [
 walkdir = "2.5.0"
 libloading = "0.8.5"
 lru = "0.12.5"
-dotenvy = "0.15.7"
 rustfft = "6.2.0"
 ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
 rayon = "1.10.0"
@@ -55,13 +54,3 @@ strip = true
 opt-level = "z"
 lto = true
 panic = "abort"
-
-[[bench]]
-name = "pitch_range"
-harness = false
-
-# for faster compilation
-[profile.bench]
-strip = false
-lto = false
-opt-level = 1

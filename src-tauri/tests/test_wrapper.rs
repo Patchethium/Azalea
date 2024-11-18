@@ -1,8 +1,7 @@
 #![allow(unused_variables)]
 #[cfg(test)]
 mod test {
-  use azalea_lib::voicevox_sys::DynWrapper;
-  use dotenvy::dotenv;
+  use azalea_lib::{config::ConfigManager, voicevox_sys::DynWrapper};
   use ndarray::Array1;
   use serde_json::to_string;
   use std::{
@@ -15,10 +14,16 @@ mod test {
   static SEMAPHORE: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
   fn get_core_dir() -> String {
-    dotenv().ok();
-    std::env::var("VOICEVOX_CORE_DIR").unwrap()
+    ConfigManager::new()
+      .unwrap()
+      .config
+      .core_config
+      .core_path
+      .unwrap()
+      .to_string_lossy()
+      .to_string()
   }
-
+  
   fn get_core() -> DynWrapper {
     let core_path = get_core_dir();
 
@@ -90,8 +95,16 @@ mod test {
       .map(|i| {
         let arc_clone = arc.clone();
         std::thread::spawn(move || {
-          let audio_query = arc_clone.read().unwrap().audio_query("こんにちは", 1, None).unwrap();
-          let _ = arc_clone.read().unwrap().synthesis(&audio_query, 1, None).unwrap();
+          let audio_query = arc_clone
+            .read()
+            .unwrap()
+            .audio_query("こんにちは", 1, None)
+            .unwrap();
+          let _ = arc_clone
+            .read()
+            .unwrap()
+            .synthesis(&audio_query, 1, None)
+            .unwrap();
           println!("Thread {} finished", i);
         })
       })

@@ -12,7 +12,6 @@ use ndarray::Array1;
 use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
 
-
 #[tauri::command]
 #[specta::specta]
 /// So, the `libvoicevox.so` is not in the same directory as the executable,
@@ -151,21 +150,21 @@ pub async fn download_core(_url: String) -> Result<(), String> {
 #[tauri::command]
 #[specta::specta]
 pub async fn pick_core(app: AppHandle, pick_exec: bool) -> Result<String, String> {
-  let path = app.dialog().file().set_file_name(if pick_exec {
-    VOICEVOX_LIB_NAME
-  } else {
-    "voicevox"
-  }).blocking_pick_file();
+  let path = app
+    .dialog()
+    .file()
+    .set_file_name(if pick_exec {
+      VOICEVOX_LIB_NAME
+    } else {
+      "voicevox"
+    })
+    .blocking_pick_file();
   if path.is_none() {
     return Ok("".into());
   }
   let path = match path {
-    Some(p) => {
-      p.into_path().map_err(|e| e.to_string())?
-    }
-    None => {
-      "".into()
-    }
+    Some(p) => p.into_path().map_err(|e| e.to_string())?,
+    None => "".into(),
   };
   let path = if path.is_file() {
     path.parent().unwrap().to_path_buf()

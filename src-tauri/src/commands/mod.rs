@@ -1,7 +1,7 @@
 mod config;
 mod core;
-mod utils;
 mod process;
+mod utils;
 
 pub use config::*;
 pub use core::*;

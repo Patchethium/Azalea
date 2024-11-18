@@ -1,7 +1,7 @@
+use anyhow::Result;
+use std::fs::{create_dir_all, File};
 use std::path::PathBuf;
 use std::sync::LazyLock;
-use std::fs::{create_dir_all, File};
-use anyhow::Result;
 
 use super::AzaleaConfig;
 

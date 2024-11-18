@@ -1,8 +1,7 @@
 use super::utils::{state_mut, state_ref};
+use crate::config::range::{get_range as _get_range, RangeMap};
 use crate::config::{AzaleaConfig, ConfigManager};
 use crate::AppState;
-use crate::config::range::{get_range as _get_range, RangeMap};
-
 
 use tauri::State;
 

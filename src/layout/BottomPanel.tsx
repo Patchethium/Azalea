@@ -235,7 +235,6 @@ function BottomPanel() {
       located = durStore().length - 1;
     }
     setDraggingIdx(located);
-    // handleDragDur(e);
   };
 
   const handleDragDur = (e: MouseEvent) => {
@@ -346,13 +345,15 @@ function BottomPanel() {
             <For each={pitches()}>
               {(p, i) => (
                 <>
-                  <div class="h-full flex flex-col justify-end pointer-events-none content-empty b-r b-r-slate-4">
+                  <div
+                    class="h-full flex flex-col justify-end pointer-events-none content-empty b-r b-r-slate-4"
+                    style={{ width: `${moraDurs()[i()] * scale()}px` }}
+                  >
                     <div
                       class="h-full b-t b-slate-4 pointer-events-none text-sm flex items-center justify-center"
                       classList={{ "b-none": p < minPitch() }}
                       style={{
                         height: `${pitchRatio()[i()]}%`,
-                        width: `${moraDurs()[i()] * scale() - 1}px`,
                       }}
                     >
                       {p.toFixed(2)}

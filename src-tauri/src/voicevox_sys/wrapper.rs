@@ -9,7 +9,9 @@ use std::ptr;
 use super::audio_query::AudioQuery;
 use super::binding::*;
 use super::metas::VoiceModelMeta;
-use super::utils::{c_char_to_string, CANDIDATES, search_file, string_to_c_char, VOICEVOX_LIB_NAME};
+use super::utils::{
+  c_char_to_string, search_file, string_to_c_char, CANDIDATES, VOICEVOX_LIB_NAME,
+};
 
 use anyhow::{Error, Result};
 use libloading::Library;
