@@ -11,14 +11,19 @@ function BottomPanel() {
   const { textStore, setTextStore } = useTextStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
   const [draggingIdx, setDraggingIdx] = createSignal<number | null>(null);
-  const [scale, setScale] = createSignal(360);
   const { range } = useConfigStore()!;
+
+  const scale = () => uiStore.tunableScale;
+  const setScale = (v: number) => {
+    setUIStore("tunableScale", v);
+  };
 
   const epsilon = 0.01;
 
   let scrollAreaRef!: HTMLDivElement;
 
   const currentText = () => textStore[uiStore.selectedTextBlockIndex];
+  const queryExists = () => currentText().query !== undefined && currentText().query!.accent_phrases.length > 0;
   const selectedIdx = () => uiStore.selectedTextBlockIndex;
 
   const computedRange = createMemo(() => {
@@ -41,7 +46,7 @@ function BottomPanel() {
       "moras",
       j,
       "consonant_length",
-      v,
+      v
     );
   };
 
@@ -54,7 +59,7 @@ function BottomPanel() {
       "moras",
       j,
       "vowel_length",
-      v,
+      v
     );
   };
 
@@ -66,7 +71,7 @@ function BottomPanel() {
       i,
       "pause_mora",
       "vowel_length",
-      v,
+      v
     );
   };
 
@@ -79,7 +84,7 @@ function BottomPanel() {
       "moras",
       j,
       "pitch",
-      v,
+      v
     );
   };
 
@@ -209,8 +214,8 @@ function BottomPanel() {
   const pitchRatio = createMemo(() =>
     _.map(
       pitches(),
-      (pit) => ((pit - minPitch()) / (maxPitch() - minPitch())) * 100,
-    ),
+      (pit) => ((pit - minPitch()) / (maxPitch() - minPitch())) * 100
+    )
   );
 
   const accumulatedDur = createMemo(() =>
@@ -218,7 +223,7 @@ function BottomPanel() {
       if (i === 0) return [d];
       acc.push(d + acc[i - 1]);
       return acc;
-    }, []),
+    }, [])
   );
 
   const handleDragStart = (e: MouseEvent) => {
@@ -268,7 +273,10 @@ function BottomPanel() {
   const handleWheel = (e: WheelEvent) => {
     if (e.ctrlKey) {
       e.preventDefault();
-      setScale(scale() - Math.floor(e.deltaY / 10));
+      let newScale = scale() + (e.deltaY > 0 ? -50 : 50);
+      newScale = Math.max(100, newScale);
+      newScale = Math.min(2000, newScale);
+      setScale(newScale);
     } else if (!e.shiftKey) {
       e.preventDefault();
       scrollAreaRef.scrollLeft += e.deltaY > 0 ? 100 : -100;
@@ -298,13 +306,58 @@ function BottomPanel() {
     );
   });
 
+  const prevExists = createMemo(
+    () => uiStore.selectedTextBlockIndex > 0 && textStore.length > 1
+  );
+
+  const nextExists = createMemo(
+    () =>
+      uiStore.selectedTextBlockIndex < textStore.length - 1 &&
+      textStore.length > 1
+  );
+
+  const [scalebarDragging, setScalebarDragging] = createSignal(false);
+
+  const handleScalebarDrag = (e: MouseEvent) => {
+    if (scalebarDragging()) {
+      console.log("scalebar draging");
+      const x = e.offsetX;
+      const width = (e.currentTarget as HTMLElement).clientWidth;
+      const newScale = (x / width) * 2000;
+      if (newScale > 100 && newScale < 2000) setScale(newScale);
+    }
+  };
+
   return (
     <div class="wfull hfull flex flex-col bg-white border border-slate-2 rounded-lg">
       {/* Control bar */}
-      <div class="h-8 p2 flex flex-row items-center justify-center gap-1 b-b b-slate-2">
+      <div class="h-8 p2 flex flex-row items-center justify-center gap-1 b-b b-slate-2 select-none">
+        <div class="flex-1">
+          {/* Scale  */}
+          <Show when={queryExists()}>
+            <div
+              class="w-30% h-6 bg-transparent flex items-center justify-center active:cursor-ew-resize"
+              onMouseDown={() => setScalebarDragging(true)}
+              onMouseUp={() => setScalebarDragging(false)}
+              onMouseLeave={() => setScalebarDragging(false)}
+              onMouseEnter={(e) => {
+                if (e.buttons === 1) setScalebarDragging(true);
+              }}
+              onMouseMove={handleScalebarDrag}
+            >
+              <div class="bg-slate-3 h-1 w-full pointer-events-none">
+                <div
+                  class="bg-blue-5 size-full pointer-events-none"
+                  style={{ width: `${scale() / 20}%` }}
+                />
+              </div>
+            </div>
+          </Show>
+        </div>
         <Button
           class="group h-5 w-5 bg-transparent rounded-md ui-disabled:cursor-not-allowed"
           onClick={focusPrev}
+          disabled={!prevExists()}
         >
           <div class="i-lucide:skip-back w-full h-full group-hover:bg-blue-5 group-active:bg-blue-6" />
         </Button>
@@ -318,9 +371,11 @@ function BottomPanel() {
         <Button
           class="group h-5 w-5 bg-transparent rounded-md ui-disabled:cursor-not-allowed"
           onClick={focusNext}
+          disabled={!nextExists()}
         >
           <div class="i-lucide:skip-forward w-full h-full group-hover:bg-blue-5 group-active:bg-blue-6" />
         </Button>
+        <div class="flex-1" />
       </div>
       <div
         ref={scrollAreaRef}
