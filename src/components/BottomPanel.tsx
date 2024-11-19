@@ -88,40 +88,46 @@ function BottomPanel() {
     );
   };
 
-  const durStore = createMemo(() => {
+  const durs = createMemo(() => {
     if (currentText().query == null) return [];
-    const durs: [number, (v: number) => void][] = [];
-    currentText().query?.accent_phrases.forEach((ap, i) => {
-      ap.moras.forEach((m, j) => {
+    const durs: number[] = [];
+    currentText().query?.accent_phrases.forEach((ap) => {
+      ap.moras.forEach((m) => {
         if (m.consonant_length != null) {
-          durs.push([
-            m.consonant_length,
-            (v: number) => {
-              // I wish there's a better way to do this, but this kinda looks good enough
-              // I mean, at least it reminds that you are using `solid-js`.
-              setConsonantLength(i, j, v);
-            },
-          ]);
+          durs.push(m.consonant_length);
         }
         if (m.vowel_length != null) {
-          durs.push([
-            m.vowel_length,
-            (v) => {
-              setVowelLength(i, j, v);
-            },
-          ]);
+          durs.push(m.vowel_length);
         }
       });
       if (ap.pause_mora != null) {
-        durs.push([
-          ap.pause_mora.vowel_length,
-          (v) => {
-            setPauseLength(i, v);
-          },
-        ]);
+        durs.push(ap.pause_mora.vowel_length);
       }
     });
     return durs;
+  });
+
+  const setDurs = createMemo(() => {
+    if (currentText().query == null) return [];
+    const setters: ((dur: number) => void)[] = [];
+    currentText().query?.accent_phrases.forEach((ap, i) => {
+      ap.moras.forEach((m, j) => {
+        if (m.consonant_length != null) {
+          setters.push((dur) => {
+            setConsonantLength(i, j, dur);
+          });
+        }
+        setters.push((dur) => {
+          setVowelLength(i, j, dur);
+        });
+      });
+      if (ap.pause_mora != null) {
+        setters.push((dur) => {
+          setPauseLength(i, dur);
+        });
+      }
+    });
+    return setters;
   });
 
   const moraDurs = createMemo(() => {
@@ -219,7 +225,7 @@ function BottomPanel() {
   );
 
   const accumulatedDur = createMemo(() =>
-    durStore().reduce((acc: number[], [d, _], i) => {
+    durs().reduce((acc: number[], d, i) => {
       if (i === 0) return [d];
       acc.push(d + acc[i - 1]);
       return acc;
@@ -236,8 +242,8 @@ function BottomPanel() {
       return;
     }
     let located = _.sortedIndex(accumulatedDur(), e.offsetX / scale());
-    if (located === durStore().length) {
-      located = durStore().length - 1;
+    if (located === durs().length) {
+      located = durs().length - 1;
     }
     setDraggingIdx(located);
   };
@@ -249,8 +255,7 @@ function BottomPanel() {
     const offset = dragged === 0 ? 0 : accumulatedDur()[dragged - 1];
     const newDur = x - offset;
     if (newDur > epsilon) {
-      const setter = durStore()[dragged][1];
-      setter(newDur);
+      setDurs()[dragged](newDur);
     }
   };
 
@@ -434,12 +439,12 @@ function BottomPanel() {
           onMouseLeave={handleDragFinish}
           onWheel={handleWheel}
         >
-          <For each={durStore()}>
+          <For each={durs()}>
             {(d, i) => (
               <>
                 <div
                   class="items-center justify-center flex pointer-events-none b-r b-r-slate-4 b-b b-b-slate-2 b-t b-t-slate-2"
-                  style={{ width: `${d[0] * scale()}px` }}
+                  style={{ width: `${d * scale()}px` }}
                 >
                   {phonemes()[i()]}
                 </div>
