@@ -14,11 +14,13 @@ use tauri_specta::{collect_commands, Builder};
 use voicevox_sys::audio_query::AudioQuery;
 use voicevox_sys::DynWrapper;
 
+type LockedState<T> = RwLock<Option<T>>;
 pub struct AppState {
-  pub wrapper: RwLock<Option<DynWrapper>>,
-  pub query_lru: RwLock<Option<lru::LruCache<(String, u32), AudioQuery>>>,
-  pub wav_lru: RwLock<Option<lru::LruCache<(AudioQuery, u32), Vec<u8>>>>,
-  pub config_manager: RwLock<Option<config::ConfigManager>>,
+  pub wrapper: LockedState<DynWrapper>,
+  pub query_lru: LockedState<lru::LruCache<(String, u32), AudioQuery>>,
+  pub wav_lru: LockedState<lru::LruCache<(AudioQuery, u32), Vec<u8>>>,
+  pub config_manager: LockedState<config::ConfigManager>,
+  pub audio_player: LockedState<audio::AudioPlayer>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -35,7 +37,6 @@ pub fn run() {
     get_range,
     audio_query,
     synthesize,
-    stop_audio,
     spectrogram,
     quit,
   ]);
@@ -57,6 +58,7 @@ pub fn run() {
       query_lru: RwLock::new(None),
       wav_lru: RwLock::new(None),
       config_manager: RwLock::new(None),
+      audio_player: RwLock::new(None),
     })
     .invoke_handler(builder.invoke_handler())
     .setup(move |app| {

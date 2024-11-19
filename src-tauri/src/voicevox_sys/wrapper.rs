@@ -59,15 +59,12 @@ impl DynWrapper {
     let mut option = unsafe { core.voicevox_make_default_initialize_options() };
     if let Some(openjtalk_path) = openjtalk_path {
       option.open_jtalk_dict_dir = string_to_c_char(openjtalk_path)?;
+    } else if let Some(p) = search_file(ojt_matrix, path) {
+      option.open_jtalk_dict_dir = string_to_c_char(&p.parent().unwrap().to_string_lossy())?;
     } else {
-      if let Some(p) = search_file(ojt_matrix, path) {
-        option.open_jtalk_dict_dir =
-          string_to_c_char(&p.parent().unwrap().to_string_lossy().into_owned())?;
-      } else {
-        return Err(Error::msg(
-          "OpenJTalk dict dir not found, specify it manually or put it under the core dir",
-        ));
-      }
+      return Err(Error::msg(
+        "OpenJTalk dict dir not found, specify it manually or put it under the core dir",
+      ));
     }
     // init core
     unsafe {

@@ -105,14 +105,6 @@ async synthesize(audioQuery: AudioQuery, speakerId: number) : Promise<Result<num
     else return { status: "error", error: e  as any };
 }
 },
-async stopAudio() : Promise<Result<null, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("stop_audio") };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
 async spectrogram(signal: number[]) : Promise<number[][]> {
     return await TAURI_INVOKE("spectrogram", { signal });
 },

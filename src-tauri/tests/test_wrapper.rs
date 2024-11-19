@@ -23,7 +23,7 @@ mod test {
       .to_string_lossy()
       .to_string()
   }
-  
+
   fn get_core() -> DynWrapper {
     let core_path = get_core_dir();
 

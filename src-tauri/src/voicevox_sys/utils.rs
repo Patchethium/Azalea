@@ -13,11 +13,11 @@ pub const VOICEVOX_LIB_NAME: &str = "libvoicevox_core.dylib";
 pub const VOICEVOX_LIB_NAME: &str = "voicevox_core.dll";
 
 #[cfg(target_os = "linux")]
-pub const CANDIDATES: [&'static str; 2] = ["libonnxruntime.so", "libonnxruntime.so.1.13.1"];
+pub const CANDIDATES: [&str; 2] = ["libonnxruntime.so", "libonnxruntime.so.1.13.1"];
 #[cfg(target_os = "macos")]
-pub const CANDIDATES: [&'static str; 2] = ["libonnxruntime.dylib", "libonnxruntime.1.13.1.dylib"];
+pub const CANDIDATES: [&str; 2] = ["libonnxruntime.dylib", "libonnxruntime.1.13.1.dylib"];
 #[cfg(target_os = "windows")]
-pub const CANDIDATES: [&'static str; 2] = ["onnxruntime.dll", "onnxruntime.1.13.1.dll"];
+pub const CANDIDATES: [&str; 2] = ["onnxruntime.dll", "onnxruntime.1.13.1.dll"];
 
 #[allow(dead_code)]
 pub fn c_char_to_string(c_char_ptr: *const c_char) -> Option<String> {
@@ -25,6 +25,7 @@ pub fn c_char_to_string(c_char_ptr: *const c_char) -> Option<String> {
     None
   } else {
     // Step 1: Wrap it in `CStr` (unsafe because of raw pointer dereference)
+
     let c_str = unsafe { CStr::from_ptr(c_char_ptr) };
 
     // Step 2: Convert `CStr` to `&str` and then to `String`
@@ -41,11 +42,9 @@ pub fn string_to_c_char(s: &str) -> Result<*const c_char> {
 #[allow(dead_code)]
 pub fn search_file(filename: &str, dir: &str) -> Option<PathBuf> {
   let search_dir = PathBuf::from(dir);
-  for entry in WalkDir::new(search_dir) {
-    if let Ok(entry) = entry {
-      if entry.file_name() == filename && entry.path().is_file() {
-        return Some(entry.path().to_owned());
-      }
+  for entry in WalkDir::new(search_dir).into_iter().flatten() {
+    if entry.file_name() == filename && entry.path().is_file() {
+      return Some(entry.path().to_owned());
     }
   }
   None
@@ -54,11 +53,9 @@ pub fn search_file(filename: &str, dir: &str) -> Option<PathBuf> {
 #[allow(dead_code)]
 pub fn search_dir(dirname: &str, dir: &str) -> Option<PathBuf> {
   let search_dir = PathBuf::from(dir);
-  for entry in WalkDir::new(search_dir) {
-    if let Ok(entry) = entry {
-      if entry.file_name() == dirname && entry.path().is_dir() {
-        return Some(entry.path().to_owned());
-      }
+  for entry in WalkDir::new(search_dir).into_iter().flatten() {
+    if entry.file_name() == dirname && entry.path().is_dir() {
+      return Some(entry.path().to_owned());
     }
   }
   None

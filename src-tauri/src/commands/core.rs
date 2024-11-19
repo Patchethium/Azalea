@@ -1,9 +1,10 @@
 use super::utils::{state_mut, state_ref};
+use crate::audio::AudioPlayer;
+use crate::voicevox_sys::audio_query::AudioQuery;
 use crate::voicevox_sys::metas::VoiceModelMeta;
 use crate::voicevox_sys::utils::{search_file, VOICEVOX_LIB_NAME};
 use crate::voicevox_sys::DynWrapper;
 use crate::AppState;
-use crate::{audio::player, voicevox_sys::audio_query::AudioQuery};
 
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
@@ -25,10 +26,7 @@ pub async fn sanitize_vv_exe_path(path: String) -> Option<PathBuf> {
     path.parent().unwrap().to_path_buf()
   };
   let dir = search_file(VOICEVOX_LIB_NAME, path.to_str().unwrap());
-  match dir {
-    Some(dir) => Some(dir),
-    None => None,
-  }
+  dir
 }
 
 /// Load the voicevox core and create lru cache
@@ -107,25 +105,20 @@ pub async fn synthesize(
 ) -> std::result::Result<Vec<u8>, String> {
   if let Some(cache) = state_mut!(state, wav_lru).as_mut() {
     if let Some(waveform) = cache.get(&(audio_query.clone(), speaker_id)) {
-      player::play_samples(waveform.clone()).expect("Failed to play samples");
+      let audio_player = AudioPlayer::play(waveform.clone());
+      state_mut!(state, audio_player).replace(audio_player);
       return Ok(waveform.clone());
     }
   }
   let waveform = state_ref!(state, wrapper)
     .synthesis(&audio_query, speaker_id, None)
     .map_err(|e| format!("Failed in Synthesis: {:?}", e.to_string()))?;
-  player::play_samples(waveform.clone()).expect("Failed to play samples");
+  let audio_player = AudioPlayer::play(waveform.clone());
+  state_mut!(state, audio_player).replace(audio_player);
   if let Some(cache) = state_mut!(state, wav_lru).as_mut() {
     cache.put((audio_query.clone(), speaker_id), waveform.clone());
   }
   Ok(waveform)
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn stop_audio() -> Result<(), String> {
-  player::stop_audio().map_err(|e| e.to_string())?;
-  Ok(())
 }
 
 #[tauri::command]
