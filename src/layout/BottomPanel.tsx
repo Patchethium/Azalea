@@ -299,9 +299,9 @@ function BottomPanel() {
   });
 
   return (
-    <div class="wfull hfull flex flex-col">
+    <div class="wfull hfull flex flex-col bg-white border border-slate-2 rounded-lg">
       {/* Control bar */}
-      <div class="h-8 p2 flex flex-row items-center justify-center gap-1 b-t b-b b-slate-2">
+      <div class="h-8 p2 flex flex-row items-center justify-center gap-1 b-b b-slate-2">
         <Button
           class="group h-5 w-5 bg-transparent rounded-md ui-disabled:cursor-not-allowed"
           onClick={focusPrev}

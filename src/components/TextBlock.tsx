@@ -166,8 +166,8 @@ function TextBlock(props: { index: number }) {
 
   return (
     <div
-      class="rounded-xl flex flex-col pt-2 relative px3 pb1"
-      classList={{ "shadow-lg": selected() }}
+      class="rounded-xl flex flex-col pt-2 relative px3 pb1 transition-colors"
+      classList={{ "shadow-lg": selected(), "bg-white": selected() }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={handleBlockClicked}
@@ -226,8 +226,8 @@ function TextBlock(props: { index: number }) {
           minValue={0}
           onRawValueChange={setStyleId}
         >
-          <div class="flex flex-row gap-1 w-10">
-            <NumberField.Input class="w-6" />
+          <div class="flex flex-row gap-1 w-10 h-4">
+            <NumberField.Input class="w-6 bg-transparent" />
             <div class="flex flex-row items-center justify-center w-auto">
               <NumberField.IncrementTrigger
                 aria-label="Increment"

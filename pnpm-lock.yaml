@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@corvu/unocss':
+        specifier: ^0.1.0
+        version: 0.1.0
       '@kobalte/core':
         specifier: ^0.13.7
         version: 0.13.7(solid-js@1.9.3)
@@ -29,9 +32,6 @@ importers:
       '@unocss/reset':
         specifier: ^0.64.0
         version: 0.64.1
-      css-doodle:
-        specifier: ^0.40.8
-        version: 0.40.8
       lodash:
         specifier: ^4.17.21
         version: 4.17.21
@@ -208,6 +208,9 @@ packages:
     engines: {node: '>=14.21.3'}
     cpu: [x64]
     os: [win32]
+
+  '@corvu/unocss@0.1.0':
+    resolution: {integrity: sha512-H2Jjf/xsjBq4R8PAASBJQw+3US5MoJVlNX9VUG8dGUYkaicsGOHGXCWDVv5gOeDgEOdlzUWBLFWqLEPR1a3z5Q==}
 
   '@corvu/utils@0.4.2':
     resolution: {integrity: sha512-Ox2kYyxy7NoXdKWdHeDEjZxClwzO4SKM8plAaVwmAJPxHMqA0rLOoAsa+hBDwRLpctf+ZRnAd/ykguuJidnaTA==}
@@ -825,6 +828,9 @@ packages:
   '@unocss/core@0.61.9':
     resolution: {integrity: sha512-2W1YZQIWXcueGdbXU/ZCqn/8yQhWk8e8kAHFkVlbc9rictkd2UmPB9nIZ8Ii1tMwt6F0TT6vfHbLJEGCV08o2g==}
 
+  '@unocss/core@0.63.6':
+    resolution: {integrity: sha512-Q4QPgJ271Up89+vIqqOKgtdCKkFpHqvHN8W1LUlKPqtYnOvVYaOIVNAZowaIdEhPuc83yLc6Tg2+7riK18QKEw==}
+
   '@unocss/core@0.64.1':
     resolution: {integrity: sha512-D1ULd70a24/k6kGyHCIijbrrIn9UjFUEBg2R4xKX2/ViQb1k2MIgOs4VS20MkJX6kbZXqqm/zAFHzDhsQGIhBA==}
 
@@ -978,9 +984,6 @@ packages:
 
   convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
-
-  css-doodle@0.40.8:
-    resolution: {integrity: sha512-aoiZI902IanIE6UD8b2MK3VK/NP+aMqV3irxf0Re22L0eUNfxktW+o/9xbYwH5Xbi5O0WwuC6/fKp+b4C7ovbg==}
 
   css-tree@3.0.1:
     resolution: {integrity: sha512-8Fxxv+tGhORlshCdCwnNJytvlvq46sOLSYEx2ZIGurahWvMucSRnyjPA3AmrMq4VPRYbHVpWj5VkiVasrM2H4Q==}
@@ -1532,6 +1535,10 @@ snapshots:
   '@biomejs/cli-win32-x64@1.9.4':
     optional: true
 
+  '@corvu/unocss@0.1.0':
+    dependencies:
+      '@unocss/core': 0.63.6
+
   '@corvu/utils@0.4.2(solid-js@1.9.3)':
     dependencies:
       '@floating-ui/dom': 1.6.12
@@ -2004,6 +2011,8 @@ snapshots:
 
   '@unocss/core@0.61.9': {}
 
+  '@unocss/core@0.63.6': {}
+
   '@unocss/core@0.64.1': {}
 
   '@unocss/extractor-arbitrary-variants@0.64.1':
@@ -2234,8 +2243,6 @@ snapshots:
   consola@3.2.3: {}
 
   convert-source-map@2.0.0: {}
-
-  css-doodle@0.40.8: {}
 
   css-tree@3.0.1:
     dependencies:
