@@ -171,7 +171,7 @@ function TextBlock(props: { index: number }) {
       >
         <Show when={selected() || hovered() || toolbarHovered()}>
           <div
-            class="absolute right-4 flex p1 rounded-lg bg-white shadow-md -top-6 pointer-events-auto z-20"
+            class="absolute right-4 flex p1 rounded-lg bg-white shadow-md -top-6 pointer-events-auto z-10"
             classList={{
               "opacity-50": hovered() && !selected() && !toolbarHovered(),
             }}
@@ -234,7 +234,7 @@ function TextBlock(props: { index: number }) {
           </div>
         </NumberField>
         <div class="flex-1 pointer-events-none" />
-        <div class="text-sm text-slate-8">
+        <div class="text-sm text-slate-8 z-20 select-none pointer-events-none">
           <Show
             when={isStyleIdValid()}
             fallback={<p>Choose a Style from Left Input</p>}
