@@ -13,6 +13,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@corvu/resizable": "^0.2.3",
     "@corvu/unocss": "^0.1.0",
     "@kobalte/core": "^0.13.7",
     "@solid-primitives/context": "^0.2.3",
