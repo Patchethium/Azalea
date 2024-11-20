@@ -1,21 +1,21 @@
 import Resizable from "@corvu/resizable";
 import _ from "lodash";
 import { For } from "solid-js";
+import { BottomPanel } from "../components/BottomPanel";
 import TextBlock from "../components/TextBlock";
 import { useTextStore } from "../store/text";
-import { BottomPanel } from "../components/BottomPanel";
 function MainPage() {
   const { textStore } = useTextStore()!;
 
   return (
     <div class="flex flex-col w-full h-full bg-slate-1">
-      <Resizable orientation="vertical" class="h-full w-full">
+      <Resizable orientation="vertical" class="size-full">
         <Resizable.Panel
-          class="h-full flex flex-col"
+          class="h-full flex flex-col overflow-hidden"
           initialSize={0.7}
           minSize={0.3}
         >
-          <div class="h-full flex-1 flex-grow w-full flex flex-col overflow-auto px2 pt-2 gap-1">
+          <div class="h-full flex-1 flex-grow w-full flex flex-col overflow-auto p3 gap-1 ">
             <For each={_.range(0, textStore.length, 1)}>
               {(i) => (
                 <div>

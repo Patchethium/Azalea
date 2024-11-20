@@ -23,7 +23,9 @@ function BottomPanel() {
   let scrollAreaRef!: HTMLDivElement;
 
   const currentText = () => textStore[uiStore.selectedTextBlockIndex];
-  const queryExists = () => currentText().query !== undefined && currentText().query!.accent_phrases.length > 0;
+  const queryExists = () =>
+    currentText().query !== undefined &&
+    currentText().query!.accent_phrases.length > 0;
   const selectedIdx = () => uiStore.selectedTextBlockIndex;
 
   const computedRange = createMemo(() => {
@@ -46,7 +48,7 @@ function BottomPanel() {
       "moras",
       j,
       "consonant_length",
-      v
+      v,
     );
   };
 
@@ -59,7 +61,7 @@ function BottomPanel() {
       "moras",
       j,
       "vowel_length",
-      v
+      v,
     );
   };
 
@@ -71,7 +73,7 @@ function BottomPanel() {
       i,
       "pause_mora",
       "vowel_length",
-      v
+      v,
     );
   };
 
@@ -84,7 +86,7 @@ function BottomPanel() {
       "moras",
       j,
       "pitch",
-      v
+      v,
     );
   };
 
@@ -220,8 +222,8 @@ function BottomPanel() {
   const pitchRatio = createMemo(() =>
     _.map(
       pitches(),
-      (pit) => ((pit - minPitch()) / (maxPitch() - minPitch())) * 100
-    )
+      (pit) => ((pit - minPitch()) / (maxPitch() - minPitch())) * 100,
+    ),
   );
 
   const accumulatedDur = createMemo(() =>
@@ -229,7 +231,7 @@ function BottomPanel() {
       if (i === 0) return [d];
       acc.push(d + acc[i - 1]);
       return acc;
-    }, [])
+    }, []),
   );
 
   const handleDragStart = (e: MouseEvent) => {
@@ -312,13 +314,13 @@ function BottomPanel() {
   });
 
   const prevExists = createMemo(
-    () => uiStore.selectedTextBlockIndex > 0 && textStore.length > 1
+    () => uiStore.selectedTextBlockIndex > 0 && textStore.length > 1,
   );
 
   const nextExists = createMemo(
     () =>
       uiStore.selectedTextBlockIndex < textStore.length - 1 &&
-      textStore.length > 1
+      textStore.length > 1,
   );
 
   const [scalebarDragging, setScalebarDragging] = createSignal(false);

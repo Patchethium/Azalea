@@ -12,7 +12,6 @@ import {
 import { commands } from "../binding";
 import { AudioQuery } from "../binding";
 import { StyleId } from "../binding";
-import { useConfigStore } from "../store/config";
 import { useMetaStore } from "../store/meta";
 import { useTextStore } from "../store/text";
 import { useUIStore } from "../store/ui";
@@ -73,13 +72,6 @@ function TextBlock(props: { index: number }) {
     }
     return false;
   });
-
-  const speak = () => {
-    const curData = data();
-    if (isStyleIdValid() && curData.query !== undefined) {
-      commands.synthesize(curData.query, curData.styleId!);
-    }
-  };
 
   createEffect(async () => {
     const curData = data();
@@ -158,19 +150,18 @@ function TextBlock(props: { index: number }) {
 
   let inputFieldRef: HTMLInputElement | undefined;
 
-  const handleBlockClicked = (e: MouseEvent) => {
-    if (e.target === e.currentTarget) {
+  createEffect(() => {
+    if (selected()) {
       inputFieldRef?.focus();
     }
-  };
+  });
 
   return (
     <div
-      class="rounded-xl flex flex-col pt-2 relative px3 pb1 transition-colors"
+      class="rounded-xl flex flex-col pt-2 relative px3 pb1 transition-colors bg-transparent"
       classList={{ "shadow-lg": selected(), "bg-white": selected() }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      onClick={handleBlockClicked}
     >
       {/* The jupyter/Google Colab notebook style code block */}
       <div
@@ -244,7 +235,7 @@ function TextBlock(props: { index: number }) {
             </div>
           </div>
         </NumberField>
-        <div class="flex-1" />
+        <div class="flex-1 pointer-events-none" />
         <div class="text-sm text-slate-8">
           <Show
             when={isStyleIdValid()}
