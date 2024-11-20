@@ -11,11 +11,11 @@ function MainPage() {
     <div class="flex flex-col w-full h-full bg-slate-1">
       <Resizable orientation="vertical" class="size-full">
         <Resizable.Panel
-          class="h-full flex flex-col overflow-hidden"
+          class="h-full flex flex-col overflow-hidden p1 pb0"
           initialSize={0.7}
           minSize={0.3}
         >
-          <div class="h-full flex-1 flex-grow w-full flex flex-col overflow-auto p3 gap-1 ">
+          <div class="h-full flex-1 flex-grow w-full flex flex-col overflow-auto p3 gap-1 bg-white rounded-md border border-slate-2">
             <For each={_.range(0, textStore.length, 1)}>
               {(i) => (
                 <div>
@@ -27,9 +27,9 @@ function MainPage() {
         </Resizable.Panel>
         <Resizable.Handle
           aria-label="Resize Handle"
-          class="group basis-2 px-[2px] bg-transparent px-3"
+          class="group basis-2 px-[2px] bg-transparent px-3 flex items-center justify-center"
         >
-          <div class="size-full rounded transition-colors bg-slate-3 group-hover:bg-blue-5 group-active:bg-blue-5 h-[1px]" />
+          <div class="size-full rounded transition-colors bg-transparent group-hover:bg-blue-5 group-active:bg-blue-5 h-[1px]" />
         </Resizable.Handle>
         <Resizable.Panel initialSize={0.3} minSize={0.2}>
           <div class="hfull bg-transparent p-1 pt-0">

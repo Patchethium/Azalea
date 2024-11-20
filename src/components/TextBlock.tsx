@@ -1,6 +1,5 @@
 import { Button } from "@kobalte/core/button";
 import { NumberField } from "@kobalte/core/number-field";
-import { TextField } from "@kobalte/core/text-field";
 import _ from "lodash";
 import {
   ParentComponent,
@@ -15,6 +14,7 @@ import { StyleId } from "../binding";
 import { useMetaStore } from "../store/meta";
 import { useTextStore } from "../store/text";
 import { useUIStore } from "../store/ui";
+import AutogrowInput from "./AutogrowInput";
 
 const EditButton: ParentComponent<{
   edit: () => void;
@@ -41,7 +41,7 @@ function TextBlock(props: { index: number }) {
     const speakerId = data().styleId;
     if (speakerId !== undefined) {
       const speaker = metas.find((meta) =>
-        meta.styles.some((style) => style.id === speakerId),
+        meta.styles.some((style) => style.id === speakerId)
       );
       const style = speaker?.styles.find((style) => style.id === speakerId);
       return _.join([speaker?.name, style?.name], "-");
@@ -78,7 +78,7 @@ function TextBlock(props: { index: number }) {
     if (isStyleIdValid()) {
       const audio_query = await commands.audioQuery(
         curData.text,
-        curData.styleId!,
+        curData.styleId!
       );
       if (audio_query.status === "ok") {
         setQuery(audio_query.data);
@@ -89,7 +89,7 @@ function TextBlock(props: { index: number }) {
   });
 
   const selected = createMemo(
-    () => uiStore.selectedTextBlockIndex === props.index,
+    () => uiStore.selectedTextBlockIndex === props.index
   );
 
   const setSelected = (index: number) => {
@@ -158,8 +158,8 @@ function TextBlock(props: { index: number }) {
 
   return (
     <div
-      class="rounded-xl flex flex-col pt-2 relative px3 pb1 transition-colors bg-transparent"
-      classList={{ "shadow-lg": selected(), "bg-white": selected() }}
+      class="rounded-xl flex flex-col pt-2 relative px3 pb1 bg-transparent border border-slate-2"
+      classList={{ " bg-white !border-blue-5": selected() }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -194,20 +194,18 @@ function TextBlock(props: { index: number }) {
           </div>
         </Show>
       </div>
-      <div class="flex flex-row items-center justify-center gap-1">
-        <TextField
-          onChange={(value: string) => setText(value)}
-          value={data().text}
-          class="w-full pb-1"
-        >
-          <TextField.Label />
-          <TextField.Input
-            onFocus={() => setSelected(props.index)}
-            ref={inputFieldRef}
-            class="w-full h-10 p1 px-3 rounded-lg border border-slate-2 outline-none"
-            classList={{ "ring-1 ring-blue-500": selected() }}
-          />
-        </TextField>
+      <div
+        class="flex flex-row items-center justify-center p1"
+        onFocus={() => setSelected(props.index)}
+      >
+        <AutogrowInput
+          text={data().text}
+          setText={setText}
+          onInput={(e) => {
+            if (e.target != null) setText((e.target as HTMLDivElement).innerText);
+          }}
+          onFocus={() => setSelected(props.index)}
+        />
       </div>
       <div class="flex flex-row flex-1 w-full">
         <NumberField

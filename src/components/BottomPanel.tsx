@@ -164,10 +164,14 @@ function BottomPanel() {
     if (currentText().query == null) return [];
     const setters: ((pit: number) => void)[] = [];
     currentText().query?.accent_phrases.forEach((ap, i) => {
-      ap.moras.forEach((_, j) => {
-        setters.push((pit) => {
-          setPitch(i, j, pit);
-        });
+      ap.moras.forEach((m, j) => {
+        if (m.pitch === 0) {
+          setters.push((_) => {}); // do nothing
+        } else {
+          setters.push((pit) => {
+            setPitch(i, j, pit);
+          });
+        }
       });
       if (ap.pause_mora != null) {
         setters.push((_) => {}); // do nothing
