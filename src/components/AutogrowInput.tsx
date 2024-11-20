@@ -1,4 +1,4 @@
-import { JSX, onMount } from "solid-js";
+import { JSX, createEffect, on } from "solid-js";
 
 interface ComponentProps extends JSX.HTMLAttributes<HTMLDivElement> {
   text: string;
@@ -8,11 +8,13 @@ interface ComponentProps extends JSX.HTMLAttributes<HTMLDivElement> {
 function AutogrowInput(props: ComponentProps) {
   let inputRef: HTMLDivElement | undefined;
 
-  onMount(() => {
-    if (inputRef!==undefined) {
-      inputRef.innerText = props.text;
-    }
-  })
+  createEffect(
+    on([() => props.text], () => {
+      if (props.text !== inputRef?.innerText) {
+        inputRef!.innerText = props.text;
+      }
+    }, {defer: true})
+  );
   return (
     <div
       contentEditable="plaintext-only"
