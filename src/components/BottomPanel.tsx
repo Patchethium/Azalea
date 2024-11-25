@@ -151,9 +151,6 @@ function BottomPanel() {
       newScale = Math.max(100, newScale);
       newScale = Math.min(maxScale, newScale);
       setScale(newScale);
-    } else if (!e.shiftKey) {
-      e.preventDefault();
-      scrollAreaRef.scrollLeft += e.deltaY > 0 ? 100 : -100;
     }
   };
 
@@ -292,7 +289,9 @@ function BottomPanel() {
                             mode,
                           });
                         }}
-                        setPitch={(pitch) => setPitch(i(), j(), pitch)}
+                        setPitch={(pitch) => {
+                          if (draggingData() == null) setPitch(i(), j(), pitch);
+                        }}
                         minPitch={minPitch()}
                         maxPitch={maxPitch()}
                       />
