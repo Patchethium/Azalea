@@ -199,7 +199,7 @@ function BottomPanel() {
   };
 
   return (
-    <div class="wfull hfull flex flex-col bg-white border border-slate-2 rounded-lg">
+    <div class="size-full flex flex-col bg-white border border-slate-2 rounded-lg">
       {/* Control bar */}
       <div class="h-8 p2 flex flex-row items-center justify-center gap-1 b-b b-slate-2 select-none">
         <div class="flex-1">

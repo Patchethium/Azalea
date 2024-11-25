@@ -2,13 +2,14 @@
 //! Provides a safe Rust interface to the Voicevox Core library.
 //! This module is not thread-safe, you should your own synchronization mechanism.
 #![allow(non_upper_case_globals)]
+use std::any::Any;
 use std::ffi::c_char;
 use std::path::PathBuf;
 use std::ptr;
 
 use super::audio_query::AudioQuery;
 use super::binding::*;
-use super::metas::VoiceModelMeta;
+use super::metas::{StyleType, VoiceModelMeta};
 use super::utils::{
   c_char_to_string, search_file, string_to_c_char, CANDIDATES, VOICEVOX_LIB_NAME,
 };
@@ -75,25 +76,23 @@ impl DynWrapper {
     }
     let metas = unsafe {
       let meta_str = core.voicevox_get_metas_json();
-      serde_json::from_str::<VoiceModelMeta>(
+      let mut metas = serde_json::from_str::<VoiceModelMeta>(
         &c_char_to_string(meta_str).ok_or(Error::msg("Empty meta json string"))?,
-      )?
+      )?;
+      println!("Before: {:?}", metas.iter().map(|m| m.styles.len()).sum::<usize>());
+      metas.iter_mut().for_each(|meta| {
+        meta.styles = meta.clone().styles.into_iter().filter(|style| {
+          style.r#type == StyleType::Talk
+        }).collect::<Vec<_>>();
+      });
+      println!("After: {:?}", metas.iter().map(|m| m.styles.len()).sum::<usize>());
+      metas
     };
     Ok(Self {
       core,
       _ort: ort,
       metas,
     })
-  }
-
-  pub fn load_metas(&self) -> Result<VoiceModelMeta> {
-    unsafe {
-      let meta_str = self.core.voicevox_get_metas_json();
-      let metas = serde_json::from_str::<VoiceModelMeta>(
-        &c_char_to_string(meta_str).ok_or(Error::msg("Empty meta json string"))?,
-      )?;
-      Ok(metas)
-    }
   }
 
   pub fn load_speaker(&self, speaker_id: u32) -> Result<()> {

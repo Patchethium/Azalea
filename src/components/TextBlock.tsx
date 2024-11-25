@@ -1,5 +1,4 @@
 import { Button } from "@kobalte/core/button";
-import { NumberField } from "@kobalte/core/number-field";
 import _ from "lodash";
 import {
   ParentComponent,
@@ -10,7 +9,6 @@ import {
 } from "solid-js";
 import { commands } from "../binding";
 import { AudioQuery } from "../binding";
-import { StyleId } from "../binding";
 import { useMetaStore } from "../store/meta";
 import { useTextStore } from "../store/text";
 import { useUIStore } from "../store/ui";
@@ -57,12 +55,6 @@ function TextBlock(props: { index: number }) {
 
   const setQuery = (query: AudioQuery) => {
     setTextStore(props.index, { ...data(), query });
-  };
-
-  const setStyleId = (styleId: StyleId) => {
-    if (styleId >= 0) {
-      setTextStore(props.index, { ...data(), styleId });
-    }
   };
 
   const isStyleIdValid = createMemo(() => {
@@ -171,7 +163,7 @@ function TextBlock(props: { index: number }) {
       >
         <Show when={selected() || hovered() || toolbarHovered()}>
           <div
-            class="absolute right-4 flex p1 rounded-lg bg-white shadow-md -top-6 pointer-events-auto z-10"
+            class="absolute right-0 flex p1 rounded-lg bg-white shadow-md -top-6 pointer-events-auto z-10"
             classList={{
               "opacity-50": hovered() && !selected() && !toolbarHovered(),
             }}
@@ -210,31 +202,6 @@ function TextBlock(props: { index: number }) {
         />
       </div>
       <div class="flex flex-row flex-1 w-full">
-        <NumberField
-          class="w-10"
-          value={data().styleId?.toString()}
-          rawValue={data().styleId}
-          minValue={0}
-          onRawValueChange={setStyleId}
-        >
-          <div class="flex flex-row gap-1 w-10 h-4">
-            <NumberField.Input class="w-6 bg-transparent" />
-            <div class="flex flex-row items-center justify-center w-auto">
-              <NumberField.IncrementTrigger
-                aria-label="Increment"
-                class="bg-transparent w5 h5 flex item-center justify-center disabled:cursor-not-allowed"
-              >
-                <div class="i-lucide:chevron-up w-full h-full hover:bg-blue-5 active:bg-blue-6" />
-              </NumberField.IncrementTrigger>
-              <NumberField.DecrementTrigger
-                aria-label="Decrement"
-                class="bg-transparent w5 h5 flex disabled:cursor-not-allowed"
-              >
-                <div class="i-lucide:chevron-down w-full h-full hover:bg-blue-5 active:bg-blue-6" />
-              </NumberField.DecrementTrigger>
-            </div>
-          </div>
-        </NumberField>
         <div class="flex-1 pointer-events-none" />
         <div class="text-sm text-slate-8 z-20 select-none pointer-events-none">
           <Show
