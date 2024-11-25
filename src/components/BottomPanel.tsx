@@ -20,6 +20,7 @@ function BottomPanel() {
   };
 
   const epsilon = 0.01;
+  const maxScale = 1500;
 
   let scrollAreaRef!: HTMLDivElement;
 
@@ -146,7 +147,7 @@ function BottomPanel() {
       e.preventDefault();
       let newScale = scale() + (e.deltaY > 0 ? -50 : 50);
       newScale = Math.max(100, newScale);
-      newScale = Math.min(2000, newScale);
+      newScale = Math.min(maxScale, newScale);
       setScale(newScale);
     } else if (!e.shiftKey) {
       e.preventDefault();
@@ -193,8 +194,8 @@ function BottomPanel() {
     if (scalebarDragging()) {
       const x = e.offsetX;
       const width = (e.currentTarget as HTMLElement).clientWidth;
-      const newScale = (x / width) * 1500;
-      if (newScale > 100 && newScale < 1500) setScale(newScale);
+      const newScale = (x / width) * maxScale;
+      if (newScale > 100 && newScale < maxScale) setScale(newScale);
     }
   };
 
@@ -206,7 +207,7 @@ function BottomPanel() {
           {/* Scale  */}
           <Show when={queryExists()}>
             <div
-              class="w-30% h-6 bg-transparent flex items-center justify-center active:cursor-ew-resize"
+              class="w-25% h-6 bg-transparent flex items-center justify-center active:cursor-ew-resize"
               onMouseDown={() => setScalebarDragging(true)}
               onMouseUp={() => setScalebarDragging(false)}
               onMouseLeave={() => setScalebarDragging(false)}
@@ -215,7 +216,7 @@ function BottomPanel() {
               <div class="bg-slate-3 h-1 w-full pointer-events-none">
                 <div
                   class="bg-blue-5 size-full pointer-events-none"
-                  style={{ width: `${scale() / 20}%` }}
+                  style={{ width: `${(scale() / maxScale) * 100}%` }}
                 />
               </div>
             </div>
