@@ -2,15 +2,16 @@ import { Button } from "@kobalte/core/button";
 import _ from "lodash";
 // the bottom panel where users do most of their tuning
 import { For, Show, createMemo, createSignal } from "solid-js";
-import { commands } from "../binding";
+import { Mora, commands } from "../binding";
 import { useConfigStore } from "../store/config";
 import { useTextStore } from "../store/text";
 import { useUIStore } from "../store/ui";
 
+type DraggingMode = "consonant" | "vowel" | "pause";
+
 function BottomPanel() {
   const { textStore, setTextStore } = useTextStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
-  const [draggingIdx, setDraggingIdx] = createSignal<number | null>(null);
   const { range } = useConfigStore()!;
 
   const scale = () => uiStore.tunableScale;
@@ -36,8 +37,17 @@ function BottomPanel() {
     return [mean - 3 * std, mean + 3 * std];
   });
 
-  const minPitch = createMemo(() => computedRange()[0]);
-  const maxPitch = createMemo(() => computedRange()[1]);
+  const minPitch = createMemo(() => Math.max(computedRange()[0], 0.0));
+  const maxPitch = createMemo(() => Math.min(computedRange()[1], 6.5));
+
+  const [draggingData, setDraggingData] = createSignal<{
+    apIndex: number;
+    moraIndex: number;
+    originData: number;
+    mode: DraggingMode;
+  } | null>(null);
+
+  const [dragStartX, setStartX] = createSignal<number | null>(null);
 
   const setConsonantLength = (i: number, j: number, v: number) => {
     setTextStore(
@@ -90,195 +100,45 @@ function BottomPanel() {
     );
   };
 
-  const durs = createMemo(() => {
-    if (currentText().query == null) return [];
-    const durs: number[] = [];
-    currentText().query?.accent_phrases.forEach((ap) => {
-      ap.moras.forEach((m) => {
-        if (m.consonant_length != null) {
-          durs.push(m.consonant_length);
-        }
-        if (m.vowel_length != null) {
-          durs.push(m.vowel_length);
-        }
-      });
-      if (ap.pause_mora != null) {
-        durs.push(ap.pause_mora.vowel_length);
-      }
-    });
-    return durs;
-  });
-
-  const setDurs = createMemo(() => {
-    if (currentText().query == null) return [];
-    const setters: ((dur: number) => void)[] = [];
-    currentText().query?.accent_phrases.forEach((ap, i) => {
-      ap.moras.forEach((m, j) => {
-        if (m.consonant_length != null) {
-          setters.push((dur) => {
-            setConsonantLength(i, j, dur);
-          });
-        }
-        setters.push((dur) => {
-          setVowelLength(i, j, dur);
-        });
-      });
-      if (ap.pause_mora != null) {
-        setters.push((dur) => {
-          setPauseLength(i, dur);
-        });
-      }
-    });
-    return setters;
-  });
-
-  const moraDurs = createMemo(() => {
-    if (currentText().query == null) return [];
-    const durs: number[] = [];
-    currentText().query?.accent_phrases.forEach((ap) => {
-      ap.moras.forEach((m) => {
-        durs.push((m.consonant_length ?? 0) + (m.vowel_length ?? 0));
-      });
-      if (ap.pause_mora != null) {
-        durs.push(ap.pause_mora.vowel_length);
-      }
-    });
-    return durs;
-  });
-
-  const pitches = createMemo(() => {
-    if (currentText().query == null) return [];
-    const pitches: number[] = [];
-    currentText().query?.accent_phrases.forEach((ap) => {
-      ap.moras.forEach((m) => {
-        pitches.push(m.pitch);
-      });
-      if (ap.pause_mora != null) {
-        pitches.push(0); // no pitch for pause
-      }
-    });
-    return pitches;
-  });
-
-  const setPitches = createMemo(() => {
-    if (currentText().query == null) return [];
-    const setters: ((pit: number) => void)[] = [];
-    currentText().query?.accent_phrases.forEach((ap, i) => {
-      ap.moras.forEach((m, j) => {
-        if (m.pitch === 0) {
-          setters.push((_) => {}); // do nothing
-        } else {
-          setters.push((pit) => {
-            setPitch(i, j, pit);
-          });
-        }
-      });
-      if (ap.pause_mora != null) {
-        setters.push((_) => {}); // do nothing
-      }
-    });
-    return setters;
-  });
-
-  const phonemes = () => {
-    if (currentText().query == null) return [];
-    const phs: string[] = [];
-    currentText().query?.accent_phrases.forEach((ap) => {
-      ap.moras.forEach((m) => {
-        if (m.consonant != null) {
-          phs.push(m.consonant);
-        }
-        phs.push(m.vowel);
-      });
-      if (ap.pause_mora != null) {
-        phs.push("pau");
-      }
-    });
-    return phs;
-  };
-
-  const moraMap = createMemo(() => {
-    if (currentText().query == null) return [];
-    const map: Record<number, number> = {};
-    let mora_idx = 0;
-    let dur_idx = 0;
-    currentText().query?.accent_phrases.forEach((ap) => {
-      ap.moras.forEach((m) => {
-        if (m.consonant_length != null) {
-          map[dur_idx] = mora_idx;
-          dur_idx += 1;
-        }
-        if (m.vowel_length != null) {
-          map[dur_idx] = mora_idx;
-          dur_idx += 1;
-        }
-        mora_idx += 1;
-      });
-      if (ap.pause_mora != null) {
-        map[dur_idx] = mora_idx;
-        dur_idx += 1;
-        mora_idx += 1;
-      }
-    });
-    return map;
-  });
-
-  const pitchRatio = createMemo(() =>
-    _.map(
-      pitches(),
-      (pit) => ((pit - minPitch()) / (maxPitch() - minPitch())) * 100,
-    ),
-  );
-
-  const accumulatedDur = createMemo(() =>
-    durs().reduce((acc: number[], d, i) => {
-      if (i === 0) return [d];
-      acc.push(d + acc[i - 1]);
-      return acc;
-    }, []),
-  );
-
-  const handleDragStart = (e: MouseEvent) => {
-    if (
-      currentText().query === undefined ||
-      currentText().query?.accent_phrases.length === 0
-    ) {
-      console.log("no query");
-      setDraggingIdx(null);
-      return;
-    }
-    let located = _.sortedIndex(accumulatedDur(), e.offsetX / scale());
-    if (located === durs().length) {
-      located = durs().length - 1;
-    }
-    setDraggingIdx(located);
-  };
-
-  const handleDragDur = (e: MouseEvent) => {
-    const dragged = draggingIdx();
-    if (dragged == null || e.buttons !== 1) return;
-    const x = e.offsetX / scale();
-    const offset = dragged === 0 ? 0 : accumulatedDur()[dragged - 1];
-    const newDur = x - offset;
-    if (newDur > epsilon) {
-      setDurs()[dragged](newDur);
-    }
-  };
-
-  const handleDragPit = (e: MouseEvent) => {
-    if (currentText().query === undefined) return;
-    const y = e.offsetY;
-    const totalHeight = (e.target! as HTMLElement).clientHeight;
-    const pitch =
-      minPitch() +
-      ((totalHeight - y) / totalHeight) * (maxPitch() - minPitch());
-    const mora_idx = moraMap()[draggingIdx()!];
-    const setter = setPitches()[mora_idx];
-    if (setter) setter(pitch);
-  };
-
   const handleDragFinish = (_e: MouseEvent) => {
-    setDraggingIdx(null);
+    setDraggingData(null);
+    setStartX(null);
+  };
+
+  const handleDragging = (e: MouseEvent) => {
+    if (draggingData() === null || dragStartX() === null) return;
+    const dx = e.clientX - dragStartX()!;
+    switch (draggingData()!.mode) {
+      case "consonant": {
+        const newDur = Math.max(
+          epsilon,
+          draggingData()!.originData + dx / scale(),
+        );
+        setConsonantLength(
+          draggingData()!.apIndex,
+          draggingData()!.moraIndex,
+          newDur,
+        );
+        break;
+      }
+      case "vowel": {
+        const newDur = Math.max(
+          epsilon,
+          draggingData()!.originData + dx / scale(),
+        );
+        setVowelLength(
+          draggingData()!.apIndex,
+          draggingData()!.moraIndex,
+          newDur,
+        );
+        break;
+      }
+      case "pause": {
+        const newDur = Math.max(0, draggingData()!.originData + dx / scale());
+        setPauseLength(draggingData()!.apIndex, newDur);
+        break;
+      }
+    }
   };
 
   const handleWheel = (e: WheelEvent) => {
@@ -331,11 +191,10 @@ function BottomPanel() {
 
   const handleScalebarDrag = (e: MouseEvent) => {
     if (scalebarDragging()) {
-      console.log("scalebar draging");
       const x = e.offsetX;
       const width = (e.currentTarget as HTMLElement).clientWidth;
-      const newScale = (x / width) * 2000;
-      if (newScale > 100 && newScale < 2000) setScale(newScale);
+      const newScale = (x / width) * 1500;
+      if (newScale > 100 && newScale < 1500) setScale(newScale);
     }
   };
 
@@ -351,9 +210,6 @@ function BottomPanel() {
               onMouseDown={() => setScalebarDragging(true)}
               onMouseUp={() => setScalebarDragging(false)}
               onMouseLeave={() => setScalebarDragging(false)}
-              onMouseEnter={(e) => {
-                if (e.buttons === 1) setScalebarDragging(true);
-              }}
               onMouseMove={handleScalebarDrag}
             >
               <div class="bg-slate-3 h-1 w-full pointer-events-none">
@@ -370,97 +226,200 @@ function BottomPanel() {
           onClick={focusPrev}
           disabled={!prevExists()}
         >
-          <div class="i-lucide:skip-back w-full h-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+          <div class="i-lucide:skip-back size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
         </Button>
         <Button
           class="group h-6 w-6 bg-transparent rounded-md ui-disabled:cursor-not-allowed"
           onClick={speak}
           disabled={!playable()}
         >
-          <div class="i-lucide:play w-full h-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+          <div class="i-lucide:play size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
         </Button>
         <Button
           class="group h-5 w-5 bg-transparent rounded-md ui-disabled:cursor-not-allowed"
           onClick={focusNext}
           disabled={!nextExists()}
         >
-          <div class="i-lucide:skip-forward w-full h-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+          <div class="i-lucide:skip-forward size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
         </Button>
         <div class="flex-1" />
       </div>
       <div
         ref={scrollAreaRef}
-        class="w-full h-full relative flex flex-col left-0 top-0 overflow-x-auto overflow-y-hidden"
-        classList={{ "!overflow-x-hidden": draggingIdx() !== null }}
+        onWheel={handleWheel}
+        class="size-full relative flex flex-col left-0 top-0 overflow-x-auto overflow-y-hidden"
+        classList={{
+          "!overflow-x-hidden": draggingData() !== null,
+          "cursor-ew-resize": draggingData() !== null,
+        }}
       >
-        {/* Pitch curves */}
-        <div
-          class="w-full h-70% flex flex-row select-none active:cursor-default"
-          style="min-width: min-content"
-          onMouseMove={handleDragPit}
-          onMouseDown={(e) => {
-            handleDragStart(e);
-            handleDragPit(e);
-          }}
-          onMouseUp={handleDragFinish}
-          onMouseEnter={handleDragFinish}
-          onMouseLeave={handleDragFinish}
-          onWheel={handleWheel}
+        <Show
+          when={queryExists()}
+          fallback={
+            <div class="flex size-full items-center justify-center select-none cursor-default">
+              No Query
+            </div>
+          }
         >
-          <Show when={!(minPitch() === 0 && maxPitch() === 0)}>
-            <For each={pitches()}>
-              {(p, i) => (
+          <div
+            class="flex flex-row flex-1"
+            onMouseDown={(e) => {
+              setStartX(e.clientX);
+            }}
+            onMouseUp={handleDragFinish}
+            onMouseLeave={handleDragFinish}
+            onMouseMove={handleDragging}
+            style={{ "min-width": "min-content" }}
+          >
+            <For each={currentText().query!.accent_phrases}>
+              {(ap, i) => (
                 <>
-                  <div
-                    class="h-full flex flex-col justify-end pointer-events-none content-empty b-r b-r-slate-4"
-                    style={{ width: `${moraDurs()[i()] * scale()}px` }}
-                  >
-                    <div
-                      class="h-full b-t b-slate-4 pointer-events-none text-sm flex items-center justify-center"
-                      classList={{ "b-none": p < minPitch() }}
-                      style={{
-                        height: `${pitchRatio()[i()]}%`,
+                  <For each={ap.moras}>
+                    {(m, j) => (
+                      <TuningItems
+                        mora={m}
+                        startDraggingDur={(
+                          origin: number,
+                          mode: DraggingMode,
+                        ) => {
+                          setDraggingData({
+                            apIndex: i(),
+                            moraIndex: j(),
+                            originData: origin,
+                            mode,
+                          });
+                        }}
+                        setPitch={(pitch) => setPitch(i(), j(), pitch)}
+                        minPitch={minPitch()}
+                        maxPitch={maxPitch()}
+                      />
+                    )}
+                  </For>
+                  <Show when={ap.pause_mora != null}>
+                    <TuningItems
+                      mora={ap.pause_mora!}
+                      startDraggingDur={(origin, _mode) => {
+                        setDraggingData({
+                          apIndex: i(),
+                          moraIndex: -1,
+                          originData: origin,
+                          mode: "pause",
+                        });
                       }}
-                    >
-                      {p.toFixed(2)}
-                    </div>
-                  </div>
+                      setPitch={(pitch) => setPauseLength(i(), pitch)}
+                      minPitch={0}
+                      maxPitch={0}
+                    />
+                  </Show>
                 </>
               )}
             </For>
-          </Show>
-        </div>
-        {/* Duration segments */}
-        <div
-          class="w-full h-30% flex flex-row select-none active:cursor-default"
-          style="min-width: min-content"
-          classList={{ "!cursor-ew-resize": draggingIdx() !== null }}
-          onMouseMove={handleDragDur}
-          onMouseDown={(e) => {
-            handleDragStart(e);
-            handleDragDur(e);
-          }}
-          onMouseUp={handleDragFinish}
-          onMouseEnter={handleDragFinish}
-          onMouseLeave={handleDragFinish}
-          onWheel={handleWheel}
-        >
-          <For each={durs()}>
-            {(d, i) => (
-              <>
-                <div
-                  class="items-center justify-center flex pointer-events-none b-r b-r-slate-4 b-b b-b-slate-2 b-t b-t-slate-2"
-                  style={{ width: `${d * scale()}px` }}
-                >
-                  {phonemes()[i()]}
-                </div>
-              </>
-            )}
-          </For>
-          <div class="w-10 pointer-events-none" />
-        </div>
+          </div>
+        </Show>
         {/* Leave some space for the scrollbar on WebkitGTK */}
+        {/* TODO: Get OS information from Rust and switch this space */}
         <div class="h-5" />
+      </div>
+    </div>
+  );
+}
+
+function TuningItems(props: {
+  mora: Mora;
+  startDraggingDur: (origin: number, mode: DraggingMode) => void;
+  setPitch: (pitch: number) => void;
+  minPitch: number;
+  maxPitch: number;
+  isPause?: boolean;
+}) {
+  const { uiStore } = useUIStore()!;
+  const unvoiced = () => props.mora.pitch < 0.1;
+  const scale = () => uiStore.tunableScale;
+  const consonantPixels = (): number | null => {
+    if (props.mora.consonant == null) {
+      return null;
+    }
+    return props.mora.consonant_length! * scale();
+  };
+  const vowelPixels = (): number => props.mora.vowel_length! * scale();
+  const totalPixels = (): number => (consonantPixels() ?? 0) + vowelPixels();
+
+  const pitchRatio = () => {
+    return (
+      (1 -
+        (props.mora.pitch - props.minPitch) /
+          (props.maxPitch - props.minPitch)) *
+      100
+    );
+  };
+
+  const [dragging, setDragging] = createSignal(false);
+
+  const handleDraggingStart = (e: MouseEvent) => {
+    if (e.buttons !== 1) return;
+    setDragging(true);
+    handleDraggingPitch(e);
+  };
+
+  const handleDraggingPitch = (e: MouseEvent) => {
+    if (dragging()) {
+      const y = e.offsetY;
+      const height = (e.currentTarget as HTMLDivElement).clientHeight;
+      const newPitch =
+        props.minPitch + (1 - y / height) * (props.maxPitch - props.minPitch);
+      props.setPitch(newPitch);
+    }
+  };
+
+  return (
+    <div
+      class="flex flex-col b-r b-slate-3 h-100% select-none"
+      style={{
+        width: `${Math.ceil(totalPixels())}px`,
+      }}
+    >
+      {/* Pitch */}
+      <Show
+        when={!unvoiced()}
+        fallback={<div class="flex-1 content-empty b-b b-slate3" />}
+      >
+        <div
+          class="b-b b-slate3 flex flex-1 flex-col items-center justify-start"
+          classList={{ "cursor-ns-resize": dragging() }}
+          onMouseDown={handleDraggingStart}
+          onMouseEnter={handleDraggingStart}
+          onMouseUp={() => setDragging(false)}
+          onMouseLeave={() => setDragging(false)}
+          onMouseMove={handleDraggingPitch}
+        >
+          <div
+            class="b-b b-slate-3 w-full pointer-events-none"
+            style={{ height: `${pitchRatio()}%` }}
+          />
+        </div>
+      </Show>
+      {/* Duration */}
+      <div class="h-12 flex flex-row b-b b-slate-3">
+        <Show when={consonantPixels() != null}>
+          <div
+            class="flex items-center justify-center b-r b-slate3"
+            onMouseDown={() =>
+              props.startDraggingDur(props.mora.consonant_length!, "consonant")
+            }
+            style={{ width: `${consonantPixels()}px` }}
+          >
+            {props.mora.consonant}
+          </div>
+        </Show>
+        <div
+          class="flex items-center justify-center"
+          onMouseDown={() =>
+            props.startDraggingDur(props.mora.vowel_length, "vowel")
+          }
+          style={{ width: `${vowelPixels()}px` }}
+        >
+          {props.mora.vowel}
+        </div>
       </div>
     </div>
   );
