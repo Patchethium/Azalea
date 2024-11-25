@@ -333,7 +333,8 @@ function TuningItems(props: {
   isPause?: boolean;
 }) {
   const { uiStore } = useUIStore()!;
-  const unvoiced = () => props.mora.pitch < 0.1;
+  const unvoiced = () => props.mora.pitch === 0;
+  const whisper = () => props.maxPitch === 0 && props.minPitch === 0;
   const scale = () => uiStore.tunableScale;
   const consonantPixels = (): number | null => {
     if (props.mora.consonant == null) {
@@ -379,27 +380,32 @@ function TuningItems(props: {
       }}
     >
       {/* Pitch */}
-      <Show
-        when={!unvoiced()}
-        fallback={<div class="flex-1 content-empty b-b b-slate3" />}
-      >
-        <div
-          class="b-b b-slate3 flex flex-1 flex-col items-center justify-start"
-          classList={{ "cursor-ns-resize": dragging() }}
-          onMouseDown={handleDraggingStart}
-          onMouseEnter={handleDraggingStart}
-          onMouseUp={() => setDragging(false)}
-          onMouseLeave={() => setDragging(false)}
-          onMouseMove={handleDraggingPitch}
+      <Show when={!whisper()}>
+        <Show
+          when={!unvoiced()}
+          fallback={<div class="flex-1 content-empty b-b b-slate3" />}
         >
           <div
-            class="b-b b-slate-3 w-full pointer-events-none"
-            style={{ height: `${pitchRatio()}%` }}
-          />
-        </div>
+            class="b-b b-slate3 flex flex-1 flex-col items-center justify-start"
+            classList={{ "cursor-ns-resize": dragging() }}
+            onMouseDown={handleDraggingStart}
+            onMouseEnter={handleDraggingStart}
+            onMouseUp={() => setDragging(false)}
+            onMouseLeave={() => setDragging(false)}
+            onMouseMove={handleDraggingPitch}
+          >
+            <div
+              class="b-b b-slate-3 w-full pointer-events-none"
+              style={{ height: `${pitchRatio()}%` }}
+            />
+          </div>
+        </Show>
       </Show>
       {/* Duration */}
-      <div class="h-12 flex flex-row b-b b-slate-3">
+      <div
+        class="flex flex-row b-b b-slate-3"
+        classList={{ "h-full": whisper(), "h-12": !whisper() }}
+      >
         <Show when={consonantPixels() != null}>
           <div
             class="flex items-center justify-center b-r b-slate3"
