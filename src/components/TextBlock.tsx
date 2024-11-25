@@ -158,8 +158,8 @@ function TextBlock(props: { index: number }) {
 
   return (
     <div
-      class="rounded-xl flex flex-col pt-2 relative px3 pb1 bg-transparent border border-slate-2"
-      classList={{ " bg-white !border-blue-5": selected() }}
+      class="flex flex-col relative px3 pb1 bg-transparent b-l-2 b-slate-2"
+      classList={{ " bg-white !border-blue-5 shadow-md": selected() }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -205,6 +205,7 @@ function TextBlock(props: { index: number }) {
             if (e.target != null)
               setText((e.target as HTMLDivElement).innerText);
           }}
+          ref={inputFieldRef}
           onFocus={() => setSelected(props.index)}
         />
       </div>
