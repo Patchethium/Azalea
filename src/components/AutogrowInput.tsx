@@ -13,7 +13,7 @@ function AutogrowInput(props: ComponentProps) {
       if (props.text !== inputRef?.innerText) {
         inputRef!.innerText = props.text;
       }
-    }, {defer: true})
+    })
   );
   return (
     <div
