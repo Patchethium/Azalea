@@ -4,6 +4,7 @@ import _ from "lodash";
 import { For, Show, createMemo, createSignal } from "solid-js";
 import { Mora, commands } from "../binding";
 import { useConfigStore } from "../store/config";
+import { useSystemStore } from "../store/system";
 import { useTextStore } from "../store/text";
 import { useUIStore } from "../store/ui";
 
@@ -12,6 +13,7 @@ type DraggingMode = "consonant" | "vowel" | "pause";
 function BottomPanel() {
   const { textStore, setTextStore } = useTextStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
+  const { systemStore } = useSystemStore()!;
   const { range } = useConfigStore()!;
 
   const scale = () => uiStore.tunableScale;
@@ -318,8 +320,9 @@ function BottomPanel() {
           </div>
         </Show>
         {/* Leave some space for the scrollbar on WebkitGTK */}
-        {/* TODO: Get OS information from Rust and switch this space */}
-        <div class="h-5" />
+        <Show when={systemStore.os === "Linux"}>
+          <div class="h-5" />
+        </Show>
       </div>
     </div>
   );

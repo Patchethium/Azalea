@@ -79,13 +79,22 @@ impl DynWrapper {
       let mut metas = serde_json::from_str::<VoiceModelMeta>(
         &c_char_to_string(meta_str).ok_or(Error::msg("Empty meta json string"))?,
       )?;
-      println!("Before: {:?}", metas.iter().map(|m| m.styles.len()).sum::<usize>());
+      println!(
+        "Before: {:?}",
+        metas.iter().map(|m| m.styles.len()).sum::<usize>()
+      );
       metas.iter_mut().for_each(|meta| {
-        meta.styles = meta.clone().styles.into_iter().filter(|style| {
-          style.r#type == StyleType::Talk
-        }).collect::<Vec<_>>();
+        meta.styles = meta
+          .clone()
+          .styles
+          .into_iter()
+          .filter(|style| style.r#type == StyleType::Talk)
+          .collect::<Vec<_>>();
       });
-      println!("After: {:?}", metas.iter().map(|m| m.styles.len()).sum::<usize>());
+      println!(
+        "After: {:?}",
+        metas.iter().map(|m| m.styles.len()).sum::<usize>()
+      );
       metas
     };
     Ok(Self {

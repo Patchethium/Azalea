@@ -108,6 +108,9 @@ async synthesize(audioQuery: AudioQuery, speakerId: number) : Promise<Result<num
 async spectrogram(signal: number[]) : Promise<number[][]> {
     return await TAURI_INVOKE("spectrogram", { signal });
 },
+async getOs() : Promise<OS> {
+    return await TAURI_INVOKE("get_os");
+},
 async quit() : Promise<void> {
     await TAURI_INVOKE("quit");
 }
@@ -228,6 +231,7 @@ vowel_length: number;
  * 音高。
  */
 pitch: number }
+export type OS = "MacOS" | "Windows" | "Linux"
 /**
  * **話者**(_speaker_)のメタ情報。
  */

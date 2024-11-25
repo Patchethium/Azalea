@@ -38,6 +38,7 @@ pub fn run() {
     audio_query,
     synthesize,
     spectrogram,
+    get_os,
     quit,
   ]);
 

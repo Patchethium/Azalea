@@ -7,6 +7,7 @@ import { MultiProvider } from "@solid-primitives/context";
 import _ from "lodash";
 import { ConfigProvider } from "./store/config";
 import { MetaProvider } from "./store/meta";
+import { SystemProvider } from "./store/system";
 import { TextProvider } from "./store/text";
 import { UIProvider } from "./store/ui";
 
@@ -20,6 +21,7 @@ render(() => {
         [TextProvider, texts],
         [UIProvider, null],
         [ConfigProvider, null],
+        [SystemProvider, null],
       ]}
     >
       <App />
