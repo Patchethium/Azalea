@@ -19,6 +19,7 @@ We don't provide a pre-built binary yet, as the project is still in heavy develo
 - [Rust](https://rustup.rs)
 - [pnpm](https://pnpm.io)
 - [mold](https://github.com/rui314/mold) and clang, if you're on Linux
+- [tauri prerequisites](https://tauri.app/start/prerequisites/)
 
 ### Setting up the core
 
