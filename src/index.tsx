@@ -6,6 +6,7 @@ import "@unocss/reset/tailwind-compat.css";
 import { MultiProvider } from "@solid-primitives/context";
 import _ from "lodash";
 import { ConfigProvider } from "./store/config";
+import { i18nProvider } from "./store/i18n";
 import { MetaProvider } from "./store/meta";
 import { SystemProvider } from "./store/system";
 import { TextProvider } from "./store/text";
@@ -22,6 +23,7 @@ render(() => {
         [UIProvider, null],
         [ConfigProvider, null],
         [SystemProvider, null],
+        [i18nProvider, null],
       ]}
     >
       <App />

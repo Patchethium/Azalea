@@ -3,7 +3,7 @@ import { For, Show } from "solid-js";
 import { produce } from "solid-js/store";
 import { StyleId } from "../binding";
 import CharacterCard from "../components/CharacterCard";
-import { useConfigStore } from "../store/config";
+import { usei18n } from "../store/i18n";
 import { useMetaStore } from "../store/meta";
 import { useTextStore } from "../store/text";
 import { PageType, useUIStore } from "../store/ui";
@@ -12,7 +12,7 @@ function Sidebar() {
   const { metas, availableSpeakerIds } = useMetaStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
   const { setTextStore } = useTextStore()!;
-  const { t1 } = useConfigStore()!;
+  const { t1 } = usei18n()!;
 
   const setStyleId = (styleId: StyleId) => {
     if (styleId in availableSpeakerIds()) {

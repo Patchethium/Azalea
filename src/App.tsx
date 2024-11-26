@@ -7,10 +7,12 @@ import InitDialog from "./layout/InitDialog";
 import MainPage from "./layout/MainPage";
 import Sidebar from "./layout/Sidebar";
 import { useConfigStore } from "./store/config";
+import { usei18n } from "./store/i18n";
 import { useUIStore } from "./store/ui";
 
 function App() {
-  const { setConfig, setConfigInitialized, t1 } = useConfigStore()!;
+  const { setConfig, setConfigInitialized } = useConfigStore()!;
+  const { t1 } = usei18n()!;
   const { uiStore } = useUIStore()!;
 
   onMount(async () => {

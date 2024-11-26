@@ -7,7 +7,7 @@
   },
   "files": {
     "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.json"],
-    "ignore": ["src/binding.ts"]
+    "ignore": ["src/binding.ts", "src/assets/**/*"]
   },
   "linter": {
     "enabled": true,

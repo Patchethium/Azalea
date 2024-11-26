@@ -1,13 +1,12 @@
 // The store holding the configuration
 import { createContextProvider } from "@solid-primitives/context";
-import * as i18n from "@solid-primitives/i18n";
+
 import { createScheduled } from "@solid-primitives/scheduled";
 import _, { debounce } from "lodash";
 import { createEffect, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
-import { AzaleaConfig, Locale, StyleId } from "../binding";
+import { AzaleaConfig, StyleId } from "../binding";
 import { commands } from "../binding";
-import { getDict } from "../i18n";
 import { useMetaStore } from "./meta";
 import { useUIStore } from "./ui";
 
@@ -46,10 +45,6 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
       console.error("Failed to get range:", res.error);
     }
   };
-
-  const locale = (): Locale => config.ui_config?.locale ?? "En";
-  const t1 = i18n.translator(() => getDict(locale()));
-  const t2 = i18n.translator(() => getDict(locale()), i18n.resolveTemplate);
 
   createEffect(async () => {
     if (config.core_config.core_path !== null) {
@@ -97,8 +92,6 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     configInitialized,
     setConfigInitialized,
     range,
-    t1,
-    t2,
   };
 });
 

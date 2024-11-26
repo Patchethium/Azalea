@@ -7,6 +7,7 @@ import { useConfigStore } from "../store/config";
 import { useSystemStore } from "../store/system";
 import { useTextStore } from "../store/text";
 import { useUIStore } from "../store/ui";
+import { usei18n } from "../store/i18n";
 
 type DraggingMode = "consonant" | "vowel" | "pause";
 
@@ -14,7 +15,8 @@ function BottomPanel() {
   const { textStore, setTextStore } = useTextStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
   const { systemStore } = useSystemStore()!;
-  const { config, setConfig, t1 } = useConfigStore()!;
+  const { config, setConfig } = useConfigStore()!;
+  const { t1 } = usei18n()!;
   const { range } = useConfigStore()!;
 
   const scale = () => config.ui_config?.bottom_scale ?? 360;

@@ -4,11 +4,13 @@ import { open } from "@tauri-apps/plugin-shell";
 import _ from "lodash";
 import { ParentProps } from "solid-js";
 import { Locale } from "../binding";
-import { localeNames, possibleLocales } from "../i18n";
+import { coverages, localeNames, possibleLocales } from "../i18n";
 import { useConfigStore } from "../store/config";
+import { usei18n } from "../store/i18n";
 
 function ConfigPage() {
-  const { config, setConfig, t1 } = useConfigStore()!;
+  const { config, setConfig } = useConfigStore()!;
+  const { t1 } = usei18n()!;
 
   return (
     <div class="pl0 p2 bg-transparent size-full">
@@ -21,7 +23,7 @@ function ConfigPage() {
           <ConfigItem label={t1("config.lang")}>
             <Select
               options={possibleLocales}
-              class="w-36 h-8"
+              class="w-48 h-8"
               value={config.ui_config?.locale}
               onChange={(value) => {
                 if (value !== null)
@@ -32,10 +34,10 @@ function ConfigPage() {
                   item={props.item}
                   class="p1 flex flex-row items-center justify-between rounded-md ui-highlighted:(bg-blue-5 text-white) cursor-pointer"
                 >
-                  <Select.ItemLabel>
-                    {localeNames[props.item.rawValue as Locale]}
+                  <Select.ItemLabel class="w-36 flex flex-row">
+                    {localeNames[props.item.rawValue as Locale]}<div class="flex-1"/>{coverages[props.item.rawValue as Locale]*100}%
                   </Select.ItemLabel>
-                  <Select.ItemIndicator>
+                  <Select.ItemIndicator class="size-6 flex items-center justify-center">
                     <div class="i-lucide:check" />
                   </Select.ItemIndicator>
                 </Select.Item>
