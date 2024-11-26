@@ -1,0 +1,23 @@
+{
+  "title": "Azalea",
+  "init_dialog": {
+    "introduction": "Welcome to {{ azalea }}, an unofficial GUI for {{ voicevox }}.",
+    "before": "Before we get started Azalea needs to know where the {{ core }} is.",
+    "setup": "How would you like to set it up?",
+    "installed.action": "I have VOICEVOX installed",
+    "installed.desp": "Pick it",
+    "later.desp": "I'll figure it out",
+    "later.action": "Okay"
+  },
+  "main_page": {
+    "loading": "Loading",
+    "bottom": {
+      "no_query": "No Query"
+    }
+  },
+  "config": {
+    "title": "Config",
+    "sidebar_desp": "This space will be used for indexing in future versions.",
+    "lang": "Language"
+  }
+}

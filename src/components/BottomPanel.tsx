@@ -14,11 +14,12 @@ function BottomPanel() {
   const { textStore, setTextStore } = useTextStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
   const { systemStore } = useSystemStore()!;
+  const { config, setConfig, t1 } = useConfigStore()!;
   const { range } = useConfigStore()!;
 
-  const scale = () => uiStore.tunableScale;
-  const setScale = (v: number) => {
-    setUIStore("tunableScale", v);
+  const scale = () => config.ui_config?.bottom_scale ?? 360;
+  const setScale = (s: number) => {
+    setConfig("ui_config", "bottom_scale", Math.floor(s));
   };
 
   const epsilon = 0.01;
@@ -257,7 +258,7 @@ function BottomPanel() {
           when={queryExists()}
           fallback={
             <div class="flex size-full items-center justify-center select-none cursor-default">
-              No Query
+              {t1("main_page.bottom.no_query")}
             </div>
           }
         >
@@ -335,10 +336,11 @@ function TuningItems(props: {
   maxPitch: number;
   isPause?: boolean;
 }) {
-  const { uiStore } = useUIStore()!;
+  const { config } = useConfigStore()!;
   const unvoiced = () => props.mora.pitch === 0;
   const whisper = () => props.maxPitch === 0 && props.minPitch === 0;
-  const scale = () => uiStore.tunableScale;
+  const scale = () => config.ui_config?.bottom_scale ?? 360;
+
   const consonantPixels = (): number | null => {
     if (props.mora.consonant == null) {
       return null;

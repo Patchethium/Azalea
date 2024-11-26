@@ -195,14 +195,15 @@ output_stereo: boolean;
  * [`Synthesizer::audio_query`]: crate::blocking::Synthesizer::audio_query
  */
 kana: string | null }
-export type AzaleaConfig = { core_config: CoreConfig }
+export type AzaleaConfig = { core_config: CoreConfig; ui_config?: UIConfig }
 export type CoreConfig = { 
 /**
  * The Path to the core directory, it should be the directory containing the dynamic library.
  * For example, if the lib is in `/home/user/VOICEVOX/vv-engine/libvoicevox_core.so`,
  * the path should be `/home/user/VOICEVOX/vv-engine`.
  */
-core_path: string | null; ojt_path: string | null; cache_size: number }
+core_path: string | null; ojt_path: string | null; cache_size?: number }
+export type Locale = "Ja" | "En"
 /**
  * モーラ（子音＋母音）ごとの情報。
  */
@@ -313,6 +314,7 @@ export type StyleType =
  * スタイルのバージョン。
  */
 export type StyleVersion = string
+export type UIConfig = { locale?: Locale; bottom_scale?: number }
 
 /** tauri-specta globals **/
 

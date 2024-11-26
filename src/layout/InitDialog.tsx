@@ -62,12 +62,12 @@ function InitDialog() {
     <div class="flex relative items-center justify-center wfull hfull">
       <div
         class="relative flex flex-col items-start gap-1 bg-white p8 rounded-2xl b-1 border-blue-2 selection:(text-white bg-blue-5)
-       before:(content-empty inset-0 scale-110 absolute left-0 top-0 blur-150 wfull hfull -z-10 rounded-3xl bg-gradient-to-br from-blue-4 to-green-4 rounded-2xl animate-duration-7000 animate-pulse)"
+       before:(content-empty inset-0 scale-110 absolute left-0 top-0 blur-150 wfull hfull -z-10 rounded-3xl bg-gradient-to-br from-blue-3 to-green-3 rounded-2xl animate-duration-7000 animate-pulse)"
       >
         <div class="text-center text-xl font-600 text-slate-9">
           Welcome to
           <span
-            class="ml1 underline underline-blue-4 hover:(text-blue-6 cursor-pointer)"
+            class="ml1 underline underline-blue-5 hover:(text-blue-6 cursor-pointer)"
             onClick={() => openShell("https://github.com/Patchethium/Azalea")}
           >
             Azalea

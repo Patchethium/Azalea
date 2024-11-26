@@ -187,7 +187,7 @@ function TextBlock(props: { index: number }) {
         </Show>
       </div>
       <div
-        class="flex flex-row items-center justify-center p1"
+        class="flex flex-row items-start justify-center p1"
         onFocus={() => setSelected(props.index)}
       >
         <AutogrowInput
@@ -203,7 +203,7 @@ function TextBlock(props: { index: number }) {
       </div>
       <div class="flex flex-row flex-1 w-full">
         <div class="flex-1 pointer-events-none" />
-        <div class="text-sm text-slate-8 z-20 select-none pointer-events-none">
+        <div class="text-sm text-slate-8 select-none pointer-events-none">
           <Show
             when={isStyleIdValid()}
             fallback={<p>Choose a Style from Left Input</p>}

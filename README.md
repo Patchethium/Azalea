@@ -10,7 +10,7 @@
 We don't provide a pre-built binary yet, as the project is still in heavy development. You can build it yourself by following the instructions below.
 
 > [!IMPORTANT]
-> Accroding to [here](https://github.com/oven-sh/bun/issues/13076), `bun` has a bug on non-Linux platforms. The issue is with `css-tree` which `UnoCSS` depends on. Before it gets fixed, we will be using `pnpm` instead.
+> According to [here](https://github.com/oven-sh/bun/issues/13076), `bun` has a bug on non-Linux platforms. The issue is with `css-tree` which `UnoCSS` depends on. Before it gets fixed, we will be using `pnpm` instead.
 
 ## Development
 
@@ -53,7 +53,7 @@ your_dir/
 
 ### Setting the dev config
 
-The config file used in devlopment is located in `config_dev/config.json`. You can set the core path in the GUI launched by `pnpm tauri dev` and this file will be created automatically.
+The config file used in development is located in `config_dev/config.json`. You can set the core path in the GUI launched by `pnpm tauri dev` and this file will be created automatically.
 
 If you want to manually modify the config file, we also provide a `config_dev/config.template.json`, copy it to `config_dev/config.json` and modify it as below:
 

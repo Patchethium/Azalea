@@ -1,4 +1,4 @@
-// The store that holds the avaliable style metadata
+// The store that holds the available style metadata
 import { createContextProvider } from "@solid-primitives/context";
 import _ from "lodash";
 import { createStore } from "solid-js/store";

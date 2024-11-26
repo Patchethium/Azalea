@@ -1,0 +1,23 @@
+{
+  "title": "アザレア",
+  "init_dialog": {
+    "introduction": "{{ azalea }}へようこそ、{{ voicevox }}の非公式GUIです。",
+    "before": "早速ですが{{ core }}の場所は必要です。",
+    "setup": "どうやって見つかりますか？",
+    "installed.action": "VOICEVOXをインストール済み",
+    "installed.desp": "見つかる",
+    "later.desp": "今インストールしてくる",
+    "later.action": "ええんやで"
+  },
+  "main_page": {
+    "loading": "ローディング中",
+    "bottom": {
+      "no_query": "テキストを入力してください"
+    }
+  },
+  "config": {
+    "title": "設定",
+    "sidebar_desp": "このスペースは以降のバージョンで索引として使われる見込みです。",
+    "lang": "言語"
+  }
+}

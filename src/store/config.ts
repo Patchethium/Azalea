@@ -1,10 +1,13 @@
 // The store holding the configuration
 import { createContextProvider } from "@solid-primitives/context";
-import _ from "lodash";
+import * as i18n from "@solid-primitives/i18n";
+import { createScheduled } from "@solid-primitives/scheduled";
+import _, { debounce } from "lodash";
 import { createEffect, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
-import { AzaleaConfig, StyleId } from "../binding";
+import { AzaleaConfig, Locale, StyleId } from "../binding";
 import { commands } from "../binding";
+import { getDict } from "../i18n";
 import { useMetaStore } from "./meta";
 import { useUIStore } from "./ui";
 
@@ -16,7 +19,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     core_config: {
       core_path: null,
       ojt_path: null,
-      cache_size: 1024,
+      cache_size: 128,
     },
   });
 
@@ -44,11 +47,15 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     }
   };
 
+  const locale = (): Locale => config.ui_config?.locale ?? "En";
+  const t1 = i18n.translator(() => getDict(locale()));
+  const t2 = i18n.translator(() => getDict(locale()), i18n.resolveTemplate);
+
   createEffect(async () => {
     if (config.core_config.core_path !== null) {
       const res = await commands.initCore(
         config.core_config.core_path,
-        config.core_config.cache_size,
+        config.core_config.cache_size ?? 128,
       );
       if (res.status === "error") {
         if (res.error === "Core already loaded") {
@@ -66,16 +73,33 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     }
   });
 
-  createEffect(async () => {
+  const saveConfig = () => {
     if (configInitialized()) {
-      const res = await commands.setConfig(_.cloneDeep(config));
-      if (res.status === "error") {
-        console.error("Failed to save config:", res.error);
-      }
+      commands.setConfig(_.cloneDeep(config)).then((res) => {
+        if (res.status === "error") {
+          console.error("Failed to save config:", res.error);
+        }
+      });
+    }
+  };
+
+  const scheduled = createScheduled((saveConfig) => debounce(saveConfig, 500));
+
+  createEffect(() => {
+    if (scheduled()) {
+      saveConfig();
     }
   });
 
-  return { config, setConfig, configInitialized, setConfigInitialized, range };
+  return {
+    config,
+    setConfig,
+    configInitialized,
+    setConfigInitialized,
+    range,
+    t1,
+    t2,
+  };
 });
 
 export { ConfigProvider, useConfigStore };
