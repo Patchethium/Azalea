@@ -63,7 +63,7 @@ function Sidebar() {
       >
         <ToggleGroup.Item
           value="config"
-          class="group size-8 p1 rounded-lg bg-white shadow-sm hover:bg-blue-5 ui-pressed:bg-blue-5 active:translate-y-1px"
+          class="group size-8 p1 rounded-lg bg-white shadow-sm hover:bg-blue-5 ui-pressed:bg-blue-5 transition-transform active:translate-y-1px"
         >
           <div class="i-lucide:cog bg-slate-8 size-full group-hover:bg-white ui-pressed:!bg-white" />
         </ToggleGroup.Item>

@@ -8,7 +8,7 @@ interface ComponentProps extends JSX.HTMLAttributes<HTMLDivElement> {
 function CharacterCard(props: ComponentProps) {
   return (
     <div
-      class="rounded-md p1 hover:(shadow-md bg-white) cursor-default select-none w-full active:(translate-y-1px)"
+      class="rounded-md p1 hover:(shadow-md bg-white) cursor-default select-none w-full transition-transform active:translate-y-1px"
       {...props}
     >
       <div class="text-sm">{props.name}</div>
