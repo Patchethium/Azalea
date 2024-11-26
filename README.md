@@ -85,7 +85,7 @@ pnpm check
 ### Pitch Range
 
 `Azalea` comes with a pre-computed pitch range for every speakers in VOICEVOX, for a higher utilization of the tuning panel space.
-The pitch range is computed by $ \mu \pm 3\sigma $ of the pitch data of each speaker, where $ \mu $ is the mean and $ \sigma $ is the standard deviation.
+The pitch range is computed by $`\mu \pm 3\sigma`$ of the pitch data of each speaker, where $`\mu`$ is the mean and $`\sigma`$ is the standard deviation.
 
 Every time the core gets updated, we need to recompute the pitch range, by
 
