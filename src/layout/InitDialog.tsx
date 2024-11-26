@@ -10,9 +10,13 @@ import { open as openShell } from "@tauri-apps/plugin-shell";
 import { For, createSignal } from "solid-js";
 import { commands } from "../binding";
 import { useConfigStore } from "../store/config";
+import { usei18n } from "../store/i18n";
 
 function InitDialog() {
   const { setConfig } = useConfigStore()!;
+  const {t1, t2} = usei18n()!;
+
+
   const setCorePath = (path: string) => {
     setConfig("core_config", { core_path: path });
   };
@@ -23,19 +27,19 @@ function InitDialog() {
 
   const actionName = (act: ActionType) => {
     switch (act) {
-      case "later":
-        return "I'll figure it out";
       case "installed":
-        return "I have VOICEVOX installed on my computer";
+        return t1("init_dialog.installed.desp");
+      case "later":
+        return t1("init_dialog.later.desp");
     }
   };
 
   const buttonName = () => {
     switch (action()) {
-      case "later":
-        return "Okay";
       case "installed":
-        return "Pick it";
+        return t1("init_dialog.installed.button");
+      case "later":
+        return t1("init_dialog.later.button");
     }
   };
 
@@ -65,34 +69,16 @@ function InitDialog() {
        before:(content-empty inset-0 scale-110 absolute left-0 top-0 blur-150 wfull hfull -z-10 rounded-3xl bg-gradient-to-br from-blue-3 to-green-3 rounded-2xl animate-duration-7000 animate-pulse)"
       >
         <div class="text-center text-xl font-600 text-slate-9">
-          Welcome to
-          <span
-            class="ml1 underline underline-blue-5 hover:(text-blue-6 cursor-pointer)"
-            onClick={() => openShell("https://github.com/Patchethium/Azalea")}
-          >
-            Azalea
-          </span>
-          , an unofficial
-          <span
-            class="underline underline-green-4 m1 hover:(text-green-6 cursor-pointer)"
-            onClick={() => openShell("https://github.com/VOICEVOX/VOICEVOX")}
-          >
-            VOICEVOX
-          </span>
-          GUI
+          {t1("init_dialog.intro")}
         </div>
         <div class="">
-          Before we getting started, Azalea needs to know where the
-          <span class="m1 font-bold">VOICEVOX Core</span>is.
+          {t2("init_dialog.before")}
         </div>
         <RadioGroup
           value={action()}
           onChange={setAction}
           class="flex flex-col gap2"
         >
-          <RadioGroup.Label class="text-gray-9 font-bold text-lg select-none cursor-default">
-            How would you like to set it up?
-          </RadioGroup.Label>
           <For each={actions}>
             {(act: ActionType) => (
               <RadioGroup.Item

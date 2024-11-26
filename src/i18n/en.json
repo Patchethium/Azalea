@@ -1,13 +1,12 @@
 {
   "title": "Azalea",
   "init_dialog": {
-    "introduction": "Welcome to {{ azalea }}, an unofficial GUI for {{ voicevox }}.",
-    "before": "Before we get started Azalea needs to know where the {{ core }} is.",
-    "setup": "How would you like to set it up?",
-    "installed.action": "I have VOICEVOX installed",
-    "installed.desp": "Pick it",
+    "intro": "Welcome to Azalea, an unofficial GUI for VOICEVOX.",
+    "before": "Before we get started Azalea needs to know where the Core is.",
+    "installed.desp": "I have VOICEVOX installed",
+    "installed.button": "Pick it",
     "later.desp": "I'll figure it out",
-    "later.action": "Okay"
+    "later.button": "Okay"
   },
   "main_page": {
     "loading": "Loading",
