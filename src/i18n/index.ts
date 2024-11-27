@@ -1,7 +1,7 @@
 import * as i18n from "@solid-primitives/i18n";
+import _ from "lodash";
 import * as en_dict from "./en.json";
 import * as ja_dict from "./ja.json";
-import _ from "lodash";
 
 import { Locale } from "../binding";
 

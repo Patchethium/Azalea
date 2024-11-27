@@ -1,4 +1,5 @@
 import { Button } from "@kobalte/core/button";
+import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import _ from "lodash";
 import {
   ParentComponent,
@@ -13,7 +14,6 @@ import { useMetaStore } from "../store/meta";
 import { useTextStore } from "../store/text";
 import { useUIStore } from "../store/ui";
 import AutogrowInput from "./AutogrowInput";
-import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 
 const EditButton: ParentComponent<{
   edit: () => void;
@@ -40,7 +40,7 @@ function TextBlock(props: { index: number }) {
     const speakerId = currentText().styleId;
     if (speakerId !== undefined) {
       const speaker = metas.find((meta) =>
-        meta.styles.some((style) => style.id === speakerId)
+        meta.styles.some((style) => style.id === speakerId),
       );
       const style = speaker?.styles.find((style) => style.id === speakerId);
       return _.join([speaker?.name, style?.name], "-");
@@ -71,7 +71,7 @@ function TextBlock(props: { index: number }) {
     if (isStyleIdValid()) {
       const audio_query = await commands.audioQuery(
         curData.text,
-        curData.styleId!
+        curData.styleId!,
       );
       if (audio_query.status === "ok") {
         setQuery(audio_query.data);
@@ -82,7 +82,7 @@ function TextBlock(props: { index: number }) {
   });
 
   const selected = createMemo(
-    () => uiStore.selectedTextBlockIndex === props.index
+    () => uiStore.selectedTextBlockIndex === props.index,
   );
 
   const setSelected = (index: number) => {
@@ -108,7 +108,7 @@ function TextBlock(props: { index: number }) {
     () =>
       currentText().query !== undefined &&
       currentText().styleId !== undefined &&
-      currentText().query!.accent_phrases.length > 0
+      currentText().query!.accent_phrases.length > 0,
   );
 
   const saveAudio = async () => {
@@ -123,7 +123,7 @@ function TextBlock(props: { index: number }) {
       const save_audio = await commands.saveAudio(
         path,
         currentText().query!,
-        currentText().styleId!
+        currentText().styleId!,
       );
       if (save_audio.status === "ok") {
         console.log("Audio saved");

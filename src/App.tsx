@@ -31,7 +31,7 @@ function App() {
     <main class="absolute h-full w-full left-0 top-0 flex flex-row bg-transparent">
       <Show
         when={!config_resource.loading}
-        fallback={<div>{t1("main_page.loading")}</div>}
+        fallback={<div class="size-full items-center justify-center text-xl">{t1("main_page.loading")}</div>}
       >
         <Show when={!uiStore.coreInitialized}>
           <InitDialog />

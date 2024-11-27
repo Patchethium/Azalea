@@ -6,7 +6,6 @@
 ///   - If failed, go back to the first option
 import { Button } from "@kobalte/core/button";
 import { RadioGroup } from "@kobalte/core/radio-group";
-import { open as openShell } from "@tauri-apps/plugin-shell";
 import { For, createSignal } from "solid-js";
 import { commands } from "../binding";
 import { useConfigStore } from "../store/config";
@@ -14,8 +13,7 @@ import { usei18n } from "../store/i18n";
 
 function InitDialog() {
   const { setConfig } = useConfigStore()!;
-  const {t1, t2} = usei18n()!;
-
+  const { t1, t2 } = usei18n()!;
 
   const setCorePath = (path: string) => {
     setConfig("core_config", { core_path: path });
@@ -71,9 +69,7 @@ function InitDialog() {
         <div class="text-center text-xl font-600 text-slate-9">
           {t1("init_dialog.intro")}
         </div>
-        <div class="">
-          {t2("init_dialog.before")}
-        </div>
+        <div class="">{t2("init_dialog.before")}</div>
         <RadioGroup
           value={action()}
           onChange={setAction}

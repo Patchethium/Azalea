@@ -4,10 +4,10 @@ import _ from "lodash";
 import { For, Show, createMemo, createSignal } from "solid-js";
 import { Mora, commands } from "../binding";
 import { useConfigStore } from "../store/config";
+import { usei18n } from "../store/i18n";
 import { useSystemStore } from "../store/system";
 import { useTextStore } from "../store/text";
 import { useUIStore } from "../store/ui";
-import { usei18n } from "../store/i18n";
 
 type DraggingMode = "consonant" | "vowel" | "pause";
 

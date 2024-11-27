@@ -137,7 +137,7 @@ pub async fn save_audio(
   state: State<'_, AppState>,
   path: String,
   audio_query: AudioQuery,
-  speaker_id: u32
+  speaker_id: u32,
 ) -> std::result::Result<String, String> {
   let waveform = synthesize(
     state_mut!(state, wav_lru).as_mut().unwrap(),

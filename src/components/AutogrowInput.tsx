@@ -15,7 +15,7 @@ function AutogrowInput(props: ComponentProps) {
           inputRef.innerText = props.text;
         }
       }
-    })
+    }),
   );
   return (
     <div

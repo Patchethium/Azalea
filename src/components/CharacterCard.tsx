@@ -1,4 +1,4 @@
-import { createMemo, JSX } from "solid-js";
+import { JSX, createMemo } from "solid-js";
 import { useTextStore } from "../store/text";
 import { useUIStore } from "../store/ui";
 interface ComponentProps extends JSX.HTMLAttributes<HTMLDivElement> {
@@ -11,7 +11,8 @@ function CharacterCard(props: ComponentProps) {
   const { uiStore } = useUIStore()!;
   const { textStore } = useTextStore()!;
   const selected = createMemo(
-    () => textStore[uiStore.selectedTextBlockIndex].styleId === props.speaker_id
+    () =>
+      textStore[uiStore.selectedTextBlockIndex].styleId === props.speaker_id,
   );
   return (
     <div class="flex p-1 group" {...props}>
