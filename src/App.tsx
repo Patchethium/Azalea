@@ -11,7 +11,8 @@ import { usei18n } from "./store/i18n";
 import { useUIStore } from "./store/ui";
 
 function App() {
-  const { setConfig, setConfigInitialized } = useConfigStore()!;
+  const { setConfig, setConfigInitialized, coreInitializResource } =
+    useConfigStore()!;
   const { t1 } = usei18n()!;
   const { uiStore } = useUIStore()!;
 
@@ -30,8 +31,12 @@ function App() {
   return (
     <main class="absolute h-full w-full left-0 top-0 flex flex-row bg-transparent">
       <Show
-        when={!config_resource.loading}
-        fallback={<div class="size-full items-center justify-center text-xl">{t1("main_page.loading")}</div>}
+        when={!config_resource.loading && !coreInitializResource.loading}
+        fallback={
+          <div class="size-full flex items-center justify-center text-2xl font-bold">
+            {t1("main_page.loading")}
+          </div>
+        }
       >
         <Show when={!uiStore.coreInitialized}>
           <InitDialog />

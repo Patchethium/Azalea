@@ -3,7 +3,7 @@ import { createContextProvider } from "@solid-primitives/context";
 
 import { createScheduled } from "@solid-primitives/scheduled";
 import _, { debounce } from "lodash";
-import { createEffect, createSignal } from "solid-js";
+import { createEffect, createResource, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import { AzaleaConfig, StyleId } from "../binding";
 import { commands } from "../binding";
@@ -46,10 +46,11 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     }
   };
 
-  createEffect(async () => {
-    if (config.core_config.core_path !== null) {
+  const [coreInitializResource, _mutate] = createResource(
+    () => config.core_config.core_path,
+    async (path) => {
       const res = await commands.initCore(
-        config.core_config.core_path,
+        path,
         config.core_config.cache_size ?? 128,
       );
       if (res.status === "error") {
@@ -58,6 +59,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
           load_meta();
           setUIStore("coreInitialized", true);
         } else {
+          setUIStore("coreInitialized", false);
           console.error("Failed to initialize core:", res.error);
         }
       } else {
@@ -65,8 +67,8 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
         load_meta();
         setUIStore("coreInitialized", true);
       }
-    }
-  });
+    },
+  );
 
   const saveConfig = () => {
     if (configInitialized()) {
@@ -91,6 +93,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     setConfig,
     configInitialized,
     setConfigInitialized,
+    coreInitializResource,
     range,
   };
 });
