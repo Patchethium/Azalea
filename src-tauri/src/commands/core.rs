@@ -96,33 +96,57 @@ pub async fn audio_query(
 }
 
 /// > Decode audio query to waveform.
-/// 
-/// > It doesn't really return the waveform,
-/// instead the waveform will be stored in the cache, waiting to be played.
-/// The frontend doesn't need actual waveform data.
+pub fn synthesize(
+  cache: &mut lru::LruCache<(AudioQuery, u32), Vec<u8>>,
+  wrapper: &DynWrapper,
+  audio_query: AudioQuery,
+  speaker_id: u32,
+) -> std::result::Result<Vec<u8>, String> {
+  if let Some(waveform) = cache.get(&(audio_query.clone(), speaker_id)) {
+    return Ok(waveform.clone());
+  }
+  let waveform = wrapper
+    .synthesis(&audio_query, speaker_id, None)
+    .map_err(|e| e.to_string())?;
+  cache.put((audio_query.clone(), speaker_id), waveform.clone());
+  Ok(waveform)
+}
+
 #[tauri::command]
 #[specta::specta]
-pub async fn synthesize(
+pub async fn play_audio(
   state: State<'_, AppState>,
   audio_query: AudioQuery,
   speaker_id: u32,
 ) -> std::result::Result<(), String> {
-  if let Some(cache) = state_mut!(state, wav_lru).as_mut() {
-    if let Some(waveform) = cache.get(&(audio_query.clone(), speaker_id)) {
-      let audio_player = AudioPlayer::play(waveform.clone());
-      state_mut!(state, audio_player).replace(audio_player);
-      return Ok(());
-    }
-  }
-  let waveform = state_ref!(state, wrapper)
-    .synthesis(&audio_query, speaker_id, None)
-    .map_err(|e| format!("Failed in Synthesis: {:?}", e.to_string()))?;
-  let audio_player = AudioPlayer::play(waveform.clone());
+  let waveform = synthesize(
+    state_mut!(state, wav_lru).as_mut().unwrap(),
+    state_mut!(state, wrapper).as_mut().unwrap(),
+    audio_query,
+    speaker_id,
+  )?;
+  let audio_player = AudioPlayer::play(waveform);
   state_mut!(state, audio_player).replace(audio_player);
-  if let Some(cache) = state_mut!(state, wav_lru).as_mut() {
-    cache.put((audio_query.clone(), speaker_id), waveform.clone());
-  }
   Ok(())
+}
+
+/// Save the audio waveform to a file
+#[tauri::command]
+#[specta::specta]
+pub async fn save_audio(
+  state: State<'_, AppState>,
+  path: String,
+  audio_query: AudioQuery,
+  speaker_id: u32
+) -> std::result::Result<String, String> {
+  let waveform = synthesize(
+    state_mut!(state, wav_lru).as_mut().unwrap(),
+    state_mut!(state, wrapper).as_mut().unwrap(),
+    audio_query,
+    speaker_id,
+  )?;
+  std::fs::write(&path, waveform).map_err(|e| e.to_string())?;
+  Ok(path)
 }
 
 #[tauri::command]

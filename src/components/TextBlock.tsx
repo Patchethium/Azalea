@@ -13,15 +13,16 @@ import { useMetaStore } from "../store/meta";
 import { useTextStore } from "../store/text";
 import { useUIStore } from "../store/ui";
 import AutogrowInput from "./AutogrowInput";
+import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 
 const EditButton: ParentComponent<{
   edit: () => void;
-  disable?: () => boolean;
+  disable?: boolean;
 }> = (props) => {
-  const disabled = createMemo(() => props.disable?.() ?? false);
+  const disabled = createMemo(() => props.disable ?? false);
   return (
     <Button
-      class="group h-6 w-6 bg-transparent rounded-md ui-disabled:cursor-not-allowed"
+      class="group h-6 w-6 bg-transparent rounded-md ui-disabled:(cursor-not-allowed)"
       disabled={disabled()}
       onClick={props.edit}
     >
@@ -34,12 +35,12 @@ function TextBlock(props: { index: number }) {
   const { textStore, setTextStore } = useTextStore()!;
   const { metas, availableSpeakerIds } = useMetaStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
-  const data = createMemo(() => textStore[props.index]);
+  const currentText = createMemo(() => textStore[props.index]);
   const speakerName = createMemo(() => {
-    const speakerId = data().styleId;
+    const speakerId = currentText().styleId;
     if (speakerId !== undefined) {
       const speaker = metas.find((meta) =>
-        meta.styles.some((style) => style.id === speakerId),
+        meta.styles.some((style) => style.id === speakerId)
       );
       const style = speaker?.styles.find((style) => style.id === speakerId);
       return _.join([speaker?.name, style?.name], "-");
@@ -50,15 +51,15 @@ function TextBlock(props: { index: number }) {
   const [toolbarHovered, setToolbarHovered] = createSignal(false);
 
   const setText = (text: string) => {
-    setTextStore(props.index, { ...data(), text });
+    setTextStore(props.index, { ...currentText(), text });
   };
 
   const setQuery = (query: AudioQuery) => {
-    setTextStore(props.index, { ...data(), query });
+    setTextStore(props.index, { ...currentText(), query });
   };
 
   const isStyleIdValid = createMemo(() => {
-    const curData = data();
+    const curData = currentText();
     if (curData.styleId !== undefined) {
       return availableSpeakerIds().includes(curData.styleId);
     }
@@ -66,11 +67,11 @@ function TextBlock(props: { index: number }) {
   });
 
   createEffect(async () => {
-    const curData = data();
+    const curData = currentText();
     if (isStyleIdValid()) {
       const audio_query = await commands.audioQuery(
         curData.text,
-        curData.styleId!,
+        curData.styleId!
       );
       if (audio_query.status === "ok") {
         setQuery(audio_query.data);
@@ -81,7 +82,7 @@ function TextBlock(props: { index: number }) {
   });
 
   const selected = createMemo(
-    () => uiStore.selectedTextBlockIndex === props.index,
+    () => uiStore.selectedTextBlockIndex === props.index
   );
 
   const setSelected = (index: number) => {
@@ -98,15 +99,44 @@ function TextBlock(props: { index: number }) {
       setTextStore(i - 1, temp);
     }
     // clear the below text block
-    setTextStore(props.index + 1, { text: "", styleId: data().styleId });
+    setTextStore(props.index + 1, { text: "", styleId: currentText().styleId });
     // focus on the new text block
     setUIStore("selectedTextBlockIndex", props.index + 1);
+  };
+
+  const saveable = createMemo(
+    () =>
+      currentText().query !== undefined &&
+      currentText().styleId !== undefined &&
+      currentText().query!.accent_phrases.length > 0
+  );
+
+  const saveAudio = async () => {
+    const path = await saveDialog({
+      title: "Save Audio",
+      filters: [{ name: "Audio", extensions: ["wav"] }],
+    });
+    if (path !== null) {
+      if (!path.endsWith(".wav")) {
+        path.concat(".wav");
+      }
+      const save_audio = await commands.saveAudio(
+        path,
+        currentText().query!,
+        currentText().styleId!
+      );
+      if (save_audio.status === "ok") {
+        console.log("Audio saved");
+      } else {
+        console.error(save_audio.error);
+      }
+    }
   };
 
   const moveUp = () => {
     if (props.index > 0) {
       const temp = _.cloneDeep(textStore[props.index - 1]);
-      setTextStore(props.index - 1, data());
+      setTextStore(props.index - 1, currentText());
       setTextStore(props.index, temp);
       setSelected(props.index - 1);
     }
@@ -115,7 +145,7 @@ function TextBlock(props: { index: number }) {
   const moveDown = () => {
     if (props.index < textStore.length - 1) {
       const temp = _.cloneDeep(textStore[props.index + 1]);
-      setTextStore(props.index + 1, data());
+      setTextStore(props.index + 1, currentText());
       setTextStore(props.index, temp);
       setSelected(props.index + 1);
     }
@@ -171,12 +201,15 @@ function TextBlock(props: { index: number }) {
             <EditButton edit={addTextBelow}>
               <div class="i-lucide:plus w-full h-full group-hover:bg-blue-5 group-active:bg-blue-6" />
             </EditButton>
-            <EditButton edit={moveUp} disable={() => props.index === 0}>
+            <EditButton edit={saveAudio} disable={!saveable()}>
+              <div class="i-lucide:save w-full h-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+            </EditButton>
+            <EditButton edit={moveUp} disable={props.index === 0}>
               <div class="i-lucide:chevron-up w-full h-full group-hover:bg-blue-5 group-active:bg-blue-6" />
             </EditButton>
             <EditButton
               edit={moveDown}
-              disable={() => props.index === textStore.length - 1}
+              disable={props.index === textStore.length - 1}
             >
               <div class="i-lucide:chevron-down w-full h-full group-hover:bg-blue-5 group-active:bg-blue-6" />
             </EditButton>
@@ -191,7 +224,7 @@ function TextBlock(props: { index: number }) {
         onFocus={() => setSelected(props.index)}
       >
         <AutogrowInput
-          text={data().text}
+          text={currentText().text}
           setText={setText}
           onInput={(e) => {
             if (e.target != null)

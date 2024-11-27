@@ -94,16 +94,20 @@ async audioQuery(text: string, speakerId: number) : Promise<Result<AudioQuery, s
     else return { status: "error", error: e  as any };
 }
 },
-/**
- * > Decode audio query to waveform.
- * 
- * > It doesn't really return the waveform,
- * instead the waveform will be stored in the cache, waiting to be played.
- * The frontend doesn't need actual waveform data.
- */
-async synthesize(audioQuery: AudioQuery, speakerId: number) : Promise<Result<null, string>> {
+async playAudio(audioQuery: AudioQuery, speakerId: number) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("synthesize", { audioQuery, speakerId }) };
+    return { status: "ok", data: await TAURI_INVOKE("play_audio", { audioQuery, speakerId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Save the audio waveform to a file
+ */
+async saveAudio(path: string, audioQuery: AudioQuery, speakerId: number) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_audio", { path, audioQuery, speakerId }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

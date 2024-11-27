@@ -170,7 +170,7 @@ function BottomPanel() {
   };
 
   const speak = () => {
-    commands.synthesize(currentText().query!, currentText().styleId!);
+    commands.playAudio(currentText().query!, currentText().styleId!);
   };
 
   const playable = createMemo(() => {
