@@ -95,19 +95,23 @@ pub async fn audio_query(
   Ok(query)
 }
 
-/// Decode audio query to waveform
+/// > Decode audio query to waveform.
+/// 
+/// > It doesn't really return the waveform,
+/// instead the waveform will be stored in the cache, waiting to be played.
+/// The frontend doesn't need actual waveform data.
 #[tauri::command]
 #[specta::specta]
 pub async fn synthesize(
   state: State<'_, AppState>,
   audio_query: AudioQuery,
   speaker_id: u32,
-) -> std::result::Result<Vec<u8>, String> {
+) -> std::result::Result<(), String> {
   if let Some(cache) = state_mut!(state, wav_lru).as_mut() {
     if let Some(waveform) = cache.get(&(audio_query.clone(), speaker_id)) {
       let audio_player = AudioPlayer::play(waveform.clone());
       state_mut!(state, audio_player).replace(audio_player);
-      return Ok(waveform.clone());
+      return Ok(());
     }
   }
   let waveform = state_ref!(state, wrapper)
@@ -118,7 +122,7 @@ pub async fn synthesize(
   if let Some(cache) = state_mut!(state, wav_lru).as_mut() {
     cache.put((audio_query.clone(), speaker_id), waveform.clone());
   }
-  Ok(waveform)
+  Ok(())
 }
 
 #[tauri::command]
