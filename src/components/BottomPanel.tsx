@@ -410,7 +410,7 @@ function TuningItems(props: {
       </Show>
       {/* Duration */}
       <div
-        class="flex flex-row b-b b-slate-3"
+        class="flex flex-row b-b b-slate-3 bg-white"
         classList={{ "h-full": whisper(), "h-12": !whisper() }}
       >
         <Show when={consonantPixels() != null}>

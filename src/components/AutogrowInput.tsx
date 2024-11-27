@@ -10,10 +10,12 @@ function AutogrowInput(props: ComponentProps) {
 
   createEffect(
     on([() => props.text], () => {
-      if (props.text !== inputRef?.innerText) {
-        inputRef!.innerText = props.text;
+      if (inputRef !== undefined) {
+        if (props.text !== inputRef.innerText) {
+          inputRef.innerText = props.text;
+        }
       }
-    }),
+    })
   );
   return (
     <div

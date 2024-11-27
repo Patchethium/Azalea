@@ -34,7 +34,7 @@ function ConfigPage() {
                   item={props.item}
                   class="p1 flex flex-row items-center justify-between rounded-md ui-highlighted:(bg-blue-5 text-white) cursor-pointer"
                 >
-                  <Select.ItemLabel class="w-36 flex flex-row">
+                  <Select.ItemLabel class="w-36 flex flex-row px1">
                     {localeNames[props.item.rawValue as Locale]}<div class="flex-1"/>{coverages[props.item.rawValue as Locale]*100}%
                   </Select.ItemLabel>
                   <Select.ItemIndicator class="size-6 flex items-center justify-center">

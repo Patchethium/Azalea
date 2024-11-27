@@ -44,6 +44,7 @@ function Sidebar() {
                   <CharacterCard
                     name={meta.name}
                     style={style.name}
+                    speaker_id={style.id}
                     onClick={() => {
                       setStyleId(style.id);
                     }}
@@ -63,7 +64,7 @@ function Sidebar() {
       >
         <ToggleGroup.Item
           value="config"
-          class="group size-8 p1 rounded-lg bg-white shadow-sm hover:bg-blue-5 ui-pressed:bg-blue-5 transition-transform active:translate-y-1px"
+          class="group size-8 p1 rounded-lg bg-white shadow-sm hover:bg-blue-5 ui-pressed:bg-blue-5 transition-transform active:scale-95"
         >
           <div class="i-lucide:cog bg-slate-8 size-full group-hover:bg-white ui-pressed:!bg-white" />
         </ToggleGroup.Item>

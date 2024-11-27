@@ -150,8 +150,8 @@ function TextBlock(props: { index: number }) {
 
   return (
     <div
-      class="flex flex-col relative px3 pb1 bg-transparent b-l-2 b-slate-2"
-      classList={{ " bg-white !border-blue-5 shadow-md": selected() }}
+      class="flex flex-col relative px3 pb1 b-l-2 b-slate-2 bg-white"
+      classList={{ " !border-blue-5 shadow-md": selected() }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -187,7 +187,7 @@ function TextBlock(props: { index: number }) {
         </Show>
       </div>
       <div
-        class="flex flex-row items-start justify-center p1"
+        class="flex flex-row items-start justify-center pt-sm"
         onFocus={() => setSelected(props.index)}
       >
         <AutogrowInput
