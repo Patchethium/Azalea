@@ -3,11 +3,11 @@ import _ from "lodash";
 // the bottom panel where users do most of their tuning
 import { For, Show, createMemo, createSignal } from "solid-js";
 import { Mora, commands } from "../binding";
-import { useConfigStore } from "../store/config";
-import { usei18n } from "../store/i18n";
-import { useSystemStore } from "../store/system";
-import { useTextStore } from "../store/text";
-import { useUIStore } from "../store/ui";
+import { useConfigStore } from "../contexts/config";
+import { usei18n } from "../contexts/i18n";
+import { useSystemStore } from "../contexts/system";
+import { useTextStore } from "../contexts/text";
+import { useUIStore } from "../contexts/ui";
 
 type DraggingMode = "consonant" | "vowel" | "pause";
 

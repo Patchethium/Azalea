@@ -6,9 +6,9 @@ import ConfigPage from "./layout/ConfigPage";
 import InitDialog from "./layout/InitDialog";
 import MainPage from "./layout/MainPage";
 import Sidebar from "./layout/Sidebar";
-import { useConfigStore } from "./store/config";
-import { usei18n } from "./store/i18n";
-import { useUIStore } from "./store/ui";
+import { useConfigStore } from "./contexts/config";
+import { usei18n } from "./contexts/i18n";
+import { useUIStore } from "./contexts/ui";
 
 function App() {
   const { setConfig, setConfigInitialized, coreInitializResource } =

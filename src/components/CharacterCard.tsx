@@ -1,6 +1,6 @@
 import { JSX, createMemo } from "solid-js";
-import { useTextStore } from "../store/text";
-import { useUIStore } from "../store/ui";
+import { useTextStore } from "../contexts/text";
+import { useUIStore } from "../contexts/ui";
 interface ComponentProps extends JSX.HTMLAttributes<HTMLDivElement> {
   name: string;
   style: string;

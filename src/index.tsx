@@ -5,12 +5,12 @@ import "virtual:uno.css";
 import "@unocss/reset/tailwind-compat.css";
 import { MultiProvider } from "@solid-primitives/context";
 import _ from "lodash";
-import { ConfigProvider } from "./store/config";
-import { i18nProvider } from "./store/i18n";
-import { MetaProvider } from "./store/meta";
-import { SystemProvider } from "./store/system";
-import { TextProvider } from "./store/text";
-import { UIProvider } from "./store/ui";
+import { ConfigProvider } from "./contexts/config";
+import { i18nProvider } from "./contexts/i18n";
+import { MetaProvider } from "./contexts/meta";
+import { SystemProvider } from "./contexts/system";
+import { TextProvider } from "./contexts/text";
+import { UIProvider } from "./contexts/ui";
 
 render(() => {
   const texts = [{ text: "", styleId: 0 }];

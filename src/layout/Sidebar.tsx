@@ -3,10 +3,10 @@ import { For, Show } from "solid-js";
 import { produce } from "solid-js/store";
 import { StyleId } from "../binding";
 import CharacterCard from "../components/CharacterCard";
-import { usei18n } from "../store/i18n";
-import { useMetaStore } from "../store/meta";
-import { useTextStore } from "../store/text";
-import { PageType, useUIStore } from "../store/ui";
+import { usei18n } from "../contexts/i18n";
+import { useMetaStore } from "../contexts/meta";
+import { useTextStore } from "../contexts/text";
+import { PageType, useUIStore } from "../contexts/ui";
 
 function Sidebar() {
   const { metas, availableSpeakerIds } = useMetaStore()!;

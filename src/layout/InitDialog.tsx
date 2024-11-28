@@ -8,8 +8,8 @@ import { Button } from "@kobalte/core/button";
 import { RadioGroup } from "@kobalte/core/radio-group";
 import { For, createSignal } from "solid-js";
 import { commands } from "../binding";
-import { useConfigStore } from "../store/config";
-import { usei18n } from "../store/i18n";
+import { useConfigStore } from "../contexts/config";
+import { usei18n } from "../contexts/i18n";
 
 function InitDialog() {
   const { setConfig } = useConfigStore()!;

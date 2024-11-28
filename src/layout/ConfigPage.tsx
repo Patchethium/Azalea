@@ -5,8 +5,8 @@ import _ from "lodash";
 import { ParentProps } from "solid-js";
 import { Locale } from "../binding";
 import { coverages, localeNames, possibleLocales } from "../i18n";
-import { useConfigStore } from "../store/config";
-import { usei18n } from "../store/i18n";
+import { useConfigStore } from "../contexts/config";
+import { usei18n } from "../contexts/i18n";
 
 function ConfigPage() {
   const { config, setConfig } = useConfigStore()!;

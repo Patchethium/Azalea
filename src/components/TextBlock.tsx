@@ -10,9 +10,9 @@ import {
 } from "solid-js";
 import { commands } from "../binding";
 import { AudioQuery } from "../binding";
-import { useMetaStore } from "../store/meta";
-import { useTextStore } from "../store/text";
-import { useUIStore } from "../store/ui";
+import { useMetaStore } from "../contexts/meta";
+import { useTextStore } from "../contexts/text";
+import { useUIStore } from "../contexts/ui";
 import AutogrowInput from "./AutogrowInput";
 
 const EditButton: ParentComponent<{

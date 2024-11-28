@@ -3,7 +3,7 @@ import _ from "lodash";
 import { For } from "solid-js";
 import { BottomPanel } from "../components/BottomPanel";
 import TextBlock from "../components/TextBlock";
-import { useTextStore } from "../store/text";
+import { useTextStore } from "../contexts/text";
 function MainPage() {
   const { textStore } = useTextStore()!;
 
