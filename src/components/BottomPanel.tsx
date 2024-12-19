@@ -202,7 +202,7 @@ function BottomPanel() {
   };
 
   return (
-    <div class="size-full flex flex-col bg-white border border-slate-2 rounded-lg">
+    <div class="size-full flex flex-col bg-white border border-slate-2 rounded-lg shadow-lg">
       {/* Control bar */}
       <div class="h-8 p2 flex flex-row items-center justify-center gap-1 b-b b-slate-2 select-none">
         <div class="flex-1">
@@ -250,10 +250,9 @@ function BottomPanel() {
       <div
         ref={scrollAreaRef}
         onWheel={handleWheel}
-        class="size-full relative flex flex-col left-0 top-0 overflow-x-auto overflow-y-hidden"
+        class="size-full relative flex flex-col left-0 top-0 overflow-x-auto overflow-y-hidden cursor-default"
         classList={{
-          "!overflow-x-hidden": draggingData() !== null,
-          "cursor-ew-resize": draggingData() !== null,
+          "!overflow-x-hidden !cursor-ew-resize": draggingData() !== null,
         }}
       >
         <Show

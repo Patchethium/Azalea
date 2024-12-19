@@ -4,9 +4,9 @@ import { open } from "@tauri-apps/plugin-shell";
 import _ from "lodash";
 import { ParentProps } from "solid-js";
 import { Locale } from "../binding";
-import { coverages, localeNames, possibleLocales } from "../i18n";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
+import { coverages, localeNames, possibleLocales } from "../i18n";
 
 function ConfigPage() {
   const { config, setConfig } = useConfigStore()!;
@@ -47,14 +47,14 @@ function ConfigPage() {
             >
               <Select.Trigger
                 class="flex flex-row items-center justify-between p3 w-full
-               h-8 bg-transparent border border-slate-2 rounded-md
-               hover:(bg-slate-1)"
+                      h-8 bg-transparent border border-slate-2 rounded-md
+                      hover:(bg-slate-1)"
                 aria-label={t1("config.lang")}
               >
-                <Select.Value<string> class="">
+                <Select.Value<string>>
                   {(state) => localeNames[state.selectedOption() as Locale]}
                 </Select.Value>
-                <Select.Icon class="">
+                <Select.Icon>
                   <div class="i-lucide:chevrons-up-down" />
                 </Select.Icon>
               </Select.Trigger>
