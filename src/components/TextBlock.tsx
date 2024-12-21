@@ -167,6 +167,12 @@ function TextBlock(props: { index: number }) {
         setUIStore("selectedTextBlockIndex", props.index - 1);
       }
     }
+    // there's a bug here, if we're focusing on the last one
+    // and remove one block above, the focused index will be out of bound
+    // we focus one block above before removing to fix this
+    if (uiStore.selectedTextBlockIndex > props.index) {
+      setUIStore("selectedTextBlockIndex", uiStore.selectedTextBlockIndex! - 1);
+    }
     setTextStore(textStore.filter((_, i) => i !== props.index));
   };
 
