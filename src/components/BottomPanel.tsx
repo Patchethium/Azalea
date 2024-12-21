@@ -1,4 +1,5 @@
 import { Button } from "@kobalte/core/button";
+import { Slider } from "@kobalte/core/slider";
 import _ from "lodash";
 // the bottom panel where users do most of their tuning
 import { For, Show, createMemo, createSignal } from "solid-js";
@@ -25,6 +26,7 @@ function BottomPanel() {
   };
 
   const epsilon = 0.01;
+  const minScale = 100;
   const maxScale = 1500;
 
   let scrollAreaRef!: HTMLDivElement;
@@ -190,17 +192,6 @@ function BottomPanel() {
       textStore.length > 1,
   );
 
-  const [scalebarDragging, setScalebarDragging] = createSignal(false);
-
-  const handleScalebarDrag = (e: MouseEvent) => {
-    if (scalebarDragging()) {
-      const x = e.offsetX;
-      const width = (e.currentTarget as HTMLElement).clientWidth;
-      const newScale = (x / width) * maxScale;
-      if (newScale > 100 && newScale < maxScale) setScale(newScale);
-    }
-  };
-
   return (
     <div class="size-full flex flex-col bg-white border border-slate-2 rounded-lg shadow-lg">
       {/* Control bar */}
@@ -208,20 +199,20 @@ function BottomPanel() {
         <div class="flex-1">
           {/* Scale  */}
           <Show when={queryExists()}>
-            <div
-              class="w-25% h-6 bg-transparent flex items-center justify-center active:cursor-ew-resize"
-              onMouseDown={() => setScalebarDragging(true)}
-              onMouseUp={() => setScalebarDragging(false)}
-              onMouseLeave={() => setScalebarDragging(false)}
-              onMouseMove={handleScalebarDrag}
+            <Slider
+              class="relative flex flex-col w-30% select-none items-center"
+              minValue={minScale}
+              maxValue={maxScale}
+              value={[scale()]}
+              onChange={(v) => setScale(v[0])}
             >
-              <div class="bg-slate-3 h-1 w-full pointer-events-none">
-                <div
-                  class="bg-blue-5 size-full pointer-events-none"
-                  style={{ width: `${(scale() / maxScale) * 100}%` }}
-                />
-              </div>
-            </div>
+              <Slider.Track class="w-full h-2 bg-slate-2 rounded-full relative">
+                <Slider.Fill class="absolute bg-blue-5 rounded-full h-full" />
+                <Slider.Thumb class="block size-4 bg-blue-5 rounded-full -top-1 outline-none">
+                  <Slider.Input />
+                </Slider.Thumb>
+              </Slider.Track>
+            </Slider>
           </Show>
         </div>
         <Button
@@ -391,7 +382,7 @@ function TuningItems(props: {
           when={!unvoiced()}
           fallback={<div class="flex-1 content-empty b-b b-slate3" />}
         >
-          <div
+          {/* <div
             class="b-b b-slate3 flex flex-1 flex-col items-center justify-start"
             classList={{ "cursor-ns-resize": dragging() }}
             onMouseDown={handleDraggingStart}
@@ -404,7 +395,24 @@ function TuningItems(props: {
               class="b-b b-slate-3 w-full pointer-events-none"
               style={{ height: `${pitchRatio()}%` }}
             />
-          </div>
+          </div> */}
+          <Slider
+            class="flex-1 b-b b-slate-3"
+            minValue={props.minPitch}
+            maxValue={props.maxPitch}
+            step={0.01}
+            value={[props.mora.pitch]}
+            onChange={(v) => props.setPitch(v[0])}
+            orientation="vertical"
+          >
+            <Slider.Track class="size-full bg-white relative">
+              <Slider.Fill class="absolute bg-blue-50 w-full" />
+              <Slider.Thumb class="block h-1px w-full bg-blue-5 outline-none">
+                <Slider.Input />
+              </Slider.Thumb>
+            </Slider.Track>
+          </Slider>
+          <div></div>
         </Show>
       </Show>
       {/* Duration */}
