@@ -38,7 +38,7 @@ function BottomPanel() {
   const selectedIdx = () => uiStore.selectedTextBlockIndex;
 
   const computedRange = createMemo(() => {
-    const id = currentText().styleId;
+    const id = currentText().style_id;
     const r = range();
     if (id === undefined || r === null) return [0, 0];
     const [mean, std] = r[id];
@@ -172,7 +172,7 @@ function BottomPanel() {
   };
 
   const speak = () => {
-    commands.playAudio(currentText().query!, currentText().styleId!);
+    commands.playAudio(currentText().query!, currentText().style_id!);
   };
 
   const playable = createMemo(() => {
@@ -200,7 +200,7 @@ function BottomPanel() {
           {/* Scale  */}
           <Show when={queryExists()}>
             <Slider
-              class="relative flex flex-col w-30% select-none items-center"
+              class="relative flex flex-col w-40% select-none items-center"
               minValue={minScale}
               maxValue={maxScale}
               value={[scale()]}
@@ -208,7 +208,7 @@ function BottomPanel() {
             >
               <Slider.Track class="w-full h-2 bg-slate-2 rounded-full relative">
                 <Slider.Fill class="absolute bg-blue-5 rounded-full h-full" />
-                <Slider.Thumb class="block size-4 bg-blue-5 rounded-full -top-1 outline-none">
+                <Slider.Thumb class="block size-4 bg-transparent rounded-full -top-1 outline-none">
                   <Slider.Input />
                 </Slider.Thumb>
               </Slider.Track>

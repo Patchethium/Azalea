@@ -43,7 +43,7 @@ function App() {
         </Show>
         <Show when={uiStore.coreInitialized}>
           <Resizable class="absolute flex flex-row size-full bg-slate-1">
-            <Resizable.Panel initialSize={0.15} minSize={0.1}>
+            <Resizable.Panel initialSize={0.2} minSize={0.15}>
               <Sidebar />
             </Resizable.Panel>
             <Resizable.Handle
@@ -54,8 +54,8 @@ function App() {
             </Resizable.Handle>
             <Resizable.Panel
               class="w-full overflow-hidden"
-              initialSize={0.85}
-              minSize={0.6}
+              initialSize={0.8}
+              minSize={0.5}
             >
               <Show when={uiStore.page == null}>
                 <MainPage />

@@ -2,11 +2,13 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::path::PathBuf;
 
+use crate::voicevox_sys::metas::StyleId;
+
 #[derive(Default, Clone, Deserialize, Serialize, Type)]
 pub struct AzaleaConfig {
   pub core_config: CoreConfig,
-  #[serde(default)]
   pub ui_config: UIConfig,
+  pub presets: Vec<Preset>,
 }
 
 #[derive(Clone, Deserialize, Serialize, Type)]
@@ -65,4 +67,40 @@ impl Default for UIConfig {
 
 fn bottom_scale_default() -> usize {
   360
+}
+
+#[derive(Clone, Deserialize, Serialize, Type)]
+pub struct Preset {
+  pub name: String,
+  pub style_id: StyleId,
+  /// in percentage, 50-200
+  pub speed: u32,
+  // At C=440Hz, one semi-tone is approximately 26.16 Hz,
+  // after log scale it comes to 0.21, and 1.5 is about 1 octave.
+  // Don't need to be too precise, it's TTS, not SVS.
+  /// linear shift in log hz, -1.5-1.5.
+  pub pitch: f32,
+  /// if pause scale is applied. if not, it will follow the `speed` value.
+  pub pause_scale_enabled: bool,
+  /// 50-200, 100 is default for no change
+  pub pause_scale: u32,
+  /// in seconds, 0.0-3.0, 0 is default for no slience
+  pub start_slience: f32,
+  /// in seconds, 0.0-3.0, 0 is default for no slience
+  pub end_slience: f32,
+}
+
+impl Default for Preset {
+  fn default() -> Self {
+    Self {
+      name: String::from("Default"),
+      style_id: StyleId::new(0),
+      speed: 100,
+      pitch: 0.0,
+      pause_scale_enabled: false,
+      pause_scale: 100,
+      start_slience: 0.0,
+      end_slience: 0.0,
+    }
+  }
 }

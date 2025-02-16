@@ -11,12 +11,12 @@ function MainPage() {
     <div class="flex flex-col size-full">
       <Resizable orientation="vertical" class="size-full">
         <Resizable.Panel
-          class="h-full flex flex-col overflow-hidden p2 pl0 pb0"
+          class="h-full flex flex-col overflow-hidden mx2 mt2 ml0 mb0"
           initialSize={0.7}
           minSize={0.3}
         >
-          <div class="h-full flex-1 flex-grow w-full flex flex-col overflow-auto px-3 gap-4 bg-white rounded-md border border-slate-2">
-            <div class="w-full h-3" />
+          <div class="h-full w-full flex flex-col overflow-auto px-3 gap-3 py-1 bg-white rounded-md border border-slate-2">
+            <div class="h-2 w-full" />
             <For each={_.range(0, textStore.length, 1)}>
               {(i) => (
                 <div>

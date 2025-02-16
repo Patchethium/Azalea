@@ -203,7 +203,7 @@ output_stereo: boolean;
  * [`Synthesizer::audio_query`]: crate::blocking::Synthesizer::audio_query
  */
 kana: string | null }
-export type AzaleaConfig = { core_config: CoreConfig; ui_config?: UIConfig }
+export type AzaleaConfig = { core_config: CoreConfig; ui_config: UIConfig; presets: Preset[] }
 export type CoreConfig = { 
 /**
  * The Path to the core directory, it should be the directory containing the dynamic library.
@@ -241,6 +241,31 @@ vowel_length: number;
  */
 pitch: number }
 export type OS = "MacOS" | "Windows" | "Linux"
+export type Preset = { name: string; style_id: StyleId; 
+/**
+ * in percentage, 50-200
+ */
+speed: number; 
+/**
+ * linear shift in log hz, -1.5-1.5.
+ */
+pitch: number; 
+/**
+ * if pause scale is applied. if not, it will follow the `speed` value.
+ */
+pause_scale_enabled: boolean; 
+/**
+ * 50-200, 100 is default for no change
+ */
+pause_scale: number; 
+/**
+ * in seconds, 0.0-3.0, 0 is default for no slience
+ */
+start_slience: number; 
+/**
+ * in seconds, 0.0-3.0, 0 is default for no slience
+ */
+end_slience: number }
 /**
  * **話者**(_speaker_)のメタ情報。
  */

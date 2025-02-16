@@ -99,7 +99,7 @@ function TextBlock(props: { index: number }) {
       setTextStore(i - 1, temp);
     }
     // clear the below text block
-    setTextStore(props.index + 1, { text: "", styleId: currentText().styleId });
+    setTextStore(props.index + 1, { text: "", style_id: currentText().style_id });
     // focus on the new text block
     setUIStore("selectedTextBlockIndex", props.index + 1);
   };
@@ -107,7 +107,7 @@ function TextBlock(props: { index: number }) {
   const saveable = createMemo(
     () =>
       currentText().query !== undefined &&
-      currentText().styleId !== undefined &&
+      currentText().style_id !== undefined &&
       currentText().query!.accent_phrases.length > 0,
   );
 
@@ -199,7 +199,7 @@ function TextBlock(props: { index: number }) {
       >
         <Show when={selected() || hovered() || toolbarHovered()}>
           <div
-            class="absolute right-0 flex p1 rounded-lg bg-white shadow-md -top-6 pointer-events-auto z-10"
+            class="absolute right-0 flex p1 rounded-lg bg-white shadow-md -top-5 pointer-events-auto z-10"
             classList={{
               "opacity-50": hovered() && !selected() && !toolbarHovered(),
             }}

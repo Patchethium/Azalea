@@ -26,7 +26,6 @@ mod test {
 
   fn get_core() -> DynWrapper {
     let core_path = get_core_dir();
-
     DynWrapper::new(&core_path, None).unwrap()
   }
   #[test]

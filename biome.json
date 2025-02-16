@@ -6,7 +6,6 @@
     "indentStyle": "space"
   },
   "files": {
-    "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.json"],
     "ignore": ["src/binding.ts", "src/assets/**/*"]
   },
   "linter": {

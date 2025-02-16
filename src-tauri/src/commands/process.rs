@@ -1,6 +1,5 @@
 use serde::Serialize;
 use specta::Type;
-use std::env::consts::OS;
 use tauri::AppHandle;
 
 #[tauri::command]
@@ -19,7 +18,7 @@ pub enum OS {
 #[tauri::command]
 #[specta::specta]
 pub async fn get_os() -> OS {
-  match OS {
+  match std::env::consts::OS {
     "macos" => OS::MacOS,
     "windows" => OS::Windows,
     "linux" => OS::Linux,
