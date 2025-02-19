@@ -3,12 +3,14 @@ import { Slider } from "@kobalte/core/slider";
 import _ from "lodash";
 // the bottom panel where users do most of their tuning
 import { For, Show, createMemo, createSignal } from "solid-js";
+import { unwrap } from "solid-js/store";
 import { Mora, commands } from "../binding";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { useSystemStore } from "../contexts/system";
 import { useTextStore } from "../contexts/text";
 import { useUIStore } from "../contexts/ui";
+import { getModifiedQuery } from "../utils";
 
 type DraggingMode = "consonant" | "vowel" | "pause";
 
@@ -36,13 +38,24 @@ function BottomPanel() {
     currentText().query !== undefined &&
     currentText().query!.accent_phrases.length > 0;
   const selectedIdx = () => uiStore.selectedTextBlockIndex;
+  const currentPreset = createMemo(() => {
+    if (config.presets === undefined || config.presets.length === 0 || currentText().presetId === undefined) {
+      return null;
+    }
+    return config.presets[currentText().presetId!];
+  });
 
   const computedRange = createMemo(() => {
-    const id = currentText().style_id;
+    const id = currentPreset()?.style_id;
     const r = range();
     if (id === undefined || r === null) return [0, 0];
     const [mean, std] = r[id];
-    return [mean - 3 * std, mean + 3 * std];
+    if (mean === 0 && std === 0) return [0, 0];
+    let low = mean - 3 * std;
+    let high = mean + 3 * std;
+    low = Math.log(low);
+    high = Math.log(high);
+    return [low, high];
   });
 
   const minPitch = createMemo(() => Math.max(computedRange()[0], 0.0));
@@ -172,7 +185,12 @@ function BottomPanel() {
   };
 
   const speak = () => {
-    commands.playAudio(currentText().query!, currentText().style_id!);
+    const _currentPreset = unwrap(currentPreset());
+    if (_currentPreset == null) return;
+    commands.playAudio(
+      getModifiedQuery(unwrap(currentText().query!), _currentPreset),
+      _currentPreset.style_id,
+    );
   };
 
   const playable = createMemo(() => {
@@ -193,7 +211,7 @@ function BottomPanel() {
   );
 
   return (
-    <div class="size-full flex flex-col bg-white border border-slate-2 rounded-lg shadow-lg">
+    <div class="size-full flex flex-col bg-white border border-slate-2 rounded-lg">
       {/* Control bar */}
       <div class="h-8 p2 flex flex-row items-center justify-center gap-1 b-b b-slate-2 select-none">
         <div class="flex-1">
@@ -342,33 +360,6 @@ function TuningItems(props: {
   const vowelPixels = (): number => props.mora.vowel_length! * scale();
   const totalPixels = (): number => (consonantPixels() ?? 0) + vowelPixels();
 
-  const pitchRatio = () => {
-    return (
-      (1 -
-        (props.mora.pitch - props.minPitch) /
-          (props.maxPitch - props.minPitch)) *
-      100
-    );
-  };
-
-  const [dragging, setDragging] = createSignal(false);
-
-  const handleDraggingStart = (e: MouseEvent) => {
-    if (e.buttons !== 1) return;
-    setDragging(true);
-    handleDraggingPitch(e);
-  };
-
-  const handleDraggingPitch = (e: MouseEvent) => {
-    if (dragging()) {
-      const y = e.offsetY;
-      const height = (e.currentTarget as HTMLDivElement).clientHeight;
-      const newPitch =
-        props.minPitch + (1 - y / height) * (props.maxPitch - props.minPitch);
-      props.setPitch(newPitch);
-    }
-  };
-
   return (
     <div
       class="flex flex-col b-r b-slate-3 h-100% select-none"
@@ -382,20 +373,6 @@ function TuningItems(props: {
           when={!unvoiced()}
           fallback={<div class="flex-1 content-empty b-b b-slate3" />}
         >
-          {/* <div
-            class="b-b b-slate3 flex flex-1 flex-col items-center justify-start"
-            classList={{ "cursor-ns-resize": dragging() }}
-            onMouseDown={handleDraggingStart}
-            onMouseEnter={handleDraggingStart}
-            onMouseUp={() => setDragging(false)}
-            onMouseLeave={() => setDragging(false)}
-            onMouseMove={handleDraggingPitch}
-          >
-            <div
-              class="b-b b-slate-3 w-full pointer-events-none"
-              style={{ height: `${pitchRatio()}%` }}
-            />
-          </div> */}
           <Slider
             class="flex-1 b-b b-slate-3"
             minValue={props.minPitch}

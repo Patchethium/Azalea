@@ -1,11 +1,11 @@
 // The store that holds the text block data
 import { createContextProvider } from "@solid-primitives/context";
 import { createStore } from "solid-js/store";
-import { AudioQuery, Preset } from "../binding";
+import { AudioQuery } from "../binding";
 
-type TextBlockProps = Omit<Preset, "name"> & {
-  name: string | null;
+type TextBlockProps = {
   text: string;
+  presetId?: number;
   query?: AudioQuery;
 };
 

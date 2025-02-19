@@ -15,7 +15,7 @@ function MainPage() {
           initialSize={0.7}
           minSize={0.3}
         >
-          <div class="h-full w-full flex flex-col overflow-auto px-3 gap-3 py-1 bg-white rounded-md border border-slate-2">
+          <div class="h-full w-full flex flex-col overflow-auto px-3 py-1 bg-white rounded-md border border-slate-2">
             <div class="h-2 w-full" />
             <For each={_.range(0, textStore.length, 1)}>
               {(i) => (

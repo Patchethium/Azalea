@@ -9,7 +9,7 @@
     "build": "vite build",
     "serve": "vite preview",
     "tauri": "tauri",
-    "check": "biome check --write ./src/"
+    "check": "biome check ./src/"
   },
   "license": "MIT",
   "dependencies": {

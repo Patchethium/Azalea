@@ -17,12 +17,21 @@ function AutogrowInput(props: ComponentProps) {
       }
     }),
   );
+
+  const handleInput = () => {
+    if (inputRef !== undefined) {
+      const text = inputRef.innerText === "\n" ? "" : inputRef.innerText;
+      props.setText(text);
+    }
+  };
+
   return (
     <div
       contentEditable="plaintext-only"
       class="w-full outline-none"
       {...props}
       ref={inputRef}
+      onInput={handleInput}
     />
   );
 }

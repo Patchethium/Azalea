@@ -14,6 +14,10 @@ import { useMetaStore } from "../contexts/meta";
 import { useTextStore } from "../contexts/text";
 import { useUIStore } from "../contexts/ui";
 import AutogrowInput from "./AutogrowInput";
+import { useConfigStore } from "../contexts/config";
+import { getModifiedQuery } from "../utils";
+import { produce, unwrap } from "solid-js/store";
+import { usei18n } from "../contexts/i18n";
 
 const EditButton: ParentComponent<{
   edit: () => void;
@@ -33,18 +37,20 @@ const EditButton: ParentComponent<{
 
 function TextBlock(props: { index: number }) {
   const { textStore, setTextStore } = useTextStore()!;
-  const { metas, availableSpeakerIds } = useMetaStore()!;
+  const { availableStyleIds: availableSpeakerIds } = useMetaStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
+  const { config } = useConfigStore()!;
+  const { t1 } = usei18n()!;
   const currentText = createMemo(() => textStore[props.index]);
-  const speakerName = createMemo(() => {
-    const speakerId = currentText().styleId;
-    if (speakerId !== undefined) {
-      const speaker = metas.find((meta) =>
-        meta.styles.some((style) => style.id === speakerId),
-      );
-      const style = speaker?.styles.find((style) => style.id === speakerId);
-      return _.join([speaker?.name, style?.name], "-");
+  const currentPreset = createMemo(() => {
+    if (
+      config.presets === undefined ||
+      config.presets.length === 0 ||
+      currentText().presetId === undefined
+    ) {
+      return null;
     }
+    return config.presets[currentText().presetId!];
   });
 
   const [hovered, setHovered] = createSignal(false);
@@ -54,24 +60,29 @@ function TextBlock(props: { index: number }) {
     setTextStore(props.index, { ...currentText(), text });
   };
 
-  const setQuery = (query: AudioQuery) => {
-    setTextStore(props.index, { ...currentText(), query });
+  const setQuery = (query?: AudioQuery) => {
+    setTextStore(
+      props.index,
+      produce((draft) => {
+        draft.query = query;
+      }),
+    );
   };
 
   const isStyleIdValid = createMemo(() => {
-    const curData = currentText();
-    if (curData.styleId !== undefined) {
-      return availableSpeakerIds().includes(curData.styleId);
+    if (currentPreset() === null) {
+      return false;
     }
-    return false;
+    return availableSpeakerIds().includes(currentPreset()!.style_id);
   });
 
   createEffect(async () => {
-    const curData = currentText();
-    if (isStyleIdValid()) {
+    if (currentText().text === "" || currentPreset() === null) {
+      setQuery(undefined);
+    } else if (isStyleIdValid()) {
       const audio_query = await commands.audioQuery(
-        curData.text,
-        curData.styleId!,
+        currentText().text,
+        currentPreset()!.style_id,
       );
       if (audio_query.status === "ok") {
         setQuery(audio_query.data);
@@ -91,7 +102,7 @@ function TextBlock(props: { index: number }) {
 
   // the toobar actions
   const addTextBelow = () => {
-    setTextStore(textStore.length, { text: "", query: undefined });
+    setTextStore(textStore.length, { text: "", query: undefined, presetId: 0 });
     // shift every text block below by 1
     for (let i = textStore.length - 1; i > props.index + 1; i--) {
       const temp = textStore[i];
@@ -99,7 +110,10 @@ function TextBlock(props: { index: number }) {
       setTextStore(i - 1, temp);
     }
     // clear the below text block
-    setTextStore(props.index + 1, { text: "", style_id: currentText().style_id });
+    setTextStore(props.index + 1, {
+      text: "",
+      presetId: currentText().presetId,
+    });
     // focus on the new text block
     setUIStore("selectedTextBlockIndex", props.index + 1);
   };
@@ -107,11 +121,13 @@ function TextBlock(props: { index: number }) {
   const saveable = createMemo(
     () =>
       currentText().query !== undefined &&
-      currentText().style_id !== undefined &&
       currentText().query!.accent_phrases.length > 0,
   );
 
   const saveAudio = async () => {
+    if (currentPreset() === null) {
+      return;
+    }
     const path = await saveDialog({
       title: "Save Audio",
       filters: [{ name: "Audio", extensions: ["wav"] }],
@@ -122,8 +138,8 @@ function TextBlock(props: { index: number }) {
       }
       const save_audio = await commands.saveAudio(
         path,
-        currentText().query!,
-        currentText().styleId!,
+        getModifiedQuery(unwrap(currentText().query!), currentPreset()!),
+        currentPreset()!.style_id,
       );
       if (save_audio.status === "ok") {
         console.log("Audio saved");
@@ -185,72 +201,76 @@ function TextBlock(props: { index: number }) {
   });
 
   return (
-    <div
-      class="flex flex-col relative px3 pb1 b-l-2 b-slate-2 bg-white"
-      classList={{ " !border-blue-5 shadow-md": selected() }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {/* The jupyter/Google Colab notebook style code block */}
+    <div class="py-1.5" onClick={() => setSelected(props.index)}>
       <div
-        class="sticky flex h-0 top-5 bg-transparent pointer-events-none z-10"
-        onMouseEnter={() => setToolbarHovered(true)}
-        onMouseLeave={() => setToolbarHovered(false)}
+        class="flex flex-col relative px3 pb1 b-l-2 b-slate-2 bg-white"
+        classList={{ " !border-blue-5 shadow-md": selected() }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
       >
-        <Show when={selected() || hovered() || toolbarHovered()}>
-          <div
-            class="absolute right-0 flex p1 rounded-lg bg-white shadow-md -top-5 pointer-events-auto z-10"
-            classList={{
-              "opacity-50": hovered() && !selected() && !toolbarHovered(),
-            }}
-          >
-            <EditButton edit={addTextBelow}>
-              <div class="i-lucide:plus w-full h-full group-hover:bg-blue-5 group-active:bg-blue-6" />
-            </EditButton>
-            <EditButton edit={saveAudio} disable={!saveable()}>
-              <div class="i-lucide:save w-full h-full group-hover:bg-blue-5 group-active:bg-blue-6" />
-            </EditButton>
-            <EditButton edit={moveUp} disable={props.index === 0}>
-              <div class="i-lucide:chevron-up w-full h-full group-hover:bg-blue-5 group-active:bg-blue-6" />
-            </EditButton>
-            <EditButton
-              edit={moveDown}
-              disable={props.index === textStore.length - 1}
+        {/* The jupyter/Google Colab notebook style code block */}
+        <div
+          class="sticky flex h-0 top-5 bg-transparent pointer-events-none z-10"
+          onMouseEnter={() => setToolbarHovered(true)}
+          onMouseLeave={() => setToolbarHovered(false)}
+        >
+          <Show when={selected() || hovered() || toolbarHovered()}>
+            <div
+              class="absolute right-0 flex p1 rounded-lg bg-white shadow-md -top-5 pointer-events-auto z-10"
+              classList={{
+                "opacity-50": hovered() && !selected() && !toolbarHovered(),
+              }}
             >
-              <div class="i-lucide:chevron-down w-full h-full group-hover:bg-blue-5 group-active:bg-blue-6" />
-            </EditButton>
-            <EditButton edit={remove}>
-              <div class="i-lucide:trash2 w-full h-full group-hover:bg-red-5 group-active:bg-red-6" />
-            </EditButton>
-          </div>
-        </Show>
-      </div>
-      <div
-        class="flex flex-row items-start justify-center pt-sm"
-        onFocus={() => setSelected(props.index)}
-      >
-        <AutogrowInput
-          text={currentText().text}
-          setText={setText}
-          onInput={(e) => {
-            if (e.target != null)
-              setText((e.target as HTMLDivElement).innerText);
-          }}
-          ref={inputFieldRef}
-          onFocus={() => setSelected(props.index)}
-        />
-      </div>
-      <div class="flex flex-row flex-1 w-full">
-        <div class="flex-1 pointer-events-none" />
-        <div class="text-sm text-slate-8 select-none pointer-events-none">
-          <Show
-            when={isStyleIdValid()}
-            fallback={<p>Choose a Style from Left Input</p>}
-          >
-            <p>{speakerName()}</p>
+              <EditButton edit={addTextBelow}>
+                <div class="i-lucide:plus w-full h-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+              </EditButton>
+              <EditButton edit={saveAudio} disable={!saveable()}>
+                <div class="i-lucide:save w-full h-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+              </EditButton>
+              <EditButton edit={moveUp} disable={props.index === 0}>
+                <div class="i-lucide:chevron-up w-full h-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+              </EditButton>
+              <EditButton
+                edit={moveDown}
+                disable={props.index === textStore.length - 1}
+              >
+                <div class="i-lucide:chevron-down w-full h-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+              </EditButton>
+              <EditButton edit={remove}>
+                <div class="i-lucide:trash2 w-full h-full group-hover:bg-red-5 group-active:bg-red-6" />
+              </EditButton>
+            </div>
           </Show>
         </div>
-      </div>
+        <div
+          class="flex flex-row items-start justify-center pt-sm"
+          onFocus={() => setSelected(props.index)}
+        >
+          <AutogrowInput
+            text={currentText().text}
+            setText={setText}
+            onInput={(e) => {
+              if (e.target != null)
+                setText((e.target as HTMLDivElement).innerText);
+            }}
+            ref={inputFieldRef}
+            onFocus={() => setSelected(props.index)}
+          />
+        </div>
+        <div class="flex flex-row flex-1 w-full">
+          <div class="flex-1 pointer-events-none" />
+          <div class="text-sm text-slate-8 select-none pointer-events-none">
+            <Show
+              when={isStyleIdValid() && currentPreset()}
+              fallback={
+                <p class="text-yellow-7">{t1("preset.no_preset_selected")}</p>
+              }
+            >
+              <p>{currentPreset()?.name}</p>
+            </Show>
+          </div>
+        </div>
+      </div>{" "}
     </div>
   );
 }

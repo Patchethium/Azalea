@@ -203,7 +203,7 @@ output_stereo: boolean;
  * [`Synthesizer::audio_query`]: crate::blocking::Synthesizer::audio_query
  */
 kana: string | null }
-export type AzaleaConfig = { core_config: CoreConfig; ui_config: UIConfig; presets: Preset[] }
+export type AzaleaConfig = { core_config: CoreConfig; ui_config: UIConfig; presets?: Preset[] }
 export type CoreConfig = { 
 /**
  * The Path to the core directory, it should be the directory containing the dynamic library.
@@ -247,9 +247,18 @@ export type Preset = { name: string; style_id: StyleId;
  */
 speed: number; 
 /**
- * linear shift in log hz, -1.5-1.5.
+ * linear shift in log hz, -1-1.
  */
 pitch: number; 
+/**
+ * the variance of pitch, -0.5-0.5
+ * 0.0 equals to no change
+ * the higher the value, the bigger variablity of pitch
+ * we use this formular to vary the pitch:
+ * $x = x * \sigma + \mean (1-\sigma)$
+ * where x is the pitch value, \sigma is the variance, \mean is the mean of pitch
+ */
+variance: number; 
 /**
  * if pause scale is applied. if not, it will follow the `speed` value.
  */

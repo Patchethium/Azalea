@@ -13,7 +13,7 @@ import { TextProvider } from "./contexts/text";
 import { UIProvider } from "./contexts/ui";
 
 render(() => {
-  const texts = [{ text: "", styleId: 0 }];
+  const texts = [{ text: "", presetId: 0 }];
 
   return (
     <MultiProvider

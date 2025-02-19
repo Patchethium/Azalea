@@ -18,5 +18,17 @@
     "title": "Config",
     "sidebar_desp": "This space will be used for indexing in future versions.",
     "lang": "Language"
+  },
+  "preset": {
+    "title": "Preset",
+    "new_preset": "New Preset",
+    "name": "Name",
+    "speaker": "Speaker",
+    "style": "Style",
+    "speed": "Speed",
+    "pitch": "Pitch",
+    "pause_speed": "Pause Speed",
+    "no_preset_selected": "No Preset Selected",
+    "get_started": "Create a new preset to get started"
   }
 }

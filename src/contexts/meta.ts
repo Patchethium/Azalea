@@ -14,12 +14,12 @@ const [MetaProvider, useMetaStore] = createContextProvider(() => {
       return new Error("Metas are read-only and we already have some");
     }
   };
-  const availableSpeakerIds = () =>
+  const availableStyleIds = () =>
     _.flattenDeep(metas.map((meta) => meta.styles.map((style) => style.id)));
   return {
     metas,
     setMetas,
-    availableSpeakerIds,
+    availableStyleIds,
   };
 });
 

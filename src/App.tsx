@@ -11,7 +11,7 @@ import MainPage from "./layout/MainPage";
 import Sidebar from "./layout/Sidebar";
 
 function App() {
-  const { setConfig, setConfigInitialized, coreInitializResource } =
+  const { setConfig, setConfigInitialized, coreInitializeResource } =
     useConfigStore()!;
   const { t1 } = usei18n()!;
   const { uiStore } = useUIStore()!;
@@ -31,7 +31,7 @@ function App() {
   return (
     <main class="absolute h-full w-full left-0 top-0 flex flex-row bg-transparent">
       <Show
-        when={!config_resource.loading && !coreInitializResource.loading}
+        when={!config_resource.loading && !coreInitializeResource.loading}
         fallback={
           <div class="size-full flex items-center justify-center text-2xl font-bold">
             {t1("main_page.loading")}

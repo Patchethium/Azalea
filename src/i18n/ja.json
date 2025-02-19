@@ -18,5 +18,17 @@
     "title": "設定",
     "sidebar_desp": "このスペースは以降のバージョンで索引として使われる見込みです。",
     "lang": "言語"
+  },
+  "preset": {
+    "title": "プリセット",
+    "new_preset": "新しいプリセット",
+    "name": "プリセット名",
+    "speaker": "話者",
+    "style": "スタイル",
+    "speed": "話速",
+    "pitch": "イントネーション",
+    "pause_speed": "ポーズ話速",
+    "no_preset_selected": "プリセットが指定されていません",
+    "get_started": "始めるには、新しいプリセットを作成してください"
   }
 }

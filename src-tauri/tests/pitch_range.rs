@@ -37,7 +37,11 @@ mod test {
     }
 
     fn variance(&self) -> f32 {
-      self.m2 / self.n as f32
+      if self.n < 2 {
+        0.0
+      } else {
+        self.m2 / self.n as f32
+      }
     }
 
     fn std(&self) -> f32 {
@@ -59,6 +63,8 @@ mod test {
   const BENCHMARK_TEXT: &str = "rashoumon.txt";
   const PROJ_ROOT: &str = env!("CARGO_MANIFEST_DIR");
 
+  // gets each character's pitch range
+  // it takes around 1 minute without console messages, wait patiently
   #[test]
   #[ignore = "this test is slow and is only used when core characters change"]
   fn pitch_range() {
@@ -71,7 +77,7 @@ mod test {
     let text_path = root.join("tests").join(BENCHMARK_TEXT);
     let lines = std::fs::read_to_string(text_path).unwrap();
     let lines: Vec<&str> = lines.lines().collect();
-    let threshold = 1.0;
+    let threshold = (0.1 as f32).exp();
     metas.iter().for_each(|m| {
       m.styles
         .iter()
@@ -85,18 +91,23 @@ mod test {
             audio_query.accent_phrases.iter().for_each(|ap| {
               ap.moras.iter().for_each(|mora| {
                 if mora.pitch > threshold {
-                  welford.lock().unwrap().update(mora.pitch);
+                  // the original pitch data is in log scale
+                  // we convert it to linear scale
+                  welford.lock().unwrap().update(mora.pitch.exp());
                 }
               });
             });
           });
+          // convert the mean and std back to log scale
           let mut mean = welford.lock().unwrap().mean();
           let mut std = welford.lock().unwrap().std();
-          if mean < threshold {
+
+          if mean < threshold || mean.is_nan() {
             mean = 0.0;
             std = 0.0;
           }
           println!("{}/{}: mean: {}, std: {}", m.name, s.name, mean, std);
+          // println!("{}/{}: low: {}, high: {}", m.name, s.name, low, high);
           pitch_range.lock().unwrap().insert(id.raw_id(), (mean, std));
         });
     });

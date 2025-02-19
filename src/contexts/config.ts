@@ -20,7 +20,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
       ojt_path: null,
       cache_size: 128,
     },
-  });
+  } as AzaleaConfig);
 
   type RangeMap = { [key in StyleId]: [number, number] };
 
@@ -46,7 +46,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     }
   };
 
-  const [coreInitializResource, _mutate] = createResource(
+  const [coreInitializeResource, _mutate] = createResource(
     () => config.core_config.core_path,
     async (path) => {
       const res = await commands.initCore(
@@ -93,7 +93,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     setConfig,
     configInitialized,
     setConfigInitialized,
-    coreInitializResource,
+    coreInitializeResource,
     range,
   };
 });

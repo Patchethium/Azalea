@@ -2,7 +2,6 @@
 //! Provides a safe Rust interface to the Voicevox Core library.
 //! This module is not thread-safe, you should your own synchronization mechanism.
 #![allow(non_upper_case_globals)]
-use std::any::Any;
 use std::ffi::c_char;
 use std::path::PathBuf;
 use std::ptr;
