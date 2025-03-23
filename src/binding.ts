@@ -121,6 +121,22 @@ async getOs() : Promise<OS> {
 },
 async quit() : Promise<void> {
     await TAURI_INVOKE("quit");
+},
+async saveProject(project: Project, path: string, allowCreate: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_project", { project, path, allowCreate }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async loadProject() : Promise<Result<Project, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("load_project") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -275,6 +291,7 @@ start_slience: number;
  * in seconds, 0.0-3.0, 0 is default for no slience
  */
 end_slience: number }
+export type Project = { blocks: TextBlockProps[]; preset_order: string[]; presets: { [key in string]: Preset } }
 /**
  * **話者**(_speaker_)のメタ情報。
  */
@@ -356,6 +373,7 @@ export type StyleType =
  * スタイルのバージョン。
  */
 export type StyleVersion = string
+export type TextBlockProps = { text: string; query: AudioQuery; preset_id: string }
 export type UIConfig = { locale?: Locale; bottom_scale?: number }
 
 /** tauri-specta globals **/

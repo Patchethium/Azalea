@@ -41,6 +41,8 @@ pub fn run() {
     spectrogram,
     get_os,
     quit,
+    save_project,
+    load_project,
   ]);
 
   // In debug mode, export the typescript bindings

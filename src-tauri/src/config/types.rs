@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
-use crate::voicevox_sys::metas::StyleId;
+use crate::voicevox_sys::{audio_query::AudioQuery, metas::StyleId};
 
 #[derive(Default, Clone, Deserialize, Serialize, Type)]
 pub struct AzaleaConfig {
@@ -114,4 +114,18 @@ impl Default for Preset {
       end_slience: 0.0,
     }
   }
+}
+
+#[derive(Clone, Deserialize, Serialize, Type)]
+pub struct TextBlockProps {
+  pub text: String,
+  pub query: AudioQuery,
+  pub preset_id: String,
+}
+
+#[derive(Clone, Deserialize, Serialize, Type, Default)]
+pub struct Project {
+  pub blocks: Vec<TextBlockProps>,
+  pub preset_order: Vec<String>,
+  pub presets: HashMap<String, Preset>,
 }
