@@ -27,7 +27,10 @@
     "style": "Style",
     "speed": "Speed",
     "pitch": "Pitch",
-    "pause_speed": "Pause Speed",
+    "intonation": "Intonation",
+    "volume": "Volume",
+    "start_sli": "Start Sli.",
+    "end_sli": "End Sli.",
     "no_preset_selected": "No Preset Selected",
     "get_started": "Create a new preset to get started"
   }

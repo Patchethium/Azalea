@@ -2,6 +2,8 @@ import { Button } from "@kobalte/core/button";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import _ from "lodash";
 import {
+  JSX,
+  on,
   ParentComponent,
   Show,
   createEffect,
@@ -13,11 +15,46 @@ import { AudioQuery } from "../binding";
 import { useMetaStore } from "../contexts/meta";
 import { useTextStore } from "../contexts/text";
 import { useUIStore } from "../contexts/ui";
-import AutogrowInput from "./AutogrowInput";
 import { useConfigStore } from "../contexts/config";
 import { getModifiedQuery } from "../utils";
 import { produce, unwrap } from "solid-js/store";
 import { usei18n } from "../contexts/i18n";
+
+interface ComponentProps extends JSX.HTMLAttributes<HTMLDivElement> {
+  text: string;
+  setText: (text: string) => void;
+}
+
+function AutogrowInput(props: ComponentProps) {
+  let inputRef: HTMLDivElement | undefined;
+
+  createEffect(
+    on([() => props.text], () => {
+      if (inputRef !== undefined) {
+        if (props.text !== inputRef.innerText) {
+          inputRef.innerText = props.text;
+        }
+      }
+    })
+  );
+
+  const handleInput = () => {
+    if (inputRef !== undefined) {
+      const text = inputRef.innerText === "\n" ? "" : inputRef.innerText;
+      props.setText(text);
+    }
+  };
+
+  return (
+    <div
+      contentEditable="plaintext-only"
+      class="w-full outline-none"
+      {...props}
+      ref={inputRef}
+      onInput={handleInput}
+    />
+  );
+}
 
 const EditButton: ParentComponent<{
   edit: () => void;
@@ -65,7 +102,7 @@ function TextBlock(props: { index: number }) {
       props.index,
       produce((draft) => {
         draft.query = query;
-      }),
+      })
     );
   };
 
@@ -82,7 +119,7 @@ function TextBlock(props: { index: number }) {
     } else if (isStyleIdValid()) {
       const audio_query = await commands.audioQuery(
         currentText().text,
-        currentPreset()!.style_id,
+        currentPreset()!.style_id
       );
       if (audio_query.status === "ok") {
         setQuery(audio_query.data);
@@ -93,7 +130,7 @@ function TextBlock(props: { index: number }) {
   });
 
   const selected = createMemo(
-    () => uiStore.selectedTextBlockIndex === props.index,
+    () => uiStore.selectedTextBlockIndex === props.index
   );
 
   const setSelected = (index: number) => {
@@ -121,7 +158,7 @@ function TextBlock(props: { index: number }) {
   const saveable = createMemo(
     () =>
       currentText().query !== undefined &&
-      currentText().query!.accent_phrases.length > 0,
+      currentText().query!.accent_phrases.length > 0
   );
 
   const saveAudio = async () => {
@@ -139,7 +176,7 @@ function TextBlock(props: { index: number }) {
       const save_audio = await commands.saveAudio(
         path,
         getModifiedQuery(unwrap(currentText().query!), currentPreset()!),
-        currentPreset()!.style_id,
+        currentPreset()!.style_id
       );
       if (save_audio.status === "ok") {
         console.log("Audio saved");

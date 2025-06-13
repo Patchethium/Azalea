@@ -32,7 +32,7 @@ impl From<VoicevoxResultCode> for VoicevoxError {
 
 pub struct DynWrapper {
   core: VoicevoxCore,
-  _ort: Library, // placeholder for onnxruntime, it's not directly used in azalea
+  _ort: Library, // onnxruntime, it's not directly used in azalea
   pub metas: VoiceModelMeta,
 }
 
@@ -85,6 +85,7 @@ impl DynWrapper {
           .into_iter()
           .filter(|style| style.r#type == StyleType::Talk)
           .collect::<Vec<_>>();
+        meta.styles.sort_by_key(|style| style.order);
       });
       metas
     };

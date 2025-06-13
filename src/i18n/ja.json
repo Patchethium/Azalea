@@ -27,7 +27,10 @@
     "style": "スタイル",
     "speed": "話速",
     "pitch": "イントネーション",
-    "pause_speed": "ポーズ話速",
+    "intonation": "抑揚",
+    "volume": "音量",
+    "start_sli": "開始無音",
+    "end_sli": "終了無音",
     "no_preset_selected": "プリセットが指定されていません",
     "get_started": "始めるには、新しいプリセットを作成してください"
   }

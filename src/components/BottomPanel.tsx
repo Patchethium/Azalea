@@ -330,9 +330,9 @@ function BottomPanel() {
           </div>
         </Show>
         {/* Leave some space for the scrollbar on WebkitGTK */}
-        <Show when={systemStore.os === "Linux"}>
+        {/* <Show when={systemStore.os === "Linux"}>
           <div class="h-5" />
-        </Show>
+        </Show> */}
       </div>
     </div>
   );
@@ -394,7 +394,7 @@ function TuningItems(props: {
       </Show>
       {/* Duration */}
       <div
-        class="flex flex-row b-b b-slate-3 bg-white"
+        class="flex flex-row b-slate-3 bg-white"
         classList={{ "h-full": whisper(), "h-12": !whisper() }}
       >
         <Show when={consonantPixels() != null}>

@@ -5,6 +5,7 @@ import { Select } from "@kobalte/core/select";
 import { Slider } from "@kobalte/core/slider";
 import { ToggleGroup } from "@kobalte/core/toggle-group";
 import { TextField } from "@kobalte/core/text-field";
+import { NumberField } from "@kobalte/core/number-field";
 import _ from "lodash";
 import { For, JSX, Show, createMemo, createSignal } from "solid-js";
 import { produce } from "solid-js/store";
@@ -32,21 +33,21 @@ function PresetCard(props: PresetCardProps) {
   });
   const speaker = createMemo(() =>
     metas.find((meta) =>
-      meta.styles.find((style) => style.id === preset()?.style_id),
-    ),
+      meta.styles.find((style) => style.id === preset()?.style_id)
+    )
   );
   const style = createMemo(
     () =>
-      speaker()?.styles.find((style) => style.id === preset()?.style_id)?.name,
+      speaker()?.styles.find((style) => style.id === preset()?.style_id)?.name
   );
 
   return (
-    <div class="py1 active:scale-98 group" {...props}>
+    <div class="p1 group" {...props}>
       <div
-        class="justify-between items-start rounded-lg px2 p1 group-hover:bg-slate-2 overflow-hidden bg-slate-1
-        cursor-default select-none w-full min-h-[fit-content] group-active:bg-white"
+        class="items-start rounded-r-md p1 pl2 group-hover:bg-slate-2 overflow-hidden bg-white border-l-2 border-slate-1
+        cursor-default select-none w-full min-h-[fit-content] group-active:bg-white flex flex-col"
         classList={{
-          "bg-white shadow-md group-hover:bg-white": props.selected,
+          "shadow-md group-hover:bg-white !border-blue-5": props.selected,
         }}
       >
         <div>{preset()?.name ?? ""}</div>
@@ -55,7 +56,7 @@ function PresetCard(props: PresetCardProps) {
           <span class="mx-1">{">"}</span>
           {style()}
         </div>
-      </div>{" "}
+      </div>
     </div>
   );
 }
@@ -86,7 +87,7 @@ function Sidebar() {
 
   const curMeta = () =>
     metas.find((meta) =>
-      meta.styles.find((style) => style.id === currentPreset()?.style_id),
+      meta.styles.find((style) => style.id === currentPreset()?.style_id)
     );
 
   const curStyle = () =>
@@ -106,7 +107,7 @@ function Sidebar() {
         "presets",
         currentText().presetId!,
         "style_id",
-        speaker.styles[0].id,
+        speaker.styles[0].id
       );
     }
   };
@@ -116,10 +117,9 @@ function Sidebar() {
     if (style) setStyleId(style.id);
   };
 
-  const createPresetSetter =
-    (key: keyof Preset) => (value: number | boolean) => {
-      setConfig("presets", currentText().presetId!, key, value);
-    };
+  const createPresetSetter = (key: keyof Preset) => (value: number) => {
+    setConfig("presets", currentText().presetId!, key, value);
+  };
 
   const pitch = createMemo(() => currentPreset()?.pitch);
   const setPitch = createPresetSetter("pitch");
@@ -127,13 +127,17 @@ function Sidebar() {
   const speed = createMemo(() => currentPreset()?.speed);
   const setSpeed = createPresetSetter("speed");
 
-  const pauseScaleChecked = createMemo(
-    () => currentPreset()?.pause_scale_enabled,
-  );
-  const setPauseScaleChecked = createPresetSetter("pause_scale_enabled");
+  const intonation = createMemo(() => currentPreset()?.intonation);
+  const setIntonation = createPresetSetter("intonation");
 
-  const pauseScale = createMemo(() => currentPreset()?.pause_scale);
-  const setPauseScale = createPresetSetter("pause_scale");
+  const volume = createMemo(() => currentPreset()?.volume);
+  const setVolume = createPresetSetter("volume");
+
+  const startSli = createMemo(() => currentPreset()?.start_slience);
+  const setStartSli = createPresetSetter("start_slience");
+
+  const endSli = createMemo(() => currentPreset()?.end_slience);
+  const setEndSli = createPresetSetter("end_slience");
 
   const setPresetName = (name: string) => {
     setConfig("presets", currentText().presetId!, "name", name);
@@ -143,7 +147,7 @@ function Sidebar() {
     setTextStore(
       produce((draft) => {
         draft[uiStore.selectedTextBlockIndex].presetId = preset_idx;
-      }),
+      })
     );
   };
 
@@ -153,9 +157,8 @@ function Sidebar() {
       style_id: currentPreset()?.style_id ?? 0,
       speed: 100,
       pitch: 0.0,
-      variance: 0.0,
-      pause_scale_enabled: false,
-      pause_scale: 100,
+      intonation: 1.0,
+      volume: 1.0,
       start_slience: 0,
       end_slience: 0,
     };
@@ -179,11 +182,11 @@ function Sidebar() {
               draft[i].presetId = undefined;
             }
           }
-        }),
+        })
       );
     setConfig(
       "presets",
-      config.presets?.filter((_, i) => i !== idx),
+      config.presets?.filter((_, i) => i !== idx)
     );
   };
 
@@ -198,7 +201,7 @@ function Sidebar() {
           </div>
         }
       >
-        <div class="w-auto flex items-center px1 rounded-md bg-white mt-2 p1 shadow-md z-10">
+        <div class="w-auto flex items-center rounded-md bg-white mt-2 mx-1 p1 shadow-md z-10">
           <Button
             class="size-6 i-lucide:plus hover:bg-blue-5 active:bg-blue-6"
             onClick={createPreset}
@@ -300,18 +303,33 @@ function Sidebar() {
                   setValue={setPitch}
                 />
                 <PresetSlider
-                  name={t1("preset.pause_speed")}
-                  min={50}
-                  max={200}
-                  step={1}
-                  appendix="%"
-                  checkable={{
-                    checked: pauseScaleChecked()!,
-                    setChecked: setPauseScaleChecked,
-                  }}
-                  value={pauseScale()!}
-                  setValue={setPauseScale}
+                  name={t1("preset.intonation")}
+                  min={0.0}
+                  max={2.0}
+                  step={0.01}
+                  value={intonation()!}
+                  setValue={setIntonation}
                 />
+                <PresetSlider
+                  name={t1("preset.volume")}
+                  min={0.0}
+                  max={2.0}
+                  step={0.01}
+                  value={volume()!}
+                  setValue={setVolume}
+                />
+                <div class="flex flex-row gap2">
+                  <PauseNumField
+                    label={t1("preset.start_sli")}
+                    value={startSli()}
+                    setValue={setStartSli}
+                  />
+                  <PauseNumField
+                    label={t1("preset.end_sli")}
+                    value={endSli()}
+                    setValue={setEndSli}
+                  />
+                </div>
                 <div class="h-2 w-full" />
               </Show>
             </Accordion.Content>
@@ -328,7 +346,7 @@ function Sidebar() {
       >
         <ToggleGroup.Item
           value="config"
-          class="group size-8 p1 rounded-lg bg-white shadow-md hover:bg-blue-5 ui-pressed:bg-blue-5 transition-transform active:scale-95"
+          class="group size-8 p1 rounded-lg bg-white shadow-md hover:bg-blue-5 ui-pressed:bg-blue-5 transition-transform"
         >
           <div class="i-lucide:cog bg-slate-8 size-full group-hover:bg-white ui-pressed:!bg-white" />
         </ToggleGroup.Item>
@@ -435,6 +453,45 @@ function PresetSlider(props: PresetSliderProps) {
         </Slider.Track>
       </div>
     </Slider>
+  );
+}
+
+function PauseNumField(props: {
+  label: string;
+  value?: number;
+  setValue: (v: number) => void;
+}) {
+  return (
+    <NumberField
+      minValue={0}
+      maxValue={1500}
+      value={props.value}
+      step={100}
+      onChange={(i) => props.setValue(Number.parseInt(i))}
+      changeOnWheel={true}
+      format={false}
+      title="in millisecond"
+      class="w-full"
+    >
+      <NumberField.Label>{props.label}</NumberField.Label>
+      <div class="flex flex-row gap-1 items-center">
+        <NumberField.Input class="h-8 w-full outline-none rounded-lg b b-slate-2 focus:b-blue-3 px-1" />
+        <div class="flex flex-col">
+          <NumberField.IncrementTrigger
+            aria-label="Increment"
+            class="size-4 bg-transparent group"
+          >
+            <div class="i-lucide:chevron-up size-full group-hover:bg-blue-5 group-active:bg-blue-7" />
+          </NumberField.IncrementTrigger>
+          <NumberField.DecrementTrigger
+            aria-label="Decrement"
+            class="size-4 bg-transparent group"
+          >
+            <div class="i-lucide:chevron-down size-full group-hover:bg-blue-5 group-active:bg-blue-7" />
+          </NumberField.DecrementTrigger>
+        </div>
+      </div>
+    </NumberField>
   );
 }
 

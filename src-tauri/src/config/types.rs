@@ -83,17 +83,10 @@ pub struct Preset {
   // TODO: use ratio of std for pitch shift
   /// linear shift in log hz, -1-1.
   pub pitch: f32,
-  /// the variance of pitch, -0.5-0.5
-  /// 0.0 equals to no change
-  /// the higher the value, the bigger variablity of pitch
-  /// we use this formular to vary the pitch:
-  /// $x = x * \sigma + \mean (1-\sigma)$
-  /// where x is the pitch value, \sigma is the variance, \mean is the mean of pitch
-  pub variance: f32,
-  /// if pause scale is applied. if not, it will follow the `speed` value.
-  pub pause_scale_enabled: bool,
-  /// 50-200, 100 is default for no change
-  pub pause_scale: u32,
+  /// 
+  pub intonation: f32,
+  /// volume
+  pub volume: f32,
   /// in seconds, 0.0-3.0, 0 is default for no slience
   pub start_slience: f32,
   /// in seconds, 0.0-3.0, 0 is default for no slience
@@ -107,9 +100,8 @@ impl Default for Preset {
       style_id: StyleId::new(0),
       speed: 100,
       pitch: 0.0,
-      variance: 1.0,
-      pause_scale_enabled: false,
-      pause_scale: 100,
+      intonation: 1.0,
+      volume: 1.0,
       start_slience: 0.0,
       end_slience: 0.0,
     }

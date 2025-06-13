@@ -267,22 +267,13 @@ speed: number;
  */
 pitch: number; 
 /**
- * the variance of pitch, -0.5-0.5
- * 0.0 equals to no change
- * the higher the value, the bigger variablity of pitch
- * we use this formular to vary the pitch:
- * $x = x * \sigma + \mean (1-\sigma)$
- * where x is the pitch value, \sigma is the variance, \mean is the mean of pitch
+ * 
  */
-variance: number; 
+intonation: number; 
 /**
- * if pause scale is applied. if not, it will follow the `speed` value.
+ * volume
  */
-pause_scale_enabled: boolean; 
-/**
- * 50-200, 100 is default for no change
- */
-pause_scale: number; 
+volume: number; 
 /**
  * in seconds, 0.0-3.0, 0 is default for no slience
  */

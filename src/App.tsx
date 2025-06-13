@@ -9,6 +9,7 @@ import ConfigPage from "./layout/ConfigPage";
 import InitDialog from "./layout/InitDialog";
 import MainPage from "./layout/MainPage";
 import Sidebar from "./layout/Sidebar";
+import style from "./app.module.css";
 
 function App() {
   const { setConfig, setConfigInitialized, coreInitializeResource } =
@@ -29,7 +30,7 @@ function App() {
   const [config_resource, _] = createResource(commands.initConfig);
 
   return (
-    <main class="absolute h-full w-full left-0 top-0 flex flex-row bg-transparent">
+    <main class="absolute h-full w-full left-0 top-0 flex flex-row bg-slate-1">
       <Show
         when={!config_resource.loading && !coreInitializeResource.loading}
         fallback={
@@ -42,8 +43,12 @@ function App() {
           <InitDialog />
         </Show>
         <Show when={uiStore.coreInitialized}>
-          <Resizable class="absolute flex flex-row size-full bg-slate-1">
-            <Resizable.Panel initialSize={0.2} minSize={0.15}>
+          <Resizable class={`absolute flex flex-row size-full ${style.canvas}`}>
+            <Resizable.Panel
+              class="min-w-175px"
+              initialSize={0.2}
+              minSize={0.1}
+            >
               <Sidebar />
             </Resizable.Panel>
             <Resizable.Handle
