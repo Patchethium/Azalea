@@ -9,7 +9,7 @@ pub struct AzaleaConfig {
   pub core_config: CoreConfig,
   pub ui_config: UIConfig,
   #[serde(default = "presets_default")]
-  pub presets: Vec<Preset>,
+  pub system_presets: Vec<Preset>,
 }
 
 fn presets_default() -> Vec<Preset> {
@@ -111,13 +111,12 @@ impl Default for Preset {
 #[derive(Clone, Deserialize, Serialize, Type)]
 pub struct TextBlockProps {
   pub text: String,
-  pub query: AudioQuery,
-  pub preset_id: String,
+  pub query: Option<AudioQuery>,
+  pub preset_id: Option<usize>,
 }
 
 #[derive(Clone, Deserialize, Serialize, Type, Default)]
 pub struct Project {
   pub blocks: Vec<TextBlockProps>,
-  pub preset_order: Vec<String>,
-  pub presets: HashMap<String, Preset>,
+  pub presets: Vec<Preset>,
 }

@@ -73,21 +73,16 @@ const EditButton: ParentComponent<{
 };
 
 function TextBlock(props: { index: number }) {
-  const { textStore, setTextStore } = useTextStore()!;
+  const { textStore, setTextStore, projectPresetStore } = useTextStore()!;
   const { availableStyleIds: availableSpeakerIds } = useMetaStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
-  const { config } = useConfigStore()!;
   const { t1 } = usei18n()!;
   const currentText = createMemo(() => textStore[props.index]);
   const currentPreset = createMemo(() => {
-    if (
-      config.presets === undefined ||
-      config.presets.length === 0 ||
-      currentText().presetId === undefined
-    ) {
+    if (projectPresetStore.length === 0 || currentText().preset_id === null) {
       return null;
     }
-    return config.presets[currentText().presetId!];
+    return projectPresetStore[currentText().preset_id ?? 0];
   });
 
   const [hovered, setHovered] = createSignal(false);
@@ -97,7 +92,7 @@ function TextBlock(props: { index: number }) {
     setTextStore(props.index, { ...currentText(), text });
   };
 
-  const setQuery = (query?: AudioQuery) => {
+  const setQuery = (query: AudioQuery | null) => {
     setTextStore(
       props.index,
       produce((draft) => {
@@ -115,7 +110,7 @@ function TextBlock(props: { index: number }) {
 
   createEffect(async () => {
     if (currentText().text === "" || currentPreset() === null) {
-      setQuery(undefined);
+      setQuery(null);
     } else if (isStyleIdValid()) {
       const audio_query = await commands.audioQuery(
         currentText().text,
@@ -139,7 +134,11 @@ function TextBlock(props: { index: number }) {
 
   // the toobar actions
   const addTextBelow = () => {
-    setTextStore(textStore.length, { text: "", query: undefined, presetId: 0 });
+    setTextStore(textStore.length, {
+      text: "",
+      query: null,
+      preset_id: 0,
+    });
     // shift every text block below by 1
     for (let i = textStore.length - 1; i > props.index + 1; i--) {
       const temp = textStore[i];
@@ -149,17 +148,18 @@ function TextBlock(props: { index: number }) {
     // clear the below text block
     setTextStore(props.index + 1, {
       text: "",
-      presetId: currentText().presetId,
+      preset_id: currentText().preset_id,
     });
     // focus on the new text block
     setUIStore("selectedTextBlockIndex", props.index + 1);
   };
 
-  const saveable = createMemo(
-    () =>
-      currentText().query !== undefined &&
-      currentText().query!.accent_phrases.length > 0
-  );
+  const saveable = createMemo(() => {
+    const currentQuery = currentText().query;
+    if (currentQuery === null) return false;
+    if (currentQuery.accent_phrases.length === 0) return false;
+    return true;
+  });
 
   const saveAudio = async () => {
     if (currentPreset() === null) {

@@ -15,7 +15,7 @@ import { getModifiedQuery } from "../utils";
 type DraggingMode = "consonant" | "vowel" | "pause";
 
 function BottomPanel() {
-  const { textStore, setTextStore } = useTextStore()!;
+  const { textStore, setTextStore, projectPresetStore } = useTextStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
   const { systemStore } = useSystemStore()!;
   const { config, setConfig } = useConfigStore()!;
@@ -34,19 +34,22 @@ function BottomPanel() {
   let scrollAreaRef!: HTMLDivElement;
 
   const currentText = () => textStore[uiStore.selectedTextBlockIndex];
-  const queryExists = () =>
-    currentText().query !== undefined &&
-    currentText().query!.accent_phrases.length > 0;
+  const queryExists = () => {
+    const currentQuery = currentText().query;
+    if (currentQuery === null) return false;
+    if (currentQuery.accent_phrases.length === 0) return false;
+    return true;
+  };
   const selectedIdx = () => uiStore.selectedTextBlockIndex;
   const currentPreset = createMemo(() => {
     if (
-      config.presets === undefined ||
-      config.presets.length === 0 ||
-      currentText().presetId === undefined
+      projectPresetStore === null ||
+      projectPresetStore.length === 0 ||
+      currentText().preset_id === null
     ) {
       return null;
     }
-    return config.presets[currentText().presetId!];
+    return projectPresetStore[currentText().preset_id ?? 0];
   });
 
   const computedRange = createMemo(() => {
@@ -197,13 +200,6 @@ function BottomPanel() {
     );
   };
 
-  const playable = createMemo(() => {
-    return (
-      currentText().query != null &&
-      currentText().query!.accent_phrases.length > 0
-    );
-  });
-
   const prevExists = createMemo(
     () => uiStore.selectedTextBlockIndex > 0 && textStore.length > 1
   );
@@ -215,7 +211,7 @@ function BottomPanel() {
   );
 
   return (
-    <div class="size-full flex flex-col bg-white border border-slate-2 rounded-lg">
+    <div class="size-full flex flex-col bg-white border border-slate-2 rounded-b-lg">
       {/* Control bar */}
       <div class="h-8 p2 flex flex-row items-center justify-center gap-1 b-dashed b-b b-slate-3 select-none">
         <div class="flex-1" />
@@ -229,7 +225,7 @@ function BottomPanel() {
         <Button
           class="group h-6 w-6 bg-transparent rounded-md ui-disabled:cursor-not-allowed"
           onClick={speak}
-          disabled={!playable()}
+          disabled={!queryExists()}
         >
           <div class="i-lucide:play size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
         </Button>
@@ -268,7 +264,7 @@ function BottomPanel() {
             onMouseMove={handleDragging}
             style={{ "min-width": "min-content" }}
           >
-            <For each={currentText().query!.accent_phrases}>
+            <For each={currentText().query?.accent_phrases}>
               {(ap, i) => (
                 <>
                   <For each={ap.moras}>

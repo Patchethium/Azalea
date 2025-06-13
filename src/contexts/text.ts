@@ -1,24 +1,47 @@
 // The store that holds the text block data
 import { createContextProvider } from "@solid-primitives/context";
 import { createStore } from "solid-js/store";
-import { AudioQuery } from "../binding";
+import { AudioQuery, Preset, Project } from "../binding";
 
 type TextBlockProps = {
   text: string;
-  presetId?: number;
-  query?: AudioQuery;
+  preset_id: number | null;
+  query: AudioQuery | null;
 };
 
 const [TextProvider, useTextStore] = createContextProvider(
-  (props: { value: TextBlockProps[] }) => {
+  () => {
     const [textStore, setTextStore] = createStore<TextBlockProps[]>(
-      props.value,
+      [
+        {
+          text: "",
+          query: null,
+          preset_id: null
+        }
+      ]
     );
+    const [projectPresetStore, setProjectPresetStore] = createStore<Preset[]>(
+      []
+    );
+    const getProject = (): Project => {
+      return {
+        blocks: textStore,
+        presets: projectPresetStore
+      }
+    }
+    const setProject = (p: Project) => {
+      setTextStore(p.blocks);
+      setProjectPresetStore(p.presets);
+    }
     return {
       textStore,
       setTextStore,
+      projectPresetStore,
+      setProjectPresetStore,
+      setProject,
+      getProject
     };
-  },
+  }
 );
 
 export { TextProvider, useTextStore };

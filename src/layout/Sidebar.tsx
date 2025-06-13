@@ -3,19 +3,24 @@ import { Button } from "@kobalte/core/button";
 import { Checkbox } from "@kobalte/core/checkbox";
 import { Select } from "@kobalte/core/select";
 import { Slider } from "@kobalte/core/slider";
+import { DropdownMenu } from "@kobalte/core/dropdown-menu";
 import { ToggleGroup } from "@kobalte/core/toggle-group";
 import { TextField } from "@kobalte/core/text-field";
 import { NumberField } from "@kobalte/core/number-field";
 import _ from "lodash";
 import { For, JSX, Show, createMemo, createSignal } from "solid-js";
 import { produce } from "solid-js/store";
-import { Preset, StyleId } from "../binding";
+import { Preset, StyleId, Project, commands } from "../binding";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { useMetaStore } from "../contexts/meta";
 import { useTextStore } from "../contexts/text";
 import { PageType, useUIStore } from "../contexts/ui";
 import style from "./sidebar.module.css";
+import {
+  save as saveDialog,
+  open as openDialog,
+} from "@tauri-apps/plugin-dialog";
 
 interface PresetCardProps extends JSX.HTMLAttributes<HTMLDivElement> {
   preset_idx: number;
@@ -23,13 +28,13 @@ interface PresetCardProps extends JSX.HTMLAttributes<HTMLDivElement> {
 }
 
 function PresetCard(props: PresetCardProps) {
-  const { config } = useConfigStore()!;
   const { metas } = useMetaStore()!;
+  const { projectPresetStore } = useTextStore()!;
   const preset = createMemo(() => {
-    if (config.presets === undefined || config.presets.length === 0) {
+    if (projectPresetStore.length === 0) {
       return null;
     }
-    return config.presets[props.preset_idx];
+    return projectPresetStore[props.preset_idx];
   });
   const speaker = createMemo(() =>
     metas.find((meta) =>
@@ -64,13 +69,19 @@ function PresetCard(props: PresetCardProps) {
 function Sidebar() {
   const { metas, availableStyleIds } = useMetaStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
-  const { textStore, setTextStore } = useTextStore()!;
-  const { config, setConfig } = useConfigStore()!;
+  const {
+    textStore,
+    setTextStore,
+    projectPresetStore,
+    setProjectPresetStore,
+    setProject,
+    getProject,
+  } = useTextStore()!;
   const { t1 } = usei18n()!;
 
   const setStyleId = (styleId: StyleId) => {
     if (styleId in availableStyleIds()) {
-      setConfig("presets", currentText().presetId!, "style_id", styleId);
+      setProjectPresetStore(currentText().preset_id ?? 0, "style_id", styleId);
     }
   };
 
@@ -79,10 +90,10 @@ function Sidebar() {
   const currentText = () => textStore[uiStore.selectedTextBlockIndex];
 
   const currentPreset = createMemo(() => {
-    if (config.presets === undefined || config.presets.length === 0) {
+    if (projectPresetStore.length === 0) {
       return null;
     }
-    return config.presets[currentText().presetId!];
+    return projectPresetStore[currentText().preset_id ?? 0];
   });
 
   const curMeta = () =>
@@ -103,9 +114,8 @@ function Sidebar() {
   const selectSpeakerByName = (name: string) => {
     const speaker = metas.find((meta) => meta.name === name);
     if (speaker) {
-      setConfig(
-        "presets",
-        currentText().presetId!,
+      setProjectPresetStore(
+        currentText().preset_id ?? 0,
         "style_id",
         speaker.styles[0].id
       );
@@ -118,7 +128,7 @@ function Sidebar() {
   };
 
   const createPresetSetter = (key: keyof Preset) => (value: number) => {
-    setConfig("presets", currentText().presetId!, key, value);
+    setProjectPresetStore(currentText().preset_id ?? 0, key, value);
   };
 
   const pitch = createMemo(() => currentPreset()?.pitch);
@@ -140,13 +150,13 @@ function Sidebar() {
   const setEndSli = createPresetSetter("end_slience");
 
   const setPresetName = (name: string) => {
-    setConfig("presets", currentText().presetId!, "name", name);
+    setProjectPresetStore(currentText().preset_id ?? 0, "name", name);
   };
 
   const setTextPresetIdx = (preset_idx: number) => {
     setTextStore(
       produce((draft) => {
-        draft[uiStore.selectedTextBlockIndex].presetId = preset_idx;
+        draft[uiStore.selectedTextBlockIndex].preset_id = preset_idx;
       })
     );
   };
@@ -162,32 +172,75 @@ function Sidebar() {
       start_slience: 0,
       end_slience: 0,
     };
-    if (config.presets === undefined) {
-      setConfig("presets", [preset]);
-    } else {
-      setConfig("presets", config.presets.length, preset);
-    }
+    setProjectPresetStore(projectPresetStore.length, preset);
     // focuse on the new preset
-    setTextPresetIdx((config.presets?.length ?? 1) - 1);
+    setTextPresetIdx((projectPresetStore?.length ?? 1) - 1);
   };
 
   const removePreset = () => {
-    const idx = currentText().presetId;
-    if (idx !== undefined)
+    const idx = currentText().preset_id;
+    if (idx !== null)
       // set every text block that uses this preset to use null as preset_id
       setTextStore(
         produce((draft) => {
           for (let i = 0; i < draft.length; i++) {
-            if (draft[i].presetId === idx) {
-              draft[i].presetId = undefined;
+            if (draft[i].preset_id === idx) {
+              draft[i].preset_id = null;
             }
           }
         })
       );
-    setConfig(
-      "presets",
-      config.presets?.filter((_, i) => i !== idx)
-    );
+    setProjectPresetStore(projectPresetStore.filter((_, i) => i !== idx));
+  };
+
+  const [actionMenuOpen, setActionMenuOpen] = createSignal(false);
+
+  const saveProject = async () => {
+    const path = await saveDialog({
+      title: "Save Project",
+      filters: [
+        {
+          name: "Azalea Poject Files",
+          extensions: ["azp"],
+        },
+      ],
+    });
+    if (path === null) return;
+    const project = getProject();
+    const res = await commands.saveProject(project, path, true);
+    switch (res.status) {
+      case "ok": {
+        break;
+      }
+      case "error": {
+        console.error(res.error);
+        break;
+      }
+    }
+  };
+
+  const loadProject = async () => {
+    const path = await openDialog({
+      title: "Save Project",
+      filters: [
+        {
+          name: "Azalea Poject Files",
+          extensions: ["azp"],
+        },
+      ],
+    });
+    if (path === null) return;
+    const res = await commands.loadProject(path);
+    switch (res.status) {
+      case "ok": {
+        setProject(res.data);
+        break;
+      }
+      case "error": {
+        console.error(res.error);
+        break;
+      }
+    }
   };
 
   return (
@@ -215,11 +268,11 @@ function Sidebar() {
         </div>
         <div class="size-full flex flex-col overflow-hidden">
           <div class="size-full gap-1 overflow-auto pl-0 pr-2 pt-1">
-            <For each={config.presets}>
+            <For each={projectPresetStore}>
               {(_, i) => (
                 <PresetCard
                   preset_idx={i()}
-                  selected={i() === currentText().presetId}
+                  selected={i() === currentText().preset_id}
                   onClick={() => {
                     setTextPresetIdx(i());
                   }}
@@ -255,7 +308,7 @@ function Sidebar() {
                 when={currentPreset()}
                 fallback={
                   <div class="text-sm text-slate-5 p1 select-none cursor-default">
-                    {config.presets?.length
+                    {projectPresetStore?.length
                       ? t1("preset.no_preset_selected")
                       : t1("preset.get_started")}
                   </div>
@@ -337,20 +390,52 @@ function Sidebar() {
         </Accordion>
       </Show>
 
-      <ToggleGroup
-        class="flex items-center justify-start p-2 pl-0"
-        value={uiStore.page}
-        onChange={(v) => {
-          setUIStore("page", v as PageType);
-        }}
-      >
-        <ToggleGroup.Item
-          value="config"
-          class="group size-8 p1 rounded-lg bg-white shadow-md hover:bg-blue-5 ui-pressed:bg-blue-5 transition-transform"
+      <div class="flex flex-row items-center gap-1">
+        <DropdownMenu open={actionMenuOpen()} onOpenChange={setActionMenuOpen}>
+          <DropdownMenu.Trigger class="group p1 size-8 rounded-lg bg-white shadow-md hover:bg-blue-5 ui-expanded:bg-blue-5 transition-transform outline-none">
+            <div class="i-lucide:kanban bg-slate-8 size-full group-hover:bg-white ui-expanded:!bg-white" />
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Arrow size={8} />
+            <DropdownMenu.Content class="bg-white p-1 outline-none shadow-md rounded-md b b-slate-2">
+              <DropdownMenu.Item
+                class={`${style.menu_item}`}
+                onClick={loadProject}
+              >
+                Load Project
+              </DropdownMenu.Item>
+              <DropdownMenu.Item
+                class={`${style.menu_item}`}
+                onClick={saveProject}
+              >
+                Save Project
+              </DropdownMenu.Item>
+              <DropdownMenu.Separator class="mx-2 my-1" />
+              <DropdownMenu.CheckboxItem class={`${style.menu_item}`}>
+                Auto Save
+                <DropdownMenu.ItemIndicator class="size-4">
+                  <div class="i-lucide:check size-full" />
+                </DropdownMenu.ItemIndicator>
+              </DropdownMenu.CheckboxItem>
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu>
+
+        <ToggleGroup
+          class="flex items-center justify-start p-2 pl-0"
+          value={uiStore.page}
+          onChange={(v) => {
+            setUIStore("page", v as PageType);
+          }}
         >
-          <div class="i-lucide:cog bg-slate-8 size-full group-hover:bg-white ui-pressed:!bg-white" />
-        </ToggleGroup.Item>
-      </ToggleGroup>
+          <ToggleGroup.Item
+            value="config"
+            class="group size-8 p1 rounded-lg bg-white shadow-md hover:bg-blue-5 ui-pressed:bg-blue-5 transition-transform"
+          >
+            <div class="i-lucide:cog bg-slate-8 size-full group-hover:bg-white ui-pressed:!bg-white" />
+          </ToggleGroup.Item>
+        </ToggleGroup>
+      </div>
     </div>
   );
 }
