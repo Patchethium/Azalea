@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "azalea",
+        "title": "Azalea",
         "width": 1000,
-        "height": 800
+        "height": 800,
+        "minHeight": 600,
+        "minWidth": 800
       }
     ],
     "security": {

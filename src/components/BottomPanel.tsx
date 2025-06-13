@@ -39,7 +39,11 @@ function BottomPanel() {
     currentText().query!.accent_phrases.length > 0;
   const selectedIdx = () => uiStore.selectedTextBlockIndex;
   const currentPreset = createMemo(() => {
-    if (config.presets === undefined || config.presets.length === 0 || currentText().presetId === undefined) {
+    if (
+      config.presets === undefined ||
+      config.presets.length === 0 ||
+      currentText().presetId === undefined
+    ) {
       return null;
     }
     return config.presets[currentText().presetId!];
@@ -79,7 +83,7 @@ function BottomPanel() {
       "moras",
       j,
       "consonant_length",
-      v,
+      v
     );
   };
 
@@ -92,7 +96,7 @@ function BottomPanel() {
       "moras",
       j,
       "vowel_length",
-      v,
+      v
     );
   };
 
@@ -104,7 +108,7 @@ function BottomPanel() {
       i,
       "pause_mora",
       "vowel_length",
-      v,
+      v
     );
   };
 
@@ -117,7 +121,7 @@ function BottomPanel() {
       "moras",
       j,
       "pitch",
-      v,
+      v
     );
   };
 
@@ -133,24 +137,24 @@ function BottomPanel() {
       case "consonant": {
         const newDur = Math.max(
           epsilon,
-          draggingData()!.originData + dx / scale(),
+          draggingData()!.originData + dx / scale()
         );
         setConsonantLength(
           draggingData()!.apIndex,
           draggingData()!.moraIndex,
-          newDur,
+          newDur
         );
         break;
       }
       case "vowel": {
         const newDur = Math.max(
           epsilon,
-          draggingData()!.originData + dx / scale(),
+          draggingData()!.originData + dx / scale()
         );
         setVowelLength(
           draggingData()!.apIndex,
           draggingData()!.moraIndex,
-          newDur,
+          newDur
         );
         break;
       }
@@ -189,7 +193,7 @@ function BottomPanel() {
     if (_currentPreset == null) return;
     commands.playAudio(
       getModifiedQuery(unwrap(currentText().query!), _currentPreset),
-      _currentPreset.style_id,
+      _currentPreset.style_id
     );
   };
 
@@ -201,38 +205,20 @@ function BottomPanel() {
   });
 
   const prevExists = createMemo(
-    () => uiStore.selectedTextBlockIndex > 0 && textStore.length > 1,
+    () => uiStore.selectedTextBlockIndex > 0 && textStore.length > 1
   );
 
   const nextExists = createMemo(
     () =>
       uiStore.selectedTextBlockIndex < textStore.length - 1 &&
-      textStore.length > 1,
+      textStore.length > 1
   );
 
   return (
     <div class="size-full flex flex-col bg-white border border-slate-2 rounded-lg">
       {/* Control bar */}
-      <div class="h-8 p2 flex flex-row items-center justify-center gap-1 b-b b-slate-2 select-none">
-        <div class="flex-1">
-          {/* Scale  */}
-          <Show when={queryExists()}>
-            <Slider
-              class="relative flex flex-col w-40% select-none items-center"
-              minValue={minScale}
-              maxValue={maxScale}
-              value={[scale()]}
-              onChange={(v) => setScale(v[0])}
-            >
-              <Slider.Track class="w-full h-2 bg-slate-2 rounded-full relative">
-                <Slider.Fill class="absolute bg-blue-5 rounded-full h-full" />
-                <Slider.Thumb class="block size-4 bg-transparent rounded-full -top-1 outline-none">
-                  <Slider.Input />
-                </Slider.Thumb>
-              </Slider.Track>
-            </Slider>
-          </Show>
-        </div>
+      <div class="h-8 p2 flex flex-row items-center justify-center gap-1 b-dashed b-b b-slate-3 select-none">
+        <div class="flex-1" />
         <Button
           class="group h-5 w-5 bg-transparent rounded-md ui-disabled:cursor-not-allowed"
           onClick={focusPrev}
@@ -291,7 +277,7 @@ function BottomPanel() {
                         mora={m}
                         startDraggingDur={(
                           origin: number,
-                          mode: DraggingMode,
+                          mode: DraggingMode
                         ) => {
                           setDraggingData({
                             apIndex: i(),
@@ -322,6 +308,7 @@ function BottomPanel() {
                       setPitch={(pitch) => setPauseLength(i(), pitch)}
                       minPitch={0}
                       maxPitch={0}
+                      isPause={true}
                     />
                   </Show>
                 </>
@@ -333,6 +320,24 @@ function BottomPanel() {
         {/* <Show when={systemStore.os === "Linux"}>
           <div class="h-5" />
         </Show> */}
+      </div>
+      <div class="h-6 w-full b-dashed b-t b-slate-3 flex items-center px-2 justify-end">
+        <Show when={queryExists()}>
+          <Slider
+            class="relative flex flex-col w-20% select-none items-center group"
+            minValue={minScale}
+            maxValue={maxScale}
+            value={[scale()]}
+            onChange={(v) => setScale(v[0])}
+          >
+            <Slider.Track class="w-full h-2 bg-slate-2 rounded-full relative">
+              <Slider.Fill class="absolute bg-slate-3 rounded-full h-full group-hover:bg-blue-5" />
+              <Slider.Thumb class="block size-4 bg-transparent rounded-full -top-1 outline-none">
+                <Slider.Input />
+              </Slider.Thumb>
+            </Slider.Track>
+          </Slider>
+        </Show>
       </div>
     </div>
   );
@@ -359,10 +364,11 @@ function TuningItems(props: {
   };
   const vowelPixels = (): number => props.mora.vowel_length! * scale();
   const totalPixels = (): number => (consonantPixels() ?? 0) + vowelPixels();
-
+  const [pitHovered, setPitHovered] = createSignal(false);
+  const [durHovered, setDurHovered] = createSignal(false);
   return (
     <div
-      class="flex flex-col b-r b-slate-3 h-100% select-none"
+      class="flex flex-col b-dashed b-r b-slate-3 h-100% select-none"
       style={{
         width: `${Math.ceil(totalPixels())}px`,
       }}
@@ -371,10 +377,10 @@ function TuningItems(props: {
       <Show when={!whisper()}>
         <Show
           when={!unvoiced()}
-          fallback={<div class="flex-1 content-empty b-b b-slate3" />}
+          fallback={<div class="flex-1 content-empty b-dashed b-b b-slate-3" />}
         >
           <Slider
-            class="flex-1 b-b b-slate-3"
+            class="flex-1 b-b b-slate-3 b-dashed"
             minValue={props.minPitch}
             maxValue={props.maxPitch}
             step={0.01}
@@ -382,9 +388,9 @@ function TuningItems(props: {
             onChange={(v) => props.setPitch(v[0])}
             orientation="vertical"
           >
-            <Slider.Track class="size-full bg-white relative">
-              <Slider.Fill class="absolute bg-blue-50 w-full" />
-              <Slider.Thumb class="block h-1px w-full bg-blue-5 outline-none">
+            <Slider.Track class="size-full bg-transparent relative group">
+              <Slider.Fill class="absolute bg-transparent w-full group-hover:!bg-blue-50" />
+              <Slider.Thumb class="block h-1px w-full bg-slate-4 outline-none group-hover:!bg-blue-5">
                 <Slider.Input />
               </Slider.Thumb>
             </Slider.Track>
@@ -394,29 +400,50 @@ function TuningItems(props: {
       </Show>
       {/* Duration */}
       <div
-        class="flex flex-row b-slate-3 bg-white"
-        classList={{ "h-full": whisper(), "h-12": !whisper() }}
+        class="flex flex-row bg-white"
+        onMouseEnter={() => {
+          setDurHovered(true);
+        }}
+        onMouseLeave={() => {
+          setDurHovered(false);
+        }}
+        classList={{
+          "h-full": whisper(),
+          "h-12": !whisper(),
+        }}
       >
-        <Show when={consonantPixels() != null}>
+        <Show
+          when={durHovered()}
+          fallback={
+            <div class="flex size-full items-center justify-center">
+              {props.isPause ? "" : props.mora.text}
+            </div>
+          }
+        >
+          <Show when={consonantPixels() != null}>
+            <div
+              class="flex items-center justify-center b-dashed b-r b-slate3 hover:!bg-blue-50"
+              onMouseDown={() =>
+                props.startDraggingDur(
+                  props.mora.consonant_length!,
+                  "consonant"
+                )
+              }
+              style={{ width: `${consonantPixels()}px` }}
+            >
+              {props.mora.consonant}
+            </div>
+          </Show>
           <div
-            class="flex items-center justify-center b-r b-slate3"
+            class="flex items-center justify-center hover:!bg-blue-50"
             onMouseDown={() =>
-              props.startDraggingDur(props.mora.consonant_length!, "consonant")
+              props.startDraggingDur(props.mora.vowel_length, "vowel")
             }
-            style={{ width: `${consonantPixels()}px` }}
+            style={{ width: `${vowelPixels()}px` }}
           >
-            {props.mora.consonant}
+            {props.isPause ? "" : props.mora.vowel}
           </div>
         </Show>
-        <div
-          class="flex items-center justify-center"
-          onMouseDown={() =>
-            props.startDraggingDur(props.mora.vowel_length, "vowel")
-          }
-          style={{ width: `${vowelPixels()}px` }}
-        >
-          {props.mora.vowel}
-        </div>
       </div>
     </div>
   );
