@@ -214,7 +214,7 @@ function Sidebar() {
           />
         </div>
         <div class="size-full flex flex-col overflow-hidden">
-          <div class="size-full gap-1 overflow-auto p-1">
+          <div class="size-full gap-1 overflow-auto pl-0 pr-2 pt-1">
             <For each={config.presets}>
               {(_, i) => (
                 <PresetCard

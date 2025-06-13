@@ -238,7 +238,7 @@ function TextBlock(props: { index: number }) {
   });
 
   return (
-    <div class="py-1.5" onClick={() => setSelected(props.index)}>
+    <div class="py-1.5">
       <div
         class="flex flex-col relative px3 pb1 b-l-2 b-slate-2 bg-white"
         classList={{ " !border-blue-5 shadow-md": selected() }}
@@ -294,7 +294,10 @@ function TextBlock(props: { index: number }) {
             onFocus={() => setSelected(props.index)}
           />
         </div>
-        <div class="flex flex-row flex-1 w-full">
+        <div
+          class="flex flex-row flex-1 w-full"
+          onClick={() => setSelected(props.index)}
+        >
           <div class="flex-1 pointer-events-none" />
           <div class="text-sm text-slate-8 select-none pointer-events-none">
             <Show
@@ -307,7 +310,7 @@ function TextBlock(props: { index: number }) {
             </Show>
           </div>
         </div>
-      </div>{" "}
+      </div>
     </div>
   );
 }
