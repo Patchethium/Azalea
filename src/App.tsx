@@ -11,6 +11,7 @@ import MainPage from "./layout/MainPage";
 import Sidebar from "./layout/Sidebar";
 import style from "./app.module.css";
 
+
 function App() {
   const { setConfig, setConfigInitialized, coreInitializeResource } =
     useConfigStore()!;

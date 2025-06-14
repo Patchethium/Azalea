@@ -1,9 +1,3 @@
-/// The Dialog that will show when the user first opens the app
-/// It will ask the user to pick an option of setting up the core path
-/// - Download the core
-/// - Set the core path manually
-/// - Let the app find some candidate paths
-///   - If failed, go back to the first option
 import { Button } from "@kobalte/core/button";
 import { RadioGroup } from "@kobalte/core/radio-group";
 import { For, createSignal } from "solid-js";

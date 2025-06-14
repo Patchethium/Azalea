@@ -1,4 +1,3 @@
-// The store that holds the text block data
 import { createContextProvider } from "@solid-primitives/context";
 import { createStore } from "solid-js/store";
 import { AudioQuery, Preset, Project } from "../binding";
@@ -33,6 +32,7 @@ const [TextProvider, useTextStore] = createContextProvider(
       setTextStore(p.blocks);
       setProjectPresetStore(p.presets);
     }
+
     return {
       textStore,
       setTextStore,

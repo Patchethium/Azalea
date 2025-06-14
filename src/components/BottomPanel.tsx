@@ -7,17 +7,17 @@ import { unwrap } from "solid-js/store";
 import { Mora, commands } from "../binding";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
-import { useSystemStore } from "../contexts/system";
 import { useTextStore } from "../contexts/text";
 import { useUIStore } from "../contexts/ui";
 import { getModifiedQuery } from "../utils";
+import path from "path-browserify";
+
 
 type DraggingMode = "consonant" | "vowel" | "pause";
 
 function BottomPanel() {
   const { textStore, setTextStore, projectPresetStore } = useTextStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
-  const { systemStore } = useSystemStore()!;
   const { config, setConfig } = useConfigStore()!;
   const { t1 } = usei18n()!;
   const { range } = useConfigStore()!;
@@ -312,12 +312,9 @@ function BottomPanel() {
             </For>
           </div>
         </Show>
-        {/* Leave some space for the scrollbar on WebkitGTK */}
-        {/* <Show when={systemStore.os === "Linux"}>
-          <div class="h-5" />
-        </Show> */}
       </div>
-      <div class="h-6 w-full b-dashed b-t b-slate-3 flex items-center px-2 justify-end">
+      <div class="h-6 w-full b-dashed b-t b-slate-3 flex items-center px-2 justify-between">
+        <div class="text-xs text-slate-6">{path.basename(uiStore.projectPath?? "No project")}</div>
         <Show when={queryExists()}>
           <Slider
             class="relative flex flex-col w-20% select-none items-center group"
@@ -360,7 +357,6 @@ function TuningItems(props: {
   };
   const vowelPixels = (): number => props.mora.vowel_length! * scale();
   const totalPixels = (): number => (consonantPixels() ?? 0) + vowelPixels();
-  const [pitHovered, setPitHovered] = createSignal(false);
   const [durHovered, setDurHovered] = createSignal(false);
   return (
     <div
@@ -391,7 +387,6 @@ function TuningItems(props: {
               </Slider.Thumb>
             </Slider.Track>
           </Slider>
-          <div></div>
         </Show>
       </Show>
       {/* Duration */}

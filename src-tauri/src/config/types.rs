@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 
 use crate::voicevox_sys::{audio_query::AudioQuery, metas::StyleId};
 
@@ -59,6 +59,8 @@ pub struct UIConfig {
   pub locale: Locale,
   #[serde(default = "bottom_scale_default")]
   pub bottom_scale: usize,
+  #[serde(default = "auto_save_default")]
+  pub auto_save: bool,
 }
 
 impl Default for UIConfig {
@@ -66,12 +68,17 @@ impl Default for UIConfig {
     Self {
       locale: Locale::default(),
       bottom_scale: bottom_scale_default(),
+      auto_save: auto_save_default(),
     }
   }
 }
 
 fn bottom_scale_default() -> usize {
   360
+}
+
+fn auto_save_default() -> bool {
+  false
 }
 
 #[derive(Clone, Deserialize, Serialize, Type)]

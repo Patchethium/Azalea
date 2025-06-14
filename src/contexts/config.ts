@@ -70,13 +70,12 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     },
   );
 
-  const saveConfig = () => {
+  const saveConfig = async () => {
     if (configInitialized()) {
-      commands.setConfig(_.cloneDeep(config)).then((res) => {
-        if (res.status === "error") {
-          console.error("Failed to save config:", res.error);
-        }
-      });
+      const res = await commands.setConfig(_.cloneDeep(config));
+      if (res.status === "error") {
+        console.error("Failed to save config:", res.error);
+      }
     }
   };
 

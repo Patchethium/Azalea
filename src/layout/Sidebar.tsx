@@ -8,9 +8,16 @@ import { ToggleGroup } from "@kobalte/core/toggle-group";
 import { TextField } from "@kobalte/core/text-field";
 import { NumberField } from "@kobalte/core/number-field";
 import _ from "lodash";
-import { For, JSX, Show, createMemo, createSignal } from "solid-js";
+import {
+  For,
+  JSX,
+  Show,
+  createEffect,
+  createMemo,
+  createSignal,
+} from "solid-js";
 import { produce } from "solid-js/store";
-import { Preset, StyleId, Project, commands } from "../binding";
+import { Preset, StyleId, commands } from "../binding";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { useMetaStore } from "../contexts/meta";
@@ -21,6 +28,7 @@ import {
   save as saveDialog,
   open as openDialog,
 } from "@tauri-apps/plugin-dialog";
+import { createScheduled, throttle } from "@solid-primitives/scheduled";
 
 interface PresetCardProps extends JSX.HTMLAttributes<HTMLDivElement> {
   preset_idx: number;
@@ -77,6 +85,7 @@ function Sidebar() {
     setProject,
     getProject,
   } = useTextStore()!;
+  const { config, setConfig } = useConfigStore()!;
   const { t1 } = usei18n()!;
 
   const setStyleId = (styleId: StyleId) => {
@@ -194,20 +203,30 @@ function Sidebar() {
   };
 
   const [actionMenuOpen, setActionMenuOpen] = createSignal(false);
+  const autoSave = createMemo(() => config.ui_config.auto_save);
+  const setAutoSave = (v: boolean) => {
+    setConfig("ui_config", "auto_save", v);
+  };
 
   const saveProject = async () => {
-    const path = await saveDialog({
-      title: "Save Project",
-      filters: [
-        {
-          name: "Azalea Poject Files",
-          extensions: ["azp"],
-        },
-      ],
-    });
-    if (path === null) return;
+    let path = null;
+    if (uiStore.projectPath === null) {
+      path = await saveDialog({
+        title: "Save Project",
+        filters: [
+          {
+            name: "Azalea Poject Files",
+            extensions: ["azp"],
+          },
+        ],
+      });
+      if (path === null) return;
+      setUIStore("projectPath", path);
+    } else {
+      path = uiStore.projectPath;
+    }
     const project = getProject();
-    const res = await commands.saveProject(project, path, true);
+    let res = await commands.saveProject(project, path, true);
     switch (res.status) {
       case "ok": {
         break;
@@ -230,6 +249,7 @@ function Sidebar() {
       ],
     });
     if (path === null) return;
+    setUIStore("projectPath", path);
     const res = await commands.loadProject(path);
     switch (res.status) {
       case "ok": {
@@ -242,6 +262,17 @@ function Sidebar() {
       }
     }
   };
+
+  const scheduledSave = createScheduled((fn) => throttle(fn, 500));
+
+  createEffect(() => {
+    if (
+      scheduledSave() &&
+      config.ui_config.auto_save &&
+      uiStore.projectPath !== null
+    )
+      saveProject();
+  });
 
   return (
     <div class="size-full bg-transparent flex flex-col gap-1 pl2 pr0 overflow-y-hidden">
@@ -411,7 +442,11 @@ function Sidebar() {
                 Save Project
               </DropdownMenu.Item>
               <DropdownMenu.Separator class="mx-2 my-1" />
-              <DropdownMenu.CheckboxItem class={`${style.menu_item}`}>
+              <DropdownMenu.CheckboxItem
+                checked={autoSave()}
+                onChange={setAutoSave}
+                class={`${style.menu_item}`}
+              >
                 Auto Save
                 <DropdownMenu.ItemIndicator class="size-4">
                   <div class="i-lucide:check size-full" />
@@ -422,7 +457,7 @@ function Sidebar() {
         </DropdownMenu>
 
         <ToggleGroup
-          class="flex items-center justify-start p-2 pl-0"
+          class="flex items-center justify-start p-2 pl-0 gap-1"
           value={uiStore.page}
           onChange={(v) => {
             setUIStore("page", v as PageType);

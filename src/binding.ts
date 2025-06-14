@@ -365,7 +365,7 @@ export type StyleType =
  */
 export type StyleVersion = string
 export type TextBlockProps = { text: string; query: AudioQuery | null; preset_id: number | null }
-export type UIConfig = { locale?: Locale; bottom_scale?: number }
+export type UIConfig = { locale?: Locale; bottom_scale?: number; auto_save?: boolean }
 
 /** tauri-specta globals **/
 

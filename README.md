@@ -92,7 +92,7 @@ Every time the core gets updated, we need to recompute the pitch range, by
 
 ```sh
 cd src-tauri
-cargo bench
+cargo bench bench-range
 ```
 
 ## Contributing

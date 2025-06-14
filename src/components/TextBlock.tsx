@@ -15,7 +15,6 @@ import { AudioQuery } from "../binding";
 import { useMetaStore } from "../contexts/meta";
 import { useTextStore } from "../contexts/text";
 import { useUIStore } from "../contexts/ui";
-import { useConfigStore } from "../contexts/config";
 import { getModifiedQuery } from "../utils";
 import { produce, unwrap } from "solid-js/store";
 import { usei18n } from "../contexts/i18n";
