@@ -84,11 +84,11 @@ fn bottom_scale_default() -> usize {
 }
 
 fn bottom_ratio_default() -> f32 {
-  0.2
+  0.3
 }
 
 fn side_ratio_default() -> f32 {
-  0.3
+  0.2
 }
 
 #[derive(Clone, Deserialize, Serialize, Type)]
