@@ -4,6 +4,7 @@ import { For, createSignal } from "solid-js";
 import { commands } from "../binding";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
+import { I18NSelect } from "./ConfigPage";
 
 function InitDialog() {
   const { setConfig } = useConfigStore()!;
@@ -87,6 +88,7 @@ function InitDialog() {
           </For>
         </RadioGroup>
         <div class="flex flex-row justify-center items-center w-full">
+          <I18NSelect />
           <div class="m-auto" />
           <Button
             class="py2 px3 rounded-lg bg-blue-5 text-white hover:bg-blue-6 focus:(bg-blue-6 outline-solid outline-3 outline-blue-2) active:bg-blue-7"

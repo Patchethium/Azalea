@@ -9,7 +9,6 @@ import { usei18n } from "../contexts/i18n";
 import { coverages, localeNames, possibleLocales } from "../i18n";
 
 function ConfigPage() {
-  const { config, setConfig } = useConfigStore()!;
   const { t1 } = usei18n()!;
 
   return (
@@ -21,49 +20,7 @@ function ConfigPage() {
         </div>
         <div class="flex-1 overflow-auto px3">
           <ConfigItem label={t1("config.lang")}>
-            <Select
-              options={possibleLocales}
-              class="w-48 h-8"
-              value={config.ui_config?.locale}
-              onChange={(value) => {
-                if (value !== null)
-                  setConfig("ui_config", "locale", value as Locale);
-              }}
-              itemComponent={(props) => (
-                <Select.Item
-                  item={props.item}
-                  class="p1 flex flex-row items-center justify-between rounded-md ui-highlighted:(bg-blue-5 text-white) cursor-pointer"
-                >
-                  <Select.ItemLabel class="w-36 flex flex-row px1">
-                    {localeNames[props.item.rawValue as Locale]}
-                    <div class="flex-1" />
-                    {coverages[props.item.rawValue as Locale] * 100}%
-                  </Select.ItemLabel>
-                  <Select.ItemIndicator class="size-6 flex items-center justify-center">
-                    <div class="i-lucide:check" />
-                  </Select.ItemIndicator>
-                </Select.Item>
-              )}
-            >
-              <Select.Trigger
-                class="flex flex-row items-center justify-between p3 w-full
-                      h-8 bg-transparent border border-slate-2 rounded-md
-                      hover:(bg-slate-1)"
-                aria-label={t1("config.lang")}
-              >
-                <Select.Value<string>>
-                  {(state) => localeNames[state.selectedOption() as Locale]}
-                </Select.Value>
-                <Select.Icon>
-                  <div class="i-lucide:chevrons-up-down" />
-                </Select.Icon>
-              </Select.Trigger>
-              <Select.Portal>
-                <Select.Content class="bg-white w-full rounded-lg border border-slate-2">
-                  <Select.Listbox class="flex flex-col p2" />
-                </Select.Content>
-              </Select.Portal>
-            </Select>
+            <I18NSelect />
           </ConfigItem>
         </div>
         <div class="h-8 w-full px3 text-sm flex items-center justify-center text-slate-7 gap-2">
@@ -95,4 +52,54 @@ function ConfigItem(props: ConfigItemProps) {
   );
 }
 
+function I18NSelect() {
+  const { config, setConfig } = useConfigStore()!;
+  const { t1 } = usei18n()!;
+  return (
+    <Select
+      options={possibleLocales}
+      class="w-48 h-8"
+      value={config.ui_config?.locale}
+      onChange={(value) => {
+        if (value !== null) setConfig("ui_config", "locale", value as Locale);
+      }}
+      itemComponent={(props) => (
+        <Select.Item
+          item={props.item}
+          class="p1 flex flex-row items-center justify-between rounded-md outline-none ui-highlighted:(bg-blue-5 text-white) cursor-pointer"
+        >
+          <Select.ItemLabel class="w-36 flex flex-row px1 outline-none">
+            {localeNames[props.item.rawValue as Locale]}
+            <div class="flex-1" />
+            {coverages[props.item.rawValue as Locale] * 100}%
+          </Select.ItemLabel>
+          <Select.ItemIndicator class="size-6 flex items-center justify-center outline-none">
+            <div class="i-lucide:check" />
+          </Select.ItemIndicator>
+        </Select.Item>
+      )}
+    >
+      <Select.Trigger
+        class="flex flex-row items-center justify-between p3 w-full outline-none
+              h-8 bg-transparent border border-slate-2 rounded-md
+              hover:(bg-slate-1)"
+        aria-label={t1("config.lang")}
+      >
+        <Select.Value<string>>
+          {(state) => localeNames[state.selectedOption() as Locale]}
+        </Select.Value>
+        <Select.Icon>
+          <div class="i-lucide:chevrons-up-down" />
+        </Select.Icon>
+      </Select.Trigger>
+      <Select.Portal>
+        <Select.Content class="bg-white w-full rounded-lg border outline-none border-slate-2">
+          <Select.Listbox class="flex flex-col p2 outline-none" />
+        </Select.Content>
+      </Select.Portal>
+    </Select>
+  );
+}
+
 export default ConfigPage;
+export { I18NSelect };
