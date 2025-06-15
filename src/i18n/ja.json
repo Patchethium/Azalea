@@ -14,6 +14,12 @@
       "no_query": "テキストを入力してください"
     }
   },
+  "menu": {
+    "new_project": "新しいプロジェクト",
+    "load_project": "プロジェクト読み込み",
+    "save_project": "プロジェクト保存",
+    "auto_save": "自動保存"
+  },
   "config": {
     "title": "設定",
     "sidebar_desp": "このスペースは以降のバージョンで索引として使われる見込みです。",

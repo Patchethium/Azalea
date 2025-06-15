@@ -19,6 +19,12 @@
     "sidebar_desp": "This space will be used for indexing in future versions.",
     "lang": "Language"
   },
+  "menu": {
+    "new_project": "New Project",
+    "load_project": "Load Project",
+    "save_project": "Save Project",
+    "auto_save": "Auto Save"
+  },
   "preset": {
     "title": "Preset",
     "new_preset": "New Preset",
