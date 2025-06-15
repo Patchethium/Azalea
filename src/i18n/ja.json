@@ -1,10 +1,10 @@
 {
   "title": "アザレア",
   "init_dialog": {
-    "intro": "Azaleaへようこそ、VOICEVOXの非公式GUIです",
-    "before": "始める前に、まずVOICEVOXコアの置く場所を知る必要があります。",
-    "installed.desp": "VOICEVOXはインストール済みだ",
-    "installed.button": "ローカルで選ぶ",
+    "intro": "VOICEVOXの非公式GUI、Azaleaへようこそ",
+    "before": "まずVOICEVOXはどこか教えていただければ",
+    "installed.desp": "インストール済みだ",
+    "installed.button": "選ぶ",
     "later.desp": "今インストールしてくる",
     "later.button": "ええで"
   },

@@ -1,8 +1,8 @@
 {
   "title": "Azalea",
   "init_dialog": {
-    "intro": "Welcome to Azalea, an unofficial GUI for VOICEVOX.",
-    "before": "Before we get started Azalea needs to know where the Core is.",
+    "intro": "Welcome to Azalea, an unofficial GUI for VOICEVOX",
+    "before": "Before getting started, Azalea needs to know where the VOICEVOX is",
     "installed.desp": "I have VOICEVOX installed",
     "installed.button": "Pick it",
     "later.desp": "I'll figure it out",
