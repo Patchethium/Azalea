@@ -53,7 +53,6 @@ function BottomPanel() {
   const selectedIdx = () => uiStore.selectedTextBlockIndex;
   const currentPreset = createMemo(() => {
     if (
-      projectPresetStore === null ||
       projectPresetStore.length === 0 ||
       currentText().preset_id === null
     ) {

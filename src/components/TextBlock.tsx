@@ -101,19 +101,21 @@ function TextBlock(props: { index: number }) {
   };
 
   const isStyleIdValid = createMemo(() => {
-    if (currentPreset() === null) {
+    const curPreset = currentPreset()
+    if (curPreset === null) {
       return false;
     }
-    return availableSpeakerIds().includes(currentPreset()!.style_id);
+    return availableSpeakerIds().includes(curPreset?.style_id ?? 0);
   });
 
   createEffect(async () => {
-    if (currentText().text === "" || currentPreset() === null) {
+    const curPreset = currentPreset()
+    if (curPreset === null || currentText().text === "") {
       setQuery(null);
     } else if (isStyleIdValid()) {
       const audio_query = await commands.audioQuery(
         currentText().text,
-        currentPreset()!.style_id,
+        curPreset?.style_id ?? 0,
       );
       if (audio_query.status === "ok") {
         setQuery(audio_query.data);
@@ -175,7 +177,7 @@ function TextBlock(props: { index: number }) {
       const save_audio = await commands.saveAudio(
         path,
         getModifiedQuery(unwrap(currentText().query!), currentPreset()!),
-        currentPreset()!.style_id,
+        currentPreset()?.style_id ?? 0,
       );
       if (save_audio.status === "ok") {
         console.log("Audio saved");
