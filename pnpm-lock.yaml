@@ -50,6 +50,9 @@ importers:
       solid-js:
         specifier: ^1.9.7
         version: 1.9.7
+      virtua:
+        specifier: ^0.41.5
+        version: 0.41.5(solid-js@1.9.7)(vue@3.5.13(typescript@5.8.3))
     devDependencies:
       '@biomejs/biome':
         specifier: 1.9.4
@@ -1237,6 +1240,26 @@ packages:
 
   validate-html-nesting@1.2.2:
     resolution: {integrity: sha512-hGdgQozCsQJMyfK5urgFcWEqsSSrK63Awe0t/IMR0bZ0QMtnuaiHzThW81guu3qx9abLi99NEuiaN6P9gVYsNg==}
+
+  virtua@0.41.5:
+    resolution: {integrity: sha512-x1vsA9qIQNBFcCs1rzCjyYdMvDu/kT6o6zwwQnyqFOFdOyIzqyzU3WfR/hJC8WxUZXSCo2LkuoqapL8VDDMQPg==}
+    peerDependencies:
+      react: '>=16.14.0'
+      react-dom: '>=16.14.0'
+      solid-js: '>=1.0'
+      svelte: '>=5.0'
+      vue: '>=3.2'
+    peerDependenciesMeta:
+      react:
+        optional: true
+      react-dom:
+        optional: true
+      solid-js:
+        optional: true
+      svelte:
+        optional: true
+      vue:
+        optional: true
 
   vite-plugin-solid@2.11.6:
     resolution: {integrity: sha512-Sl5CTqJTGyEeOsmdH6BOgalIZlwH3t4/y0RQuFLMGnvWMBvxb4+lq7x3BSiAw6etf0QexfNJW7HSOO/Qf7pigg==}
@@ -2483,6 +2506,11 @@ snapshots:
       picocolors: 1.1.1
 
   validate-html-nesting@1.2.2: {}
+
+  virtua@0.41.5(solid-js@1.9.7)(vue@3.5.13(typescript@5.8.3)):
+    optionalDependencies:
+      solid-js: 1.9.7
+      vue: 3.5.13(typescript@5.8.3)
 
   vite-plugin-solid@2.11.6(solid-js@1.9.7)(vite@6.3.5(jiti@2.4.2)(tsx@4.20.3)):
     dependencies:

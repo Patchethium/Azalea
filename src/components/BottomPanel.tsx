@@ -11,6 +11,7 @@ import { useTextStore } from "../contexts/text";
 import { useUIStore } from "../contexts/ui";
 import { getModifiedQuery } from "../utils";
 import path from "path-browserify";
+import { VList } from "virtua/solid";
 
 
 type DraggingMode = "consonant" | "vowel" | "pause";
@@ -264,7 +265,7 @@ function BottomPanel() {
             onMouseMove={handleDragging}
             style={{ "min-width": "min-content" }}
           >
-            <For each={currentText().query?.accent_phrases}>
+            <VList data={currentText().query?.accent_phrases ?? []} horizontal>
               {(ap, i) => (
                 <>
                   <For each={ap.moras}>
@@ -309,7 +310,7 @@ function BottomPanel() {
                   </Show>
                 </>
               )}
-            </For>
+            </VList>
           </div>
         </Show>
       </div>

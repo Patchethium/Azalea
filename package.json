@@ -26,7 +26,8 @@
     "@unocss/reset": "66.2.0",
     "lodash": "^4.17.21",
     "path-browserify": "^1.0.1",
-    "solid-js": "^1.9.7"
+    "solid-js": "^1.9.7",
+    "virtua": "^0.41.5"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
