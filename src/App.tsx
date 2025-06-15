@@ -11,9 +11,8 @@ import MainPage from "./layout/MainPage";
 import Sidebar from "./layout/Sidebar";
 import style from "./app.module.css";
 
-
 function App() {
-  const { setConfig, setConfigInitialized, coreInitializeResource } =
+  const { config, setConfig, setConfigInitialized, coreInitializeResource } =
     useConfigStore()!;
   const { t1 } = usei18n()!;
   const { uiStore } = useUIStore()!;
@@ -47,8 +46,9 @@ function App() {
           <Resizable class={`absolute flex flex-row size-full ${style.canvas}`}>
             <Resizable.Panel
               class="min-w-175px"
-              initialSize={0.2}
+              initialSize={config.ui_config.side_ratio}
               minSize={0.1}
+              onResize={(s) => setConfig("ui_config", "side_ratio", s)}
             >
               <Sidebar />
             </Resizable.Panel>
@@ -60,7 +60,7 @@ function App() {
             </Resizable.Handle>
             <Resizable.Panel
               class="w-full overflow-hidden"
-              initialSize={0.8}
+              initialSize={1.0 - (config.ui_config.side_ratio ?? 0.5)}
               minSize={0.5}
             >
               <Show when={uiStore.page == null}>

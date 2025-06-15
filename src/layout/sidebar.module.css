@@ -35,5 +35,5 @@
 }
 
 .menu_item {
-  --at-apply: w-full h-8 rounded-md flex flex-row hover:(bg-blue-5 text-white) p-2 items-center justify-between min-w-44 cursor-pointer;
+  --at-apply: "w-full h-8 rounded-md flex flex-row hover:(bg-blue-5 text-white) p-2 items-center justify-between min-w-44 cursor-pointer";
 }

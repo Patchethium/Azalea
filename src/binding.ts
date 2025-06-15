@@ -265,15 +265,7 @@ speed: number;
 /**
  * linear shift in log hz, -1-1.
  */
-pitch: number; 
-/**
- * 
- */
-intonation: number; 
-/**
- * volume
- */
-volume: number; 
+pitch: number; intonation: number; volume: number; 
 /**
  * in seconds, 0.0-3.0, 0 is default for no slience
  */
@@ -365,7 +357,7 @@ export type StyleType =
  */
 export type StyleVersion = string
 export type TextBlockProps = { text: string; query: AudioQuery | null; preset_id: number | null }
-export type UIConfig = { locale?: Locale; bottom_scale?: number; auto_save?: boolean }
+export type UIConfig = { locale?: Locale; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; side_ratio?: number }
 
 /** tauri-specta globals **/
 

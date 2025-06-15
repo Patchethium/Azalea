@@ -7,7 +7,7 @@ type UIStoreType = {
   selectedTextBlockIndex: number;
   coreInitialized: boolean;
   page: PageType;
-  projectPath: string | null;
+  bottom_scroll_pos: number;
 };
 
 const [UIProvider, useUIStore] = createContextProvider(() => {
@@ -15,7 +15,7 @@ const [UIProvider, useUIStore] = createContextProvider(() => {
     selectedTextBlockIndex: 0,
     coreInitialized: false,
     page: null,
-    projectPath: null,
+    bottom_scroll_pos: 0
   });
   return {
     uiStore,

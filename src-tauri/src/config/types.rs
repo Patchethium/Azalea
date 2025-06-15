@@ -59,16 +59,22 @@ pub struct UIConfig {
   pub locale: Locale,
   #[serde(default = "bottom_scale_default")]
   pub bottom_scale: usize,
-  #[serde(default = "auto_save_default")]
+  #[serde(default)]
   pub auto_save: bool,
+  #[serde(default = "bottom_ratio_default")]
+  pub bottom_ratio: f32,
+  #[serde(default = "side_ratio_default")]
+  pub side_ratio: f32,
 }
 
 impl Default for UIConfig {
   fn default() -> Self {
     Self {
-      locale: Locale::default(),
+      locale: Default::default(),
       bottom_scale: bottom_scale_default(),
-      auto_save: auto_save_default(),
+      auto_save: Default::default(),
+      bottom_ratio: bottom_ratio_default(),
+      side_ratio: side_ratio_default()
     }
   }
 }
@@ -77,8 +83,12 @@ fn bottom_scale_default() -> usize {
   360
 }
 
-fn auto_save_default() -> bool {
-  false
+fn bottom_ratio_default() -> f32 {
+  0.2
+}
+
+fn side_ratio_default() -> f32 {
+  0.3
 }
 
 #[derive(Clone, Deserialize, Serialize, Type)]
@@ -90,9 +100,7 @@ pub struct Preset {
   // TODO: use ratio of std for pitch shift
   /// linear shift in log hz, -1-1.
   pub pitch: f32,
-  /// 
   pub intonation: f32,
-  /// volume
   pub volume: f32,
   /// in seconds, 0.0-3.0, 0 is default for no slience
   pub start_slience: f32,

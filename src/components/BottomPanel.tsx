@@ -2,7 +2,16 @@ import { Button } from "@kobalte/core/button";
 import { Slider } from "@kobalte/core/slider";
 import _ from "lodash";
 // the bottom panel where users do most of their tuning
-import { For, Show, createMemo, createSignal } from "solid-js";
+import {
+  For,
+  Show,
+  Suspense,
+  createMemo,
+  createResource,
+  createSignal,
+  onCleanup,
+  onMount,
+} from "solid-js";
 import { unwrap } from "solid-js/store";
 import { Mora, commands } from "../binding";
 import { useConfigStore } from "../contexts/config";
@@ -13,11 +22,11 @@ import { getModifiedQuery } from "../utils";
 import path from "path-browserify";
 import { VList } from "virtua/solid";
 
-
 type DraggingMode = "consonant" | "vowel" | "pause";
 
 function BottomPanel() {
-  const { textStore, setTextStore, projectPresetStore } = useTextStore()!;
+  const { textStore, setTextStore, projectPresetStore, projectPath } =
+    useTextStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
   const { config, setConfig } = useConfigStore()!;
   const { t1 } = usei18n()!;
@@ -211,6 +220,20 @@ function BottomPanel() {
       textStore.length > 1
   );
 
+  onMount(() => {
+    if (scrollAreaRef !== null) {
+      scrollAreaRef.scroll({
+        left: uiStore.bottom_scroll_pos,
+      });
+    }
+  });
+
+  onCleanup(() => {
+    if (scrollAreaRef !== null) {
+      setUIStore("bottom_scroll_pos", scrollAreaRef.scrollLeft);
+    }
+  });
+
   return (
     <div class="size-full flex flex-col bg-white border border-slate-2 rounded-b-lg">
       {/* Control bar */}
@@ -265,7 +288,7 @@ function BottomPanel() {
             onMouseMove={handleDragging}
             style={{ "min-width": "min-content" }}
           >
-            <VList data={currentText().query?.accent_phrases ?? []} horizontal>
+            <For each={currentText().query?.accent_phrases}>
               {(ap, i) => (
                 <>
                   <For each={ap.moras}>
@@ -310,12 +333,14 @@ function BottomPanel() {
                   </Show>
                 </>
               )}
-            </VList>
+            </For>
           </div>
         </Show>
       </div>
       <div class="h-6 w-full b-dashed b-t b-slate-3 flex items-center px-2 justify-between">
-        <div class="text-xs text-slate-6">{path.basename(uiStore.projectPath?? "No project")}</div>
+        <div class="text-xs text-slate-6">
+          {path.basename(projectPath() ?? "No project")}
+        </div>
         <Show when={queryExists()}>
           <Slider
             class="relative flex flex-col w-20% select-none items-center group"
@@ -373,7 +398,7 @@ function TuningItems(props: {
           fallback={<div class="flex-1 content-empty b-dashed b-b b-slate-3" />}
         >
           <Slider
-            class="flex-1 b-b b-slate-3 b-dashed"
+            class="flex-1 b-b b-slate-3 b-dashed overflow-hidden"
             minValue={props.minPitch}
             maxValue={props.maxPitch}
             step={0.01}

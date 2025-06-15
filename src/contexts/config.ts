@@ -1,8 +1,8 @@
 // The store holding the configuration
 import { createContextProvider } from "@solid-primitives/context";
 
-import { createScheduled } from "@solid-primitives/scheduled";
-import _, { debounce } from "lodash";
+import { createScheduled, debounce } from "@solid-primitives/scheduled";
+import _ from "lodash";
 import { createEffect, createResource, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import { AzaleaConfig, StyleId } from "../binding";
@@ -72,14 +72,14 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
 
   const saveConfig = async () => {
     if (configInitialized()) {
-      const res = await commands.setConfig(_.cloneDeep(config));
+      const res = await commands.setConfig(config);
       if (res.status === "error") {
         console.error("Failed to save config:", res.error);
       }
     }
   };
 
-  const scheduled = createScheduled((saveConfig) => debounce(saveConfig, 500));
+  const scheduled = createScheduled((fn) => debounce(fn, 500));
 
   createEffect(() => {
     if (scheduled()) {

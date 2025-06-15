@@ -84,6 +84,8 @@ function Sidebar() {
     setProjectPresetStore,
     setProject,
     getProject,
+    projectPath,
+    setProjectPath,
   } = useTextStore()!;
   const { config, setConfig } = useConfigStore()!;
   const { t1 } = usei18n()!;
@@ -209,8 +211,8 @@ function Sidebar() {
   };
 
   const saveProject = async () => {
-    let path = null;
-    if (uiStore.projectPath === null) {
+    let path = projectPath();
+    if (path === null) {
       path = await saveDialog({
         title: "Save Project",
         filters: [
@@ -221,12 +223,10 @@ function Sidebar() {
         ],
       });
       if (path === null) return;
-      setUIStore("projectPath", path);
-    } else {
-      path = uiStore.projectPath;
+      setProjectPath(path);
     }
     const project = getProject();
-    let res = await commands.saveProject(project, path, true);
+    const res = await commands.saveProject(project, path, true);
     switch (res.status) {
       case "ok": {
         break;
@@ -249,7 +249,7 @@ function Sidebar() {
       ],
     });
     if (path === null) return;
-    setUIStore("projectPath", path);
+    setProjectPath(path)
     const res = await commands.loadProject(path);
     switch (res.status) {
       case "ok": {
@@ -263,13 +263,23 @@ function Sidebar() {
     }
   };
 
+  const newProject = () => {
+    setProjectPath(null);
+    setTextStore([{
+      text: "",
+      query: null,
+      preset_id: null
+    }]);
+    setProjectPresetStore([]);
+  };
+
   const scheduledSave = createScheduled((fn) => throttle(fn, 500));
 
   createEffect(() => {
     if (
       scheduledSave() &&
       config.ui_config.auto_save &&
-      uiStore.projectPath !== null
+      projectPath() !== null
     )
       saveProject();
   });
@@ -429,6 +439,12 @@ function Sidebar() {
           <DropdownMenu.Portal>
             <DropdownMenu.Arrow size={8} />
             <DropdownMenu.Content class="bg-white p-1 outline-none shadow-md rounded-md b b-slate-2">
+              <DropdownMenu.Item
+                class={`${style.menu_item}`}
+                onClick={newProject}
+              >
+                New Project
+              </DropdownMenu.Item>
               <DropdownMenu.Item
                 class={`${style.menu_item}`}
                 onClick={loadProject}
