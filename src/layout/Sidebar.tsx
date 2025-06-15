@@ -1,12 +1,17 @@
 import { Accordion } from "@kobalte/core/accordion";
 import { Button } from "@kobalte/core/button";
 import { Checkbox } from "@kobalte/core/checkbox";
+import { DropdownMenu } from "@kobalte/core/dropdown-menu";
+import { NumberField } from "@kobalte/core/number-field";
 import { Select } from "@kobalte/core/select";
 import { Slider } from "@kobalte/core/slider";
-import { DropdownMenu } from "@kobalte/core/dropdown-menu";
-import { ToggleGroup } from "@kobalte/core/toggle-group";
 import { TextField } from "@kobalte/core/text-field";
-import { NumberField } from "@kobalte/core/number-field";
+import { ToggleGroup } from "@kobalte/core/toggle-group";
+import { createScheduled, throttle } from "@solid-primitives/scheduled";
+import {
+  open as openDialog,
+  save as saveDialog,
+} from "@tauri-apps/plugin-dialog";
 import _ from "lodash";
 import {
   For,
@@ -24,11 +29,6 @@ import { useMetaStore } from "../contexts/meta";
 import { useTextStore } from "../contexts/text";
 import { PageType, useUIStore } from "../contexts/ui";
 import style from "./sidebar.module.css";
-import {
-  save as saveDialog,
-  open as openDialog,
-} from "@tauri-apps/plugin-dialog";
-import { createScheduled, throttle } from "@solid-primitives/scheduled";
 
 interface PresetCardProps extends JSX.HTMLAttributes<HTMLDivElement> {
   preset_idx: number;
@@ -46,12 +46,12 @@ function PresetCard(props: PresetCardProps) {
   });
   const speaker = createMemo(() =>
     metas.find((meta) =>
-      meta.styles.find((style) => style.id === preset()?.style_id)
-    )
+      meta.styles.find((style) => style.id === preset()?.style_id),
+    ),
   );
   const style = createMemo(
     () =>
-      speaker()?.styles.find((style) => style.id === preset()?.style_id)?.name
+      speaker()?.styles.find((style) => style.id === preset()?.style_id)?.name,
   );
 
   return (
@@ -109,7 +109,7 @@ function Sidebar() {
 
   const curMeta = () =>
     metas.find((meta) =>
-      meta.styles.find((style) => style.id === currentPreset()?.style_id)
+      meta.styles.find((style) => style.id === currentPreset()?.style_id),
     );
 
   const curStyle = () =>
@@ -128,7 +128,7 @@ function Sidebar() {
       setProjectPresetStore(
         currentText().preset_id ?? 0,
         "style_id",
-        speaker.styles[0].id
+        speaker.styles[0].id,
       );
     }
   };
@@ -168,7 +168,7 @@ function Sidebar() {
     setTextStore(
       produce((draft) => {
         draft[uiStore.selectedTextBlockIndex].preset_id = preset_idx;
-      })
+      }),
     );
   };
 
@@ -199,7 +199,7 @@ function Sidebar() {
               draft[i].preset_id = null;
             }
           }
-        })
+        }),
       );
     setProjectPresetStore(projectPresetStore.filter((_, i) => i !== idx));
   };
@@ -249,7 +249,7 @@ function Sidebar() {
       ],
     });
     if (path === null) return;
-    setProjectPath(path)
+    setProjectPath(path);
     const res = await commands.loadProject(path);
     switch (res.status) {
       case "ok": {
@@ -265,22 +265,20 @@ function Sidebar() {
 
   const newProject = () => {
     setProjectPath(null);
-    setTextStore([{
-      text: "",
-      query: null,
-      preset_id: null
-    }]);
+    setTextStore([
+      {
+        text: "",
+        query: null,
+        preset_id: null,
+      },
+    ]);
     setProjectPresetStore([]);
   };
 
   const scheduledSave = createScheduled((fn) => throttle(fn, 500));
 
   createEffect(() => {
-    if (
-      scheduledSave() &&
-      config.ui_config.auto_save &&
-      projectPath() !== null
-    )
+    if (scheduledSave() && config.ui_config.auto_save && projectPath() !== null)
       saveProject();
   });
 
@@ -443,19 +441,19 @@ function Sidebar() {
                 class={`${style.menu_item}`}
                 onClick={newProject}
               >
-                New Project
+                {t1("menu.new_project")}
               </DropdownMenu.Item>
               <DropdownMenu.Item
                 class={`${style.menu_item}`}
                 onClick={loadProject}
               >
-                Load Project
+                {t1("menu.load_project")}
               </DropdownMenu.Item>
               <DropdownMenu.Item
                 class={`${style.menu_item}`}
                 onClick={saveProject}
               >
-                Save Project
+                {t1("menu.save_project")}
               </DropdownMenu.Item>
               <DropdownMenu.Separator class="mx-2 my-1" />
               <DropdownMenu.CheckboxItem
@@ -463,7 +461,7 @@ function Sidebar() {
                 onChange={setAutoSave}
                 class={`${style.menu_item}`}
               >
-                Auto Save
+                {t1("menu.auto_save")}
                 <DropdownMenu.ItemIndicator class="size-4">
                   <div class="i-lucide:check size-full" />
                 </DropdownMenu.ItemIndicator>

@@ -1,7 +1,7 @@
 import { createContextProvider } from "@solid-primitives/context";
+import { createEffect, createSignal, on } from "solid-js";
 import { createStore } from "solid-js/store";
 import { AudioQuery, Preset, Project } from "../binding";
-import { createEffect, createSignal, on } from "solid-js";
 
 type TextBlockProps = {
   text: string;

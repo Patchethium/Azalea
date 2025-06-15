@@ -3,21 +3,21 @@ import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import _ from "lodash";
 import {
   JSX,
-  on,
   ParentComponent,
   Show,
   createEffect,
   createMemo,
   createSignal,
+  on,
 } from "solid-js";
+import { produce, unwrap } from "solid-js/store";
 import { commands } from "../binding";
 import { AudioQuery } from "../binding";
+import { usei18n } from "../contexts/i18n";
 import { useMetaStore } from "../contexts/meta";
 import { useTextStore } from "../contexts/text";
 import { useUIStore } from "../contexts/ui";
 import { getModifiedQuery } from "../utils";
-import { produce, unwrap } from "solid-js/store";
-import { usei18n } from "../contexts/i18n";
 
 interface ComponentProps extends JSX.HTMLAttributes<HTMLDivElement> {
   text: string;
@@ -34,7 +34,7 @@ function AutogrowInput(props: ComponentProps) {
           inputRef.innerText = props.text;
         }
       }
-    })
+    }),
   );
 
   const handleInput = () => {
@@ -96,7 +96,7 @@ function TextBlock(props: { index: number }) {
       props.index,
       produce((draft) => {
         draft.query = query;
-      })
+      }),
     );
   };
 
@@ -113,7 +113,7 @@ function TextBlock(props: { index: number }) {
     } else if (isStyleIdValid()) {
       const audio_query = await commands.audioQuery(
         currentText().text,
-        currentPreset()!.style_id
+        currentPreset()!.style_id,
       );
       if (audio_query.status === "ok") {
         setQuery(audio_query.data);
@@ -124,7 +124,7 @@ function TextBlock(props: { index: number }) {
   });
 
   const selected = createMemo(
-    () => uiStore.selectedTextBlockIndex === props.index
+    () => uiStore.selectedTextBlockIndex === props.index,
   );
 
   const setSelected = (index: number) => {
@@ -175,7 +175,7 @@ function TextBlock(props: { index: number }) {
       const save_audio = await commands.saveAudio(
         path,
         getModifiedQuery(unwrap(currentText().query!), currentPreset()!),
-        currentPreset()!.style_id
+        currentPreset()!.style_id,
       );
       if (save_audio.status === "ok") {
         console.log("Audio saved");

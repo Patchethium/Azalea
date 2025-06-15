@@ -1,7 +1,6 @@
 import _ from "lodash";
 import { AudioQuery, Preset } from "./binding";
 
-
 export function getModifiedQuery(
   query: AudioQuery,
   preset: Preset,

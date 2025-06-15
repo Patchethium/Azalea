@@ -15,7 +15,7 @@ const [UIProvider, useUIStore] = createContextProvider(() => {
     selectedTextBlockIndex: 0,
     coreInitialized: false,
     page: null,
-    bottom_scroll_pos: 0
+    bottom_scroll_pos: 0,
   });
   return {
     uiStore,

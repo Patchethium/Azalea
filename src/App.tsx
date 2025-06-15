@@ -1,6 +1,7 @@
 import Resizable from "@corvu/resizable";
 import _ from "lodash";
 import { Show, createResource, onMount } from "solid-js";
+import style from "./app.module.css";
 import { commands } from "./binding";
 import { useConfigStore } from "./contexts/config";
 import { usei18n } from "./contexts/i18n";
@@ -9,7 +10,6 @@ import ConfigPage from "./layout/ConfigPage";
 import InitDialog from "./layout/InitDialog";
 import MainPage from "./layout/MainPage";
 import Sidebar from "./layout/Sidebar";
-import style from "./app.module.css";
 
 function App() {
   const { config, setConfig, setConfigInitialized, coreInitializeResource } =

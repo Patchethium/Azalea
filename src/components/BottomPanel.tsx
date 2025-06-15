@@ -1,6 +1,7 @@
 import { Button } from "@kobalte/core/button";
 import { Slider } from "@kobalte/core/slider";
 import _ from "lodash";
+import path from "path-browserify";
 // the bottom panel where users do most of their tuning
 import {
   For,
@@ -13,14 +14,13 @@ import {
   onMount,
 } from "solid-js";
 import { unwrap } from "solid-js/store";
+import { VList } from "virtua/solid";
 import { Mora, commands } from "../binding";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { useTextStore } from "../contexts/text";
 import { useUIStore } from "../contexts/ui";
 import { getModifiedQuery } from "../utils";
-import path from "path-browserify";
-import { VList } from "virtua/solid";
 
 type DraggingMode = "consonant" | "vowel" | "pause";
 
@@ -96,7 +96,7 @@ function BottomPanel() {
       "moras",
       j,
       "consonant_length",
-      v
+      v,
     );
   };
 
@@ -109,7 +109,7 @@ function BottomPanel() {
       "moras",
       j,
       "vowel_length",
-      v
+      v,
     );
   };
 
@@ -121,7 +121,7 @@ function BottomPanel() {
       i,
       "pause_mora",
       "vowel_length",
-      v
+      v,
     );
   };
 
@@ -134,7 +134,7 @@ function BottomPanel() {
       "moras",
       j,
       "pitch",
-      v
+      v,
     );
   };
 
@@ -150,24 +150,24 @@ function BottomPanel() {
       case "consonant": {
         const newDur = Math.max(
           epsilon,
-          draggingData()!.originData + dx / scale()
+          draggingData()!.originData + dx / scale(),
         );
         setConsonantLength(
           draggingData()!.apIndex,
           draggingData()!.moraIndex,
-          newDur
+          newDur,
         );
         break;
       }
       case "vowel": {
         const newDur = Math.max(
           epsilon,
-          draggingData()!.originData + dx / scale()
+          draggingData()!.originData + dx / scale(),
         );
         setVowelLength(
           draggingData()!.apIndex,
           draggingData()!.moraIndex,
-          newDur
+          newDur,
         );
         break;
       }
@@ -206,18 +206,18 @@ function BottomPanel() {
     if (_currentPreset == null) return;
     commands.playAudio(
       getModifiedQuery(unwrap(currentText().query!), _currentPreset),
-      _currentPreset.style_id
+      _currentPreset.style_id,
     );
   };
 
   const prevExists = createMemo(
-    () => uiStore.selectedTextBlockIndex > 0 && textStore.length > 1
+    () => uiStore.selectedTextBlockIndex > 0 && textStore.length > 1,
   );
 
   const nextExists = createMemo(
     () =>
       uiStore.selectedTextBlockIndex < textStore.length - 1 &&
-      textStore.length > 1
+      textStore.length > 1,
   );
 
   onMount(() => {
@@ -297,7 +297,7 @@ function BottomPanel() {
                         mora={m}
                         startDraggingDur={(
                           origin: number,
-                          mode: DraggingMode
+                          mode: DraggingMode,
                         ) => {
                           setDraggingData({
                             apIndex: i(),
@@ -443,7 +443,7 @@ function TuningItems(props: {
               onMouseDown={() =>
                 props.startDraggingDur(
                   props.mora.consonant_length!,
-                  "consonant"
+                  "consonant",
                 )
               }
               style={{ width: `${consonantPixels()}px` }}

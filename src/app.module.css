@@ -1,4 +1,5 @@
 .canvas {
+  /* biome-ignore lint: */
   background-color: theme("colors.slate.1");
   background-image: radial-gradient(#ccc, 1px, transparent 0);
   background-size: 20px 20px; /* size of grid spacing */
