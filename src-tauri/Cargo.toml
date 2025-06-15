@@ -45,6 +45,7 @@ specta-typescript = "0.0.7"
 tauri-specta = { version = "=2.0.0-rc.20", features = ["derive", "typescript"] }
 dirs = "6"
 tauri-plugin-dialog = "2"
+tauri-plugin-prevent-default = "2.1"
 
 [profile.dev]
 incremental = true
