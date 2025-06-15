@@ -29,14 +29,14 @@ itertools = "0.14.0"
 tracing = "0.1.40"
 derive_more = { version = "1.0.0", features = ["from_str"] }
 strum = { version = "0.26.3", features = ["derive"] }
-thiserror = "2.0.3"
+thiserror = "2.0.12"
 rodio = { version = "0.20.1", default-features = false, features = [
     "wav",
     "hound",
 ] }
 walkdir = "2.5.0"
-libloading = "0.8.6"
-lru = "0.13"
+libloading = "0.8.8"
+lru = "0.14"
 rustfft = "6.2.0"
 ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
 rayon = "1.10.0"
