@@ -9,3 +9,4 @@
 - [ ] DnD
 - [ ] UI state persist
 - [ ] silent saving for audio
+- [ ] accent / phoneme editing
