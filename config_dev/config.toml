@@ -1,0 +1,7 @@
+[core]
+ort_path = "/home/patchethium/bins/core/voicevox_core/onnxruntime/lib/libvoicevox_onnxruntime.so.1.17.3"
+ojt_dir = "/home/patchethium/bins/core/voicevox_core/dict/open_jtalk_dic_utf_8-1.11"
+vvm_dir = "/home/patchethium/bins/core/voicevox_core/models/vvms"
+
+[ui]
+# left blank for now
