@@ -6,9 +6,7 @@ import path from "path-browserify";
 import {
   For,
   Show,
-  Suspense,
   createMemo,
-  createResource,
   createSignal,
   onCleanup,
   onMount,
@@ -58,10 +56,15 @@ function BottomPanel() {
   });
 
   const computedRange = createMemo(() => {
+    const RELAX_RATIO = 0.3; // to give some room for user adjustments
     const id = currentPreset()?.style_id;
     const r = range();
     if (id === undefined || r === null) return [0, 0];
-    return r[id];
+    let [min, max] = r[id] ?? [0, 0];
+    const relax = (max - min) * RELAX_RATIO;
+    min = _.clamp(min-relax, 0, 6.5)
+    max = _.clamp(max+relax, 0, 6.5)
+    return [min, max];
   });
 
   const minPitch = createMemo(() => computedRange()[0]);
