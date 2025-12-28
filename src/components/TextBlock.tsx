@@ -9,6 +9,7 @@ import {
   createMemo,
   createSignal,
   on,
+  onCleanup,
 } from "solid-js";
 import { produce, unwrap } from "solid-js/store";
 import { commands } from "../binding";
@@ -108,22 +109,25 @@ function TextBlock(props: { index: number }) {
     return availableSpeakerIds().includes(curPreset?.style_id ?? 0);
   });
 
-  createEffect(async () => {
+  const fetchAudioQuery = _.throttle(async (text: string, styleId: number) => {
+    const audio_query = await commands.audioQuery(text, styleId);
+    if (audio_query.status === "ok") {
+      setQuery(audio_query.data);
+    } else {
+      console.error(audio_query.error);
+    }
+  }, 500);
+
+  onCleanup(() => fetchAudioQuery.cancel());
+
+  createEffect(() => {
     const curPreset = currentPreset();
-    if (curPreset === null || currentText().text === "") {
+    const text = currentText().text;
+    if (curPreset === null || text === "") {
+      fetchAudioQuery.cancel();
       setQuery(null);
     } else if (isStyleIdValid()) {
-      setTextStore(props.index, "loading", true);
-      const audio_query = await commands.audioQuery(
-        currentText().text,
-        curPreset?.style_id ?? 0,
-      );
-      if (audio_query.status === "ok") {
-        setQuery(audio_query.data);
-      } else {
-        console.error(audio_query.error);
-      }
-      setTextStore(props.index, "loading", false);
+      fetchAudioQuery(text, curPreset?.style_id ?? 0);
     }
   });
 
