@@ -17,11 +17,11 @@ render(() => {
     <MultiProvider
       values={[
         [MetaProvider, []],
-        [TextProvider, null],
         [UIProvider, null],
         [ConfigProvider, null],
         [SystemProvider, null],
         [i18nProvider, null],
+        [TextProvider, null],
       ]}
     >
       <App />

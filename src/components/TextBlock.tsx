@@ -101,7 +101,7 @@ function TextBlock(props: { index: number }) {
   };
 
   const isStyleIdValid = createMemo(() => {
-    const curPreset = currentPreset()
+    const curPreset = currentPreset();
     if (curPreset === null) {
       return false;
     }
@@ -109,10 +109,11 @@ function TextBlock(props: { index: number }) {
   });
 
   createEffect(async () => {
-    const curPreset = currentPreset()
+    const curPreset = currentPreset();
     if (curPreset === null || currentText().text === "") {
       setQuery(null);
     } else if (isStyleIdValid()) {
+      setTextStore(props.index, "loading", true);
       const audio_query = await commands.audioQuery(
         currentText().text,
         curPreset?.style_id ?? 0,
@@ -122,6 +123,7 @@ function TextBlock(props: { index: number }) {
       } else {
         console.error(audio_query.error);
       }
+      setTextStore(props.index, "loading", false);
     }
   });
 

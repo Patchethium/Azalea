@@ -14,7 +14,6 @@ import {
   onMount,
 } from "solid-js";
 import { unwrap } from "solid-js/store";
-import { VList } from "virtua/solid";
 import { Mora, commands } from "../binding";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
@@ -44,7 +43,7 @@ function BottomPanel() {
   let scrollAreaRef!: HTMLDivElement;
 
   const currentText = () => textStore[uiStore.selectedTextBlockIndex];
-  const queryExists = () => {
+  const nowPlayable = () => {
     const currentQuery = currentText().query;
     if (currentQuery === null) return false;
     if (currentQuery.accent_phrases.length === 0) return false;
@@ -52,10 +51,7 @@ function BottomPanel() {
   };
   const selectedIdx = () => uiStore.selectedTextBlockIndex;
   const currentPreset = createMemo(() => {
-    if (
-      projectPresetStore.length === 0 ||
-      currentText().preset_id === null
-    ) {
+    if (projectPresetStore.length === 0 || currentText().preset_id === null) {
       return null;
     }
     return projectPresetStore[currentText().preset_id ?? 0];
@@ -65,17 +61,11 @@ function BottomPanel() {
     const id = currentPreset()?.style_id;
     const r = range();
     if (id === undefined || r === null) return [0, 0];
-    const [mean, std] = r[id];
-    if (mean === 0 && std === 0) return [0, 0];
-    let low = mean - 3 * std;
-    let high = mean + 3 * std;
-    low = Math.log(low);
-    high = Math.log(high);
-    return [low, high];
+    return r[id];
   });
 
-  const minPitch = createMemo(() => Math.max(computedRange()[0], 0.0));
-  const maxPitch = createMemo(() => Math.min(computedRange()[1], 6.5));
+  const minPitch = createMemo(() => computedRange()[0]);
+  const maxPitch = createMemo(() => computedRange()[1]);
 
   const [draggingData, setDraggingData] = createSignal<{
     apIndex: number;
@@ -220,7 +210,7 @@ function BottomPanel() {
   );
 
   onMount(() => {
-    if (scrollAreaRef !== null) {
+    if (scrollAreaRef) {
       scrollAreaRef.scroll({
         left: uiStore.bottom_scroll_pos,
       });
@@ -228,7 +218,7 @@ function BottomPanel() {
   });
 
   onCleanup(() => {
-    if (scrollAreaRef !== null) {
+    if (scrollAreaRef) {
       setUIStore("bottom_scroll_pos", scrollAreaRef.scrollLeft);
     }
   });
@@ -239,21 +229,21 @@ function BottomPanel() {
       <div class="h-8 p2 flex flex-row items-center justify-center gap-1 b-dashed b-b b-slate-3 select-none">
         <div class="flex-1" />
         <Button
-          class="group h-5 w-5 bg-transparent rounded-md ui-disabled:cursor-not-allowed"
+          class="group h-5 w-5 bg-transparent rounded-md ui-disabled:(cursor-not-allowed opacity-50)"
           onClick={focusPrev}
           disabled={!prevExists()}
         >
           <div class="i-lucide:skip-back size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
         </Button>
         <Button
-          class="group h-6 w-6 bg-transparent rounded-md ui-disabled:cursor-not-allowed"
+          class="group h-6 w-6 bg-transparent rounded-md ui-disabled:(cursor-not-allowed opacity-50)"
           onClick={speak}
-          disabled={!queryExists()}
+          disabled={!nowPlayable()}
         >
           <div class="i-lucide:play size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
         </Button>
         <Button
-          class="group h-5 w-5 bg-transparent rounded-md ui-disabled:cursor-not-allowed"
+          class="group h-5 w-5 bg-transparent rounded-md ui-disabled:(cursor-not-allowed opacity-50)"
           onClick={focusNext}
           disabled={!nextExists()}
         >
@@ -270,10 +260,10 @@ function BottomPanel() {
         }}
       >
         <Show
-          when={queryExists()}
+          when={nowPlayable()}
           fallback={
             <div class="flex size-full items-center justify-center select-none cursor-default">
-              {t1("main_page.bottom.no_query")}
+              {t1("main_page.loading")}
             </div>
           }
         >
@@ -340,7 +330,7 @@ function BottomPanel() {
         <div class="text-xs text-slate-6">
           {path.basename(projectPath() ?? "No project")}
         </div>
-        <Show when={queryExists()}>
+        <Show when={nowPlayable()}>
           <Slider
             class="relative flex flex-col w-20% select-none items-center group"
             minValue={minScale}

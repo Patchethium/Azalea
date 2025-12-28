@@ -30,13 +30,8 @@ pub async fn set_config(
   state: State<'_, AppState>,
   config: AzaleaConfig,
 ) -> std::result::Result<(), String> {
+  state_mut!(state, config_manager).setter(config);
   state_mut!(state, config_manager)
-    .as_mut()
-    .ok_or("Config not initialized")?
-    .setter(config);
-  state_mut!(state, config_manager)
-    .as_mut()
-    .ok_or("Config not initialized")?
     .save()
     .map_err(|e| e.to_string())?;
   Ok(())

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::voicevox_sys::metas::StyleId;
+use voicevox_core::StyleId;
 
 const RANGE_JSON: &str = include_str!("../assets/range.json");
 

@@ -6,6 +6,11 @@ use std::{fs, result::Result};
 #[specta::specta]
 pub async fn save_project(project: Project, path: String, allow_create: bool) -> Result<(), String> {
   let project_json = serde_json::to_string(&project).map_err(|e| e.to_string())?;
+  let path = if !path.ends_with(".azp") {
+    format!("{path}.azp")
+  } else {
+    path
+  };
   if fs::exists(&path).is_ok() || allow_create {
     fs::write(&path, project_json).map_err(|e| e.to_string())?;
   } else {

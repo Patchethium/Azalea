@@ -14,13 +14,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
   const { setUIStore } = useUIStore()!;
   const { setMetas } = useMetaStore()!;
 
-  const [config, setConfig] = createStore<AzaleaConfig>({
-    core_config: {
-      core_path: null,
-      ojt_path: null,
-      cache_size: 128,
-    },
-  } as AzaleaConfig);
+  const [config, setConfig] = createStore<AzaleaConfig>({} as AzaleaConfig);
 
   type RangeMap = { [key in StyleId]: [number, number] };
 
@@ -47,12 +41,9 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
   };
 
   const [coreInitializeResource, _mutate] = createResource(
-    () => config.core_config.core_path,
-    async (path) => {
-      const res = await commands.initCore(
-        path,
-        config.core_config.cache_size ?? 128,
-      );
+    () => config.core_config,
+    async (cfg) => {
+      const res = await commands.initCore(cfg);
       if (res.status === "error") {
         if (res.error === "Core already loaded") {
           load_range();

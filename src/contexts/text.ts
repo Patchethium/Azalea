@@ -10,24 +10,23 @@ type TextBlockProps = {
 };
 
 const [TextProvider, useTextStore] = createContextProvider(() => {
-  const [textStore, setTextStore] = createStore<TextBlockProps[]>([
-    {
-      text: "",
-      query: null,
-      preset_id: null,
-    },
-  ]);
-  const [projectPresetStore, setProjectPresetStore] = createStore<Preset[]>([]);
-  const getProject = (): Project => {
-    return {
-      blocks: textStore,
-      presets: projectPresetStore,
-    };
-  };
-  const setProject = (p: Project) => {
-    setTextStore(p.blocks);
-    setProjectPresetStore(p.presets);
-  };
+  const [project, setProject] = createStore<Project>({
+    blocks: [
+      {
+        text: "",
+        preset_id: null,
+        query: null,
+      },
+    ],
+    presets: [],
+  });
+  const [textStore, setTextStore] = createStore<TextBlockProps[]>(
+    project.blocks,
+  );
+  const [projectPresetStore, setProjectPresetStore] = createStore<Preset[]>(
+    project.presets,
+  );
+
   const [projectPath, setProjectPath] = createSignal<string | null>(null);
   const [dirty, setDirty] = createSignal<boolean>(false);
 
@@ -42,8 +41,7 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     setTextStore,
     projectPresetStore,
     setProjectPresetStore,
-    setProject,
-    getProject,
+    project,
     projectPath,
     setProjectPath,
     dirty,

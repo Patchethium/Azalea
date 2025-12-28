@@ -82,8 +82,7 @@ function Sidebar() {
     setTextStore,
     projectPresetStore,
     setProjectPresetStore,
-    setProject,
-    getProject,
+    project,
     projectPath,
     setProjectPath,
   } = useTextStore()!;
@@ -173,9 +172,10 @@ function Sidebar() {
   };
 
   const createPreset = () => {
+    const minStyleId = Math.min(...availableStyleIds());
     const preset: Preset = {
       name: t1("preset.new_preset"),
-      style_id: currentPreset()?.style_id ?? 0,
+      style_id: currentPreset()?.style_id ?? minStyleId,
       speed: 100,
       pitch: 0.0,
       intonation: 1.0,
@@ -225,7 +225,6 @@ function Sidebar() {
       if (path === null) return;
       setProjectPath(path);
     }
-    const project = getProject();
     const res = await commands.saveProject(project, path, true);
     switch (res.status) {
       case "ok": {
@@ -253,7 +252,10 @@ function Sidebar() {
     const res = await commands.loadProject(path);
     switch (res.status) {
       case "ok": {
-        setProject(res.data);
+        // directly setting the whole project won't work
+        const project = res.data;
+        setTextStore(project.blocks);
+        setProjectPresetStore(project.presets);
         break;
       }
       case "error": {

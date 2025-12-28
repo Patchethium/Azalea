@@ -6,11 +6,11 @@ export function getModifiedQuery(
   preset: Preset,
 ): AudioQuery {
   const newQuery = _.cloneDeep(query);
-  newQuery.pitch_scale = preset.pitch;
-  newQuery.speed_scale = preset.speed / 100.0;
-  newQuery.intonation_scale = preset.intonation;
-  newQuery.volume_scale = preset.volume;
-  newQuery.pre_phoneme_length = preset.start_slience / 1000.0;
-  newQuery.post_phoneme_length = preset.end_slience / 1000.0;
+  newQuery.pitchScale = preset.pitch;
+  newQuery.speedScale = preset.speed / 100.0;
+  newQuery.intonationScale = preset.intonation;
+  newQuery.volumeScale = preset.volume;
+  newQuery.prePhonemeLength = preset.start_slience / 1000.0;
+  newQuery.postPhonemeLength = preset.end_slience / 1000.0;
   return newQuery;
 }

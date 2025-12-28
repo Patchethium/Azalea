@@ -3,61 +3,16 @@ mod test {
 
   use std::collections::HashMap;
 
-  use azalea_lib::config::ConfigManager;
-  use azalea_lib::voicevox_sys::metas::StyleType;
-  use azalea_lib::voicevox_sys::DynWrapper;
-  use rayon::prelude::*;
+  use azalea_lib::{
+    config::{ConfigManager, CoreConfig},
+    core::Core,
+  };
   use serde_json::to_string;
   use std::fs::write;
-  struct Welford {
-    n: usize,
-    mean: f32,
-    m2: f32,
-  }
+  use voicevox_core::StyleId;
 
-  impl Welford {
-    fn new() -> Self {
-      Welford {
-        n: 0,
-        mean: 0.0,
-        m2: 0.0,
-      }
-    }
-
-    fn update(&mut self, x: f32) {
-      self.n += 1;
-      let delta = x - self.mean;
-      self.mean += delta / self.n as f32;
-      let delta2 = x - self.mean;
-      self.m2 += delta * delta2;
-    }
-
-    fn mean(&self) -> f32 {
-      self.mean
-    }
-
-    fn variance(&self) -> f32 {
-      if self.n < 2 {
-        0.0
-      } else {
-        self.m2 / self.n as f32
-      }
-    }
-
-    fn std(&self) -> f32 {
-      self.variance().sqrt()
-    }
-  }
-
-  fn get_core_dir() -> String {
-    ConfigManager::new()
-      .unwrap()
-      .config
-      .core_config
-      .core_path
-      .unwrap()
-      .to_string_lossy()
-      .to_string()
+  fn get_core_config() -> CoreConfig {
+    ConfigManager::new().unwrap().config.core_config.unwrap()
   }
 
   const BENCHMARK_TEXT: &str = "rashoumon.txt";
@@ -69,47 +24,64 @@ mod test {
   #[ignore = "this test is slow and is only used when core characters change"]
   fn pitch_range() {
     let root = std::path::Path::new(PROJ_ROOT).to_path_buf();
-    let core_path = get_core_dir();
-    let core = DynWrapper::new(&core_path, None).unwrap();
+    let core_cfg = get_core_config();
+    let core = Core::init(&core_cfg).unwrap();
     let metas = core.metas.clone();
-    let pitch_range: std::sync::Mutex<HashMap<u32, (f32, f32)>> =
+    let pitch_range: std::sync::Mutex<HashMap<StyleId, (f32, f32)>> =
       std::sync::Mutex::new(HashMap::new());
     let text_path = root.join("tests").join(BENCHMARK_TEXT);
     let lines = std::fs::read_to_string(text_path).unwrap();
     let lines: Vec<&str> = lines.lines().collect();
-    let threshold = (0.1 as f32).exp();
-    metas.iter().for_each(|m| {
-      m.styles
-        .iter()
-        .filter(|s| s.r#type == StyleType::Talk)
-        .for_each(|s| {
-          let welford = std::sync::Mutex::new(Welford::new());
+    metas.iter().for_each(|(_, m)| {
+      m.into_iter().for_each(|cm| {
+        for s in cm.styles.clone() {
           let id = s.id;
-          lines.par_iter().for_each(|line| {
-            let line = line.trim();
-            let audio_query = core.audio_query(line, id.raw_id(), None).unwrap();
-            audio_query.accent_phrases.iter().for_each(|ap| {
-              ap.moras.iter().for_each(|mora| {
-                if mora.pitch > threshold {
-                  // the original pitch data is in log scale
-                  // we convert it to linear scale
-                  welford.lock().unwrap().update(mora.pitch.exp());
-                }
-              });
-            });
-          });
-          // convert the mean and std back to log scale
-          let mut mean = welford.lock().unwrap().mean();
-          let mut std = welford.lock().unwrap().std();
+          let mut values: Vec<f32> = lines
+            // loaded speaker is not thread safe, don't use par-iter here
+            // TODO: make it safe
+            .iter()
+            .flat_map(|line| {
+              let line = line.trim();
+              let audio_query = core.audio_query(line, id).unwrap();
+              audio_query
+                .accent_phrases
+                .iter()
+                .flat_map(|ap| ap.moras.iter().map(|mora| mora.pitch))
+                .filter(|&pitch| pitch > 0.1)
+                .collect::<Vec<_>>()
+            })
+            .collect();
 
-          if mean < threshold || mean.is_nan() {
-            mean = 0.0;
-            std = 0.0;
-          }
-          println!("{}/{}: mean: {}, std: {}", m.name, s.name, mean, std);
-          // println!("{}/{}: low: {}, high: {}", m.name, s.name, low, high);
-          pitch_range.lock().unwrap().insert(id.raw_id(), (mean, std));
-        });
+          values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+
+          let count = values.len();
+          let (low, high) = if count == 0 {
+            (0.0, 0.0)
+          } else {
+            let target_count = (count as f32 * 0.97).ceil() as usize;
+            let target_count = target_count.max(1);
+
+            if target_count >= count {
+              (*values.first().unwrap(), *values.last().unwrap())
+            } else {
+              let mut min_range_len = f32::INFINITY;
+              let mut best_pair = (0.0, 0.0);
+              for i in 0..=(count - target_count) {
+                let start = values[i];
+                let end = values[i + target_count - 1];
+                let diff = end - start;
+                if diff < min_range_len {
+                  min_range_len = diff;
+                  best_pair = (start, end);
+                }
+              }
+              best_pair
+            }
+          };
+          println!("{}/{}: low: {}, high: {}", cm.name, s.name, low, high);
+          pitch_range.lock().unwrap().insert(id, (low, high));
+        }
+      });
     });
     let serialized = to_string(&pitch_range).unwrap();
     write(

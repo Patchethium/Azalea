@@ -2,11 +2,11 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::path::PathBuf;
 
-use crate::voicevox_sys::{audio_query::AudioQuery, metas::StyleId};
+use voicevox_core::{StyleId, AudioQuery};
 
 #[derive(Default, Clone, Deserialize, Serialize, Type)]
 pub struct AzaleaConfig {
-  pub core_config: CoreConfig,
+  pub core_config: Option<CoreConfig>,
   pub ui_config: UIConfig,
   #[serde(default = "presets_default")]
   pub system_presets: Vec<Preset>,
@@ -21,23 +21,14 @@ pub struct CoreConfig {
   /// The Path to the core directory, it should be the directory containing the dynamic library.
   /// For example, if the lib is in `/home/user/VOICEVOX/vv-engine/libvoicevox_core.so`,
   /// the path should be `/home/user/VOICEVOX/vv-engine`.
-  pub core_path: Option<PathBuf>,
-  pub ojt_path: Option<PathBuf>,
+  pub ort_path: PathBuf,
+  pub ojt_dir: PathBuf,
+  pub vvm_dir: PathBuf,
   #[serde(default = "cache_size_default")]
   pub cache_size: usize,
 }
 
-impl Default for CoreConfig {
-  fn default() -> Self {
-    Self {
-      core_path: None,
-      ojt_path: None,
-      cache_size: cache_size_default(),
-    }
-  }
-}
-
-fn cache_size_default() -> usize {
+pub fn cache_size_default() -> usize {
   128
 }
 

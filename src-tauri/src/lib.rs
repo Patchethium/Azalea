@@ -2,8 +2,9 @@
 pub mod audio;
 pub mod commands;
 pub mod config;
+pub mod core;
 pub mod spectal;
-pub mod voicevox_sys;
+use core::Core;
 
 use commands::*;
 use specta_typescript::Typescript;
@@ -11,14 +12,13 @@ use std::sync::RwLock;
 
 use tauri_specta::{collect_commands, Builder};
 
-use voicevox_sys::audio_query::AudioQuery;
-use voicevox_sys::DynWrapper;
+use voicevox_core::{AudioQuery, StyleId};
 
 type LockedState<T> = RwLock<Option<T>>;
 pub struct AppState {
-  pub wrapper: LockedState<DynWrapper>,
-  pub query_lru: LockedState<lru::LruCache<(String, u32), AudioQuery>>,
-  pub wav_lru: LockedState<lru::LruCache<(AudioQuery, u32), Vec<u8>>>,
+  pub core: LockedState<Core>,
+  pub query_lru: LockedState<lru::LruCache<(String, StyleId), AudioQuery>>,
+  pub wav_lru: LockedState<lru::LruCache<(String, StyleId), Vec<u8>>>,
   pub config_manager: LockedState<config::ConfigManager>,
   pub audio_player: LockedState<audio::AudioPlayer>,
 }
@@ -26,7 +26,7 @@ pub struct AppState {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   let builder = Builder::<tauri::Wry>::new().commands(collect_commands![
-    sanitize_vv_exe_path,
+    clear_caches,
     pick_core,
     download_core,
     init_config,
@@ -63,7 +63,7 @@ pub fn run() {
 
   app
     .manage(AppState {
-      wrapper: RwLock::new(None),
+      core: RwLock::new(None),
       query_lru: RwLock::new(None),
       wav_lru: RwLock::new(None),
       config_manager: RwLock::new(None),

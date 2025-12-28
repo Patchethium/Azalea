@@ -1,7 +1,7 @@
 import { Button } from "@kobalte/core/button";
 import { RadioGroup } from "@kobalte/core/radio-group";
 import { For, createSignal } from "solid-js";
-import { commands } from "../binding";
+import { CoreConfig, commands } from "../binding";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { I18NSelect } from "./ConfigPage";
@@ -10,8 +10,8 @@ function InitDialog() {
   const { setConfig } = useConfigStore()!;
   const { t1, t2 } = usei18n()!;
 
-  const setCorePath = (path: string) => {
-    setConfig("core_config", { core_path: path });
+  const setCoreConfig = (config: CoreConfig) => {
+    setConfig("core_config", config);
   };
 
   type ActionType = "later" | "installed";
@@ -42,13 +42,13 @@ function InitDialog() {
         commands.quit();
         break;
       case "installed": {
-        const path = await commands.pickCore(false);
-        if (path.status === "ok") {
-          if (path.data !== "") {
-            setCorePath(path.data);
-          }
+        const cfg = await commands.pickCore();
+        if (cfg === null) {
+          console.warn(
+            "User cancelled core picking or an invalid path is provided.",
+          );
         } else {
-          console.error("Error picking core path", path.error);
+          setCoreConfig(cfg);
         }
         break;
       }

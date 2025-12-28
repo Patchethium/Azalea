@@ -5,21 +5,16 @@
 
 
 export const commands = {
-/**
- * So, the `libvoicevox.so` is not in the same directory as the executable,
- * so we search for it in the executable's directory and return the dir that
- * actually contains the `libvoicevox.so` file.
- */
-async sanitizeVvExePath(path: string) : Promise<string | null> {
-    return await TAURI_INVOKE("sanitize_vv_exe_path", { path });
-},
-async pickCore(pickExec: boolean) : Promise<Result<string, string>> {
+async clearCaches() : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("pick_core", { pickExec }) };
+    return { status: "ok", data: await TAURI_INVOKE("clear_caches") };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async pickCore() : Promise<CoreConfig | null> {
+    return await TAURI_INVOKE("pick_core");
 },
 async downloadCore(url: string) : Promise<Result<null, string>> {
     try {
@@ -56,9 +51,9 @@ async setConfig(config: AzaleaConfig) : Promise<Result<null, string>> {
 /**
  * Load the voicevox core and create lru cache
  */
-async initCore(corePath: string, cacheSize: number) : Promise<Result<null, string>> {
+async initCore(config: CoreConfig) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("init_core", { corePath, cacheSize }) };
+    return { status: "ok", data: await TAURI_INVOKE("init_core", { config }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -67,7 +62,7 @@ async initCore(corePath: string, cacheSize: number) : Promise<Result<null, strin
 /**
  * Gets metas from voicevox core
  */
-async getMetas() : Promise<Result<SpeakerMeta[], string>> {
+async getMetas() : Promise<Result<CharacterMeta[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_metas") };
 } catch (e) {
@@ -75,7 +70,7 @@ async getMetas() : Promise<Result<SpeakerMeta[], string>> {
     else return { status: "error", error: e  as any };
 }
 },
-async getRange() : Promise<Result<{ [key in StyleId]: [number, number] }, string>> {
+async getRange() : Promise<Result<Partial<{ [key in StyleId]: [number, number] }>, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_range") };
 } catch (e) {
@@ -86,7 +81,7 @@ async getRange() : Promise<Result<{ [key in StyleId]: [number, number] }, string
 /**
  * Encodes text into audio query
  */
-async audioQuery(text: string, speakerId: number) : Promise<Result<AudioQuery, string>> {
+async audioQuery(text: string, speakerId: StyleId) : Promise<Result<AudioQuery, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("audio_query", { text, speakerId }) };
 } catch (e) {
@@ -94,7 +89,7 @@ async audioQuery(text: string, speakerId: number) : Promise<Result<AudioQuery, s
     else return { status: "error", error: e  as any };
 }
 },
-async playAudio(audioQuery: AudioQuery, speakerId: number) : Promise<Result<null, string>> {
+async playAudio(audioQuery: AudioQuery, speakerId: StyleId) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("play_audio", { audioQuery, speakerId }) };
 } catch (e) {
@@ -105,7 +100,7 @@ async playAudio(audioQuery: AudioQuery, speakerId: number) : Promise<Result<null
 /**
  * Save the audio waveform to a file
  */
-async saveAudio(path: string, audioQuery: AudioQuery, speakerId: number) : Promise<Result<string, string>> {
+async saveAudio(path: string, audioQuery: AudioQuery, speakerId: StyleId) : Promise<Result<string, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("save_audio", { path, audioQuery, speakerId }) };
 } catch (e) {
@@ -152,6 +147,13 @@ async loadProject(path: string) : Promise<Result<Project, string>> {
 
 /**
  * AccentPhrase (アクセント句ごとの情報)。
+ * 
+ * # Validation
+ * 
+ * この構造体の状態によっては、`Synthesizer`の各メソッドは[`ErrorKind::InvalidQuery`]を表わすエラーを返す。詳細は[`validate`メソッド]にて。
+ * 
+ * [`ErrorKind::InvalidQuery`]: crate::ErrorKind::InvalidQuery
+ * [`validate`メソッド]: Self::validate
  */
 export type AccentPhrase = { 
 /**
@@ -172,6 +174,22 @@ pause_mora: Mora | null;
 is_interrogative?: boolean }
 /**
  * AudioQuery (音声合成用のクエリ)。
+ * 
+ * # Serde
+ * 
+ * [Serde]においては[`accent_phrases`]を除くフィールド名はsnake\_caseの形ではなく、VOICEVOX
+ * ENGINEに合わせる形でcamelCaseになっている。ただし今後の破壊的変更にて変わる可能性がある。[データのシリアライゼーション]を参照。
+ * 
+ * [`accent_phrases`]: Self::accent_phrases
+ * [Serde]: serde
+ * [データのシリアライゼーション]: https://github.com/VOICEVOX/voicevox_core/blob/main/docs/guide/user/serialization.md
+ * 
+ * # Validation
+ * 
+ * この構造体の状態によっては、`Synthesizer`の各メソッドは[`ErrorKind::InvalidQuery`]を表わすエラーを返す。詳細は[`validate`メソッド]にて。
+ * 
+ * [`ErrorKind::InvalidQuery`]: crate::ErrorKind::InvalidQuery
+ * [`validate`メソッド]: Self::validate
  */
 export type AudioQuery = { 
 /**
@@ -180,56 +198,143 @@ export type AudioQuery = {
 accent_phrases: AccentPhrase[]; 
 /**
  * 全体の話速。
+ * 
+ * # Serde
+ * 
+ * [Serde]においては`speedScale`という名前で扱われる。
+ * 
+ * [Serde]: serde
  */
-speed_scale: number; 
+speedScale: number; 
 /**
  * 全体の音高。
+ * 
+ * # Serde
+ * 
+ * [Serde]においては`pitchScale`という名前で扱われる。
+ * 
+ * [Serde]: serde
  */
-pitch_scale: number; 
+pitchScale: number; 
 /**
  * 全体の抑揚。
+ * 
+ * # Serde
+ * 
+ * [Serde]においては`intonationScale`という名前で扱われる。
+ * 
+ * [Serde]: serde
  */
-intonation_scale: number; 
+intonationScale: number; 
 /**
  * 全体の音量。
+ * 
+ * # Serde
+ * 
+ * [Serde]においては`volumeScale`という名前で扱われる。
+ * 
+ * [Serde]: serde
  */
-volume_scale: number; 
+volumeScale: number; 
 /**
  * 音声の前の無音時間。
+ * 
+ * # Serde
+ * 
+ * [Serde]においては`prePhonemeLength`という名前で扱われる。
+ * 
+ * [Serde]: serde
  */
-pre_phoneme_length: number; 
+prePhonemeLength: number; 
 /**
  * 音声の後の無音時間。
+ * 
+ * # Serde
+ * 
+ * [Serde]においては`postPhonemeLength`という名前で扱われる。
+ * 
+ * [Serde]: serde
  */
-post_phoneme_length: number; 
+postPhonemeLength: number; 
 /**
  * 音声データの出力サンプリングレート。
+ * 
+ * # Serde
+ * 
+ * [Serde]においては`outputSamplingRate`という名前で扱われる。
+ * 
+ * [Serde]: serde
  */
-output_sampling_rate: number; 
+outputSamplingRate: number; 
 /**
  * 音声データをステレオ出力するか否か。
+ * 
+ * # Serde
+ * 
+ * [Serde]においては`outputStereo`という名前で扱われる。
+ * 
+ * [Serde]: serde
  */
-output_stereo: boolean; 
+outputStereo: boolean; 
 /**
  * \[読み取り専用\] AquesTalk風記法。
  * 
- * [`Synthesizer::audio_query`]が返すもののみ`Some`となる。入力としてのAudioQueryでは無視され
+ * [`Synthesizer::create_audio_query`]が返すもののみ`Some`となる。入力としてのAudioQueryでは無視され
  * る。
  * 
- * [`Synthesizer::audio_query`]: crate::blocking::Synthesizer::audio_query
+ * [`Synthesizer::create_audio_query`]: crate::blocking::Synthesizer::create_audio_query
  */
 kana: string | null }
-export type AzaleaConfig = { core_config: CoreConfig; ui_config: UIConfig; system_presets?: Preset[] }
+export type AzaleaConfig = { core_config: CoreConfig | null; ui_config: UIConfig; system_presets?: Preset[] }
+/**
+ * <i>キャラクター</i>のメタ情報。
+ */
+export type CharacterMeta = { 
+/**
+ * キャラクター名。
+ */
+name: string; 
+/**
+ * キャラクターに属するスタイル。
+ */
+styles: StyleMeta[]; 
+/**
+ * キャラクターのバージョン。
+ */
+version: CharacterVersion; 
+/**
+ * キャラクターのUUID。
+ */
+speaker_uuid: string; 
+/**
+ * キャラクターの順番。
+ * 
+ * `CharacterMeta`の列は、この値に対して昇順に並んでいるべきである。
+ */
+order: number | null }
+/**
+ * [<i>キャラクター</i>]のバージョン。
+ * 
+ * [<i>キャラクター</i>]: CharacterMeta
+ */
+export type CharacterVersion = string
 export type CoreConfig = { 
 /**
  * The Path to the core directory, it should be the directory containing the dynamic library.
  * For example, if the lib is in `/home/user/VOICEVOX/vv-engine/libvoicevox_core.so`,
  * the path should be `/home/user/VOICEVOX/vv-engine`.
  */
-core_path: string | null; ojt_path: string | null; cache_size?: number }
+ort_path: string; ojt_dir: string; vvm_dir: string; cache_size?: number }
 export type Locale = "Ja" | "En"
 /**
  * モーラ（子音＋母音）ごとの情報。
+ * 
+ * # Validation
+ * 
+ * この構造体の状態によっては、`Synthesizer`の各メソッドは[`ErrorKind::InvalidQuery`]を表わすエラーを返す。詳細は[`validate`メソッド]にて。
+ * 
+ * [`ErrorKind::InvalidQuery`]: crate::ErrorKind::InvalidQuery
+ * [`validate`メソッド]: Self::validate
  */
 export type Mora = { 
 /**
@@ -276,42 +381,16 @@ start_slience: number;
 end_slience: number }
 export type Project = { blocks: TextBlockProps[]; presets: Preset[] }
 /**
- * **話者**(_speaker_)のメタ情報。
- */
-export type SpeakerMeta = { 
-/**
- * 話者名。
- */
-name: string; 
-/**
- * 話者に属するスタイル。
- */
-styles: StyleMeta[]; 
-/**
- * 話者のバージョン。
- */
-version: StyleVersion; 
-/**
- * 話者のUUID。
- */
-speaker_uuid: string; 
-/**
- * 話者の順番。
- * 
- * `SpeakerMeta`の列は、この値に対して昇順に並んでいるべきである。
- */
-order: number | null }
-/**
  * スタイルID。
  * 
- * VOICEVOXにおける、ある[**話者**(_speaker_)]のある[**スタイル**(_style_)]を指す。
+ * VOICEVOXにおける、ある[<i>キャラクター</i>]のある[<i>スタイル</i>]を指す。
  * 
- * [**話者**(_speaker_)]: SpeakerMeta
- * [**スタイル**(_style_)]: StyleMeta
+ * [<i>キャラクター</i>]: CharacterMeta
+ * [<i>スタイル</i>]: StyleMeta
  */
 export type StyleId = number
 /**
- * **スタイル**(_style_)のメタ情報。
+ * <i>スタイル</i>のメタ情報。
  */
 export type StyleMeta = { 
 /**
@@ -329,33 +408,60 @@ type?: StyleType;
 /**
  * スタイルの順番。
  * 
- * [`SpeakerMeta::styles`]は、この値に対して昇順に並んでいるべきである。
+ * [`CharacterMeta::styles`]は、この値に対して昇順に並んでいるべきである。
  */
 order: number | null }
 /**
- * **スタイル**(_style_)に対応するモデルの種類。
+ * [<i>スタイル</i>]に対応するモデルの種類。
+ * 
+ * # Serde
+ * 
+ * [Serde]においては各バリアント名はsnake\_caseとなる。
+ * 
+ * [<i>スタイル</i>]: StyleMeta
+ * [Serde]: serde
  */
 export type StyleType = 
 /**
  * 音声合成クエリの作成と音声合成が可能。
+ * 
+ * # Serde
+ * 
+ * [Serde]においては`"talk"`という値で表される。
+ * 
+ * [Serde]: serde
  */
 "talk" | 
 /**
  * 歌唱音声合成用のクエリの作成が可能。
+ * 
+ * # Serde
+ * 
+ * [Serde]においては`"singing_teacher"`という値で表される。
+ * 
+ * [Serde]: serde
  */
 "singing_teacher" | 
 /**
  * 歌唱音声合成が可能。
+ * 
+ * # Serde
+ * 
+ * [Serde]においては`"frame_decode"`という値で表される。
+ * 
+ * [Serde]: serde
  */
 "frame_decode" | 
 /**
  * 歌唱音声合成用のクエリの作成と歌唱音声合成が可能。
+ * 
+ * # Serde
+ * 
+ * [Serde]においては`"sing"`という値で表される。
+ * 
+ * [Serde]: serde
  */
 "sing"
-/**
- * スタイルのバージョン。
- */
-export type StyleVersion = string
 export type TextBlockProps = { text: string; query: AudioQuery | null; preset_id: number | null }
 export type UIConfig = { locale?: Locale; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; side_ratio?: number }
 
