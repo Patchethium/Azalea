@@ -8,7 +8,7 @@ use std::num::NonZeroUsize;
 use ndarray::Array1;
 use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
-use voicevox_core::{AudioQuery, StyleId, VoiceModelMeta};
+use voicevox_core::{AccentPhrase, AudioQuery, StyleId, VoiceModelMeta};
 
 /// Load the voicevox core and create lru cache
 #[tauri::command]
@@ -62,13 +62,50 @@ pub async fn audio_query(
   if let Some(cache) = state_mut!(state, query_lru).get(&(text.clone(), speaker_id)) {
     return Ok(cache.clone());
   }
-  let query = state_ref!(state, core).audio_query(&text, speaker_id)
+  let query = state_ref!(state, core)
+    .audio_query(&text, speaker_id)
     .map_err(|e| e.to_string())?;
   state_mut!(state, query_lru).put((text.clone(), speaker_id), query.clone());
   Ok(query)
 }
 
-/// > Decode audio query to waveform.
+#[tauri::command]
+#[specta::specta]
+pub fn replace_mora(
+  state: State<'_, AppState>,
+  ap: Vec<AccentPhrase>,
+  style_id: StyleId,
+) -> std::result::Result<Vec<AccentPhrase>, String> {
+  state_ref!(state, core)
+    .replace_mora(ap, style_id)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn replace_mora_pitch(
+  state: State<'_, AppState>,
+  ap: Vec<AccentPhrase>,
+  style_id: StyleId,
+) -> std::result::Result<Vec<AccentPhrase>, String> {
+  state_ref!(state, core)
+    .replace_mora_pitch(ap, style_id)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn replace_mora_duration(
+  state: State<'_, AppState>,
+  ap: Vec<AccentPhrase>,
+  style_id: StyleId,
+) -> std::result::Result<Vec<AccentPhrase>, String> {
+  state_ref!(state, core)
+    .replace_mora_duration(ap, style_id)
+    .map_err(|e| e.to_string())
+}
+
+/// Decode audio query to waveform.
 pub fn synthesize(
   cache: &mut lru::LruCache<(String, StyleId), Vec<u8>>,
   wrapper: &Core,

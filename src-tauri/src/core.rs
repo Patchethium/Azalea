@@ -1,6 +1,6 @@
 use voicevox_core::{
   blocking::{Onnxruntime, OpenJtalk, Synthesizer, VoiceModelFile},
-  AudioQuery, StyleId, StyleType, VoiceModelId, VoiceModelMeta,
+  AccentPhrase, AudioQuery, StyleId, StyleType, VoiceModelId, VoiceModelMeta,
 };
 
 use crate::config::CoreConfig;
@@ -147,6 +147,32 @@ impl Core {
       self.load_speaker(speaker_id)?;
     }
     Ok(self.synthesizer.create_audio_query(text, speaker_id)?)
+  }
+
+  /// Useful for accent phrase manipulation
+  ///
+  /// When changing accent phrases manually, call this to
+  /// automatically updates mora data (pitch and length)
+  pub fn replace_mora(&self, ap: Vec<AccentPhrase>, style_id: StyleId) -> Result<Vec<AccentPhrase>> {
+    Ok(self.synthesizer.replace_mora_data(&ap, style_id)?)
+  }
+
+  /// same as `replace_mora` but only replaces pitch
+  pub fn replace_mora_pitch(
+    &self,
+    ap: Vec<AccentPhrase>,
+    style_id: StyleId,
+  ) -> Result<Vec<AccentPhrase>> {
+    Ok(self.synthesizer.replace_mora_pitch(&ap, style_id)?)
+  }
+
+  /// same as `replace_mora` but only replaces length
+  pub fn replace_mora_duration(
+    &self,
+    ap: Vec<AccentPhrase>,
+    style_id: StyleId,
+  ) -> Result<Vec<AccentPhrase>> {
+    Ok(self.synthesizer.replace_phoneme_length(&ap, style_id)?)
   }
 
   pub fn synthesis(&self, query: &AudioQuery, speaker_id: StyleId) -> Result<Vec<u8>> {

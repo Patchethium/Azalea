@@ -89,6 +89,30 @@ async audioQuery(text: string, speakerId: StyleId) : Promise<Result<AudioQuery, 
     else return { status: "error", error: e  as any };
 }
 },
+async replaceMora(ap: AccentPhrase[], styleId: StyleId) : Promise<Result<AccentPhrase[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("replace_mora", { ap, styleId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async replaceMoraPitch(ap: AccentPhrase[], styleId: StyleId) : Promise<Result<AccentPhrase[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("replace_mora_pitch", { ap, styleId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async replaceMoraDuration(ap: AccentPhrase[], styleId: StyleId) : Promise<Result<AccentPhrase[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("replace_mora_duration", { ap, styleId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async playAudio(audioQuery: AudioQuery, speakerId: StyleId) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("play_audio", { audioQuery, speakerId }) };
