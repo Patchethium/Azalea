@@ -13,12 +13,23 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
   const [project, setProject] = createStore<Project>({
     blocks: [
       {
-        text: "",
-        preset_id: null,
+        text: "こんにちは、世界！",
+        preset_id: 0,
         query: null,
       },
     ],
-    presets: [],
+    presets: [
+      {
+        name: "Default Preset",
+        style_id: 0,
+        speed: 100,
+        pitch: 0.0,
+        intonation: 1.0,
+        volume: 1.0,
+        start_slience: 100,
+        end_slience: 100,
+      },
+    ],
   });
   const [textStore, setTextStore] = createStore<TextBlockProps[]>(
     project.blocks,
@@ -42,6 +53,7 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     projectPresetStore,
     setProjectPresetStore,
     project,
+    setProject,
     projectPath,
     setProjectPath,
     dirty,

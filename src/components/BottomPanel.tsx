@@ -1,18 +1,19 @@
+import { Tabs } from "@kobalte/core";
 import { Button } from "@kobalte/core/button";
 import { Slider } from "@kobalte/core/slider";
 import _ from "lodash";
-import path from "path-browserify";
 // the bottom panel where users do most of their tuning
 import {
   For,
   Show,
+  createEffect,
   createMemo,
   createSignal,
   onCleanup,
   onMount,
 } from "solid-js";
 import { unwrap } from "solid-js/store";
-import { Mora, commands } from "../binding";
+import { AccentPhrase, Mora, commands } from "../binding";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { useTextStore } from "../contexts/text";
@@ -22,8 +23,123 @@ import { getModifiedQuery } from "../utils";
 type DraggingMode = "consonant" | "vowel" | "pause";
 
 function BottomPanel() {
-  const { textStore, setTextStore, projectPresetStore, projectPath } =
-    useTextStore()!;
+  return (
+    <Tabs.Root
+      aria-label="Bottom Panel Tabs"
+      class="size-full flex flex-col bg-white border border-slate-2 rounded-lg overflow-hidden"
+      orientation="horizontal"
+      defaultValue="accent"
+    >
+      <ControlBar />
+      <div class="absolute">
+        <Tabs.List class="w-full flex flex-row items-center relative p-1">
+          <Tabs.Trigger
+            class="bg-transparent hover:bg-slate-1 px-2 rounded-md"
+            value="accent"
+          >
+            Accent
+          </Tabs.Trigger>
+          <Tabs.Trigger
+            class="bg-transparent hover:bg-slate-1 px-2 rounded-md"
+            value="tuning"
+          >
+            Tuning
+          </Tabs.Trigger>
+          <Tabs.Indicator class="bg-blue-5 h-1px absolute transition-all bottom-0 left-0" />
+        </Tabs.List>
+      </div>
+
+      <Tabs.Content class="flex-1 size-full" value="accent">
+        <PhonemePanel />
+      </Tabs.Content>
+      <Tabs.Content class="flex-1 size-full" value="tuning">
+        <TuningPanel />
+      </Tabs.Content>
+    </Tabs.Root>
+  );
+}
+
+function ControlBar() {
+  const { textStore, projectPresetStore } = useTextStore()!;
+  const { uiStore, setUIStore } = useUIStore()!;
+
+  const currentText = () => textStore[uiStore.selectedTextBlockIndex];
+  const nowPlayable = () => {
+    const currentQuery = currentText().query;
+    if (currentQuery === null) return false;
+    if (currentQuery.accent_phrases.length === 0) return false;
+    return true;
+  };
+
+  const prevExists = createMemo(
+    () => uiStore.selectedTextBlockIndex > 0 && textStore.length > 1,
+  );
+
+  const nextExists = createMemo(
+    () =>
+      uiStore.selectedTextBlockIndex < textStore.length - 1 &&
+      textStore.length > 1,
+  );
+
+  const focusNext = () => {
+    if (uiStore.selectedTextBlockIndex < textStore.length - 1) {
+      setUIStore("selectedTextBlockIndex", uiStore.selectedTextBlockIndex + 1);
+    }
+  };
+
+  const focusPrev = () => {
+    if (uiStore.selectedTextBlockIndex > 0) {
+      setUIStore("selectedTextBlockIndex", uiStore.selectedTextBlockIndex - 1);
+    }
+  };
+
+  const currentPreset = createMemo(() => {
+    if (projectPresetStore.length === 0 || currentText().preset_id === null) {
+      return null;
+    }
+    return projectPresetStore[currentText().preset_id ?? 0];
+  });
+
+  const speak = () => {
+    const _currentPreset = unwrap(currentPreset());
+    if (_currentPreset == null) return;
+    commands.playAudio(
+      getModifiedQuery(unwrap(currentText().query!), _currentPreset),
+      _currentPreset.style_id,
+    );
+  };
+
+  return (
+    <div class="w-full h-8 p2 flex m-l-auto flex-row items-center justify-center gap-1 b-b b-slate-3 select-none">
+      <div class="flex-1" />
+      <Button
+        class="group h-5 w-5 bg-transparent rounded-md ui-disabled:(cursor-not-allowed opacity-50)"
+        onClick={focusPrev}
+        disabled={!prevExists()}
+      >
+        <div class="i-lucide:skip-back size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+      </Button>
+      <Button
+        class="group h-6 w-6 bg-transparent rounded-md ui-disabled:(cursor-not-allowed opacity-50)"
+        onClick={speak}
+        disabled={!nowPlayable()}
+      >
+        <div class="i-lucide:play size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+      </Button>
+      <Button
+        class="group h-5 w-5 bg-transparent rounded-md ui-disabled:(cursor-not-allowed opacity-50)"
+        onClick={focusNext}
+        disabled={!nextExists()}
+      >
+        <div class="i-lucide:skip-forward size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+      </Button>
+      <div class="flex-1" />
+    </div>
+  );
+}
+
+function TuningPanel() {
+  const { textStore, setTextStore, projectPresetStore } = useTextStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
   const { config, setConfig } = useConfigStore()!;
   const { t1 } = usei18n()!;
@@ -41,13 +157,15 @@ function BottomPanel() {
   let scrollAreaRef!: HTMLDivElement;
 
   const currentText = () => textStore[uiStore.selectedTextBlockIndex];
+  const selectedIdx = () => uiStore.selectedTextBlockIndex;
+
   const nowPlayable = () => {
     const currentQuery = currentText().query;
     if (currentQuery === null) return false;
     if (currentQuery.accent_phrases.length === 0) return false;
     return true;
   };
-  const selectedIdx = () => uiStore.selectedTextBlockIndex;
+
   const currentPreset = createMemo(() => {
     if (projectPresetStore.length === 0 || currentText().preset_id === null) {
       return null;
@@ -62,8 +180,8 @@ function BottomPanel() {
     if (id === undefined || r === null) return [0, 0];
     let [min, max] = r[id] ?? [0, 0];
     const relax = (max - min) * RELAX_RATIO;
-    min = _.clamp(min-relax, 0, 6.5)
-    max = _.clamp(max+relax, 0, 6.5)
+    min = _.clamp(min - relax, 0, 6.5);
+    max = _.clamp(max + relax, 0, 6.5);
     return [min, max];
   });
 
@@ -181,37 +299,6 @@ function BottomPanel() {
     }
   };
 
-  const focusNext = () => {
-    if (uiStore.selectedTextBlockIndex < textStore.length - 1) {
-      setUIStore("selectedTextBlockIndex", uiStore.selectedTextBlockIndex + 1);
-    }
-  };
-
-  const focusPrev = () => {
-    if (uiStore.selectedTextBlockIndex > 0) {
-      setUIStore("selectedTextBlockIndex", uiStore.selectedTextBlockIndex - 1);
-    }
-  };
-
-  const speak = () => {
-    const _currentPreset = unwrap(currentPreset());
-    if (_currentPreset == null) return;
-    commands.playAudio(
-      getModifiedQuery(unwrap(currentText().query!), _currentPreset),
-      _currentPreset.style_id,
-    );
-  };
-
-  const prevExists = createMemo(
-    () => uiStore.selectedTextBlockIndex > 0 && textStore.length > 1,
-  );
-
-  const nextExists = createMemo(
-    () =>
-      uiStore.selectedTextBlockIndex < textStore.length - 1 &&
-      textStore.length > 1,
-  );
-
   onMount(() => {
     if (scrollAreaRef) {
       scrollAreaRef.scroll({
@@ -227,33 +314,7 @@ function BottomPanel() {
   });
 
   return (
-    <div class="size-full flex flex-col bg-white border border-slate-2 rounded-b-lg">
-      {/* Control bar */}
-      <div class="h-8 p2 flex flex-row items-center justify-center gap-1 b-dashed b-b b-slate-3 select-none">
-        <div class="flex-1" />
-        <Button
-          class="group h-5 w-5 bg-transparent rounded-md ui-disabled:(cursor-not-allowed opacity-50)"
-          onClick={focusPrev}
-          disabled={!prevExists()}
-        >
-          <div class="i-lucide:skip-back size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
-        </Button>
-        <Button
-          class="group h-6 w-6 bg-transparent rounded-md ui-disabled:(cursor-not-allowed opacity-50)"
-          onClick={speak}
-          disabled={!nowPlayable()}
-        >
-          <div class="i-lucide:play size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
-        </Button>
-        <Button
-          class="group h-5 w-5 bg-transparent rounded-md ui-disabled:(cursor-not-allowed opacity-50)"
-          onClick={focusNext}
-          disabled={!nextExists()}
-        >
-          <div class="i-lucide:skip-forward size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
-        </Button>
-        <div class="flex-1" />
-      </div>
+    <>
       <div
         ref={scrollAreaRef}
         onWheel={handleWheel}
@@ -266,7 +327,7 @@ function BottomPanel() {
           when={nowPlayable()}
           fallback={
             <div class="flex size-full items-center justify-center select-none cursor-default">
-              {t1("main_page.loading")}
+              {t1("main_page.bottom.no_query")}
             </div>
           }
         >
@@ -329,10 +390,7 @@ function BottomPanel() {
           </div>
         </Show>
       </div>
-      <div class="h-6 w-full b-dashed b-t b-slate-3 flex items-center px-2 justify-between">
-        <div class="text-xs text-slate-6">
-          {path.basename(projectPath() ?? "No project")}
-        </div>
+      <div class="h-6 w-full b-dashed b-slate-3 flex items-center px-2 justify-between">
         <Show when={nowPlayable()}>
           <Slider
             class="relative flex flex-col w-20% select-none items-center group"
@@ -350,7 +408,7 @@ function BottomPanel() {
           </Slider>
         </Show>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -453,6 +511,173 @@ function TuningItems(props: {
             {props.isPause ? "" : props.mora.vowel}
           </div>
         </Show>
+      </div>
+    </div>
+  );
+}
+
+// the panel for phoneme-level editing
+// including editing phoneme text(insert/delete/mutate)
+// and combining/splitting accent phrases
+function PhonemePanel() {
+  const { t1 } = usei18n()!;
+  const { textStore, setTextStore } = useTextStore()!;
+  const { uiStore, setUIStore } = useUIStore()!;
+
+  const currentText = () => textStore[uiStore.selectedTextBlockIndex];
+
+  const [scale, setScale] = createSignal(360);
+
+  return (
+    <div class="size-full relative flex flex-row left-0 top-0 overflow-x-auto overflow-y-hidden cursor-default p-2">
+      <For each={currentText().query?.accent_phrases}>
+        {(phrase, i) => (
+          <AccentPhraseItem
+            phrase={phrase}
+            setPhrase={(p: AccentPhrase) => {
+              setTextStore(
+                uiStore.selectedTextBlockIndex,
+                "query",
+                "accent_phrases",
+                i(),
+                p,
+              );
+            }}
+          />
+        )}
+      </For>
+    </div>
+  );
+}
+
+function AccentPhraseItem(props: {
+  phrase: AccentPhrase;
+  setPhrase: (p: AccentPhrase) => void;
+}) {
+  const [hovered, setHovered] = createSignal(-1);
+  const setAccent = (accent: number) => {
+    props.setPhrase({
+      ...props.phrase,
+      accent: accent,
+    });
+  };
+  const [phonemeHovered, setPhonemeHovered] = createSignal(false);
+
+  // utility functions
+  const splitAccentPhrase = (moraIndex: number) => {
+    // TODO
+  };
+  const combineWithNextAccentPhrase = () => {
+    // TODO
+  };
+  const togglePauseMora = () => {
+    // TODO
+  };
+  const toggleEditPhonemeMode = () => {
+    // TODO
+  };
+
+  createEffect(() => {
+    // refresh pitch and duration when accent phrase changes
+    // TODO
+  });
+  return (
+    <div class="flex flex-col h-full items-center justify-center">
+      {props.phrase.accent}/{props.phrase.moras.length}
+      <Slider
+        class="relative flex flex-col w-full select-none items-center py1 pr12"
+        minValue={1}
+        maxValue={props.phrase.moras.length}
+        step={1}
+        value={[props.phrase.accent]}
+        onChange={(v) => setAccent(v[0])}
+      >
+        <div class="w-full flex p1">
+          <Slider.Track class="w-full h-2 bg-slate-2 rounded-full relative ui-disabled:cursor-not-allowed">
+            <Slider.Fill class="absolute bg-blue-5 rounded-full h-full ui-disabled:bg-blue-2" />
+            <Slider.Thumb class="block w-2 h-4 bg-blue-5 ui-disabled:bg-blue-2 rounded-sm -top-1 outline-none">
+              <Slider.Input />
+            </Slider.Thumb>
+          </Slider.Track>
+        </div>
+      </Slider>
+      <div class="flex flex-row">
+        <For each={props.phrase.moras}>
+          {(mora, i) => {
+            const isHigh = (idx: number) => {
+              if (props.phrase.accent === 1) {
+                return idx === 0;
+              }
+              return idx >= 1 && idx < props.phrase.accent;
+            };
+            const high = () => isHigh(i());
+            const nextHigh = () => isHigh(i() + 1);
+            const last = () => i() === props.phrase.moras.length - 1;
+            const strokeDashArray = () => {
+              if (hovered() === i()) return "4 2";
+              return "0";
+            };
+
+            return (
+              <div class="flex justify-center items-center flex-row rounded-md">
+                <div
+                  class="size-8 bg-blue-1 items-center justify-center flex rounded-md cursor-pointer text-sm"
+                  classList={{
+                    "mt-10": !high(),
+                    "mb-10": high(),
+                    "b b-blue-3 shadow-md": phonemeHovered(),
+                  }}
+                  onMouseEnter={() => setPhonemeHovered(true)}
+                  onMouseLeave={() => setPhonemeHovered(false)}
+                >
+                  {mora.text}
+                </div>
+                <Show
+                  when={!last()}
+                  fallback={
+                    <div class="m-2 w-8 h-full rounded-md flex items-center justify-center hover:(bg-blue-1)">
+                      <Show
+                        when={props.phrase.pause_mora != null}
+                        fallback={
+                          <div class="size-8 bg-transparent content-empty" />
+                        }
+                      >
+                        <div
+                          class="size-8 bg-blue-1 items-center justify-center flex rounded-md cursor-pointer text-sm hover:(b b-blue-3 shadow-md)"
+                          onClick={togglePauseMora}
+                        >
+                          、
+                        </div>
+                      </Show>
+                    </div>
+                  }
+                >
+                  <div
+                    class="bg-transparent w-4 flex items-center justify-center flex hover:bg-blue-1 rounded-md h-24"
+                    onMouseEnter={() => setHovered(i())}
+                    onMouseLeave={() => setHovered(-1)}
+                  >
+                    {/* biome-ignore lint/a11y/noSvgWithoutTitle: <explanation> */}
+                    <svg
+                      aria-label="Accent connection line"
+                      class="top-0 text-blue-3"
+                    >
+                      <line
+                        x1="0"
+                        y1={high() ? "56" : "96"}
+                        x2="16"
+                        y2={nextHigh() ? "56" : "96"}
+                        stroke="currentColor"
+                        stroke-dasharray={strokeDashArray()}
+                        stroke-width="2"
+                      />
+                    </svg>
+                  </div>
+                </Show>
+              </div>
+            );
+          }}
+        </For>
       </div>
     </div>
   );
