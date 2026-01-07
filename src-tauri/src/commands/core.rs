@@ -69,6 +69,20 @@ pub async fn audio_query(
   Ok(query)
 }
 
+/// Encodes text into accent phrases
+#[tauri::command]
+#[specta::specta]
+pub async fn accent_phrases(
+  state: State<'_, AppState>,
+  text: String,
+  speaker_id: StyleId,
+) -> std::result::Result<Vec<AccentPhrase>, String> {
+  state_ref!(state, core)
+    .accent_phrases(&text, speaker_id)
+    .map_err(|e| e.to_string())
+}
+
+/// Replace mora data (pitch and duration) in accent phrases
 #[tauri::command]
 #[specta::specta]
 pub fn replace_mora(
@@ -81,6 +95,7 @@ pub fn replace_mora(
     .map_err(|e| e.to_string())
 }
 
+/// Replace pitch in accent phrases
 #[tauri::command]
 #[specta::specta]
 pub fn replace_mora_pitch(
@@ -93,6 +108,7 @@ pub fn replace_mora_pitch(
     .map_err(|e| e.to_string())
 }
 
+/// Replace duration in accent phrases
 #[tauri::command]
 #[specta::specta]
 pub fn replace_mora_duration(

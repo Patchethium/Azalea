@@ -1,5 +1,5 @@
 import _ from "lodash";
-import { AudioQuery, Preset } from "./binding";
+import { AccentPhrase, AudioQuery, Preset } from "./binding";
 
 export function getModifiedQuery(
   query: AudioQuery,

@@ -1,5 +1,5 @@
 import { createContextProvider } from "@solid-primitives/context";
-import { createEffect, createSignal, on } from "solid-js";
+import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import { AudioQuery, Preset, Project } from "../binding";
 
@@ -34,10 +34,10 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     ],
   });
   const [textStore, setTextStore] = createStore<TextBlockProps[]>(
-    project.blocks
+    project.blocks,
   );
   const [projectPresetStore, setProjectPresetStore] = createStore<Preset[]>(
-    project.presets
+    project.presets,
   );
 
   const [projectPath, setProjectPath] = createSignal<string | null>(null);

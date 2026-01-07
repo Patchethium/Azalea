@@ -89,6 +89,20 @@ async audioQuery(text: string, speakerId: StyleId) : Promise<Result<AudioQuery, 
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Encodes text into accent phrases
+ */
+async accentPhrases(text: string, speakerId: StyleId) : Promise<Result<AccentPhrase[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("accent_phrases", { text, speakerId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Replace mora data (pitch and duration) in accent phrases
+ */
 async replaceMora(ap: AccentPhrase[], styleId: StyleId) : Promise<Result<AccentPhrase[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("replace_mora", { ap, styleId }) };
@@ -97,6 +111,9 @@ async replaceMora(ap: AccentPhrase[], styleId: StyleId) : Promise<Result<AccentP
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Replace pitch in accent phrases
+ */
 async replaceMoraPitch(ap: AccentPhrase[], styleId: StyleId) : Promise<Result<AccentPhrase[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("replace_mora_pitch", { ap, styleId }) };
@@ -105,6 +122,9 @@ async replaceMoraPitch(ap: AccentPhrase[], styleId: StyleId) : Promise<Result<Ac
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Replace duration in accent phrases
+ */
 async replaceMoraDuration(ap: AccentPhrase[], styleId: StyleId) : Promise<Result<AccentPhrase[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("replace_mora_duration", { ap, styleId }) };

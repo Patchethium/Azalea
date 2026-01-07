@@ -36,6 +36,7 @@ pub fn run() {
     get_metas,
     get_range,
     audio_query,
+    accent_phrases,
     replace_mora,
     replace_mora_pitch,
     replace_mora_duration,

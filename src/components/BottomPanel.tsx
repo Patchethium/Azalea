@@ -1,18 +1,22 @@
-import { Tabs } from "@kobalte/core";
 import { Button } from "@kobalte/core/button";
 import { Slider } from "@kobalte/core/slider";
+import { Tabs } from "@kobalte/core/tabs";
+import { TextField } from "@kobalte/core/text-field";
 import { debounce } from "@solid-primitives/scheduled";
-import _ from "lodash";
+import _, { set } from "lodash";
 // the bottom panel where users do most of their tuning
 import {
   For,
   Show,
+  createEffect,
   createMemo,
   createSignal,
+  on,
   onCleanup,
   onMount,
 } from "solid-js";
 import { produce, unwrap } from "solid-js/store";
+import { Portal } from "solid-js/web";
 import { AccentPhrase, Mora, commands } from "../binding";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
@@ -25,7 +29,7 @@ type DraggingMode = "consonant" | "vowel" | "pause";
 function BottomPanel() {
   const { t1 } = usei18n()!;
   return (
-    <Tabs.Root
+    <Tabs
       aria-label="Bottom Panel Tabs"
       class="size-full flex flex-col bg-white border border-slate-2 rounded-lg overflow-hidden outline-none select-none"
       orientation="horizontal"
@@ -56,7 +60,7 @@ function BottomPanel() {
       <Tabs.Content class="flex-1 size-full" value="tuning">
         <TuningPanel />
       </Tabs.Content>
-    </Tabs.Root>
+    </Tabs>
   );
 }
 
@@ -627,6 +631,35 @@ function PhonemePanel() {
     );
   }, refreshMoraData);
 
+  const handleEditPhoneme = async (apIndex: number, newText: string) => {
+    const text = [];
+    for (let i = 0; i < currentText().query!.accent_phrases.length; i++) {
+      if (i !== apIndex) {
+        text.push(
+          currentText()
+            .query!.accent_phrases[i].moras.map((m) => m.text)
+            .join(""),
+        );
+      } else {
+        text.push(newText);
+      }
+    }
+    const combinedText = text.join("");
+    const newAps = await commands.accentPhrases(
+      combinedText,
+      currentPreset()!.style_id,
+    );
+    if (newAps.status === "ok") {
+      setTextStore(
+        uiStore.selectedTextBlockIndex,
+        "query",
+        "accent_phrases",
+        apIndex,
+        newAps.data[apIndex],
+      );
+    }
+  };
+
   return (
     <div class="size-full relative flex flex-row left-0 top-0 overflow-x-auto overflow-y-hidden cursor-default p-2">
       <For each={currentText().query?.accent_phrases}>
@@ -637,6 +670,7 @@ function PhonemePanel() {
             refreshMoraData={refreshMoraData}
             onSplit={(moraIndex) => splitPhrase(i(), moraIndex)}
             onCombine={() => combinePhrase(i())}
+            onEdit={(text) => handleEditPhoneme(i(), text)}
           />
         )}
       </For>
@@ -650,14 +684,15 @@ function AccentPhraseItem(props: {
   refreshMoraData: () => void;
   onSplit: (index: number) => void;
   onCombine: () => void;
+  onEdit: (text: string) => void;
 }) {
   const [hovered, setHovered] = createSignal(-1);
-  const setAccent = useSideEffect((accent: number) => {
+  const setAccent = (accent: number) => {
     props.setPhrase({
       ...props.phrase,
       accent: accent,
     });
-  }, props.refreshMoraData);
+  };
   const [phonemeHovered, setPhonemeHovered] = createSignal(false);
   const [pauseMoraHovered, setPauseMoraHovered] = createSignal(false);
 
@@ -678,10 +713,24 @@ function AccentPhraseItem(props: {
     });
   }, props.refreshMoraData);
   const [editMode, setEditMode] = createSignal(false);
-  // TODO: implement edit mode
-  const toggleEditPhonemeMode = useSideEffect(() => {
-    setEditMode(!editMode());
-  }, props.refreshMoraData);
+
+  const apText = createMemo(() =>
+    props.phrase.moras.map((m) => m.text).join(""),
+  );
+
+  const [draftText, setDraftText] = createSignal(apText());
+
+  createEffect(
+    on(editMode, (mode) => {
+      if (!mode) {
+        const draft = draftText();
+        const current = apText();
+        if (draft !== current) {
+          props.onEdit(draft);
+        }
+      }
+    }),
+  );
 
   return (
     <div class="flex flex-col h-full items-center justify-center">
@@ -692,6 +741,7 @@ function AccentPhraseItem(props: {
         step={1}
         value={[props.phrase.accent]}
         onChange={(v) => setAccent(v[0])}
+        onChangeEnd={props.refreshMoraData} // workaround to prevent slider from losing focus during update
       >
         <div class="w-full flex p1">
           <Slider.Track class="w-full h-2 bg-slate-2 rounded-full relative ui-disabled:cursor-not-allowed">
@@ -702,7 +752,7 @@ function AccentPhraseItem(props: {
           </Slider.Track>
         </div>
       </Slider>
-      <div class="flex flex-row">
+      <div class="relative flex flex-row items-center justify-center">
         <For each={props.phrase.moras}>
           {(mora, i) => {
             const isHigh = (idx: number) => {
@@ -730,6 +780,7 @@ function AccentPhraseItem(props: {
                   }}
                   onMouseEnter={() => setPhonemeHovered(true)}
                   onMouseLeave={() => setPhonemeHovered(false)}
+                  onClick={() => setEditMode(true)}
                 >
                   {mora.text}
                 </div>
@@ -792,6 +843,28 @@ function AccentPhraseItem(props: {
             );
           }}
         </For>
+        <Show when={editMode()}>
+          <div class="absolute top-0 left-0 size-full bg-slate-3 bg-opacity-10 z-20 flex items-center justify-center rounded-lg backdrop-blur-sm">
+            <TextField
+              class="w-full"
+              value={draftText()}
+              onChange={(v: string) => {
+                setDraftText(v);
+              }}
+            >
+              <TextField.Input class="p1 px2 w-full b b-slate-2 rounded-md outline-none focus:b-blue-5" />
+            </TextField>
+          </div>
+        </Show>
+        {/* The overlay for edit dialog, when click on this div(outside of dialog), close it */}
+        <Portal mount={document.querySelector("main")!}>
+          <Show when={editMode()}>
+            <div
+              class="fixed top-0 left-0 size-full bg-transparent z-10"
+              onClick={() => setEditMode(false)}
+            />
+          </Show>
+        </Portal>
       </div>
     </div>
   );
