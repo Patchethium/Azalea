@@ -11,7 +11,9 @@
   "main_page": {
     "loading": "ローディング中",
     "bottom": {
-      "no_query": "テキストを入力してください"
+      "no_query": "テキストを入力してください",
+      "accent": "アクセント",
+      "tuning": "調整"
     }
   },
   "menu": {

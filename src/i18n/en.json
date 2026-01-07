@@ -11,7 +11,9 @@
   "main_page": {
     "loading": "Loading",
     "bottom": {
-      "no_query": "No Query"
+      "no_query": "No Query",
+      "accent": "Accent",
+      "tuning": "Tuning"
     }
   },
   "config": {

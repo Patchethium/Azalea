@@ -14,3 +14,20 @@ export function getModifiedQuery(
   newQuery.postPhonemeLength = preset.end_slience / 1000.0;
   return newQuery;
 }
+
+/**
+ * Adds a side effect to a function.
+ * @param f trigger function to wrap
+ * @param sideEffect side effect to run after f is called
+ * @returns wrapped function
+ */
+export const useSideEffect = <Args extends unknown[], Return>(
+  f: (...args: Args) => Return,
+  sideEffect: () => void,
+) => {
+  return (...args: Args): Return => {
+    const result = f(...args);
+    sideEffect();
+    return result;
+  };
+};
