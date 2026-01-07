@@ -85,6 +85,7 @@ function Sidebar() {
     project,
     projectPath,
     setProjectPath,
+    newProject,
   } = useTextStore()!;
   const { config, setConfig } = useConfigStore()!;
   const { t1 } = usei18n()!;
@@ -172,16 +173,9 @@ function Sidebar() {
   };
 
   const createPreset = () => {
-    const minStyleId = Math.min(...availableStyleIds());
     const preset: Preset = {
+      ...currentPreset()!,
       name: t1("preset.new_preset"),
-      style_id: currentPreset()?.style_id ?? minStyleId,
-      speed: 100,
-      pitch: 0.0,
-      intonation: 1.0,
-      volume: 1.0,
-      start_slience: 0,
-      end_slience: 0,
     };
     setProjectPresetStore(projectPresetStore.length, preset);
     // focuse on the new preset
@@ -263,18 +257,6 @@ function Sidebar() {
         break;
       }
     }
-  };
-
-  const newProject = () => {
-    setProjectPath(null);
-    setTextStore([
-      {
-        text: "",
-        query: null,
-        preset_id: null,
-      },
-    ]);
-    setProjectPresetStore([]);
   };
 
   const scheduledSave = createScheduled((fn) => throttle(fn, 500));

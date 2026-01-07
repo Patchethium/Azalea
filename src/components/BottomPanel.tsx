@@ -69,7 +69,7 @@ function ControlBar() {
   const { uiStore, setUIStore } = useUIStore()!;
 
   const currentText = () => textStore[uiStore.selectedTextBlockIndex];
-  const nowPlayable = () => {
+  const queryExists = () => {
     const currentQuery = currentText().query;
     if (currentQuery === null) return false;
     if (currentQuery.accent_phrases.length === 0) return false;
@@ -127,7 +127,7 @@ function ControlBar() {
       <Button
         class="group h-6 w-6 bg-transparent rounded-md ui-disabled:(cursor-not-allowed opacity-50)"
         onClick={speak}
-        disabled={!nowPlayable()}
+        disabled={!queryExists()}
       >
         <div class="i-lucide:play size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
       </Button>
@@ -164,7 +164,7 @@ function TuningPanel() {
   const currentText = () => textStore[uiStore.selectedTextBlockIndex];
   const selectedIdx = () => uiStore.selectedTextBlockIndex;
 
-  const nowPlayable = () => {
+  const queryExists = () => {
     const currentQuery = currentText().query;
     if (currentQuery === null) return false;
     if (currentQuery.accent_phrases.length === 0) return false;
@@ -329,7 +329,7 @@ function TuningPanel() {
         }}
       >
         <Show
-          when={nowPlayable()}
+          when={queryExists()}
           fallback={
             <div class="flex size-full items-center justify-center select-none cursor-default">
               {t1("main_page.bottom.no_query")}
@@ -396,7 +396,7 @@ function TuningPanel() {
         </Show>
       </div>
       <div class="h-6 w-full b-dashed b-slate-3 flex items-center px-2 justify-between">
-        <Show when={nowPlayable()}>
+        <Show when={queryExists()}>
           <Slider
             class="relative flex flex-col w-20% select-none items-center group"
             minValue={minScale}
@@ -525,6 +525,7 @@ function TuningItems(props: {
 // including editing phoneme text(insert/delete/mutate)
 // and combining/splitting accent phrases
 function PhonemePanel() {
+  const { t1 } = usei18n()!;
   const { textStore, setTextStore, projectPresetStore } = useTextStore()!;
   const { uiStore } = useUIStore()!;
 
@@ -660,20 +661,37 @@ function PhonemePanel() {
     }
   };
 
+  // TODO: don't repeat yourself with TuningPanel
+  const queryExists = () => {
+    const currentQuery = currentText().query;
+    if (currentQuery === null) return false;
+    if (currentQuery.accent_phrases.length === 0) return false;
+    return true;
+  };
+
   return (
     <div class="size-full relative flex flex-row left-0 top-0 overflow-x-auto overflow-y-hidden cursor-default p-2">
-      <For each={currentText().query?.accent_phrases}>
-        {(phrase, i) => (
-          <AccentPhraseItem
-            phrase={phrase}
-            setPhrase={(p) => setPhrase(i(), p)}
-            refreshMoraData={refreshMoraData}
-            onSplit={(moraIndex) => splitPhrase(i(), moraIndex)}
-            onCombine={() => combinePhrase(i())}
-            onEdit={(text) => handleEditPhoneme(i(), text)}
-          />
-        )}
-      </For>
+      <Show
+        when={queryExists()}
+        fallback={
+          <div class="flex size-full items-center justify-center select-none cursor-default">
+            {t1("main_page.bottom.no_query")}
+          </div>
+        }
+      >
+        <For each={currentText().query?.accent_phrases}>
+          {(phrase, i) => (
+            <AccentPhraseItem
+              phrase={phrase}
+              setPhrase={(p) => setPhrase(i(), p)}
+              refreshMoraData={refreshMoraData}
+              onSplit={(moraIndex) => splitPhrase(i(), moraIndex)}
+              onCombine={() => combinePhrase(i())}
+              onEdit={(text) => handleEditPhoneme(i(), text)}
+            />
+          )}
+        </For>
+      </Show>
     </div>
   );
 }
@@ -752,7 +770,7 @@ function AccentPhraseItem(props: {
           </Slider.Track>
         </div>
       </Slider>
-      <div class="relative flex flex-row items-center justify-center">
+      <div class="relative flex flex-row">
         <For each={props.phrase.moras}>
           {(mora, i) => {
             const isHigh = (idx: number) => {
@@ -789,7 +807,7 @@ function AccentPhraseItem(props: {
                   fallback={
                     /* Pause mora area, this shouldn't be highlighted when button is hovered */
                     <div
-                      class="m-2 w-8 h-full rounded-md flex items-center justify-center hover:(bg-blue-1) cursor-pointer"
+                      class="m-2 w-8 h-full rounded-md flex items-center justify-center hover:(bg-blue-50) cursor-pointer"
                       classList={{
                         "!bg-transparent": pauseMoraHovered(),
                       }}
@@ -817,7 +835,7 @@ function AccentPhraseItem(props: {
                   }
                 >
                   <div
-                    class="bg-transparent w-4 flex items-center justify-center flex hover:bg-blue-1 rounded-md h-24 cursor-pointer"
+                    class="bg-transparent w-4 flex items-center justify-center flex hover:bg-blue-50 rounded-md h-24 cursor-pointer"
                     onMouseEnter={() => setHovered(i())}
                     onMouseLeave={() => setHovered(-1)}
                     onClick={() => props.onSplit(i() + 1)}

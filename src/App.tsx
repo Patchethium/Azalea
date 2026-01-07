@@ -1,9 +1,10 @@
 import Resizable from "@corvu/resizable";
-import { createResource, onMount, Show } from "solid-js";
+import { createEffect, createResource, onMount, Show } from "solid-js";
 import style from "./app.module.css";
 import { commands } from "./binding";
 import { useConfigStore } from "./contexts/config";
 import { usei18n } from "./contexts/i18n";
+import { useTextStore } from "./contexts/text";
 import { useUIStore } from "./contexts/ui";
 import ConfigPage from "./layout/ConfigPage";
 import InitDialog from "./layout/InitDialog";
@@ -15,6 +16,7 @@ function App() {
     useConfigStore()!;
   const { t1 } = usei18n()!;
   const { uiStore } = useUIStore()!;
+  const { newProject } = useTextStore()!;
 
   onMount(async () => {
     const res = await commands.initConfig();
@@ -23,6 +25,12 @@ function App() {
       setConfig(res.data);
     } else {
       console.error("Failed to initialize config:", res.error);
+    }
+  });
+
+  createEffect(() => {
+    if (!coreInitializeResource.loading) {
+      newProject();
     }
   });
 
