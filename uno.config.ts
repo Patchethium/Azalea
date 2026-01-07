@@ -2,7 +2,6 @@ import { defineConfig, transformerVariantGroup, presetWind3 } from "unocss";
 import presetIcons from "@unocss/preset-icons";
 import { presetKobalte } from "unocss-preset-primitives";
 import presetCorvu from '@corvu/unocss';
-import transformerDirectives from '@unocss/transformer-directives';
 
 export default defineConfig({
   presets: [
@@ -14,5 +13,5 @@ export default defineConfig({
     // @ts-ignore-next-line
     presetCorvu(),
   ],
-  transformers: [transformerVariantGroup(), transformerDirectives()],
+  transformers: [transformerVariantGroup()],
 });
