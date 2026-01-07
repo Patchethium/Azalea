@@ -6,7 +6,7 @@
     "indentStyle": "space"
   },
   "files": {
-    "ignore": ["src/binding.ts", "src/assets/**/*"]
+    "includes": ["src/**/*.ts", "src/**/*.tsx", "!src/binding.ts"]
   },
   "linter": {
     "enabled": true,
@@ -20,11 +20,20 @@
         "useSelfClosingElements": "off"
       },
       "a11y": {
-        "useKeyWithClickEvents": "off"
+        "useKeyWithClickEvents": "off",
+        "noStaticElementInteractions": "off",
+        "noSvgWithoutTitle": "off"
+      },
+      "correctness": {
+        "noUnusedVariables": "warn"
       }
     }
   },
-  "organizeImports": {
-    "enabled": true
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
   }
 }

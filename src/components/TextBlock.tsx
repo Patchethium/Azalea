@@ -2,18 +2,17 @@ import { Button } from "@kobalte/core/button";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import _ from "lodash";
 import {
-  JSX,
-  ParentComponent,
-  Show,
   createEffect,
   createMemo,
   createSignal,
+  JSX,
   on,
   onCleanup,
+  ParentComponent,
+  Show,
 } from "solid-js";
 import { produce, unwrap } from "solid-js/store";
-import { commands } from "../binding";
-import { AudioQuery } from "../binding";
+import { AudioQuery, commands } from "../binding";
 import { usei18n } from "../contexts/i18n";
 import { useMetaStore } from "../contexts/meta";
 import { useTextStore } from "../contexts/text";

@@ -1,7 +1,6 @@
 import { Link } from "@kobalte/core/link";
 import { Select } from "@kobalte/core/select";
 import { open } from "@tauri-apps/plugin-shell";
-import _ from "lodash";
 import { ParentProps } from "solid-js";
 import { Locale } from "../binding";
 import { useConfigStore } from "../contexts/config";

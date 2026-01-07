@@ -4,7 +4,6 @@ import App from "./App";
 import "virtual:uno.css";
 import "@unocss/reset/tailwind-compat.css";
 import { MultiProvider } from "@solid-primitives/context";
-import _ from "lodash";
 import { ConfigProvider } from "./contexts/config";
 import { i18nProvider } from "./contexts/i18n";
 import { MetaProvider } from "./contexts/meta";

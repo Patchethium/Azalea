@@ -1,6 +1,5 @@
 import Resizable from "@corvu/resizable";
-import _ from "lodash";
-import { Show, createResource, onMount } from "solid-js";
+import { createResource, onMount, Show } from "solid-js";
 import style from "./app.module.css";
 import { commands } from "./binding";
 import { useConfigStore } from "./contexts/config";

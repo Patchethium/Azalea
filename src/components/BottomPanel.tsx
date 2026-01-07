@@ -3,21 +3,21 @@ import { Slider } from "@kobalte/core/slider";
 import { Tabs } from "@kobalte/core/tabs";
 import { TextField } from "@kobalte/core/text-field";
 import { debounce } from "@solid-primitives/scheduled";
-import _, { set } from "lodash";
+import _ from "lodash";
 // the bottom panel where users do most of their tuning
 import {
-  For,
-  Show,
   createEffect,
   createMemo,
   createSignal,
+  For,
   on,
   onCleanup,
   onMount,
+  Show,
 } from "solid-js";
 import { produce, unwrap } from "solid-js/store";
 import { Portal } from "solid-js/web";
-import { AccentPhrase, Mora, commands } from "../binding";
+import { AccentPhrase, commands, Mora } from "../binding";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { useTextStore } from "../contexts/text";
@@ -822,7 +822,6 @@ function AccentPhraseItem(props: {
                     onMouseLeave={() => setHovered(-1)}
                     onClick={() => props.onSplit(i() + 1)}
                   >
-                    {/* biome-ignore lint/a11y/noSvgWithoutTitle: <explanation> */}
                     <svg
                       aria-label="Accent connection line"
                       class="top-0 text-blue-3"

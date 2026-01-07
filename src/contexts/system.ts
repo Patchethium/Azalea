@@ -1,6 +1,6 @@
 import { createContextProvider } from "@solid-primitives/context";
 import { createStore } from "solid-js/store";
-import { OS, commands } from "../binding";
+import { commands, OS } from "../binding";
 
 type SystemStoreType = {
   os: OS;

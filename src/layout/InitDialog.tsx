@@ -1,6 +1,6 @@
 import { Button } from "@kobalte/core/button";
 import { RadioGroup } from "@kobalte/core/radio-group";
-import { For, createSignal } from "solid-js";
+import { createSignal, For } from "solid-js";
 import { CoreConfig, commands } from "../binding";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";

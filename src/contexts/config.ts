@@ -2,11 +2,9 @@
 import { createContextProvider } from "@solid-primitives/context";
 
 import { createScheduled, debounce } from "@solid-primitives/scheduled";
-import _ from "lodash";
 import { createEffect, createResource, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
-import { AzaleaConfig, StyleId } from "../binding";
-import { commands } from "../binding";
+import { AzaleaConfig, commands, StyleId } from "../binding";
 import { useMetaStore } from "./meta";
 import { useUIStore } from "./ui";
 

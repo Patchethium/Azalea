@@ -14,15 +14,15 @@ import {
 } from "@tauri-apps/plugin-dialog";
 import _ from "lodash";
 import {
-  For,
-  JSX,
-  Show,
   createEffect,
   createMemo,
   createSignal,
+  For,
+  JSX,
+  Show,
 } from "solid-js";
 import { produce } from "solid-js/store";
-import { Preset, StyleId, commands } from "../binding";
+import { commands, Preset, StyleId } from "../binding";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { useMetaStore } from "../contexts/meta";
@@ -603,7 +603,7 @@ function PauseNumField(props: {
       maxValue={1500}
       value={props.value}
       step={100}
-      onChange={(i) => props.setValue(Number.parseInt(i))}
+      onChange={(i) => props.setValue(Number.parseInt(i, 10))}
       changeOnWheel={true}
       format={false}
       title="in millisecond"

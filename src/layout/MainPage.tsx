@@ -5,6 +5,7 @@ import { BottomPanel } from "../components/BottomPanel";
 import TextBlock from "../components/TextBlock";
 import { useConfigStore } from "../contexts/config";
 import { useTextStore } from "../contexts/text";
+
 function MainPage() {
   const { textStore } = useTextStore()!;
   const { config, setConfig } = useConfigStore()!;
