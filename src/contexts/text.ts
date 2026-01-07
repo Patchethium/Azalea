@@ -11,13 +11,15 @@ type TextBlockProps = {
 
 const [TextProvider, useTextStore] = createContextProvider(() => {
   const [project, setProject] = createStore<Project>({
-    blocks: [
-      {
-        text: "こんにちは、世界！",
-        preset_id: 0,
-        query: null,
-      },
-    ],
+    blocks: import.meta.env.DEV
+      ? [
+          {
+            text: "こんにちは、世界！",
+            preset_id: 0,
+            query: null,
+          },
+        ]
+      : [], // add a text for quick testing in dev mode
     presets: [
       {
         name: "Default Preset",
@@ -32,20 +34,13 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     ],
   });
   const [textStore, setTextStore] = createStore<TextBlockProps[]>(
-    project.blocks,
+    project.blocks
   );
   const [projectPresetStore, setProjectPresetStore] = createStore<Preset[]>(
-    project.presets,
+    project.presets
   );
 
   const [projectPath, setProjectPath] = createSignal<string | null>(null);
-  const [dirty, setDirty] = createSignal<boolean>(false);
-
-  createEffect(
-    on([() => textStore, () => projectPresetStore], () => {
-      setDirty(true);
-    }),
-  );
 
   return {
     textStore,
@@ -56,8 +51,6 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     setProject,
     projectPath,
     setProjectPath,
-    dirty,
-    setDirty,
   };
 });
 
