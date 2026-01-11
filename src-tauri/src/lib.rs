@@ -8,17 +8,21 @@ use core::Core;
 
 use commands::*;
 use specta_typescript::Typescript;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
+use tokio::sync::OnceCell;
+use tauri::async_runtime::RwLock as TokioRwLock;
 
 use tauri_specta::{collect_commands, Builder};
 
 use voicevox_core::{AudioQuery, StyleId};
 
+pub type WavLruType = lru::LruCache<(String, StyleId), Arc<OnceCell<Vec<u8>>>>;
+
 type LockedState<T> = RwLock<Option<T>>;
 pub struct AppState {
-  pub core: LockedState<Core>,
+  pub core: TokioRwLock<Option<Core>>,
   pub query_lru: LockedState<lru::LruCache<(String, StyleId), AudioQuery>>,
-  pub wav_lru: LockedState<lru::LruCache<(String, StyleId), Vec<u8>>>,
+  pub wav_lru: TokioRwLock<Option<WavLruType>>, // use an async Lock for wav cache so synthesis can be async
   pub config_manager: LockedState<config::ConfigManager>,
   pub audio_player: LockedState<audio::AudioPlayer>,
 }
@@ -40,6 +44,8 @@ pub fn run() {
     replace_mora,
     replace_mora_pitch,
     replace_mora_duration,
+    synthesize,
+    synthesize_state,
     play_audio,
     save_audio,
     spectrogram,
@@ -67,9 +73,9 @@ pub fn run() {
 
   app
     .manage(AppState {
-      core: RwLock::new(None),
+      core: TokioRwLock::new(None),
       query_lru: RwLock::new(None),
-      wav_lru: RwLock::new(None),
+      wav_lru: TokioRwLock::new(None),
       config_manager: RwLock::new(None),
       audio_player: RwLock::new(None),
     })

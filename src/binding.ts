@@ -133,6 +133,39 @@ async replaceMoraDuration(ap: AccentPhrase[], styleId: StyleId) : Promise<Result
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Synthesizes audio from audio query and put it into cache.
+ * 
+ * It doesn't guarantee the cached waveform is always there,
+ * so the edge guard is still needed when retrieving from cache.
+ * 
+ * It's used in buffering audio generation in the background to reduce latency,
+ * also needs to be async so that it can be invoked in the background.
+ * 
+ * TODO: invoke an event when wavform is dropped from cache so that frontend can be notified
+ * or find another way to guarantee the viability of the cached waveforms.
+ */
+async synthesize(audioQuery: AudioQuery, speakerId: StyleId) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("synthesize", { audioQuery, speakerId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Check the synthesis state in cache
+ * 
+ * The frontend will poll this to keep track of the synthesis progress for each text blocks.
+ */
+async synthesizeState(query: AudioQuery, speakerId: StyleId) : Promise<Result<SynthState, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("synthesize_state", { query, speakerId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async playAudio(audioQuery: AudioQuery, speakerId: StyleId) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("play_audio", { audioQuery, speakerId }) };
@@ -506,6 +539,19 @@ export type StyleType =
  * [Serde]: serde
  */
 "sing"
+export type SynthState = 
+/**
+ * not started yet or not present in cache (dropped automatically)
+ */
+"UnInitialized" | 
+/**
+ * a synthesis task is running
+ */
+"Pending" | 
+/**
+ * synthesis is done, contains waveform
+ */
+"Done"
 export type TextBlockProps = { text: string; query: AudioQuery | null; preset_id: number | null }
 export type UIConfig = { locale?: Locale; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; side_ratio?: number }
 

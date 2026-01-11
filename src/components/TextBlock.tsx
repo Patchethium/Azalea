@@ -1,4 +1,5 @@
 import { Button } from "@kobalte/core/button";
+import { Separator } from "@kobalte/core/separator";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import _ from "lodash";
 import {
@@ -12,12 +13,13 @@ import {
   Show,
 } from "solid-js";
 import { produce, unwrap } from "solid-js/store";
-import { AudioQuery, commands } from "../binding";
+import { AudioQuery, commands, SynthState } from "../binding";
 import { usei18n } from "../contexts/i18n";
 import { useMetaStore } from "../contexts/meta";
 import { useTextStore } from "../contexts/text";
 import { useUIStore } from "../contexts/ui";
 import { getModifiedQuery } from "../utils";
+import { createScheduled, debounce } from "@solid-primitives/scheduled";
 
 interface ComponentProps extends JSX.HTMLAttributes<HTMLDivElement> {
   text: string;
@@ -243,6 +245,53 @@ function TextBlock(props: { index: number }) {
     }
   });
 
+  const [synthState, setSynthState] = createSignal<SynthState>("UnInitialized");
+
+  const synthSchedule = createScheduled((fn) => debounce(fn, 1000));
+
+  createEffect(async () => {
+    if (synthSchedule()) {
+      const preset = currentPreset();
+      const query = currentText().query;
+      if (preset === null || query === null || preset.style_id === null) {
+        setSynthState("UnInitialized");
+        return;
+      }
+      setSynthState("Pending");
+      const res = await commands.synthesize(
+        getModifiedQuery(unwrap(query!), preset),
+        preset.style_id!,
+      );
+      if (res.status === "ok") {
+        // update the cache in the backend
+        setSynthState("Done");
+        console.log("Synthesis successful for block", props.index);
+      } else {
+        setSynthState("UnInitialized");
+        console.error(
+          "Synthesis failed for block",
+          props.index,
+          ":",
+          res.error,
+        );
+      }
+    }
+  });
+
+  const trafficLightNumber = () => {
+    if (currentText().query === null || currentPreset() === null) {
+      return -1; // all lights off if no query or preset
+    }
+    switch (synthState()) {
+      case "UnInitialized":
+        return 0;
+      case "Pending":
+        return 1;
+      case "Done":
+        return 2;
+    }
+  };
+
   return (
     <div class="py-1.5">
       <div
@@ -314,6 +363,27 @@ function TextBlock(props: { index: number }) {
             >
               <p>{currentPreset()?.name}</p>
             </Show>
+          </div>
+          {/* The traffic light presenting synthesis state */}
+          <div class="flex flex-row items-center ml-2 gap-1" classList={{
+            "opacity-50": !selected(),
+          }}>
+            <div
+              class="bg-slate-3 w-3 h-3 rounded-full"
+              classList={{
+                "!bg-red-5": trafficLightNumber() >= 0,
+              }}
+            />
+            <div
+              class="bg-slate-3 w-3 h-3 rounded-full"
+              classList={{
+                "!bg-yellow-5": trafficLightNumber() >= 1,
+              }}
+            />
+            <div
+              class="bg-slate-3 w-3 h-3 rounded-full"
+              classList={{ "!bg-green-5": trafficLightNumber() >= 2 }}
+            />
           </div>
         </div>
       </div>

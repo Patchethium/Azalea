@@ -1,5 +1,6 @@
 //! A very simple mel spectrogram implementation
 //! used for users to refer how the audio looks like in frequency domain
+#![allow(dead_code)] // not used yet
 use ndarray::{s, Array1, Array2};
 use rustfft::num_complex::Complex;
 use rustfft::FftPlanner;

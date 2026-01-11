@@ -40,6 +40,7 @@ tauri-specta = { version = "=2.0.0-rc.21", features = ["derive", "typescript"] }
 dirs = "6"
 tauri-plugin-dialog = "2"
 tauri-plugin-prevent-default = "4.0.3"
+tokio = { version = "1" }
 
 [dependencies.voicevox_core]
 git = "https://github.com/Patchethium/voicevox_core.git"
