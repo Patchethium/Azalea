@@ -3,7 +3,7 @@
 ## Release 0.1.0
 
 - [x] pitch range refreshing / adaptation
-- [ ] compile&release w/ GitHub action
+- [x] compile&release w/ GitHub action
 - [ ] preset manager
 - [ ] multiple selection
 - [ ] DnD
