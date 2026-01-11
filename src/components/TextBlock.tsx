@@ -292,6 +292,21 @@ function TextBlock(props: { index: number }) {
     }
   };
 
+  const synthStateText = () => {
+    switch (trafficLightNumber()) {
+      case -1:
+        return t1("text_block.synth_state.no_query");
+      case 0:
+        return t1("text_block.synth_state.not_started");
+      case 1:
+        return t1("text_block.synth_state.in_progress");
+      case 2:
+        return t1("text_block.synth_state.completed");
+      default:
+        return "";
+    }
+  };
+
   return (
     <div class="py-1.5">
       <div
@@ -367,7 +382,9 @@ function TextBlock(props: { index: number }) {
           {/* The traffic light presenting synthesis state */}
           <div class="flex flex-row items-center ml-2 gap-1" classList={{
             "opacity-50": !selected(),
-          }}>
+          }}
+          title={synthStateText()}
+          >
             <div
               class="bg-slate-3 w-3 h-3 rounded-full"
               classList={{

@@ -42,7 +42,7 @@ function App() {
         when={!config_resource.loading && !coreInitializeResource.loading}
         fallback={
           <div class="size-full flex items-center justify-center text-2xl font-bold">
-            {t1("main_page.loading")}
+            {t1("loading")}
           </div>
         }
       >

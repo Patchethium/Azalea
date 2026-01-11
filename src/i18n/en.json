@@ -8,12 +8,18 @@
     "later.desp": "I'll figure it out",
     "later.button": "Okay"
   },
-  "main_page": {
-    "loading": "Loading",
-    "bottom": {
+  "loading": "Loading",
+  "bottom": {
+    "no_query": "No Query",
+    "accent": "Accent",
+    "tuning": "Tuning"
+  },
+  "text_block": {
+    "synth_state": {
       "no_query": "No Query",
-      "accent": "Accent",
-      "tuning": "Tuning"
+      "not_started": "Not Started",
+      "in_progress": "In Progress",
+      "completed": "Completed"
     }
   },
   "config": {

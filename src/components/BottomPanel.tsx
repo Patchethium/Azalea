@@ -42,13 +42,13 @@ function BottomPanel() {
             class="bg-transparent hover:bg-slate-1 px-2 rounded-md outline-none select-none"
             value="accent"
           >
-            {t1("main_page.bottom.accent")}
+            {t1("bottom.accent")}
           </Tabs.Trigger>
           <Tabs.Trigger
             class="bg-transparent hover:bg-slate-1 px-2 rounded-md outline-none select-none"
             value="tuning"
           >
-            {t1("main_page.bottom.tuning")}
+            {t1("bottom.tuning")}
           </Tabs.Trigger>
           <Tabs.Indicator class="bg-blue-5 h-1px absolute transition-all bottom-0 left-0" />
         </Tabs.List>
@@ -332,7 +332,7 @@ function TuningPanel() {
           when={queryExists()}
           fallback={
             <div class="flex size-full items-center justify-center select-none cursor-default">
-              {t1("main_page.bottom.no_query")}
+              {t1("bottom.no_query")}
             </div>
           }
         >
@@ -675,7 +675,7 @@ function PhonemePanel() {
         when={queryExists()}
         fallback={
           <div class="flex size-full items-center justify-center select-none cursor-default">
-            {t1("main_page.bottom.no_query")}
+            {t1("bottom.no_query")}
           </div>
         }
       >
