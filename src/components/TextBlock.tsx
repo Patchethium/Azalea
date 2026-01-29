@@ -1,5 +1,5 @@
 import { Button } from "@kobalte/core/button";
-import { Separator } from "@kobalte/core/separator";
+import { createScheduled, debounce } from "@solid-primitives/scheduled";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import _ from "lodash";
 import {
@@ -19,7 +19,7 @@ import { useMetaStore } from "../contexts/meta";
 import { useTextStore } from "../contexts/text";
 import { useUIStore } from "../contexts/ui";
 import { getModifiedQuery } from "../utils";
-import { createScheduled, debounce } from "@solid-primitives/scheduled";
+import { useConfigStore } from "../contexts/config";
 
 interface ComponentProps extends JSX.HTMLAttributes<HTMLDivElement> {
   text: string;
@@ -77,8 +77,10 @@ function TextBlock(props: { index: number }) {
   const { textStore, setTextStore, projectPresetStore } = useTextStore()!;
   const { availableStyleIds: availableSpeakerIds } = useMetaStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
+  const { config } = useConfigStore()!;
   const { t1 } = usei18n()!;
   const currentText = createMemo(() => textStore[props.index]);
+  const currentQuery = createMemo(() => currentText().query);
   const currentPreset = createMemo(() => {
     if (projectPresetStore.length === 0 || currentText().preset_id === null) {
       return null;
@@ -163,9 +165,9 @@ function TextBlock(props: { index: number }) {
   };
 
   const saveable = createMemo(() => {
-    const currentQuery = currentText().query;
-    if (currentQuery === null) return false;
-    if (currentQuery.accent_phrases.length === 0) return false;
+    const query = currentQuery();
+    if (query === null) return false;
+    if (query.accent_phrases.length === 0) return false;
     return true;
   });
 
@@ -249,19 +251,24 @@ function TextBlock(props: { index: number }) {
 
   const synthSchedule = createScheduled((fn) => debounce(fn, 1000));
 
+  const currentModifiedQuery = createMemo(() => {
+    const preset = currentPreset();
+    const query = currentQuery();
+    if (preset === null || query === null) {
+      return null;
+    }
+    return getModifiedQuery(unwrap(query!), preset);
+  });
+
   createEffect(async () => {
-    if (synthSchedule()) {
-      const preset = currentPreset();
-      const query = currentText().query;
-      if (preset === null || query === null || preset.style_id === null) {
+    if (synthSchedule() && config.ui_config.buffer_render) {
+      setSynthState("Pending");
+      const query = currentModifiedQuery();
+      if (query === null || currentPreset() === null) {
         setSynthState("UnInitialized");
         return;
       }
-      setSynthState("Pending");
-      const res = await commands.synthesize(
-        getModifiedQuery(unwrap(query!), preset),
-        preset.style_id!,
-      );
+      const res = await commands.synthesize(query, currentPreset()!.style_id!);
       if (res.status === "ok") {
         // update the cache in the backend
         setSynthState("Done");
@@ -379,29 +386,33 @@ function TextBlock(props: { index: number }) {
               <p>{currentPreset()?.name}</p>
             </Show>
           </div>
-          {/* The traffic light presenting synthesis state */}
-          <div class="flex flex-row items-center ml-2 gap-1" classList={{
-            "opacity-50": !selected(),
-          }}
-          title={synthStateText()}
-          >
+          <Show when={config.ui_config.buffer_render}>
+            {/* The traffic light presenting synthesis state */}
             <div
-              class="bg-slate-3 w-3 h-3 rounded-full"
+              class="flex flex-row items-center ml-2 gap-1"
               classList={{
-                "!bg-red-5": trafficLightNumber() >= 0,
+                "opacity-50": !selected(),
               }}
-            />
-            <div
-              class="bg-slate-3 w-3 h-3 rounded-full"
-              classList={{
-                "!bg-yellow-5": trafficLightNumber() >= 1,
-              }}
-            />
-            <div
-              class="bg-slate-3 w-3 h-3 rounded-full"
-              classList={{ "!bg-green-5": trafficLightNumber() >= 2 }}
-            />
-          </div>
+              title={synthStateText()}
+            >
+              <div
+                class="bg-slate-3 w-3 h-3 rounded-full"
+                classList={{
+                  "!bg-red-4": trafficLightNumber() >= 0,
+                }}
+              />
+              <div
+                class="bg-slate-3 w-3 h-3 rounded-full"
+                classList={{
+                  "!bg-yellow-4": trafficLightNumber() >= 1,
+                }}
+              />
+              <div
+                class="bg-slate-3 w-3 h-3 rounded-full"
+                classList={{ "!bg-green-4": trafficLightNumber() >= 2 }}
+              />
+            </div>
+          </Show>
         </div>
       </div>
     </div>

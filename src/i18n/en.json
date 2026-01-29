@@ -25,7 +25,9 @@
   "config": {
     "title": "Config",
     "sidebar_desp": "This space will be used for indexing in future versions.",
-    "lang": "Language"
+    "lang": "Language",
+    "experimental": "Experimental Features",
+    "background_buffering": "Background Buffering for Audio Generation"
   },
   "menu": {
     "new_project": "New Project",

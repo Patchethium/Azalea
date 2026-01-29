@@ -553,7 +553,7 @@ export type SynthState =
  */
 "Done"
 export type TextBlockProps = { text: string; query: AudioQuery | null; preset_id: number | null }
-export type UIConfig = { locale?: Locale; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; side_ratio?: number }
+export type UIConfig = { locale?: Locale; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; side_ratio?: number; buffer_render?: boolean }
 
 /** tauri-specta globals **/
 

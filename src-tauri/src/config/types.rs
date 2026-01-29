@@ -56,6 +56,8 @@ pub struct UIConfig {
   pub bottom_ratio: f32,
   #[serde(default = "side_ratio_default")]
   pub side_ratio: f32,
+  #[serde(default = "buffer_render_default")]
+  pub buffer_render: bool,
 }
 
 impl Default for UIConfig {
@@ -65,7 +67,8 @@ impl Default for UIConfig {
       bottom_scale: bottom_scale_default(),
       auto_save: Default::default(),
       bottom_ratio: bottom_ratio_default(),
-      side_ratio: side_ratio_default()
+      side_ratio: side_ratio_default(),
+      buffer_render: buffer_render_default(),
     }
   }
 }
@@ -80,6 +83,10 @@ fn bottom_ratio_default() -> f32 {
 
 fn side_ratio_default() -> f32 {
   0.2
+}
+
+fn buffer_render_default() -> bool {
+  false
 }
 
 #[derive(Clone, Deserialize, Serialize, Type)]

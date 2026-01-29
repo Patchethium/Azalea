@@ -1,5 +1,6 @@
 import { Link } from "@kobalte/core/link";
 import { Select } from "@kobalte/core/select";
+import { Switch } from "@kobalte/core/switch";
 import { open } from "@tauri-apps/plugin-shell";
 import { ParentProps } from "solid-js";
 import { Locale } from "../binding";
@@ -9,6 +10,7 @@ import { coverages, localeNames, possibleLocales } from "../i18n";
 
 function ConfigPage() {
   const { t1 } = usei18n()!;
+  const { config, setConfig } = useConfigStore()!;
 
   return (
     <div class="pl0 p2 bg-transparent size-full">
@@ -20,6 +22,18 @@ function ConfigPage() {
         <div class="flex-1 overflow-auto px3">
           <ConfigItem label={t1("config.lang")}>
             <I18NSelect />
+          </ConfigItem>
+          <ConfigItem label={t1("config.background_buffering")} experimental>
+            <Switch
+              checked={config.ui_config.buffer_render}
+              onChange={(v) => setConfig("ui_config", "buffer_render", v)}
+              class="inline-flex items-center select-none cursor-pointer justify-center"
+            >
+              <Switch.Input class="outline-2px" />
+              <Switch.Control class="bg-slate-3 rounded-full w-12 h-6 p1 ui-checked:(bg-blue-5)">
+                <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
+              </Switch.Control>
+            </Switch>
           </ConfigItem>
         </div>
         <div class="h-8 w-full px3 text-sm flex items-center justify-center text-slate-7 gap-2">
@@ -39,12 +53,20 @@ function ConfigPage() {
 
 interface ConfigItemProps extends ParentProps {
   label: string;
+  experimental?: boolean;
 }
 
 function ConfigItem(props: ConfigItemProps) {
+  const { t1 } = usei18n()!;
   return (
-    <div class="wfull items-center justify-center flex flex-row p2 b-b b-slate-2">
+    <div class="wfull items-center justify-center flex flex-row p2 b-b b-slate-2 select-none cursor-default">
       {props.label}
+      {props.experimental && (
+        <div
+          class="i-lucide:flask-conical ml-1 size-5 text-slate-7 hover:bg-blue-5"
+          title={t1("config.experimental")}
+        />
+      )}
       <div class="flex-1" />
       {props.children}
     </div>
