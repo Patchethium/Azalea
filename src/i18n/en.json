@@ -49,5 +49,13 @@
     "end_sli": "End Sli.",
     "no_preset_selected": "No Preset Selected",
     "get_started": "Create a new preset to get started"
+  },
+  "preset_manager": {
+    "title": "Preset Manager",
+    "project_presets": "Project Presets",
+    "system_presets": "System Presets",
+    "copy_to_system": "Copy to System",
+    "copy_to_project": "Copy to Project",
+    "delete": "Delete"
   }
 }

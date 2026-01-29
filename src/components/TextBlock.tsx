@@ -14,12 +14,12 @@ import {
 } from "solid-js";
 import { produce, unwrap } from "solid-js/store";
 import { AudioQuery, commands, SynthState } from "../binding";
+import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { useMetaStore } from "../contexts/meta";
 import { useTextStore } from "../contexts/text";
 import { useUIStore } from "../contexts/ui";
 import { getModifiedQuery } from "../utils";
-import { useConfigStore } from "../contexts/config";
 
 interface ComponentProps extends JSX.HTMLAttributes<HTMLDivElement> {
   text: string;

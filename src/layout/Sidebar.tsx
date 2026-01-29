@@ -23,6 +23,7 @@ import {
 } from "solid-js";
 import { produce } from "solid-js/store";
 import { commands, Preset, StyleId } from "../binding";
+import { PresetManagerDialog } from "../components/PresetManagerDialog";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { useMetaStore } from "../contexts/meta";
@@ -97,6 +98,7 @@ function Sidebar() {
   };
 
   const [expanded, setExpanded] = createSignal(["preset"]);
+  const [presetManagerOpen, setPresetManagerOpen] = createSignal(false);
 
   const currentText = () => textStore[uiStore.selectedTextBlockIndex];
 
@@ -282,7 +284,11 @@ function Sidebar() {
             class="size-6 i-lucide:plus hover:bg-blue-5 active:bg-blue-6"
             onClick={createPreset}
           />
-          <Button class="size-6 i-lucide:folder-plus hover:bg-blue-5 active:bg-blue-6" />
+          <Button
+            class="size-6 i-lucide:library hover:bg-blue-5 active:bg-blue-6"
+            onClick={() => setPresetManagerOpen(true)}
+            title={t1("preset_manager.title")}
+          />
           <div class="flex-1" />
           <Button
             class="size-6 i-lucide:trash2 hover:bg-red-5 active:bg-red-6"
@@ -303,6 +309,11 @@ function Sidebar() {
               )}
             </For>
           </div>
+
+          <PresetManagerDialog
+            open={presetManagerOpen()}
+            onOpenChange={setPresetManagerOpen}
+          />
         </div>
 
         <Accordion

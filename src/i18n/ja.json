@@ -49,5 +49,13 @@
     "end_sli": "終了無音",
     "no_preset_selected": "プリセットが指定されていません",
     "get_started": "始めるには、新しいプリセットを作成してください"
+  },
+  "preset_manager": {
+    "title": "プリセット管理",
+    "project_presets": "プロジェクト",
+    "system_presets": "システム",
+    "copy_to_system": "システムにコピー",
+    "copy_to_project": "プロジェクトにコピー",
+    "delete": "削除"
   }
 }

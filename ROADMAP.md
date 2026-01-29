@@ -4,7 +4,9 @@
 
 - [x] pitch range refreshing / adaptation
 - [x] compile&release w/ GitHub action
-- [ ] preset manager
+- [x] preset manager
+  - Store the presets in the `system_preset` section of the config file
+  - Add UI to move between project's presets and system presets
 - [ ] multiple selection
 - [ ] DnD
 - [x] UI state persist
