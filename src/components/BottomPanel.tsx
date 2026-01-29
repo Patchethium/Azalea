@@ -861,13 +861,19 @@ function AccentPhraseItem(props: {
           }}
         </For>
         <Show when={editMode()}>
-          <div class="absolute top-0 left-0 size-full bg-slate-3 bg-opacity-10 z-20 flex items-center justify-center rounded-lg backdrop-blur-sm">
+          <div
+            class="absolute top-0 left-0 size-full z-20 flex items-center justify-center rounded-lg backdrop-blur-sm px2"
+            onClick={() => {
+              setEditMode(false);
+            }}
+          >
             <TextField
               class="w-full"
               value={draftText()}
               onChange={(v: string) => {
                 setDraftText(v);
               }}
+              onClick={(e) => e.stopPropagation()}
             >
               <TextField.Input class="p1 px2 w-full b b-slate-2 rounded-md outline-none focus:b-blue-5" />
             </TextField>
