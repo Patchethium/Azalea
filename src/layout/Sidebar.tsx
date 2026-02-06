@@ -176,7 +176,15 @@ function Sidebar() {
 
   const createPreset = () => {
     const preset: Preset = {
-      ...currentPreset()!,
+      ...(currentPreset() ?? {
+        speed: 100,
+        pitch: 0,
+        intonation: 1,
+        volume: 1,
+        start_slience: 200,
+        end_slience: 200,
+        style_id: 0,
+      }),
       name: t1("preset.new_preset"),
     };
     setProjectPresetStore(projectPresetStore.length, preset);
@@ -186,7 +194,7 @@ function Sidebar() {
 
   const removePreset = () => {
     const idx = currentText().preset_id;
-    if (idx !== null)
+    if (idx !== null) {
       // set every text block that uses this preset to use null as preset_id
       setTextStore(
         produce((draft) => {
@@ -197,7 +205,11 @@ function Sidebar() {
           }
         }),
       );
-    setProjectPresetStore(projectPresetStore.filter((_, i) => i !== idx));
+      setProjectPresetStore(projectPresetStore.filter((_, i) => i !== idx));
+      if (projectPresetStore.length > 0) {
+        setTextPresetIdx(Math.max(0, idx - 1));
+      }
+    }
   };
 
   const [actionMenuOpen, setActionMenuOpen] = createSignal(false);
