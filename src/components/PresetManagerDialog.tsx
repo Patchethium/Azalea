@@ -70,6 +70,7 @@ export function PresetManagerDialog(props: PresetManagerDialogProps) {
                       <PresetItem
                         preset={preset}
                         index={i()}
+                        direction="right"
                         copyTo={copyToSystem}
                         delete={deleteFromProject}
                       />
@@ -89,6 +90,7 @@ export function PresetManagerDialog(props: PresetManagerDialogProps) {
                       <PresetItem
                         preset={preset}
                         index={i()}
+                        direction="left"
                         copyTo={copyToProject}
                         delete={deleteFromSystem}
                       />
@@ -107,6 +109,7 @@ export function PresetManagerDialog(props: PresetManagerDialogProps) {
 interface PresetItemProps {
   preset: Preset;
   index: number;
+  direction: "left" | "right";
   copyTo: (preset: Preset) => void;
   delete: (index: number) => void;
 }
@@ -128,7 +131,13 @@ function PresetItem(props: PresetItemProps) {
             title={t1("preset_manager.copy_to_project")}
             onClick={() => props.copyTo(props.preset)}
           >
-            <div class="i-lucide:arrow-left size-6" />
+            <div
+              class="size-6"
+              classList={{
+                "i-lucide:arrow-right": props.direction === "right",
+                "i-lucide:arrow-left": props.direction === "left",
+              }}
+            />
           </Button>
           <Button
             class="hover:text-red-5 rounded text-slate-7 bg-transparent"
