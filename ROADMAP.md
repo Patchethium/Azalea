@@ -8,7 +8,8 @@
   - Store the presets in the `system_preset` section of the config file
   - Add UI to move between project's presets and system presets
 - [ ] multiple selection
-- [ ] DnD
+- [ ] ~~DnD~~
+  - [x] DnD is too complicated for my little brain, falled back to simple up/down buttons for now
 - [x] UI state persist
 - [ ] silent saving for audio
 - [x] background buffering for audio generation
