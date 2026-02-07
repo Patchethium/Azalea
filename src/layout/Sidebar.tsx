@@ -14,6 +14,7 @@ import {
 } from "@tauri-apps/plugin-dialog";
 import _ from "lodash";
 import {
+  batch,
   createEffect,
   createMemo,
   createSignal,
@@ -280,6 +281,52 @@ function Sidebar() {
       saveProject();
   });
 
+  const handleMovePresetUp = (idx: number) => {
+    if (idx <= 0 || idx >= projectPresetStore.length) return;
+    const newPresets = [...projectPresetStore];
+    const temp = newPresets[idx - 1];
+    newPresets[idx - 1] = newPresets[idx];
+    newPresets[idx] = temp;
+    batch(() => {
+      setProjectPresetStore(newPresets);
+      // update all text blocks that use these presets
+      setTextStore(
+        produce((draft) => {
+          for (let i = 0; i < draft.length; i++) {
+            if (draft[i].preset_id === idx) {
+              draft[i].preset_id = idx - 1;
+            } else if (draft[i].preset_id === idx - 1) {
+              draft[i].preset_id = idx;
+            }
+          }
+        }),
+      );
+    });
+  };
+
+  const handleMovePresetDown = (idx: number) => {
+    if (idx < 0 || idx >= projectPresetStore.length - 1) return;
+    const newPresets = [...projectPresetStore];
+    const temp = newPresets[idx + 1];
+    newPresets[idx + 1] = newPresets[idx];
+    newPresets[idx] = temp;
+    batch(() => {
+      setProjectPresetStore(newPresets);
+      // update all text blocks that use these presets
+      setTextStore(
+        produce((draft) => {
+          for (let i = 0; i < draft.length; i++) {
+            if (draft[i].preset_id === idx) {
+              draft[i].preset_id = idx + 1;
+            } else if (draft[i].preset_id === idx + 1) {
+              draft[i].preset_id = idx;
+            }
+          }
+        }),
+      );
+    });
+  };
+
   return (
     <div class="size-full bg-transparent flex flex-col gap-1 pl2 pr0 overflow-y-hidden">
       <Show
@@ -291,17 +338,35 @@ function Sidebar() {
           </div>
         }
       >
+        {/* Controls */}
         <div class="w-auto flex items-center rounded-md bg-white mt-2 mx-1 p1 shadow-md z-10">
           <Button
             class="size-6 i-lucide:plus hover:bg-blue-5 active:bg-blue-6"
             onClick={createPreset}
           />
           <Button
+            class="size-6 i-lucide:chevron-up hover:bg-blue-5 active:bg-blue-6 ui-disabled:(cursor-not-allowed opacity-50)"
+            disabled={
+              currentText().preset_id === null || currentText().preset_id === 0
+            }
+            onClick={() => handleMovePresetUp(currentText().preset_id ?? 0)}
+            title={t1("preset_manager.title")}
+          />
+          <Button
+            class="size-6 i-lucide:chevron-down hover:bg-blue-5 active:bg-blue-6 ui-disabled:(cursor-not-allowed opacity-50)"
+            disabled={
+              currentText().preset_id === null ||
+              currentText().preset_id === projectPresetStore.length - 1
+            }
+            onClick={() => handleMovePresetDown(currentText().preset_id ?? 0)}
+            title={t1("preset_manager.title")}
+          />
+          <div class="flex-1" />
+          <Button
             class="size-6 i-lucide:library hover:bg-blue-5 active:bg-blue-6"
             onClick={() => setPresetManagerOpen(true)}
             title={t1("preset_manager.title")}
           />
-          <div class="flex-1" />
           <Button
             class="size-6 i-lucide:trash2 hover:bg-red-5 active:bg-red-6"
             onClick={removePreset}
