@@ -106,7 +106,7 @@ mod test {
 
   #[test]
   fn test_spectal() {
-    let mut mel = azalea_lib::spectal::mel::MelSpec::new(1024, 512, 256, 24000);
+    let mut mel = azalea_lib::audio::spectal::MelSpec::new(1024, 512, 256, 24000);
     let core = get_core();
     let audio_query = core.audio_query("こんにちは", StyleId(1)).unwrap();
     let signal = core.synthesis(&audio_query, StyleId(1)).unwrap();
