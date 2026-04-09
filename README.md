@@ -22,7 +22,7 @@ More to come...
 
 ## Installation
 
-Pre-built binary is provided in [Releases](https://github.com/Patchethium/Azalea/releases) for MacOS Sillicon, Windows and Linux.
+Pre-built binary is provided in [Releases](https://github.com/Patchethium/Azalea/releases) for MacOS Silicon, Windows and Linux.
 
 ## Development
 
