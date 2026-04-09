@@ -185,9 +185,6 @@ async saveAudio(path: string, audioQuery: AudioQuery, speakerId: StyleId) : Prom
     else return { status: "error", error: e  as any };
 }
 },
-async spectrogram(signal: number[]) : Promise<number[][]> {
-    return await TAURI_INVOKE("spectrogram", { signal });
-},
 async getOs() : Promise<OS> {
     return await TAURI_INVOKE("get_os");
 },
