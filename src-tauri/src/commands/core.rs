@@ -213,19 +213,6 @@ pub async fn save_audio(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn spectrogram(signal: Vec<u16>) -> Vec<Vec<f64>> {
-  let mut mel = crate::spectal::mel::MelSpec::new(1024, 128, 256, 24000);
-  let signal = Array1::from(signal);
-  let spec = mel
-    .process(signal.mapv(|x| x as f64))
-    .outer_iter()
-    .map(|x| x.to_vec())
-    .collect::<Vec<_>>();
-  spec
-}
-
-#[tauri::command]
-#[specta::specta]
 pub async fn download_core(_url: String) -> Result<(), String> {
   todo!()
 }

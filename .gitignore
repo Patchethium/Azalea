@@ -3,3 +3,4 @@ dist
 vendor/
 .env
 config_dev/config.json
+.DS_Store

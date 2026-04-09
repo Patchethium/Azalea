@@ -27,7 +27,7 @@ jobs:
       - name: setup node
         uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          node-version: 22.11.0
 
       - name: install pnpm
         run: npm install -g pnpm
@@ -39,10 +39,7 @@ jobs:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: install frontend dependencies
-        run: pnpm install
-
-      - name: build frontend
-        run: pnpm build
+        run: pnpm i
 
       - uses: tauri-apps/tauri-action@v0.6.2
         env:

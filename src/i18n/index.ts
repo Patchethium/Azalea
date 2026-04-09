@@ -40,11 +40,6 @@ const localeNames: Record<Locale, string> = {
 const possibleLocales: Locale[] = ["En", "Ja"];
 
 function mergeDict(primary: unknown, fallback: RawDict): RawDict {
-  const primary_len = Object.keys(primary as object).length;
-  const fallback_len = Object.keys(fallback).length;
-  if (primary_len === fallback_len) {
-    return primary as RawDict;
-  }
   return _.merge({}, fallback, primary);
 }
 

@@ -3,7 +3,6 @@ pub mod audio;
 pub mod commands;
 pub mod config;
 pub mod core;
-pub mod spectal;
 use core::Core;
 
 use commands::*;
@@ -48,7 +47,6 @@ pub fn run() {
     synthesize_state,
     play_audio,
     save_audio,
-    spectrogram,
     get_os,
     quit,
     save_project,

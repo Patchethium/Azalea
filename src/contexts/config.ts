@@ -12,7 +12,9 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
   const { setUIStore } = useUIStore()!;
   const { setMetas } = useMetaStore()!;
 
-  const [config, setConfig] = createStore<AzaleaConfig>({} as AzaleaConfig);
+  const [config, setConfig] = createStore<AzaleaConfig>({
+    ui_config: {}
+  } as AzaleaConfig);
 
   type RangeMap = { [key in StyleId]: [number, number] };
 
