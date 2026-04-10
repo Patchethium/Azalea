@@ -78,7 +78,7 @@ impl Core {
           }
         }
         metas.insert(
-          entry.path().to_str().unwrap().to_string(),
+          entry.path().to_string_lossy().to_string(),
           filtered_meta.into_values().collect(),
         );
       }

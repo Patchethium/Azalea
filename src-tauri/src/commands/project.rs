@@ -1,6 +1,6 @@
 use crate::config::types::Project;
 use serde_json;
-use std::{fs, result::Result};
+use std::{fs, path::Path, result::Result};
 
 #[tauri::command]
 #[specta::specta]
@@ -11,7 +11,7 @@ pub async fn save_project(project: Project, path: String, allow_create: bool) ->
   } else {
     path
   };
-  if fs::exists(&path).is_ok() || allow_create {
+  if Path::new(&path).exists() || allow_create {
     fs::write(&path, project_json).map_err(|e| e.to_string())?;
   } else {
     return Err(format!("Project File {path} does not exist").to_string());
