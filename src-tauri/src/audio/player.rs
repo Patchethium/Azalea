@@ -14,7 +14,7 @@ impl AudioPlayer {
     let (ready_tx, ready_rx) = oneshot::channel::<Result<(), String>>();
 
     let handle = spawn(async move {
-      spawn_blocking(move || {
+      if let Err(e) = spawn_blocking(move || {
         let (_stream, stream_handle) = match OutputStream::try_default() {
           Ok(v) => v,
           Err(e) => {
@@ -45,7 +45,9 @@ impl AudioPlayer {
         sink.stop();
       })
       .await
-      .ok();
+      {
+        eprintln!("Audio player task panicked: {e:?}");
+      }
     });
 
     ready_rx
