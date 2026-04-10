@@ -1,5 +1,5 @@
 import Resizable from "@corvu/resizable";
-import { createEffect, createResource, onMount, Show } from "solid-js";
+import { createEffect, createResource, Show } from "solid-js";
 import style from "./app.module.css";
 import { commands } from "./binding";
 import { useConfigStore } from "./contexts/config";
@@ -18,8 +18,11 @@ function App() {
   const { uiStore } = useUIStore()!;
   const { newProject } = useTextStore()!;
 
-  onMount(async () => {
-    const res = await commands.initConfig();
+  const [config_resource] = createResource(commands.initConfig);
+
+  createEffect(() => {
+    const res = config_resource();
+    if (!res) return;
     if (res.status === "ok") {
       setConfigInitialized(true);
       setConfig(res.data);
@@ -33,8 +36,6 @@ function App() {
       newProject();
     }
   });
-
-  const [config_resource, _] = createResource(commands.initConfig);
 
   return (
     <main class="absolute h-full w-full left-0 top-0 flex flex-row bg-slate-1">

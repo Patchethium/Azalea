@@ -175,13 +175,13 @@ function TextBlock(props: { index: number }) {
     if (currentPreset() === null) {
       return;
     }
-    const path = await saveDialog({
+    let path = await saveDialog({
       title: "Save Audio",
       filters: [{ name: "Audio", extensions: ["wav"] }],
     });
     if (path !== null) {
       if (!path.endsWith(".wav")) {
-        path.concat(".wav");
+        path = path.concat(".wav");
       }
       const save_audio = await commands.saveAudio(
         path,
