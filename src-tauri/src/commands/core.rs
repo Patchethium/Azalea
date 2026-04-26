@@ -27,16 +27,29 @@ pub async fn init_core(
   // initialize LRU caches for waveforms
   if state.wav_lru.read().await.is_none() {
     if config.cache_size != 0 {
-      let lru = lru::LruCache::new(NonZeroUsize::new(config.cache_size).unwrap());
+      let lru = lru::LruCache::new(
+        NonZeroUsize::new(config.cache_size).ok_or("cache_size must be non-zero")?,
+      );
       state.wav_lru.write().await.replace(lru);
     }
   } else {
     return Err("LRU cache already initialized".into());
   }
-  if state.query_lru.read().unwrap().is_none() {
+  if state
+    .query_lru
+    .read()
+    .map_err(|e| e.to_string())?
+    .is_none()
+  {
     if config.cache_size != 0 {
-      let lru = lru::LruCache::new(NonZeroUsize::new(config.cache_size).unwrap());
-      state.query_lru.write().unwrap().replace(lru);
+      let lru = lru::LruCache::new(
+        NonZeroUsize::new(config.cache_size).ok_or("cache_size must be non-zero")?,
+      );
+      state
+        .query_lru
+        .write()
+        .map_err(|e| e.to_string())?
+        .replace(lru);
     }
   } else {
     return Err("LRU cache already initialized".into());
@@ -185,8 +198,12 @@ pub async fn play_audio(
     speaker_id,
   )
   .await?;
-  let audio_player = AudioPlayer::play(wav.clone());
-  state.audio_player.write().unwrap().replace(audio_player);
+  let audio_player = AudioPlayer::play(wav).await?;
+  state
+    .audio_player
+    .write()
+    .map_err(|e| e.to_string())?
+    .replace(audio_player);
   Ok(())
 }
 

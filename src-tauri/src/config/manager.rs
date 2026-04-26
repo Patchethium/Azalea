@@ -9,7 +9,7 @@ use super::AzaleaConfig;
 #[cfg(not(debug_assertions))]
 static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
   use dirs::config_dir;
-  let mut config_dir = config_dir().unwrap();
+  let mut config_dir = config_dir().expect("System config directory is not available");
   config_dir.push("azalea");
   config_dir
 });
@@ -18,7 +18,7 @@ static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
 #[cfg(debug_assertions)]
 static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
   let config_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-  let config_dir = config_dir.parent().unwrap();
+  let config_dir = config_dir.parent().expect("CARGO_MANIFEST_DIR has no parent directory");
   config_dir.join("config_dev")
 });
 
@@ -45,7 +45,7 @@ impl ConfigManager {
     if config_manager.config_path.exists() {
       config_manager.load()?;
     } else {
-      create_dir_all(config_manager.config_path.parent().unwrap())?;
+      create_dir_all(config_manager.config_path.parent().expect("Config path has no parent directory"))?;
       File::create(&config_manager.config_path)?;
       config_manager.save()?;
     }
