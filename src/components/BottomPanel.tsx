@@ -21,7 +21,7 @@ import { AccentPhrase, commands, Mora } from "../binding";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { useTextStore } from "../contexts/text";
-import { useUIStore, type BottomPanelType } from "../contexts/ui";
+import { type BottomPanelType, useUIStore } from "../contexts/ui";
 import { getModifiedQuery, useSideEffect } from "../utils";
 
 type DraggingMode = "consonant" | "vowel" | "pause";
@@ -32,7 +32,7 @@ function BottomPanel() {
 
   const setPanel = (p: string) => {
     setUIStore("bottomPanel", p as BottomPanelType);
-  }
+  };
   return (
     <Tabs
       aria-label="Bottom Panel Tabs"

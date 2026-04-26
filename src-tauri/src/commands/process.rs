@@ -1,5 +1,6 @@
 use serde::Serialize;
 use specta::Type;
+use std::path::PathBuf;
 use tauri::AppHandle;
 
 #[tauri::command]
@@ -25,5 +26,24 @@ pub async fn get_os() -> OS {
     _ => {
       panic!("I don't know how you made it work on this OS, but you may want to add a case for it.")
     }
+  }
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn join_path(p1: String, p2: String) -> String {
+  let mut pathbuf = PathBuf::from(p1);
+  pathbuf.push(p2);
+  pathbuf.to_string_lossy().to_string()
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn parent_path(p: String) -> Option<String> {
+  let pathbuf = PathBuf::from(p);
+  let parent = pathbuf.parent();
+  match parent {
+    Some(pr) => return Some(pr.to_string_lossy().to_string()),
+    None => None,
   }
 }

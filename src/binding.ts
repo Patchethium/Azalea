@@ -188,6 +188,12 @@ async saveAudio(path: string, audioQuery: AudioQuery, speakerId: StyleId) : Prom
 async getOs() : Promise<OS> {
     return await TAURI_INVOKE("get_os");
 },
+async joinPath(p1: string, p2: string) : Promise<string> {
+    return await TAURI_INVOKE("join_path", { p1, p2 });
+},
+async parentPath(p: string) : Promise<string | null> {
+    return await TAURI_INVOKE("parent_path", { p });
+},
 async quit() : Promise<void> {
     await TAURI_INVOKE("quit");
 },
@@ -550,7 +556,7 @@ export type SynthState =
  */
 "Done"
 export type TextBlockProps = { text: string; query: AudioQuery | null; preset_id: number | null }
-export type UIConfig = { locale?: Locale; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; side_ratio?: number; buffer_render?: boolean }
+export type UIConfig = { locale?: Locale; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; side_ratio?: number; buffer_render?: boolean; name_truncation_len?: number; last_exported_dir?: string | null }
 
 /** tauri-specta globals **/
 

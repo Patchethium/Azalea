@@ -48,6 +48,8 @@ pub fn run() {
     play_audio,
     save_audio,
     get_os,
+    join_path,
+    parent_path,
     quit,
     save_project,
     load_project,

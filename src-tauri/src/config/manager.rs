@@ -1,3 +1,4 @@
+use super::types::side_ratio_default;
 use anyhow::Result;
 use std::fs::{create_dir_all, File};
 use std::path::PathBuf;
@@ -18,7 +19,9 @@ static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
 #[cfg(debug_assertions)]
 static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
   let config_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-  let config_dir = config_dir.parent().expect("CARGO_MANIFEST_DIR has no parent directory");
+  let config_dir = config_dir
+    .parent()
+    .expect("CARGO_MANIFEST_DIR has no parent directory");
   config_dir.join("config_dev")
 });
 
@@ -45,7 +48,12 @@ impl ConfigManager {
     if config_manager.config_path.exists() {
       config_manager.load()?;
     } else {
-      create_dir_all(config_manager.config_path.parent().expect("Config path has no parent directory"))?;
+      create_dir_all(
+        config_manager
+          .config_path
+          .parent()
+          .expect("Config path has no parent directory"),
+      )?;
       File::create(&config_manager.config_path)?;
       config_manager.save()?;
     }
@@ -68,6 +76,11 @@ impl ConfigManager {
   pub fn load_as(&mut self, path: &PathBuf) -> Result<()> {
     let config = std::fs::read_to_string(path)?;
     self.config = serde_json::from_str(&config)?;
+    // guard out-of-range values
+    // TODO: implement it in serde
+    if self.config.ui_config.side_ratio < 0.0 || self.config.ui_config.side_ratio > 1.0 {
+      self.config.ui_config.side_ratio = side_ratio_default();
+    }
     Ok(())
   }
 

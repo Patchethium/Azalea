@@ -77,7 +77,7 @@ function TextBlock(props: { index: number }) {
   const { textStore, setTextStore, projectPresetStore } = useTextStore()!;
   const { availableStyleIds: availableSpeakerIds } = useMetaStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
-  const { config } = useConfigStore()!;
+  const { config, setConfig } = useConfigStore()!;
   const { t1 } = usei18n()!;
   const currentText = createMemo(() => textStore[props.index]);
   const currentQuery = createMemo(() => currentText().query);
@@ -175,9 +175,24 @@ function TextBlock(props: { index: number }) {
     if (currentPreset() === null) {
       return;
     }
+    let file_name = currentText().text;
+    const truncation_len = config.ui_config.name_truncation_len;
+    // add indication number for overflow length
+    if (truncation_len !== 0 && truncation_len !== undefined) {
+      file_name = _.truncate(file_name, {
+        length: truncation_len ?? 0,
+        omission:
+          file_name.length < truncation_len
+            ? ""
+            : `+${(file_name.length - truncation_len).toString()}`,
+      });
+    }
+    const last_saved_dir = config.ui_config.last_exported_dir ?? ".";
+    const target_path = await commands.joinPath(last_saved_dir, file_name);
     let path = await saveDialog({
       title: "Save Audio",
       filters: [{ name: "Audio", extensions: ["wav"] }],
+      defaultPath: target_path,
     });
     if (path !== null) {
       if (!path.endsWith(".wav")) {
@@ -190,6 +205,9 @@ function TextBlock(props: { index: number }) {
       );
       if (save_audio.status === "ok") {
         console.log("Audio saved");
+        // save last saved directory into config
+        const parent = await commands.parentPath(path);
+        setConfig("ui_config", "last_exported_dir", parent);
       } else {
         console.error(save_audio.error);
       }

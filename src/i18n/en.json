@@ -27,7 +27,9 @@
     "sidebar_desp": "This space will be used for indexing in future versions.",
     "lang": "Language",
     "experimental": "Experimental Features",
-    "background_buffering": "Background Buffering for Audio Generation"
+    "background_buffering": "Background Buffering for Audio Generation",
+    "truncation_len": "File name truncation length",
+    "no_truncation": "No truncation"
   },
   "menu": {
     "new_project": "New Project",
