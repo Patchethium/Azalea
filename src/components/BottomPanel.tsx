@@ -21,18 +21,25 @@ import { AccentPhrase, commands, Mora } from "../binding";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { useTextStore } from "../contexts/text";
-import { useUIStore } from "../contexts/ui";
+import { useUIStore, type BottomPanelType } from "../contexts/ui";
 import { getModifiedQuery, useSideEffect } from "../utils";
 
 type DraggingMode = "consonant" | "vowel" | "pause";
 
 function BottomPanel() {
   const { t1 } = usei18n()!;
+  const { uiStore, setUIStore } = useUIStore()!;
+
+  const setPanel = (p: string) => {
+    setUIStore("bottomPanel", p as BottomPanelType);
+  }
   return (
     <Tabs
       aria-label="Bottom Panel Tabs"
       class="size-full flex flex-col bg-white border border-slate-2 rounded-lg overflow-hidden outline-none select-none"
       orientation="horizontal"
+      value={uiStore.bottomPanel}
+      onChange={setPanel}
       defaultValue="accent"
     >
       <ControlBar />
