@@ -6,7 +6,6 @@ use crate::{AppState, WavLruType};
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 
-use ndarray::Array1;
 use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
 use tokio::sync::OnceCell;
