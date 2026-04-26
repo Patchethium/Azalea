@@ -1,7 +1,6 @@
 // The store holding the configuration
 import { createContextProvider } from "@solid-primitives/context";
 
-import { createScheduled, debounce } from "@solid-primitives/scheduled";
 import { createEffect, createResource, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import { AzaleaConfig, commands, StyleId } from "../binding";
@@ -40,7 +39,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     }
   };
 
-  const [coreInitializeResource, _mutate] = createResource(
+  const [coreInitializeResource] = createResource(
     () => config.core_config,
     async (cfg) => {
       const res = await commands.initCore(cfg);
@@ -69,13 +68,8 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
       }
     }
   };
-
-  const scheduled = createScheduled((fn) => debounce(fn, 500));
-
   createEffect(() => {
-    if (scheduled()) {
-      saveConfig();
-    }
+    saveConfig()
   });
 
   return {
