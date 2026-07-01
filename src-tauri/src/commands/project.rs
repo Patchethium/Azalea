@@ -4,7 +4,11 @@ use std::{fs, path::Path, result::Result};
 
 #[tauri::command]
 #[specta::specta]
-pub async fn save_project(project: Project, path: String, allow_create: bool) -> Result<(), String> {
+pub async fn save_project(
+  project: Project,
+  path: String,
+  allow_create: bool,
+) -> Result<(), String> {
   let project_json = serde_json::to_string(&project).map_err(|e| e.to_string())?;
   let path = if !path.ends_with(".azp") {
     format!("{path}.azp")

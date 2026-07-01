@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::path::PathBuf;
 
-use voicevox_core::{StyleId, AudioQuery};
+use voicevox_core::{AudioQuery, StyleId};
 
 #[derive(Default, Clone, Deserialize, Serialize, Type)]
 pub struct AzaleaConfig {

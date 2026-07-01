@@ -8,8 +8,8 @@ use core::Core;
 use commands::*;
 use specta_typescript::Typescript;
 use std::sync::{Arc, RwLock};
-use tokio::sync::OnceCell;
 use tauri::async_runtime::RwLock as TokioRwLock;
+use tokio::sync::OnceCell;
 
 use tauri_specta::{collect_commands, Builder};
 

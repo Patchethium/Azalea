@@ -1,8 +1,8 @@
 mod config;
 mod core;
 mod process;
-mod utils;
 mod project;
+mod utils;
 
 pub use config::*;
 pub use core::*;

@@ -36,12 +36,7 @@ pub async fn init_core(
   } else {
     return Err("LRU cache already initialized".into());
   }
-  if state
-    .query_lru
-    .read()
-    .map_err(|e| e.to_string())?
-    .is_none()
-  {
+  if state.query_lru.read().map_err(|e| e.to_string())?.is_none() {
     if config.cache_size != 0 {
       let lru = lru::LruCache::new(
         NonZeroUsize::new(config.cache_size).ok_or("cache_size must be non-zero")?,
@@ -272,7 +267,7 @@ pub enum SynthState {
 #[tauri::command]
 #[specta::specta]
 /// Check the synthesis state in cache
-/// 
+///
 /// The frontend will poll this to keep track of the synthesis progress for each text blocks.
 pub async fn synthesize_state(
   state: State<'_, AppState>,

@@ -149,11 +149,7 @@ impl Core {
     Ok(self.synthesizer.create_audio_query(text, speaker_id)?)
   }
 
-  pub fn accent_phrases(
-    &self,
-    text: &str,
-    speaker_id: StyleId,
-  ) -> Result<Vec<AccentPhrase>> {
+  pub fn accent_phrases(&self, text: &str, speaker_id: StyleId) -> Result<Vec<AccentPhrase>> {
     if !self.is_speaker_loaded(speaker_id) {
       self.load_speaker(speaker_id)?;
     }
@@ -164,7 +160,11 @@ impl Core {
   ///
   /// When changing accent phrases manually, call this to
   /// automatically updates mora data (pitch and length)
-  pub fn replace_mora(&self, ap: Vec<AccentPhrase>, style_id: StyleId) -> Result<Vec<AccentPhrase>> {
+  pub fn replace_mora(
+    &self,
+    ap: Vec<AccentPhrase>,
+    style_id: StyleId,
+  ) -> Result<Vec<AccentPhrase>> {
     Ok(self.synthesizer.replace_mora_data(&ap, style_id)?)
   }
 
