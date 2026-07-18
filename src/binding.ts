@@ -16,14 +16,6 @@ async clearCaches() : Promise<Result<null, string>> {
 async pickCore() : Promise<CoreConfig | null> {
     return await TAURI_INVOKE("pick_core");
 },
-async downloadCore(url: string) : Promise<Result<null, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("download_core", { url }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
 async initConfig() : Promise<Result<AzaleaConfig, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("init_config") };
@@ -191,6 +183,17 @@ async playAudio(audioQuery: AudioQuery, speakerId: StyleId) : Promise<Result<nul
 async playAudioSequence(items: AudioSequenceItem[]) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("play_audio_sequence", { items }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Stops the current audio playback, if any.
+ */
+async stopAudio() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("stop_audio") };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

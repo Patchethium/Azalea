@@ -48,6 +48,7 @@ pub fn run() {
       get_spectrogram_preview,
       play_audio,
       play_audio_sequence,
+      stop_audio,
       save_audio,
       get_os,
       quit,

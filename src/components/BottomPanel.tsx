@@ -27,8 +27,10 @@ import {
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { useSpectrogramStore } from "../contexts/spectrogram";
+import { useSystemStore } from "../contexts/system";
 import { useTextStore } from "../contexts/text";
 import { useUIStore } from "../contexts/ui";
+import { isPlaybackShortcutAllowed, isPrimaryShortcut } from "../shortcuts";
 import { getModifiedQuery, useSideEffect } from "../utils";
 
 type DraggingMode = "consonant" | "vowel" | "pause";
@@ -78,6 +80,7 @@ function ControlBar(props: { onWaveformSynthesized: () => void }) {
   const { t1 } = usei18n()!;
   const { textStore, projectPresetStore } = useTextStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
+  const { systemStore } = useSystemStore()!;
 
   const currentText = () => textStore[uiStore.selectedTextBlockIndex];
   const queryExists = () => {
@@ -118,17 +121,58 @@ function ControlBar(props: { onWaveformSynthesized: () => void }) {
 
   const speak = async () => {
     const _currentPreset = unwrap(currentPreset());
-    if (_currentPreset == null) return;
+    if (_currentPreset == null || !queryExists()) return false;
     const result = await commands.playAudio(
       getModifiedQuery(unwrap(currentText().query!), _currentPreset),
       _currentPreset.style_id,
     );
     if (result.status === "ok") {
       props.onWaveformSynthesized();
+      return true;
     } else {
       console.error("Failed to play audio:", result.error);
+      return false;
     }
   };
+
+  const stop = async () => {
+    const result = await commands.stopAudio();
+    if (result.status === "error") {
+      console.error("Failed to stop audio:", result.error);
+    }
+  };
+
+  onMount(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!isPlaybackShortcutAllowed(event)) return;
+
+      const playAndStay =
+        !event.shiftKey && isPrimaryShortcut(event, "Enter", systemStore.os);
+      const playAndAdvance =
+        event.key === "Enter" &&
+        event.shiftKey &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey;
+      const stopPlayback =
+        !event.shiftKey && isPrimaryShortcut(event, " ", systemStore.os);
+
+      if (playAndStay) {
+        event.preventDefault();
+        void speak();
+      } else if (playAndAdvance) {
+        event.preventDefault();
+        void speak().then((started) => {
+          if (started) focusNext();
+        });
+      } else if (stopPlayback) {
+        event.preventDefault();
+        void stop();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    onCleanup(() => window.removeEventListener("keydown", handleKeyDown));
+  });
 
   const playableFromSelection = createMemo(() =>
     textStore.slice(uiStore.selectedTextBlockIndex).flatMap((block) => {
@@ -176,6 +220,14 @@ function ControlBar(props: { onWaveformSynthesized: () => void }) {
         disabled={!queryExists()}
       >
         <div class="i-lucide:play size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+      </Button>
+      <Button
+        class="group h-5 w-5 bg-transparent rounded-md"
+        onClick={stop}
+        title={t1("bottom.stop")}
+        aria-label={t1("bottom.stop")}
+      >
+        <div class="i-lucide:square size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
       </Button>
       <Button
         class="group h-6 w-6 bg-transparent rounded-md ui-disabled:(cursor-not-allowed opacity-50)"

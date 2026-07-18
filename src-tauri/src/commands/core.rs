@@ -325,6 +325,21 @@ pub async fn play_audio_sequence(
   Ok(())
 }
 
+#[tauri::command]
+#[specta::specta]
+/// Stops the current audio playback, if any.
+pub async fn stop_audio(state: State<'_, AppState>) -> std::result::Result<(), String> {
+  let audio_player = state
+    .audio_player
+    .write()
+    .map_err(|e| e.to_string())?
+    .take();
+  if let Some(audio_player) = audio_player {
+    audio_player.stop().await;
+  }
+  Ok(())
+}
+
 /// Save the audio waveform to a file
 #[tauri::command]
 #[specta::specta]

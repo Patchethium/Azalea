@@ -13,7 +13,17 @@
     "no_query": "テキストを入力してください",
     "accent": "アクセント",
     "tuning": "調整",
-    "play_all_from_selection": "選択したセル以降をすべて再生"
+    "play_all_from_selection": "選択したセル以降をすべて再生",
+    "stop": "再生を停止"
+  },
+  "shortcuts": {
+    "title": "キーボードショートカット",
+    "open": "キーボードショートカットを表示",
+    "close": "キーボードショートカットを閉じる",
+    "save_project": "プロジェクトを保存",
+    "play_current": "選択したセルを再生",
+    "play_next": "選択したセルを再生して次へ移動",
+    "stop_playback": "再生を停止"
   },
   "text_block": {
     "synth_state": {
@@ -31,6 +41,7 @@
   },
   "config": {
     "title": "設定",
+    "close": "設定を閉じる",
     "sidebar_desp": "このスペースは以降のバージョンで索引として使われる見込みです。",
     "lang": "言語",
     "experimental": "実験的な機能",

@@ -5,6 +5,7 @@ import { Switch } from "@kobalte/core/switch";
 import { open } from "@tauri-apps/plugin-shell";
 import { ParentProps } from "solid-js";
 import { Locale } from "../binding";
+import { AppDialogContent } from "../components/AppDialogContent";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { useUIStore } from "../contexts/ui";
@@ -25,69 +26,51 @@ function ConfigPage() {
       open={uiStore.page === "config"}
       onOpenChange={(open) => setUIStore("page", open ? "config" : null)}
     >
-      <Dialog.Portal>
-        <Dialog.Overlay class="fixed inset-0 z-50 bg-black/50" />
-        <div class="fixed inset-0 z-50 flex items-center justify-center p2">
-          <Dialog.Content class="bg-transparent w-[min(90vw,32rem)] h-[min(80vh,24rem)] outline-none">
-            <div class="flex flex-col bg-white size-full rounded-lg gap1 b b-slate-2 overflow-hidden">
-              <div class="flex items-center px5 pt3">
-                <Dialog.Title class="text-lg select-none cursor-default">
-                  {t1("config.title")}
-                </Dialog.Title>
-                <div class="flex-1" />
-                <Dialog.CloseButton class="p1 rounded bg-transparent hover:bg-slate-1">
-                  <div class="i-lucide:x size-5" />
-                </Dialog.CloseButton>
-              </div>
-              <div class="flex-1 overflow-auto px3">
-                <ConfigItem label={t1("config.lang")}>
-                  <I18NSelect />
-                </ConfigItem>
-                <ConfigItem
-                  label={t1("config.background_buffering")}
-                  experimental
-                >
-                  <Switch
-                    checked={config.ui_config.buffer_render}
-                    onChange={(v) => setConfig("ui_config", "buffer_render", v)}
-                    class="inline-flex items-center select-none cursor-pointer justify-center"
-                  >
-                    <Switch.Input class="outline-2px" />
-                    <Switch.Control class="bg-slate-3 rounded-full w-12 h-6 p1 ui-checked:(bg-blue-5)">
-                      <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
-                    </Switch.Control>
-                  </Switch>
-                </ConfigItem>
-                <ConfigItem
-                  label={t1("config.spectrogram_preview")}
-                  experimental
-                >
-                  <Switch
-                    checked={spectrogramPreviewEnabled()}
-                    onChange={setSpectrogramPreviewEnabled}
-                    class="inline-flex items-center select-none cursor-pointer justify-center"
-                  >
-                    <Switch.Input class="outline-2px" />
-                    <Switch.Control class="bg-slate-3 rounded-full w-12 h-6 p1 ui-checked:(bg-blue-5)">
-                      <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
-                    </Switch.Control>
-                  </Switch>
-                </ConfigItem>
-              </div>
-              <div class="h-8 w-full px3 text-sm flex items-center justify-center text-slate-7 gap-2">
-                <div class="select-none cursor-default">Azalea v0.1.0</div>
-                <div class="flex-1" />
-                <Link
-                  onClick={() => open("https://github.com/Patchethium/Azalea")}
-                  class="flex flex-row items-center hover:(text-slate-9 underline underline-blue-4) cursor-pointer"
-                >
-                  GitHub <div class="i-lucide:square-arrow-out-up-right" />
-                </Link>
-              </div>
-            </div>
-          </Dialog.Content>
+      <AppDialogContent
+        title={t1("config.title")}
+        closeLabel={t1("config.close")}
+        class="w-[min(90vw,32rem)] h-[min(80vh,24rem)]"
+      >
+        <div class="flex-1 overflow-auto px3">
+          <ConfigItem label={t1("config.lang")}>
+            <I18NSelect />
+          </ConfigItem>
+          <ConfigItem label={t1("config.background_buffering")} experimental>
+            <Switch
+              checked={config.ui_config.buffer_render}
+              onChange={(v) => setConfig("ui_config", "buffer_render", v)}
+              class="inline-flex items-center select-none cursor-pointer justify-center"
+            >
+              <Switch.Input class="outline-2px" />
+              <Switch.Control class="bg-slate-3 rounded-full w-12 h-6 p1 ui-checked:(bg-blue-5)">
+                <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
+              </Switch.Control>
+            </Switch>
+          </ConfigItem>
+          <ConfigItem label={t1("config.spectrogram_preview")} experimental>
+            <Switch
+              checked={spectrogramPreviewEnabled()}
+              onChange={setSpectrogramPreviewEnabled}
+              class="inline-flex items-center select-none cursor-pointer justify-center"
+            >
+              <Switch.Input class="outline-2px" />
+              <Switch.Control class="bg-slate-3 rounded-full w-12 h-6 p1 ui-checked:(bg-blue-5)">
+                <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
+              </Switch.Control>
+            </Switch>
+          </ConfigItem>
         </div>
-      </Dialog.Portal>
+        <div class="h-8 w-full px3 text-sm flex items-center justify-center text-slate-7 gap-2">
+          <div class="select-none cursor-default">Azalea v0.1.0</div>
+          <div class="flex-1" />
+          <Link
+            onClick={() => open("https://github.com/Patchethium/Azalea")}
+            class="flex flex-row items-center hover:(text-slate-9 underline underline-blue-4) cursor-pointer"
+          >
+            GitHub <div class="i-lucide:square-arrow-out-up-right" />
+          </Link>
+        </div>
+      </AppDialogContent>
     </Dialog>
   );
 }

@@ -20,16 +20,21 @@ import {
   createSignal,
   For,
   JSX,
+  onCleanup,
+  onMount,
   Show,
 } from "solid-js";
 import { produce } from "solid-js/store";
 import { commands, Preset, StyleId } from "../binding";
 import { PresetManagerDialog } from "../components/PresetManagerDialog";
+import { ShortcutReferenceDialog } from "../components/ShortcutReferenceDialog";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { useMetaStore } from "../contexts/meta";
+import { useSystemStore } from "../contexts/system";
 import { useTextStore } from "../contexts/text";
 import { PageType, useUIStore } from "../contexts/ui";
+import { isPrimaryShortcut } from "../shortcuts";
 import style from "./sidebar.module.css";
 
 interface PresetCardProps extends JSX.HTMLAttributes<HTMLDivElement> {
@@ -90,6 +95,7 @@ function Sidebar() {
     newProject,
   } = useTextStore()!;
   const { config, setConfig } = useConfigStore()!;
+  const { systemStore } = useSystemStore()!;
   const { t1 } = usei18n()!;
 
   const setStyleId = (styleId: StyleId) => {
@@ -245,6 +251,22 @@ function Sidebar() {
       }
     }
   };
+
+  onMount(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.repeat ||
+        event.shiftKey ||
+        !isPrimaryShortcut(event, "s", systemStore.os)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      void saveProject();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    onCleanup(() => window.removeEventListener("keydown", handleKeyDown));
+  });
 
   const loadProject = async () => {
     const path = await openDialog({
@@ -532,20 +554,23 @@ function Sidebar() {
           </DropdownMenu.Portal>
         </DropdownMenu>
 
-        <ToggleGroup
-          class="flex items-center justify-start p-2 pl-0 gap-1"
-          value={uiStore.page}
-          onChange={(v) => {
-            setUIStore("page", v as PageType);
-          }}
-        >
-          <ToggleGroup.Item
-            value="config"
-            class="group size-8 p1 rounded-lg bg-white shadow-md hover:bg-blue-5 ui-pressed:bg-blue-5 transition-transform"
+        <div class="flex items-center justify-start p-2 pl-0 gap-1">
+          <ShortcutReferenceDialog />
+          <ToggleGroup
+            class="flex items-center"
+            value={uiStore.page}
+            onChange={(v) => {
+              setUIStore("page", v as PageType);
+            }}
           >
-            <div class="i-lucide:cog bg-slate-8 size-full group-hover:bg-white ui-pressed:!bg-white" />
-          </ToggleGroup.Item>
-        </ToggleGroup>
+            <ToggleGroup.Item
+              value="config"
+              class="group size-8 p1 rounded-lg bg-white shadow-md hover:bg-blue-5 ui-pressed:bg-blue-5 transition-transform"
+            >
+              <div class="i-lucide:cog bg-slate-8 size-full group-hover:bg-white ui-pressed:!bg-white" />
+            </ToggleGroup.Item>
+          </ToggleGroup>
+        </div>
       </div>
     </div>
   );

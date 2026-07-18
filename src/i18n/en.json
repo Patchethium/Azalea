@@ -13,7 +13,17 @@
     "no_query": "No Query",
     "accent": "Accent",
     "tuning": "Tuning",
-    "play_all_from_selection": "Play selected cell and all cells below"
+    "play_all_from_selection": "Play selected cell and all cells below",
+    "stop": "Stop playback"
+  },
+  "shortcuts": {
+    "title": "Keyboard Shortcuts",
+    "open": "Show keyboard shortcuts",
+    "close": "Close keyboard shortcuts",
+    "save_project": "Save project",
+    "play_current": "Play selected cell",
+    "play_next": "Play selected cell and advance",
+    "stop_playback": "Stop playback"
   },
   "text_block": {
     "synth_state": {
@@ -25,6 +35,7 @@
   },
   "config": {
     "title": "Config",
+    "close": "Close config",
     "sidebar_desp": "This space will be used for indexing in future versions.",
     "lang": "Language",
     "experimental": "Experimental Features",
