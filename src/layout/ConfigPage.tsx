@@ -8,7 +8,7 @@ import { Select } from "@kobalte/core/select";
 import { Switch } from "@kobalte/core/switch";
 import _ from "lodash";
 import { createMemo, ParentProps, Show } from "solid-js";
-import { Locale } from "../binding";
+import { Locale, ThemeMode } from "../binding";
 import { AppDialogContent } from "../components/AppDialogContent";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
@@ -39,17 +39,8 @@ function ConfigPage() {
           <ConfigItem label={t1("config.lang")}>
             <I18NSelect />
           </ConfigItem>
-          <ConfigItem label={t1("config.dark_mode")}>
-            <Switch
-              checked={config.ui_config.dark_mode ?? false}
-              onChange={(v) => setConfig("ui_config", "dark_mode", v)}
-              class="inline-flex items-center select-none cursor-pointer justify-center"
-            >
-              <Switch.Input class="outline-2px" />
-              <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5)">
-                <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
-              </Switch.Control>
-            </Switch>
+          <ConfigItem label={t1("config.theme")}>
+            <ThemeSelect />
           </ConfigItem>
           <ConfigItem label={t1("config.primary_color")}>
             <PrimaryColorPicker />
@@ -121,6 +112,63 @@ function ConfigPage() {
         </div>
       </AppDialogContent>
     </Dialog>
+  );
+}
+
+function ThemeSelect() {
+  const { themeMode, setThemeMode } = useConfigStore()!;
+  const { t1 } = usei18n()!;
+  const options: ThemeMode[] = ["System", "Light", "Dark"];
+  const themeName = (mode: ThemeMode) => {
+    switch (mode) {
+      case "System":
+        return t1("config.theme_system");
+      case "Light":
+        return t1("config.theme_light");
+      case "Dark":
+        return t1("config.theme_dark");
+    }
+  };
+
+  return (
+    <Select
+      options={options}
+      value={themeMode()}
+      onChange={(value) => {
+        if (value !== null) setThemeMode(value);
+      }}
+      class="h-8 w-48"
+      itemComponent={(props) => (
+        <Select.Item
+          item={props.item}
+          class="flex cursor-pointer items-center justify-between rounded-md p1 outline-none ui-highlighted:(bg-primary-5 text-white)"
+        >
+          <Select.ItemLabel class="px1">
+            {themeName(props.item.rawValue)}
+          </Select.ItemLabel>
+          <Select.ItemIndicator class="flex size-6 items-center justify-center">
+            <div class="i-lucide:check" />
+          </Select.ItemIndicator>
+        </Select.Item>
+      )}
+    >
+      <Select.Trigger
+        class="flex h-8 w-full items-center justify-between rounded-md border border-slate-2 bg-transparent px3 outline-none hover:(bg-slate-1 dark:bg-slate-7) dark:border-slate-6"
+        aria-label={t1("config.theme")}
+      >
+        <Select.Value<ThemeMode>>
+          {(state) => themeName(state.selectedOption())}
+        </Select.Value>
+        <Select.Icon>
+          <div class="i-lucide:chevrons-up-down" />
+        </Select.Icon>
+      </Select.Trigger>
+      <Select.Portal>
+        <Select.Content class="z-60 w-full rounded-lg border border-slate-2 bg-white outline-none dark:(border-slate-6 bg-slate-8)">
+          <Select.Listbox class="flex flex-col p2 outline-none" />
+        </Select.Content>
+      </Select.Portal>
+    </Select>
   );
 }
 

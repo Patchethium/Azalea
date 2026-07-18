@@ -3,7 +3,7 @@ import { createContextProvider } from "@solid-primitives/context";
 
 import { createEffect, createResource, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
-import { AzaleaConfig, commands, StyleId } from "../binding";
+import { AzaleaConfig, commands, StyleId, ThemeMode } from "../binding";
 import { useMetaStore } from "./meta";
 import { useUIStore } from "./ui";
 
@@ -25,6 +25,10 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     config.ui_config.spectrogram_preview ?? true;
   const setSpectrogramPreviewEnabled = (enabled: boolean) => {
     setConfig("ui_config", "spectrogram_preview", enabled);
+  };
+  const themeMode = (): ThemeMode => config.ui_config.theme_mode ?? "System";
+  const setThemeMode = (mode: ThemeMode) => {
+    setConfig("ui_config", "theme_mode", mode);
   };
 
   const load_meta = async () => {
@@ -92,6 +96,8 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     setRange,
     spectrogramPreviewEnabled,
     setSpectrogramPreviewEnabled,
+    themeMode,
+    setThemeMode,
   };
 });
 

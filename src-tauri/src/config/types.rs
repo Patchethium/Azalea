@@ -44,12 +44,20 @@ impl Default for Locale {
   }
 }
 
+#[derive(Clone, Default, Deserialize, Serialize, Type)]
+pub enum ThemeMode {
+  #[default]
+  System,
+  Light,
+  Dark,
+}
+
 #[derive(Clone, Deserialize, Serialize, Type)]
 pub struct UIConfig {
   #[serde(default)]
   pub locale: Locale,
   #[serde(default)]
-  pub dark_mode: bool,
+  pub theme_mode: ThemeMode,
   #[serde(default = "primary_color_default")]
   pub primary_color: String,
   #[serde(default = "bottom_scale_default")]
@@ -74,7 +82,7 @@ impl Default for UIConfig {
   fn default() -> Self {
     Self {
       locale: Default::default(),
-      dark_mode: false,
+      theme_mode: Default::default(),
       primary_color: primary_color_default(),
       bottom_scale: bottom_scale_default(),
       auto_save: Default::default(),

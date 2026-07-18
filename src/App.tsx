@@ -1,4 +1,5 @@
 import Resizable from "@corvu/resizable";
+import { getCurrentWindow, Theme } from "@tauri-apps/api/window";
 import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
 import style from "./app.module.css";
 import { events } from "./binding";
@@ -19,6 +20,7 @@ function App() {
     setConfigInitialized,
     coreInitializeResource,
     setRange,
+    themeMode,
   } = useConfigStore()!;
   const { setMetas } = useMetaStore()!;
   const { t1 } = usei18n()!;
@@ -26,6 +28,11 @@ function App() {
   const { newProject } = useTextStore()!;
 
   const [initializing, setInitializing] = createSignal(true);
+  const [systemTheme, setSystemTheme] = createSignal<Theme>(
+    window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light",
+  );
 
   onMount(async () => {
     const unlisten = await events.initializationEvent.listen(({ payload }) => {
@@ -45,6 +52,36 @@ function App() {
     await events.frontendReadyEvent.emit();
   });
 
+  onMount(() => {
+    const appWindow = getCurrentWindow();
+    let disposed = false;
+    let unlistenTheme: (() => void) | undefined;
+
+    const initializeSystemTheme = async () => {
+      try {
+        const unlisten = await appWindow.onThemeChanged(({ payload }) => {
+          setSystemTheme(payload);
+        });
+        if (disposed) unlisten();
+        else unlistenTheme = unlisten;
+      } catch (error) {
+        console.error("Failed to listen for system theme changes:", error);
+      }
+      try {
+        const currentTheme = await appWindow.theme();
+        if (!disposed && currentTheme !== null) setSystemTheme(currentTheme);
+      } catch (error) {
+        console.error("Failed to get the system theme:", error);
+      }
+    };
+
+    void initializeSystemTheme();
+    onCleanup(() => {
+      disposed = true;
+      unlistenTheme?.();
+    });
+  });
+
   createEffect(() => {
     if (!coreInitializeResource.loading) {
       newProject();
@@ -52,10 +89,10 @@ function App() {
   });
 
   createEffect(() => {
-    document.documentElement.classList.toggle(
-      "dark",
-      config.ui_config.dark_mode ?? false,
-    );
+    const mode = themeMode();
+    const useDarkTheme =
+      mode === "Dark" || (mode === "System" && systemTheme() === "dark");
+    document.documentElement.classList.toggle("dark", useDarkTheme);
   });
 
   createEffect(() => {

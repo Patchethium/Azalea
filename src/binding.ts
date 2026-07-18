@@ -592,7 +592,8 @@ export type SynthState =
  */
 "Done"
 export type TextBlockProps = { text: string; query: AudioQuery | null; preset_id: number | null }
-export type UIConfig = { locale?: Locale; dark_mode?: boolean; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; side_ratio?: number; buffer_render?: boolean; spectrogram_preview?: boolean; name_truncation_len?: number; last_exported_dir?: string | null }
+export type ThemeMode = "System" | "Light" | "Dark"
+export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; side_ratio?: number; buffer_render?: boolean; spectrogram_preview?: boolean; name_truncation_len?: number; last_exported_dir?: string | null }
 
 /** tauri-specta globals **/
 
