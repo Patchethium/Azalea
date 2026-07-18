@@ -17,7 +17,13 @@ import {
 } from "solid-js";
 import { produce, unwrap } from "solid-js/store";
 import { Portal } from "solid-js/web";
-import { AccentPhrase, commands, Mora } from "../binding";
+import {
+  AccentPhrase,
+  AudioQuery,
+  commands,
+  Mora,
+  SpectrogramPreview,
+} from "../binding";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { useTextStore } from "../contexts/text";
@@ -28,6 +34,9 @@ type DraggingMode = "consonant" | "vowel" | "pause";
 
 function BottomPanel() {
   const { t1 } = usei18n()!;
+  const [previewRevision, setPreviewRevision] = createSignal(0);
+  const waveformSynthesized = () =>
+    setPreviewRevision((revision) => revision + 1);
   return (
     <Tabs
       aria-label="Bottom Panel Tabs"
@@ -35,7 +44,7 @@ function BottomPanel() {
       orientation="horizontal"
       defaultValue="accent"
     >
-      <ControlBar />
+      <ControlBar onWaveformSynthesized={waveformSynthesized} />
       <div class="absolute">
         <Tabs.List class="w-full flex flex-row items-center relative p-1 outline-none select-none">
           <Tabs.Trigger
@@ -58,13 +67,13 @@ function BottomPanel() {
         <PhonemePanel />
       </Tabs.Content>
       <Tabs.Content class="flex-1 size-full" value="tuning">
-        <TuningPanel />
+        <TuningPanel previewRevision={previewRevision()} />
       </Tabs.Content>
     </Tabs>
   );
 }
 
-function ControlBar() {
+function ControlBar(props: { onWaveformSynthesized: () => void }) {
   const { t1 } = usei18n()!;
   const { textStore, projectPresetStore } = useTextStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
@@ -106,13 +115,18 @@ function ControlBar() {
     return projectPresetStore[currentText().preset_id ?? 0];
   });
 
-  const speak = () => {
+  const speak = async () => {
     const _currentPreset = unwrap(currentPreset());
     if (_currentPreset == null) return;
-    commands.playAudio(
+    const result = await commands.playAudio(
       getModifiedQuery(unwrap(currentText().query!), _currentPreset),
       _currentPreset.style_id,
     );
+    if (result.status === "ok") {
+      props.onWaveformSynthesized();
+    } else {
+      console.error("Failed to play audio:", result.error);
+    }
   };
 
   const playableFromSelection = createMemo(() =>
@@ -140,6 +154,8 @@ function ControlBar() {
     const result = await commands.playAudioSequence(playableFromSelection());
     if (result.status === "error") {
       console.error("Failed to play audio sequence:", result.error);
+    } else {
+      props.onWaveformSynthesized();
     }
   };
 
@@ -181,10 +197,10 @@ function ControlBar() {
   );
 }
 
-function TuningPanel() {
+function TuningPanel(props: { previewRevision: number }) {
   const { textStore, setTextStore, projectPresetStore } = useTextStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
-  const { config, setConfig } = useConfigStore()!;
+  const { config, setConfig, spectrogramPreviewEnabled } = useConfigStore()!;
   const { t1 } = usei18n()!;
   const { range } = useConfigStore()!;
 
@@ -215,6 +231,100 @@ function TuningPanel() {
     }
     return projectPresetStore[currentText().preset_id ?? 0];
   });
+
+  const currentModifiedQuery = createMemo(() => {
+    const query = currentText().query;
+    const preset = currentPreset();
+    if (query === null || preset === null) return null;
+    return getModifiedQuery(query, preset);
+  });
+
+  const timelineDuration = createMemo(() =>
+    (currentText().query?.accent_phrases ?? []).reduce(
+      (total, phrase) =>
+        total +
+        phrase.moras.reduce(
+          (phraseTotal, mora) =>
+            phraseTotal + (mora.consonant_length ?? 0) + mora.vowel_length,
+          0,
+        ) +
+        (phrase.pause_mora?.vowel_length ?? 0),
+      0,
+    ),
+  );
+
+  const [spectrogram, setSpectrogram] = createSignal<SpectrogramPreview | null>(
+    null,
+  );
+  const [spectrogramStale, setSpectrogramStale] = createSignal(false);
+  let spectrogramRequest = 0;
+
+  const refreshSpectrogram = async (
+    audioQuery: AudioQuery,
+    speakerId: number,
+  ) => {
+    const request = ++spectrogramRequest;
+    setSpectrogramStale(true);
+    try {
+      const result = await commands.getSpectrogramPreview(
+        audioQuery,
+        speakerId,
+      );
+      if (request !== spectrogramRequest) return;
+      if (result.status === "ok") {
+        setSpectrogram(result.data);
+        setSpectrogramStale(false);
+      } else {
+        console.error("Failed to create spectrogram preview:", result.error);
+      }
+    } catch (error) {
+      console.error("Failed to create spectrogram preview:", error);
+    }
+  };
+
+  const scheduleSpectrogramRefresh = debounce(
+    (audioQuery: AudioQuery, speakerId: number) => {
+      void refreshSpectrogram(audioQuery, speakerId);
+    },
+    1000,
+  );
+
+  createEffect(() => {
+    const query = currentModifiedQuery();
+    const preset = currentPreset();
+    const bufferRender = config.ui_config.buffer_render;
+    const previewEnabled = spectrogramPreviewEnabled();
+    scheduleSpectrogramRefresh.clear();
+    spectrogramRequest++;
+    if (!previewEnabled) {
+      setSpectrogram(null);
+      setSpectrogramStale(false);
+      return;
+    }
+    setSpectrogramStale(true);
+    if (previewEnabled && bufferRender && query !== null && preset !== null) {
+      scheduleSpectrogramRefresh(query, preset.style_id);
+    }
+  });
+
+  createEffect(
+    on(
+      () => props.previewRevision,
+      (revision) => {
+        if (
+          revision === 0 ||
+          config.ui_config.buffer_render ||
+          !spectrogramPreviewEnabled()
+        )
+          return;
+        const query = currentModifiedQuery();
+        const preset = currentPreset();
+        if (query !== null && preset !== null) {
+          void refreshSpectrogram(query, preset.style_id);
+        }
+      },
+    ),
+  );
 
   const computedRange = createMemo(() => {
     const RELAX_RATIO = 0.3; // to give some room for user adjustments
@@ -351,6 +461,8 @@ function TuningPanel() {
   });
 
   onCleanup(() => {
+    scheduleSpectrogramRefresh.clear();
+    spectrogramRequest++;
     if (scrollAreaRef) {
       setUIStore("bottom_scroll_pos", scrollAreaRef.scrollLeft);
     }
@@ -375,7 +487,7 @@ function TuningPanel() {
           }
         >
           <div
-            class="flex flex-row flex-1"
+            class="flex flex-row flex-1 relative"
             onMouseDown={(e) => {
               setStartX(e.clientX);
             }}
@@ -384,6 +496,17 @@ function TuningPanel() {
             onMouseMove={handleDragging}
             style={{ "min-width": "min-content" }}
           >
+            <Show when={spectrogram()}>
+              {(preview) => (
+                <SpectrogramCanvas
+                  preview={preview()}
+                  width={timelineDuration() * scale()}
+                  preSilence={currentModifiedQuery()?.prePhonemeLength ?? 0}
+                  postSilence={currentModifiedQuery()?.postPhonemeLength ?? 0}
+                  stale={spectrogramStale()}
+                />
+              )}
+            </Show>
             <For each={currentText().query?.accent_phrases}>
               {(ap, i) => (
                 <>
@@ -463,7 +586,7 @@ function TuningItems(props: {
   maxPitch: number;
   isPause?: boolean;
 }) {
-  const { config } = useConfigStore()!;
+  const { config, spectrogramPreviewEnabled } = useConfigStore()!;
   const unvoiced = () => props.mora.pitch === 0;
   const whisper = () => props.maxPitch === 0 && props.minPitch === 0;
   const scale = () => config.ui_config?.bottom_scale ?? 360;
@@ -479,9 +602,9 @@ function TuningItems(props: {
   const [durHovered, setDurHovered] = createSignal(false);
   return (
     <div
-      class="flex flex-col b-dashed b-r b-slate-3 h-100% select-none"
+      class="flex flex-none flex-col b-dashed b-r b-slate-3 h-100% select-none relative z-1"
       style={{
-        width: `${Math.ceil(totalPixels())}px`,
+        width: `${totalPixels()}px`,
       }}
     >
       {/* Pitch */}
@@ -492,6 +615,7 @@ function TuningItems(props: {
         >
           <Slider
             class="flex-1 b-b b-slate-3 b-dashed overflow-hidden"
+            classList={{ "opacity-60": spectrogramPreviewEnabled() }}
             minValue={props.minPitch}
             maxValue={props.maxPitch}
             step={0.01}
@@ -556,6 +680,78 @@ function TuningItems(props: {
         </Show>
       </div>
     </div>
+  );
+}
+
+function SpectrogramCanvas(props: {
+  preview: SpectrogramPreview;
+  width: number;
+  preSilence: number;
+  postSilence: number;
+  stale: boolean;
+}) {
+  let canvasRef!: HTMLCanvasElement;
+
+  createEffect(() => {
+    const { values, frameCount, melBins, durationSeconds } = props.preview;
+    if (
+      frameCount === 0 ||
+      melBins === 0 ||
+      durationSeconds <= 0 ||
+      values.length !== frameCount * melBins
+    ) {
+      canvasRef.width = 0;
+      canvasRef.height = 0;
+      return;
+    }
+
+    const audibleStart = _.clamp(
+      Math.floor((props.preSilence / durationSeconds) * frameCount),
+      0,
+      frameCount - 1,
+    );
+    const audibleEnd = _.clamp(
+      Math.ceil(
+        ((durationSeconds - props.postSilence) / durationSeconds) * frameCount,
+      ),
+      audibleStart + 1,
+      frameCount,
+    );
+    const visibleFrames = audibleEnd - audibleStart;
+    canvasRef.width = visibleFrames;
+    canvasRef.height = melBins;
+
+    const context = canvasRef.getContext("2d");
+    if (context === null) return;
+    const pixels = context.createImageData(visibleFrames, melBins);
+    for (let y = 0; y < melBins; y++) {
+      const sourceBin = melBins - y - 1;
+      for (let x = 0; x < visibleFrames; x++) {
+        const strength =
+          values[sourceBin * frameCount + audibleStart + x] / 255;
+        const pixel = (y * visibleFrames + x) * 4;
+        pixels.data[pixel] = 37;
+        pixels.data[pixel + 1] = 99;
+        pixels.data[pixel + 2] = 235;
+        pixels.data[pixel + 3] = Math.round(
+          Math.max(0, strength - 0.08) ** 1.35 * 105,
+        );
+      }
+    }
+    context.putImageData(pixels, 0, 0);
+  });
+
+  return (
+    <canvas
+      ref={canvasRef}
+      class="absolute left-0 top-0 pointer-events-none"
+      classList={{ "opacity-55": props.stale }}
+      style={{
+        width: `${props.width}px`,
+        height: "calc(100% - 3rem)",
+        filter: props.stale ? "grayscale(1)" : undefined,
+      }}
+    />
   );
 }
 

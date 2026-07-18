@@ -46,6 +46,7 @@ pub fn run() {
       replace_mora_duration,
       synthesize,
       synthesize_state,
+      get_spectrogram_preview,
       play_audio,
       play_audio_sequence,
       save_audio,

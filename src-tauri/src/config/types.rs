@@ -58,6 +58,8 @@ pub struct UIConfig {
   pub side_ratio: f32,
   #[serde(default = "buffer_render_default")]
   pub buffer_render: bool,
+  #[serde(default = "spectrogram_preview_default")]
+  pub spectrogram_preview: bool,
 }
 
 impl Default for UIConfig {
@@ -69,6 +71,7 @@ impl Default for UIConfig {
       bottom_ratio: bottom_ratio_default(),
       side_ratio: side_ratio_default(),
       buffer_render: buffer_render_default(),
+      spectrogram_preview: spectrogram_preview_default(),
     }
   }
 }
@@ -87,6 +90,10 @@ fn side_ratio_default() -> f32 {
 
 fn buffer_render_default() -> bool {
   false
+}
+
+fn spectrogram_preview_default() -> bool {
+  true
 }
 
 #[derive(Clone, Deserialize, Serialize, Type)]

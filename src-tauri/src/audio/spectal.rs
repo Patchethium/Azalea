@@ -1,6 +1,5 @@
 //! A very simple mel spectrogram implementation
 //! used for users to refer how the audio looks like in frequency domain
-#![allow(dead_code)] // not used yet
 use ndarray::{s, Array1, Array2};
 use rustfft::num_complex::Complex;
 use rustfft::FftPlanner;
@@ -8,10 +7,8 @@ use rustfft::FftPlanner;
 pub struct MelSpec {
   fft_planner: FftPlanner<f64>,
   n_fft: usize,
-  n_mels: usize,
   hop_length: usize,
   window: Array1<f64>,
-  sample_rate: usize,
   filterbank: Array2<f64>,
 }
 
@@ -20,10 +17,8 @@ impl MelSpec {
     Self {
       fft_planner: FftPlanner::new(),
       n_fft,
-      n_mels,
       hop_length,
       window: Self::hanning(n_fft),
-      sample_rate,
       filterbank: Self::mel_filter_bank(n_mels, n_fft, sample_rate),
     }
   }
@@ -79,18 +74,24 @@ impl MelSpec {
     let fft = self.fft_planner.plan_fft_forward(self.n_fft);
 
     let n_samples = signal.len();
-    // don't pad the signal for simplicity, the spectrogram is intended to be a reference, not precise data
-    let n_frames = (n_samples - self.n_fft) / self.hop_length + 1;
+    // Keep one zero-padded frame for short clips. Apart from avoiding an
+    // underflow here, this lets the preview represent very short utterances.
+    let remaining = n_samples.saturating_sub(self.n_fft);
+    let n_frames = remaining.saturating_add(self.hop_length - 1) / self.hop_length + 1;
     let mut spec = Array2::zeros((self.n_fft / 2 + 1, n_frames));
 
     for i in 0..n_frames {
       let start = i * self.hop_length;
-      let frame = signal.slice(s![start..start + self.n_fft]);
-      let mut windowed = frame
+      let end = (start + self.n_fft).min(n_samples);
+      let frame = signal.slice(s![start..end]);
+      let mut windowed = vec![Complex::new(0., 0.); self.n_fft];
+      for ((sample, window), output) in frame
         .iter()
         .zip(self.window.iter())
-        .map(|(&x, &w)| Complex::new(x * w, 0.))
-        .collect::<Vec<_>>();
+        .zip(windowed.iter_mut())
+      {
+        output.re = sample * window;
+      }
 
       fft.process(&mut windowed);
 
@@ -103,7 +104,7 @@ impl MelSpec {
   }
 
   fn amp2db(&self, amp: f64) -> f64 {
-    10. * amp.log10()
+    10. * amp.max(f64::MIN_POSITIVE).log10()
   }
 
   pub fn process(&mut self, signal: Array1<f64>) -> Array2<f64> {

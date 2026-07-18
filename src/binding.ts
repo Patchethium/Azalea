@@ -166,6 +166,17 @@ async synthesizeState(query: AudioQuery, speakerId: StyleId) : Promise<Result<Sy
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Gets a compact mel spectrogram from the same cached waveform used for playback.
+ */
+async getSpectrogramPreview(audioQuery: AudioQuery, speakerId: StyleId) : Promise<Result<SpectrogramPreview, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_spectrogram_preview", { audioQuery, speakerId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async playAudio(audioQuery: AudioQuery, speakerId: StyleId) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("play_audio", { audioQuery, speakerId }) };
@@ -475,6 +486,7 @@ start_slience: number;
  */
 end_slience: number }
 export type Project = { blocks: TextBlockProps[]; presets: Preset[] }
+export type SpectrogramPreview = { values: number[]; frameCount: number; melBins: number; durationSeconds: number }
 /**
  * スタイルID。
  * 
@@ -571,7 +583,7 @@ export type SynthState =
  */
 "Done"
 export type TextBlockProps = { text: string; query: AudioQuery | null; preset_id: number | null }
-export type UIConfig = { locale?: Locale; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; side_ratio?: number; buffer_render?: boolean }
+export type UIConfig = { locale?: Locale; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; side_ratio?: number; buffer_render?: boolean; spectrogram_preview?: boolean }
 
 /** tauri-specta globals **/
 

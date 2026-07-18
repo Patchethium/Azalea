@@ -21,6 +21,12 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
 
   const [configInitialized, setConfigInitialized] = createSignal(false);
 
+  const spectrogramPreviewEnabled = () =>
+    config.ui_config.spectrogram_preview ?? true;
+  const setSpectrogramPreviewEnabled = (enabled: boolean) => {
+    setConfig("ui_config", "spectrogram_preview", enabled);
+  };
+
   const load_meta = async () => {
     const metas = await commands.getMetas();
     if (metas.status === "ok") {
@@ -80,6 +86,8 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     coreInitializeResource,
     range,
     setRange,
+    spectrogramPreviewEnabled,
+    setSpectrogramPreviewEnabled,
   };
 });
 

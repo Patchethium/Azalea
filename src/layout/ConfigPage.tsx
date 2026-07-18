@@ -10,7 +10,12 @@ import { coverages, localeNames, possibleLocales } from "../i18n";
 
 function ConfigPage() {
   const { t1 } = usei18n()!;
-  const { config, setConfig } = useConfigStore()!;
+  const {
+    config,
+    setConfig,
+    spectrogramPreviewEnabled,
+    setSpectrogramPreviewEnabled,
+  } = useConfigStore()!;
 
   return (
     <div class="pl0 p2 bg-transparent size-full">
@@ -27,6 +32,18 @@ function ConfigPage() {
             <Switch
               checked={config.ui_config.buffer_render}
               onChange={(v) => setConfig("ui_config", "buffer_render", v)}
+              class="inline-flex items-center select-none cursor-pointer justify-center"
+            >
+              <Switch.Input class="outline-2px" />
+              <Switch.Control class="bg-slate-3 rounded-full w-12 h-6 p1 ui-checked:(bg-blue-5)">
+                <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
+              </Switch.Control>
+            </Switch>
+          </ConfigItem>
+          <ConfigItem label={t1("config.spectrogram_preview")} experimental>
+            <Switch
+              checked={spectrogramPreviewEnabled()}
+              onChange={setSpectrogramPreviewEnabled}
               class="inline-flex items-center select-none cursor-pointer justify-center"
             >
               <Switch.Input class="outline-2px" />

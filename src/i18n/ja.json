@@ -34,7 +34,8 @@
     "sidebar_desp": "このスペースは以降のバージョンで索引として使われる見込みです。",
     "lang": "言語",
     "experimental": "実験的な機能",
-    "background_buffering": "音声生成バッファリング"
+    "background_buffering": "音声生成バッファリング",
+    "spectrogram_preview": "スペクトログラムプレビュー"
   },
   "preset": {
     "title": "プリセット",

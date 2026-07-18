@@ -1,8 +1,12 @@
 use super::utils::{state_async_mut, state_async_ref, state_mut};
 use crate::config::CoreConfig;
-use crate::{audio::AudioPlayer, core::Core};
+use crate::{audio::spectal::MelSpec, audio::AudioPlayer, core::Core};
 use crate::{AppState, WavLruType};
 
+use ndarray::Array1;
+use rodio::Source;
+use serde::Serialize;
+use std::io::Cursor;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 
@@ -162,6 +166,81 @@ pub async fn synthesize(
   )
   .await?;
   Ok(())
+}
+
+#[derive(specta::Type, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpectrogramPreview {
+  pub values: Vec<u8>,
+  pub frame_count: usize,
+  pub mel_bins: usize,
+  pub duration_seconds: f64,
+}
+
+fn create_spectrogram_preview(wav: Vec<u8>) -> Result<SpectrogramPreview, String> {
+  const FFT_SIZE: usize = 1024;
+  const MEL_BINS: usize = 96;
+  const HOP_LENGTH: usize = 256;
+  const DYNAMIC_RANGE_DB: f64 = 80.;
+
+  let decoder = rodio::Decoder::new_wav(Cursor::new(wav))
+    .map_err(|e| format!("Failed to decode WAV audio for spectrogram: {e}"))?;
+  let channels = decoder.channels() as usize;
+  let sample_rate = decoder.sample_rate() as usize;
+  if channels == 0 || sample_rate == 0 {
+    return Err("Invalid WAV channel count or sample rate".into());
+  }
+
+  let interleaved = decoder.collect::<Vec<i16>>();
+  let mono = interleaved
+    .chunks(channels)
+    .map(|frame| {
+      frame.iter().map(|sample| *sample as f64).sum::<f64>()
+        / (frame.len() as f64 * i16::MAX as f64)
+    })
+    .collect::<Array1<_>>();
+  let duration_seconds = mono.len() as f64 / sample_rate as f64;
+
+  let mut extractor = MelSpec::new(FFT_SIZE, MEL_BINS, HOP_LENGTH, sample_rate);
+  let spectrogram = extractor.process(mono);
+  let frame_count = spectrogram.ncols();
+  let max_db = spectrogram
+    .iter()
+    .copied()
+    .fold(f64::NEG_INFINITY, f64::max);
+  let floor_db = max_db - DYNAMIC_RANGE_DB;
+  let values = spectrogram
+    .iter()
+    .map(|db| (((db - floor_db) / DYNAMIC_RANGE_DB).clamp(0., 1.) * u8::MAX as f64).round() as u8)
+    .collect();
+
+  Ok(SpectrogramPreview {
+    values,
+    frame_count,
+    mel_bins: MEL_BINS,
+    duration_seconds,
+  })
+}
+
+#[tauri::command]
+#[specta::specta]
+/// Gets a compact mel spectrogram from the same cached waveform used for playback.
+pub async fn get_spectrogram_preview(
+  state: State<'_, AppState>,
+  audio_query: AudioQuery,
+  speaker_id: StyleId,
+) -> Result<SpectrogramPreview, String> {
+  let wav = _synthesize(
+    state_async_mut!(state, wav_lru),
+    state_async_ref!(state, core),
+    audio_query,
+    speaker_id,
+  )
+  .await?;
+
+  tauri::async_runtime::spawn_blocking(move || create_spectrogram_preview(wav))
+    .await
+    .map_err(|e| format!("Spectrogram task failed: {e}"))?
 }
 
 /// Decode audio query to waveform.
