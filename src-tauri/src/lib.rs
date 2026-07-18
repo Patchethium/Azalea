@@ -6,6 +6,8 @@ pub mod core;
 use core::Core;
 
 use commands::*;
+// somehow release build will warn about this, but it's necessary
+#[allow(unused_imports)]
 use specta_typescript::Typescript;
 use std::sync::{Arc, Mutex, RwLock};
 use tauri::async_runtime::RwLock as TokioRwLock;
