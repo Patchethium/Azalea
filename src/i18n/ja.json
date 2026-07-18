@@ -46,7 +46,9 @@
     "lang": "言語",
     "experimental": "実験的な機能",
     "background_buffering": "音声生成バッファリング",
-    "spectrogram_preview": "スペクトログラムプレビュー"
+    "spectrogram_preview": "スペクトログラムプレビュー",
+    "truncation_len": "最大ファイル名の長さ",
+    "no_truncation": "無制限"
   },
   "preset": {
     "title": "プリセット",

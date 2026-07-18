@@ -29,7 +29,7 @@ import { usei18n } from "../contexts/i18n";
 import { useSpectrogramStore } from "../contexts/spectrogram";
 import { useSystemStore } from "../contexts/system";
 import { useTextStore } from "../contexts/text";
-import { useUIStore } from "../contexts/ui";
+import { type BottomPanelType, useUIStore } from "../contexts/ui";
 import { isPlaybackShortcutAllowed, isPrimaryShortcut } from "../shortcuts";
 import { getModifiedQuery, useSideEffect } from "../utils";
 
@@ -40,11 +40,18 @@ function BottomPanel() {
   const [previewRevision, setPreviewRevision] = createSignal(0);
   const waveformSynthesized = () =>
     setPreviewRevision((revision) => revision + 1);
+  const { uiStore, setUIStore } = useUIStore()!;
+
+  const setPanel = (p: string) => {
+    setUIStore("bottomPanel", p as BottomPanelType);
+  };
   return (
     <Tabs
       aria-label="Bottom Panel Tabs"
       class="size-full flex flex-col bg-white border border-slate-2 rounded-lg overflow-hidden outline-none select-none"
       orientation="horizontal"
+      value={uiStore.bottomPanel}
+      onChange={setPanel}
       defaultValue="accent"
     >
       <ControlBar onWaveformSynthesized={waveformSynthesized} />

@@ -1,3 +1,4 @@
+use super::types::side_ratio_default;
 use anyhow::Result;
 use std::fs::{create_dir_all, File};
 use std::path::PathBuf;
@@ -75,6 +76,11 @@ impl ConfigManager {
   pub fn load_as(&mut self, path: &PathBuf) -> Result<()> {
     let config = std::fs::read_to_string(path)?;
     self.config = serde_json::from_str(&config)?;
+    // guard out-of-range values
+    // TODO: implement it in serde
+    if self.config.ui_config.side_ratio < 0.0 || self.config.ui_config.side_ratio > 1.0 {
+      self.config.ui_config.side_ratio = side_ratio_default();
+    }
     Ok(())
   }
 

@@ -6,7 +6,7 @@ import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { I18NSelect } from "./ConfigPage";
 
-function InitDialog() {
+function InitPage() {
   const { setConfig } = useConfigStore()!;
   const { t1, t2 } = usei18n()!;
 
@@ -103,4 +103,4 @@ function InitDialog() {
   );
 }
 
-export default InitDialog;
+export default InitPage;

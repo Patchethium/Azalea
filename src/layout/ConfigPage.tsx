@@ -1,9 +1,11 @@
 import { Dialog } from "@kobalte/core/dialog";
 import { Link } from "@kobalte/core/link";
+import { NumberField } from "@kobalte/core/number-field";
 import { Select } from "@kobalte/core/select";
 import { Switch } from "@kobalte/core/switch";
 import { open } from "@tauri-apps/plugin-shell";
-import { ParentProps } from "solid-js";
+import _ from "lodash";
+import { ParentProps, Show } from "solid-js";
 import { Locale } from "../binding";
 import { AppDialogContent } from "../components/AppDialogContent";
 import { useConfigStore } from "../contexts/config";
@@ -34,6 +36,46 @@ function ConfigPage() {
         <div class="flex-1 overflow-auto px3">
           <ConfigItem label={t1("config.lang")}>
             <I18NSelect />
+          </ConfigItem>
+          <ConfigItem label={t1("config.truncation_len")}>
+            <NumberField
+              minValue={0}
+              step={1}
+              value={config.ui_config.name_truncation_len}
+              onChange={(v) =>
+                setConfig(
+                  "ui_config",
+                  "name_truncation_len",
+                  Number.parseInt(v, 10),
+                )
+              }
+              changeOnWheel={true}
+              format={false}
+              class="flex flex-row items-center justify-center gap-1"
+            >
+              <Show when={config.ui_config.name_truncation_len === 0}>
+                <NumberField.Label class="text-slate-6">
+                  {_.capitalize(t1("config.no_truncation"))}
+                </NumberField.Label>
+              </Show>
+              <div class="flex flex-row gap-1 items-center w-16">
+                <NumberField.Input class="h-8 w-full outline-none rounded-lg b b-slate-2 focus:b-blue-3 px-1" />
+                <div class="flex flex-col">
+                  <NumberField.IncrementTrigger
+                    aria-label="Increment"
+                    class="size-4 bg-transparent group"
+                  >
+                    <div class="i-lucide:chevron-up size-full group-hover:bg-blue-5 group-active:bg-blue-7" />
+                  </NumberField.IncrementTrigger>
+                  <NumberField.DecrementTrigger
+                    aria-label="Decrement"
+                    class="size-4 bg-transparent group"
+                  >
+                    <div class="i-lucide:chevron-down size-full group-hover:bg-blue-5 group-active:bg-blue-7" />
+                  </NumberField.DecrementTrigger>
+                </div>
+              </div>
+            </NumberField>
           </ConfigItem>
           <ConfigItem label={t1("config.background_buffering")} experimental>
             <Switch

@@ -40,7 +40,9 @@
     "lang": "Language",
     "experimental": "Experimental Features",
     "background_buffering": "Background Buffering for Audio Generation",
-    "spectrogram_preview": "Spectrogram Preview"
+    "spectrogram_preview": "Spectrogram Preview",
+    "truncation_len": "File name truncation length",
+    "no_truncation": "No truncation"
   },
   "menu": {
     "new_project": "New Project",

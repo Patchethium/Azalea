@@ -8,7 +8,7 @@ import { useMetaStore } from "./contexts/meta";
 import { useTextStore } from "./contexts/text";
 import { useUIStore } from "./contexts/ui";
 import ConfigPage from "./layout/ConfigPage";
-import InitDialog from "./layout/InitDialog";
+import InitPage from "./layout/InitPage";
 import MainPage from "./layout/MainPage";
 import Sidebar from "./layout/Sidebar";
 
@@ -62,7 +62,7 @@ function App() {
         }
       >
         <Show when={!uiStore.coreInitialized}>
-          <InitDialog />
+          <InitPage />
         </Show>
         <Show when={uiStore.coreInitialized}>
           <Resizable class={`absolute flex flex-row size-full ${style.canvas}`}>

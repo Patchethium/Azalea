@@ -27,4 +27,4 @@ const [UIProvider, useUIStore] = createContextProvider(() => {
 });
 
 export { UIProvider, useUIStore };
-export type { PageType };
+export type { PageType, BottomPanelType };

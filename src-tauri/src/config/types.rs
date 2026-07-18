@@ -60,6 +60,10 @@ pub struct UIConfig {
   pub buffer_render: bool,
   #[serde(default = "spectrogram_preview_default")]
   pub spectrogram_preview: bool,
+  #[serde(default = "name_truncation_len_default")]
+  pub name_truncation_len: usize,
+  #[serde(default)]
+  pub last_exported_dir: Option<String>,
 }
 
 impl Default for UIConfig {
@@ -72,6 +76,8 @@ impl Default for UIConfig {
       side_ratio: side_ratio_default(),
       buffer_render: buffer_render_default(),
       spectrogram_preview: spectrogram_preview_default(),
+      name_truncation_len: name_truncation_len_default(),
+      last_exported_dir: None,
     }
   }
 }
@@ -84,7 +90,7 @@ fn bottom_ratio_default() -> f32 {
   0.3
 }
 
-fn side_ratio_default() -> f32 {
+pub(super) fn side_ratio_default() -> f32 {
   0.2
 }
 
@@ -94,6 +100,10 @@ fn buffer_render_default() -> bool {
 
 fn spectrogram_preview_default() -> bool {
   true
+}
+
+fn name_truncation_len_default() -> usize {
+  0
 }
 
 #[derive(Clone, Deserialize, Serialize, Type)]
