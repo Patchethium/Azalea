@@ -1,5 +1,5 @@
 import { createContextProvider } from "@solid-primitives/context";
-import { createSignal, untrack } from "solid-js";
+import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import { AudioQuery, Preset, Project } from "../binding";
 import { usei18n } from "./i18n";
@@ -50,9 +50,7 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     );
     setProjectPresetStore([
       {
-        // `newProject` is called from a reactive initialization effect. Reading
-        // the locale there would make language changes recreate the project.
-        name: untrack(() => t1("preset.new_preset")),
+        name: t1("preset.new_preset"),
         style_id: Math.min(...availableStyleIds()),
         speed: 100,
         pitch: 0.0,

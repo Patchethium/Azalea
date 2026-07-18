@@ -1,6 +1,13 @@
 import Resizable from "@corvu/resizable";
 import { getCurrentWindow, Theme } from "@tauri-apps/api/window";
-import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
+import {
+  createEffect,
+  createSignal,
+  onCleanup,
+  onMount,
+  Show,
+  untrack,
+} from "solid-js";
 import style from "./app.module.css";
 import { events } from "./binding";
 import { useConfigStore } from "./contexts/config";
@@ -22,7 +29,7 @@ function App() {
     setRange,
     themeMode,
   } = useConfigStore()!;
-  const { setMetas } = useMetaStore()!;
+  const { setMetas, availableStyleIds } = useMetaStore()!;
   const { t1 } = usei18n()!;
   const { uiStore, setUIStore } = useUIStore()!;
   const { newProject } = useTextStore()!;
@@ -83,8 +90,11 @@ function App() {
   });
 
   createEffect(() => {
-    if (!coreInitializeResource.loading) {
-      newProject();
+    const stylesReady = availableStyleIds().length > 0;
+    if (!coreInitializeResource.loading && stylesReady) {
+      // Project defaults read translations and metadata. Neither should become
+      // an implicit reason to recreate the active project later.
+      untrack(newProject);
     }
   });
 
