@@ -26,6 +26,7 @@ import {
 } from "../binding";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
+import { useSpectrogramStore } from "../contexts/spectrogram";
 import { useTextStore } from "../contexts/text";
 import { useUIStore } from "../contexts/ui";
 import { getModifiedQuery, useSideEffect } from "../utils";
@@ -201,6 +202,14 @@ function TuningPanel(props: { previewRevision: number }) {
   const { textStore, setTextStore, projectPresetStore } = useTextStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
   const { config, setConfig, spectrogramPreviewEnabled } = useConfigStore()!;
+  const {
+    getCacheKey,
+    getCachedSpectrogram,
+    cacheSpectrogram,
+    clearSpectrogramCache,
+    beginSpectrogramRequest,
+    isLatestSpectrogramRequest,
+  } = useSpectrogramStore()!;
   const { t1 } = usei18n()!;
   const { range } = useConfigStore()!;
 
@@ -253,27 +262,45 @@ function TuningPanel(props: { previewRevision: number }) {
     ),
   );
 
+  const getCurrentSpectrogram = () => {
+    const query = currentModifiedQuery();
+    const preset = currentPreset();
+    if (query === null || preset === null) return null;
+    return getCachedSpectrogram(query, preset.style_id);
+  };
+
   const [spectrogram, setSpectrogram] = createSignal<SpectrogramPreview | null>(
-    null,
+    spectrogramPreviewEnabled() ? getCurrentSpectrogram() : null,
   );
   const [spectrogramStale, setSpectrogramStale] = createSignal(false);
-  let spectrogramRequest = 0;
+  let mounted = true;
 
   const refreshSpectrogram = async (
     audioQuery: AudioQuery,
     speakerId: number,
   ) => {
-    const request = ++spectrogramRequest;
+    const request = beginSpectrogramRequest();
+    const requestKey = getCacheKey(audioQuery, speakerId);
     setSpectrogramStale(true);
     try {
       const result = await commands.getSpectrogramPreview(
         audioQuery,
         speakerId,
       );
-      if (request !== spectrogramRequest) return;
+      if (!isLatestSpectrogramRequest(request)) return;
       if (result.status === "ok") {
-        setSpectrogram(result.data);
-        setSpectrogramStale(false);
+        cacheSpectrogram(audioQuery, speakerId, result.data);
+        const currentQuery = currentModifiedQuery();
+        const preset = currentPreset();
+        if (
+          mounted &&
+          currentQuery !== null &&
+          preset !== null &&
+          getCacheKey(currentQuery, preset.style_id) === requestKey
+        ) {
+          setSpectrogram(result.data);
+          setSpectrogramStale(false);
+        }
       } else {
         console.error("Failed to create spectrogram preview:", result.error);
       }
@@ -295,9 +322,15 @@ function TuningPanel(props: { previewRevision: number }) {
     const bufferRender = config.ui_config.buffer_render;
     const previewEnabled = spectrogramPreviewEnabled();
     scheduleSpectrogramRefresh.clear();
-    spectrogramRequest++;
     if (!previewEnabled) {
       setSpectrogram(null);
+      setSpectrogramStale(false);
+      clearSpectrogramCache();
+      return;
+    }
+    const cachedSpectrogram = getCurrentSpectrogram();
+    if (cachedSpectrogram !== null) {
+      setSpectrogram(cachedSpectrogram);
       setSpectrogramStale(false);
       return;
     }
@@ -461,8 +494,8 @@ function TuningPanel(props: { previewRevision: number }) {
   });
 
   onCleanup(() => {
+    mounted = false;
     scheduleSpectrogramRefresh.clear();
-    spectrogramRequest++;
     if (scrollAreaRef) {
       setUIStore("bottom_scroll_pos", scrollAreaRef.scrollLeft);
     }
