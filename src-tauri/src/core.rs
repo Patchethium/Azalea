@@ -130,7 +130,7 @@ impl Core {
       })
       .context("Speaker ID not found in any loaded VVM")?;
     let vvm = VoiceModelFile::open(&vvm_name)?;
-    self.synthesizer.load_voice_model(&vvm)?;
+    self.synthesizer.load_voice_model(&vvm).perform()?;
     Ok(())
   }
 
