@@ -6,7 +6,6 @@ use crate::{AppState, WavLruType};
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 
-use ndarray::Array1;
 use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
 use tokio::sync::OnceCell;
@@ -17,6 +16,13 @@ use voicevox_core::{AccentPhrase, AudioQuery, StyleId, VoiceModelMeta};
 #[specta::specta]
 pub async fn init_core(
   state: State<'_, AppState>,
+  config: CoreConfig,
+) -> std::result::Result<(), String> {
+  initialize_core(&state, config).await
+}
+
+pub async fn initialize_core(
+  state: &AppState,
   config: CoreConfig,
 ) -> std::result::Result<(), String> {
   if state.core.read().await.is_none() {
@@ -195,6 +201,43 @@ pub async fn play_audio(
   )
   .await?;
   let audio_player = AudioPlayer::play(wav).await?;
+  state
+    .audio_player
+    .write()
+    .map_err(|e| e.to_string())?
+    .replace(audio_player);
+  Ok(())
+}
+
+#[derive(Clone, serde::Deserialize, specta::Type)]
+pub struct AudioSequenceItem {
+  pub audio_query: AudioQuery,
+  pub speaker_id: StyleId,
+}
+
+#[tauri::command]
+#[specta::specta]
+/// Synthesizes and queues multiple audio queries for uninterrupted playback.
+pub async fn play_audio_sequence(
+  state: State<'_, AppState>,
+  items: Vec<AudioSequenceItem>,
+) -> std::result::Result<(), String> {
+  if items.is_empty() {
+    return Ok(());
+  }
+  let mut wavs = Vec::with_capacity(items.len());
+  for item in items {
+    wavs.push(
+      _synthesize(
+        state_async_mut!(state, wav_lru),
+        state_async_ref!(state, core),
+        item.audio_query,
+        item.speaker_id,
+      )
+      .await?,
+    );
+  }
+  let audio_player = AudioPlayer::play_many(wavs).await?;
   state
     .audio_player
     .write()

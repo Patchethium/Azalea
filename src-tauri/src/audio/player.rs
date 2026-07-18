@@ -10,6 +10,10 @@ pub struct AudioPlayer {
 
 impl AudioPlayer {
   pub async fn play(wav: Vec<u8>) -> Result<Self, String> {
+    Self::play_many(vec![wav]).await
+  }
+
+  pub async fn play_many(wavs: Vec<Vec<u8>>) -> Result<Self, String> {
     let (stop_tx, mut stop_rx) = channel::<()>(1);
     let (ready_tx, ready_rx) = oneshot::channel::<Result<(), String>>();
 
@@ -29,15 +33,16 @@ impl AudioPlayer {
             return;
           }
         };
-        let cursor = Cursor::new(wav);
-        let decoder = match rodio::Decoder::new_wav(cursor) {
-          Ok(v) => v,
-          Err(e) => {
-            let _ = ready_tx.send(Err(format!("Failed to decode WAV audio: {e}")));
-            return;
-          }
-        };
-        sink.append(decoder);
+        for wav in wavs {
+          let decoder = match rodio::Decoder::new_wav(Cursor::new(wav)) {
+            Ok(v) => v,
+            Err(e) => {
+              let _ = ready_tx.send(Err(format!("Failed to decode WAV audio: {e}")));
+              return;
+            }
+          };
+          sink.append(decoder);
+        }
         sink.play();
         let _ = ready_tx.send(Ok(()));
         // only this works, I don't know nothing about async Rust (@ _ @)

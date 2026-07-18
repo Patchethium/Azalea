@@ -8,7 +8,7 @@ import { useMetaStore } from "./meta";
 import { useUIStore } from "./ui";
 
 const [ConfigProvider, useConfigStore] = createContextProvider(() => {
-  const { setUIStore } = useUIStore()!;
+  const { uiStore, setUIStore } = useUIStore()!;
   const { setMetas } = useMetaStore()!;
 
   const [config, setConfig] = createStore<AzaleaConfig>({
@@ -40,7 +40,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
   };
 
   const [coreInitializeResource] = createResource(
-    () => config.core_config,
+    () => (uiStore.coreInitialized ? undefined : config.core_config),
     async (cfg) => {
       const res = await commands.initCore(cfg);
       if (res.status === "error") {
@@ -79,6 +79,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     setConfigInitialized,
     coreInitializeResource,
     range,
+    setRange,
   };
 });
 

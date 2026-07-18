@@ -1,9 +1,10 @@
 import Resizable from "@corvu/resizable";
-import { createEffect, createResource, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
 import style from "./app.module.css";
-import { commands } from "./binding";
+import { events } from "./binding";
 import { useConfigStore } from "./contexts/config";
 import { usei18n } from "./contexts/i18n";
+import { useMetaStore } from "./contexts/meta";
 import { useTextStore } from "./contexts/text";
 import { useUIStore } from "./contexts/ui";
 import ConfigPage from "./layout/ConfigPage";
@@ -12,23 +13,36 @@ import MainPage from "./layout/MainPage";
 import Sidebar from "./layout/Sidebar";
 
 function App() {
-  const { config, setConfig, setConfigInitialized, coreInitializeResource } =
-    useConfigStore()!;
+  const {
+    config,
+    setConfig,
+    setConfigInitialized,
+    coreInitializeResource,
+    setRange,
+  } = useConfigStore()!;
+  const { setMetas } = useMetaStore()!;
   const { t1 } = usei18n()!;
-  const { uiStore } = useUIStore()!;
+  const { uiStore, setUIStore } = useUIStore()!;
   const { newProject } = useTextStore()!;
 
-  const [config_resource] = createResource(commands.initConfig);
+  const [initializing, setInitializing] = createSignal(true);
 
-  createEffect(() => {
-    const res = config_resource();
-    if (!res) return;
-    if (res.status === "ok") {
-      setConfigInitialized(true);
-      setConfig(res.data);
-    } else {
-      console.error("Failed to initialize config:", res.error);
-    }
+  onMount(async () => {
+    const unlisten = await events.initializationEvent.listen(({ payload }) => {
+      if (payload.error) {
+        console.error("Failed to initialize application:", payload.error);
+      }
+      if (payload.config) {
+        setUIStore("coreInitialized", payload.core_initialized);
+        setRange(Object.fromEntries(payload.range));
+        if (payload.metas) setMetas(payload.metas);
+        setConfig(payload.config);
+        setConfigInitialized(true);
+      }
+      setInitializing(false);
+    });
+    onCleanup(unlisten);
+    await events.frontendReadyEvent.emit();
   });
 
   createEffect(() => {
@@ -40,7 +54,7 @@ function App() {
   return (
     <main class="absolute h-full w-full left-0 top-0 flex flex-row bg-slate-1">
       <Show
-        when={!config_resource.loading && !coreInitializeResource.loading}
+        when={!initializing() && !coreInitializeResource.loading}
         fallback={
           <div class="size-full flex items-center justify-center text-2xl font-bold">
             {t1("loading")}

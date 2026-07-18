@@ -65,6 +65,7 @@ function BottomPanel() {
 }
 
 function ControlBar() {
+  const { t1 } = usei18n()!;
   const { textStore, projectPresetStore } = useTextStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
 
@@ -114,6 +115,34 @@ function ControlBar() {
     );
   };
 
+  const playableFromSelection = createMemo(() =>
+    textStore.slice(uiStore.selectedTextBlockIndex).flatMap((block) => {
+      const preset =
+        block.preset_id === null ? null : projectPresetStore[block.preset_id];
+      if (
+        block.query === null ||
+        block.query.accent_phrases.length === 0 ||
+        preset === undefined ||
+        preset === null
+      ) {
+        return [];
+      }
+      return [
+        {
+          audio_query: getModifiedQuery(unwrap(block.query), unwrap(preset)),
+          speaker_id: preset.style_id,
+        },
+      ];
+    }),
+  );
+
+  const speakAllFromSelection = async () => {
+    const result = await commands.playAudioSequence(playableFromSelection());
+    if (result.status === "error") {
+      console.error("Failed to play audio sequence:", result.error);
+    }
+  };
+
   return (
     <div class="w-full h-8 p2 flex m-l-auto flex-row items-center justify-center gap-1 b-b b-slate-3 select-none">
       <div class="flex-1" />
@@ -130,6 +159,15 @@ function ControlBar() {
         disabled={!queryExists()}
       >
         <div class="i-lucide:play size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+      </Button>
+      <Button
+        class="group h-6 w-6 bg-transparent rounded-md ui-disabled:(cursor-not-allowed opacity-50)"
+        onClick={speakAllFromSelection}
+        disabled={playableFromSelection().length === 0}
+        title={t1("bottom.play_all_from_selection")}
+        aria-label={t1("bottom.play_all_from_selection")}
+      >
+        <div class="i-lucide:list-video size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
       </Button>
       <Button
         class="group h-5 w-5 bg-transparent rounded-md ui-disabled:(cursor-not-allowed opacity-50)"

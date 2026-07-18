@@ -175,6 +175,17 @@ async playAudio(audioQuery: AudioQuery, speakerId: StyleId) : Promise<Result<nul
 }
 },
 /**
+ * Synthesizes and queues multiple audio queries for uninterrupted playback.
+ */
+async playAudioSequence(items: AudioSequenceItem[]) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("play_audio_sequence", { items }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Save the audio waveform to a file
  */
 async saveAudio(path: string, audioQuery: AudioQuery, speakerId: StyleId) : Promise<Result<string, string>> {
@@ -212,6 +223,13 @@ async loadProject(path: string) : Promise<Result<Project, string>> {
 /** user-defined events **/
 
 
+export const events = __makeEvents__<{
+frontendReadyEvent: FrontendReadyEvent,
+initializationEvent: InitializationEvent
+}>({
+frontendReadyEvent: "frontend-ready-event",
+initializationEvent: "initialization-event"
+})
 
 /** user-defined constants **/
 
@@ -359,6 +377,7 @@ outputStereo: boolean;
  * [`Synthesizer::create_audio_query`]: crate::blocking::Synthesizer::create_audio_query
  */
 kana: string | null }
+export type AudioSequenceItem = { audio_query: AudioQuery; speaker_id: StyleId }
 export type AzaleaConfig = { core_config: CoreConfig | null; ui_config: UIConfig; system_presets?: Preset[] }
 /**
  * <i>キャラクター</i>のメタ情報。
@@ -399,6 +418,8 @@ export type CoreConfig = {
  * the path should be `/home/user/VOICEVOX/vv-engine`.
  */
 ort_path: string; ojt_dir: string; vvm_dir: string; cache_size?: number }
+export type FrontendReadyEvent = null
+export type InitializationEvent = { config: AzaleaConfig | null; core_initialized: boolean; metas: CharacterMeta[] | null; range: ([StyleId, [number, number]])[]; error: string | null }
 export type Locale = "Ja" | "En"
 /**
  * モーラ（子音＋母音）ごとの情報。

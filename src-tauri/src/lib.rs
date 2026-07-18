@@ -7,11 +7,11 @@ use core::Core;
 
 use commands::*;
 use specta_typescript::Typescript;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use tauri::async_runtime::RwLock as TokioRwLock;
 use tokio::sync::OnceCell;
 
-use tauri_specta::{collect_commands, Builder};
+use tauri_specta::{collect_commands, collect_events, Builder, Event};
 
 use voicevox_core::{AudioQuery, StyleId};
 
@@ -46,12 +46,14 @@ pub fn run() {
     synthesize,
     synthesize_state,
     play_audio,
+    play_audio_sequence,
     save_audio,
     get_os,
     quit,
     save_project,
     load_project,
-  ]);
+  ])
+  .events(collect_events![InitializationEvent, FrontendReadyEvent]);
 
   // In debug mode, export the typescript bindings
   #[cfg(debug_assertions)]
@@ -80,6 +82,39 @@ pub fn run() {
     .invoke_handler(builder.invoke_handler())
     .setup(move |app| {
       builder.mount_events(app);
+      let app_handle = app.handle().clone();
+      let startup = Arc::new(Mutex::new((false, None::<InitializationEvent>)));
+      let ready_startup = startup.clone();
+      let ready_app = app_handle.clone();
+      FrontendReadyEvent::once(&app_handle, move |_| {
+        let event = {
+          let mut startup = ready_startup.lock().unwrap();
+          startup.0 = true;
+          startup.1.take()
+        };
+        if let Some(event) = event {
+          if let Err(error) = event.emit(&ready_app) {
+            eprintln!("Failed to emit initialization event: {error}");
+          }
+        }
+      });
+      tauri::async_runtime::spawn(async move {
+        let event = initialize(app_handle.clone()).await;
+        let should_emit = {
+          let mut startup = startup.lock().unwrap();
+          if startup.0 {
+            true
+          } else {
+            startup.1 = Some(event.clone());
+            false
+          }
+        };
+        if should_emit {
+          if let Err(error) = event.emit(&app_handle) {
+            eprintln!("Failed to emit initialization event: {error}");
+          }
+        }
+      });
       Ok(())
     })
     .run(tauri::generate_context!())

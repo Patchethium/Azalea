@@ -12,7 +12,8 @@
   "bottom": {
     "no_query": "テキストを入力してください",
     "accent": "アクセント",
-    "tuning": "調整"
+    "tuning": "調整",
+    "play_all_from_selection": "選択したセル以降をすべて再生"
   },
   "text_block": {
     "synth_state": {

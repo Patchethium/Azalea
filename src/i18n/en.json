@@ -12,7 +12,8 @@
   "bottom": {
     "no_query": "No Query",
     "accent": "Accent",
-    "tuning": "Tuning"
+    "tuning": "Tuning",
+    "play_all_from_selection": "Play selected cell and all cells below"
   },
   "text_block": {
     "synth_state": {
