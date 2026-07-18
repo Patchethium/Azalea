@@ -9,6 +9,7 @@ use commands::*;
 use specta_typescript::Typescript;
 use std::sync::{Arc, Mutex, RwLock};
 use tauri::async_runtime::RwLock as TokioRwLock;
+use tauri::Manager;
 use tokio::sync::OnceCell;
 
 use tauri_specta::{collect_commands, collect_events, Builder, Event};
@@ -91,7 +92,16 @@ pub fn run() {
       let ready_startup = startup.clone();
       let ready_app = app_handle.clone();
       FrontendReadyEvent::listen(&app_handle, move |_| {
-        let event = ready_startup.lock().unwrap().clone();
+        let mut event = ready_startup.lock().unwrap().clone();
+        if let Some(event) = event.as_mut() {
+          let state = ready_app.state::<AppState>();
+          event.config = state
+            .config_manager
+            .read()
+            .unwrap()
+            .as_ref()
+            .map(|manager| manager.config.clone());
+        }
         if let Some(event) = event {
           if let Err(error) = event.emit(&ready_app) {
             eprintln!("Failed to emit initialization event: {error}");

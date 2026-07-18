@@ -75,6 +75,10 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     }
   };
   createEffect(() => {
+    if (!configInitialized()) return;
+
+    // Read the complete store so changes to nested settings trigger the effect.
+    JSON.stringify(config);
     saveConfig();
   });
 
