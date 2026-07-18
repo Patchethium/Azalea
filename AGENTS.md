@@ -40,3 +40,7 @@ Add Rust integration coverage in `src-tauri/tests/`, using descriptive `snake_ca
 ## Commit & Pull Request Guidelines
 
 Recent commits use short imperative, Conventional Commit-style prefixes such as `feat:`, `fix:`, and `chores:`. Keep each commit scoped to one concern. Open an issue before substantial work, as requested in the README. Pull requests should explain the problem and solution, link the issue, list validation commands, and include screenshots or recordings for visible UI changes. Avoid committing local core assets, generated build output, or machine-specific configuration.
+
+## Git Guidelines
+
+Prefer using `git add .` than `git add file1 file2 ...` to make review easier for the user.
