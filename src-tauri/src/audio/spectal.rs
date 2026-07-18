@@ -1,6 +1,7 @@
 //! A very simple mel spectrogram implementation
 //! used for users to refer how the audio looks like in frequency domain
-use ndarray::{s, Array1, Array2};
+use ndarray::{s, Array1, Array2, Axis};
+use rayon::prelude::*;
 use rustfft::num_complex::Complex;
 use rustfft::FftPlanner;
 
@@ -80,36 +81,54 @@ impl MelSpec {
     let n_frames = remaining.saturating_add(self.hop_length - 1) / self.hop_length + 1;
     let mut spec = Array2::zeros((self.n_fft / 2 + 1, n_frames));
 
-    for i in 0..n_frames {
-      let start = i * self.hop_length;
-      let end = (start + self.n_fft).min(n_samples);
-      let frame = signal.slice(s![start..end]);
-      let mut windowed = vec![Complex::new(0., 0.); self.n_fft];
-      for ((sample, window), output) in frame
-        .iter()
-        .zip(self.window.iter())
-        .zip(windowed.iter_mut())
-      {
-        output.re = sample * window;
-      }
+    let n_fft = self.n_fft;
+    let hop_length = self.hop_length;
+    let window = &self.window;
+    spec
+      .axis_iter_mut(Axis(1))
+      .into_par_iter()
+      .enumerate()
+      .for_each(|(i, mut output)| {
+        let start = i * hop_length;
+        let end = (start + n_fft).min(n_samples);
+        let frame = signal.slice(s![start..end]);
+        let mut windowed = vec![Complex::new(0., 0.); n_fft];
+        for ((sample, window), output) in frame.iter().zip(window.iter()).zip(windowed.iter_mut()) {
+          output.re = sample * window;
+        }
 
-      fft.process(&mut windowed);
+        fft.process(&mut windowed);
 
-      // compute power spectrum
-      for (j, complex_val) in windowed.iter().take(self.n_fft / 2 + 1).enumerate() {
-        spec[[j, i]] = (complex_val.norm() / self.n_fft as f64).powi(2);
-      }
-    }
+        // compute power spectrum
+        for (j, complex_val) in windowed.iter().take(n_fft / 2 + 1).enumerate() {
+          output[j] = (complex_val.norm() / n_fft as f64).powi(2);
+        }
+      });
     spec
   }
 
-  fn amp2db(&self, amp: f64) -> f64 {
+  fn amp2db(amp: f64) -> f64 {
     10. * amp.max(f64::MIN_POSITIVE).log10()
   }
 
   pub fn process(&mut self, signal: Array1<f64>) -> Array2<f64> {
     let spec = self.spectrogram(signal);
-    let mel_spec = self.filterbank.dot(&spec);
-    mel_spec.mapv(|x| self.amp2db(x))
+    let n_mels = self.filterbank.nrows();
+    let n_frames = spec.ncols();
+    let mut mel_spec = Array2::zeros((n_mels, n_frames));
+    let filterbank = &self.filterbank;
+
+    mel_spec
+      .axis_iter_mut(Axis(1))
+      .into_par_iter()
+      .enumerate()
+      .for_each(|(frame, mut output)| {
+        let spectrum = spec.column(frame);
+        for (mel, filter) in filterbank.axis_iter(Axis(0)).enumerate() {
+          output[mel] = Self::amp2db(filter.dot(&spectrum));
+        }
+      });
+
+    mel_spec
   }
 }
