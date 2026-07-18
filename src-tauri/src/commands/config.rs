@@ -22,16 +22,22 @@ pub async fn initialize(app: tauri::AppHandle) -> InitializationEvent {
   let state = app.state::<AppState>();
   let config_manager = match ConfigManager::new() {
     Ok(manager) => manager,
-    Err(error) => return InitializationEvent {
-      config: None,
-      core_initialized: false,
-      metas: None,
-      range: _get_range().into_iter().collect(),
-      error: Some(error.to_string()),
-    },
+    Err(error) => {
+      return InitializationEvent {
+        config: None,
+        core_initialized: false,
+        metas: None,
+        range: _get_range().into_iter().collect(),
+        error: Some(error.to_string()),
+      }
+    }
   };
   let config = config_manager.config.clone();
-  state.config_manager.write().unwrap().replace(config_manager);
+  state
+    .config_manager
+    .write()
+    .unwrap()
+    .replace(config_manager);
 
   let error = if let Some(core_config) = config.core_config.clone() {
     super::core::initialize_core(&state, core_config)

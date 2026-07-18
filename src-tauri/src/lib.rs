@@ -28,32 +28,33 @@ pub struct AppState {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-  let builder = Builder::<tauri::Wry>::new().commands(collect_commands![
-    clear_caches,
-    pick_core,
-    download_core,
-    init_config,
-    get_config,
-    set_config,
-    init_core,
-    get_metas,
-    get_range,
-    audio_query,
-    accent_phrases,
-    replace_mora,
-    replace_mora_pitch,
-    replace_mora_duration,
-    synthesize,
-    synthesize_state,
-    play_audio,
-    play_audio_sequence,
-    save_audio,
-    get_os,
-    quit,
-    save_project,
-    load_project,
-  ])
-  .events(collect_events![InitializationEvent, FrontendReadyEvent]);
+  let builder = Builder::<tauri::Wry>::new()
+    .commands(collect_commands![
+      clear_caches,
+      pick_core,
+      download_core,
+      init_config,
+      get_config,
+      set_config,
+      init_core,
+      get_metas,
+      get_range,
+      audio_query,
+      accent_phrases,
+      replace_mora,
+      replace_mora_pitch,
+      replace_mora_duration,
+      synthesize,
+      synthesize_state,
+      play_audio,
+      play_audio_sequence,
+      save_audio,
+      get_os,
+      quit,
+      save_project,
+      load_project,
+    ])
+    .events(collect_events![InitializationEvent, FrontendReadyEvent]);
 
   // In debug mode, export the typescript bindings
   #[cfg(debug_assertions)]
@@ -83,15 +84,11 @@ pub fn run() {
     .setup(move |app| {
       builder.mount_events(app);
       let app_handle = app.handle().clone();
-      let startup = Arc::new(Mutex::new((false, None::<InitializationEvent>)));
+      let startup = Arc::new(Mutex::new(None::<InitializationEvent>));
       let ready_startup = startup.clone();
       let ready_app = app_handle.clone();
-      FrontendReadyEvent::once(&app_handle, move |_| {
-        let event = {
-          let mut startup = ready_startup.lock().unwrap();
-          startup.0 = true;
-          startup.1.take()
-        };
+      FrontendReadyEvent::listen(&app_handle, move |_| {
+        let event = ready_startup.lock().unwrap().clone();
         if let Some(event) = event {
           if let Err(error) = event.emit(&ready_app) {
             eprintln!("Failed to emit initialization event: {error}");
@@ -100,19 +97,9 @@ pub fn run() {
       });
       tauri::async_runtime::spawn(async move {
         let event = initialize(app_handle.clone()).await;
-        let should_emit = {
-          let mut startup = startup.lock().unwrap();
-          if startup.0 {
-            true
-          } else {
-            startup.1 = Some(event.clone());
-            false
-          }
-        };
-        if should_emit {
-          if let Err(error) = event.emit(&app_handle) {
-            eprintln!("Failed to emit initialization event: {error}");
-          }
+        startup.lock().unwrap().replace(event.clone());
+        if let Err(error) = event.emit(&app_handle) {
+          eprintln!("Failed to emit initialization event: {error}");
         }
       });
       Ok(())
