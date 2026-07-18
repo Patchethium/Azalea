@@ -84,6 +84,7 @@
   },
   "preset_manager": {
     "title": "プリセット管理",
+    "close": "プリセット管理を閉じる",
     "project_presets": "プロジェクト",
     "system_presets": "システム",
     "copy_to_system": "システムにコピー",

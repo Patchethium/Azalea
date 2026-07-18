@@ -6,6 +6,7 @@ import { Preset } from "../binding";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { useTextStore } from "../contexts/text";
+import { AppDialogContent } from "./AppDialogContent";
 
 interface PresetManagerDialogProps {
   open: boolean;
@@ -45,63 +46,53 @@ export function PresetManagerDialog(props: PresetManagerDialogProps) {
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <Dialog.Portal>
-        <Dialog.Overlay class="fixed inset-0 z-50 bg-black/50" />
-        <div class="fixed inset-0 z-50 flex items-center justify-center">
-          <Dialog.Content class="bg-white dark:bg-slate-8 p-4 rounded-lg shadow-lg max-w-4xl w-full h-[60%] flex flex-col gap-4">
-            <div class="flex justify-between items-center border-b dark:border-slate-6 pb-2">
-              <Dialog.Title class="text-lg font-bold">
-                {t1("preset_manager.title")}
-              </Dialog.Title>
-              <Dialog.CloseButton class="p-1 hover:bg-slate-100 dark:hover:bg-slate-7 rounded bg-transparent">
-                <div class="i-lucide:x size-6" />
-              </Dialog.CloseButton>
+      <AppDialogContent
+        title={t1("preset_manager.title")}
+        closeLabel={t1("preset_manager.close")}
+        class="max-w-4xl w-full h-[60%]"
+      >
+        <div class="flex flex-row gap-4 flex-1 overflow-hidden min-h-0 p4">
+          {/* Project Presets Column */}
+          <div class="flex-1 flex flex-col gap-2 border dark:border-slate-6 rounded-md p-2">
+            <h3 class="font-semibold text-center bg-slate-100 dark:bg-slate-7 p-1 rounded">
+              {t1("preset_manager.project_presets")}
+            </h3>
+            <div class="flex-1 overflow-y-auto flex flex-col gap-2">
+              <For each={projectPresetStore}>
+                {(preset, i) => (
+                  <PresetItem
+                    preset={preset}
+                    index={i()}
+                    direction="right"
+                    copyTo={copyToSystem}
+                    delete={deleteFromProject}
+                  />
+                )}
+              </For>
             </div>
+          </div>
 
-            <div class="flex flex-row gap-4 flex-1 overflow-hidden min-h-0">
-              {/* Project Presets Column */}
-              <div class="flex-1 flex flex-col gap-2 border dark:border-slate-6 rounded-md p-2">
-                <h3 class="font-semibold text-center bg-slate-100 dark:bg-slate-7 p-1 rounded">
-                  {t1("preset_manager.project_presets")}
-                </h3>
-                <div class="flex-1 overflow-y-auto flex flex-col gap-2">
-                  <For each={projectPresetStore}>
-                    {(preset, i) => (
-                      <PresetItem
-                        preset={preset}
-                        index={i()}
-                        direction="right"
-                        copyTo={copyToSystem}
-                        delete={deleteFromProject}
-                      />
-                    )}
-                  </For>
-                </div>
-              </div>
-
-              {/* System Presets Column */}
-              <div class="flex-1 flex flex-col gap-2 border dark:border-slate-6 rounded-md p-2">
-                <h3 class="font-semibold text-center bg-slate-100 dark:bg-slate-7 p-1 rounded">
-                  {t1("preset_manager.system_presets")}
-                </h3>
-                <div class="flex-1 overflow-y-auto flex flex-col gap-2">
-                  <For each={config.system_presets ?? []}>
-                    {(preset, i) => (
-                      <PresetItem
-                        preset={preset}
-                        index={i()}
-                        direction="left"
-                        copyTo={copyToProject}
-                        delete={deleteFromSystem}
-                      />
-                    )}
-                  </For>
-                </div>
-              </div>
+          {/* System Presets Column */}
+          <div class="flex-1 flex flex-col gap-2 border dark:border-slate-6 rounded-md p-2">
+            <h3 class="font-semibold text-center bg-slate-100 dark:bg-slate-7 p-1 rounded">
+              {t1("preset_manager.system_presets")}
+            </h3>
+            <div class="flex-1 overflow-y-auto flex flex-col gap-2">
+              <For each={config.system_presets ?? []}>
+                {(preset, i) => (
+                  <PresetItem
+                    preset={preset}
+                    index={i()}
+                    direction="left"
+                    copyTo={copyToProject}
+                    delete={deleteFromSystem}
+                  />
+                )}
+              </For>
             </div>
-          </Dialog.Content>
+          </div>
         </div>
-      </Dialog.Portal>
+      </AppDialogContent>
     </Dialog>
   );
 }

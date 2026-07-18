@@ -21,7 +21,7 @@ import MainPage from "./layout/MainPage";
 import Sidebar from "./layout/Sidebar";
 
 function App() {
-  const {
+  const { 
     config,
     setConfig,
     setConfigInitialized,

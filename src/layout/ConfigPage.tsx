@@ -33,9 +33,9 @@ function ConfigPage() {
       <AppDialogContent
         title={t1("config.title")}
         closeLabel={t1("config.close")}
-        class="w-[min(90vw,32rem)] h-[min(80vh,24rem)]"
+        class="w-[min(90vw,32rem)]"
       >
-        <div class="flex-1 overflow-auto px3">
+        <div class="flex-1 overflow-auto px3 pb3">
           <ConfigItem label={t1("config.lang")}>
             <I18NSelect />
           </ConfigItem>

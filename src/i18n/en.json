@@ -84,6 +84,7 @@
   },
   "preset_manager": {
     "title": "Preset Manager",
+    "close": "Close preset manager",
     "project_presets": "Project Presets",
     "system_presets": "System Presets",
     "copy_to_system": "Copy to System",
