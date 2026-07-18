@@ -18,7 +18,7 @@ export function ShortcutReferenceDialog() {
   return (
     <Dialog>
       <Dialog.Trigger
-        class="group size-8 p1 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-blue-5 ui-expanded:bg-blue-5 transition-transform outline-none"
+        class="group size-8 p1 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-primary-5 ui-expanded:bg-primary-5 transition-transform outline-none"
         title={t1("shortcuts.open")}
         aria-label={t1("shortcuts.open")}
       >

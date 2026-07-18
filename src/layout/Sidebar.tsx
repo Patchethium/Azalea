@@ -67,7 +67,7 @@ function PresetCard(props: PresetCardProps) {
         class="items-start rounded-r-md p1 pl2 group-hover:bg-slate-2 dark:group-hover:bg-slate-7 overflow-hidden bg-white dark:bg-slate-8 border-l-2 border-slate-1 dark:border-slate-7
         cursor-default select-none w-full min-h-[fit-content] group-active:bg-white dark:group-active:bg-slate-8 flex flex-col"
         classList={{
-          "shadow-md group-hover:bg-white dark:group-hover:bg-slate-8 !border-blue-5":
+          "shadow-md group-hover:bg-white dark:group-hover:bg-slate-8 !border-primary-5":
             props.selected,
         }}
       >
@@ -355,11 +355,11 @@ function Sidebar() {
       {/* Controls */}
       <div class="w-auto flex items-center rounded-md bg-white dark:bg-slate-8 mt-2 mx-1 p1 shadow-md z-10">
         <Button
-          class="size-6 i-lucide:plus hover:bg-blue-5 active:bg-blue-6"
+          class="size-6 i-lucide:plus hover:bg-primary-5 active:bg-primary-6"
           onClick={createPreset}
         />
         <Button
-          class="size-6 i-lucide:chevron-up hover:bg-blue-5 active:bg-blue-6 ui-disabled:(cursor-not-allowed opacity-50)"
+          class="size-6 i-lucide:chevron-up hover:bg-primary-5 active:bg-primary-6 ui-disabled:(cursor-not-allowed opacity-50)"
           disabled={
             currentText().preset_id === null || currentText().preset_id === 0
           }
@@ -367,7 +367,7 @@ function Sidebar() {
           title={t1("preset_manager.title")}
         />
         <Button
-          class="size-6 i-lucide:chevron-down hover:bg-blue-5 active:bg-blue-6 ui-disabled:(cursor-not-allowed opacity-50)"
+          class="size-6 i-lucide:chevron-down hover:bg-primary-5 active:bg-primary-6 ui-disabled:(cursor-not-allowed opacity-50)"
           disabled={
             currentText().preset_id === null ||
             currentText().preset_id === projectPresetStore.length - 1
@@ -377,7 +377,7 @@ function Sidebar() {
         />
         <div class="flex-1" />
         <Button
-          class="size-6 i-lucide:library hover:bg-blue-5 active:bg-blue-6"
+          class="size-6 i-lucide:library hover:bg-primary-5 active:bg-primary-6"
           onClick={() => setPresetManagerOpen(true)}
           title={t1("preset_manager.title")}
         />
@@ -448,7 +448,7 @@ function Sidebar() {
                 value={currentPreset()?.name}
                 onChange={setPresetName}
               >
-                <TextField.Input class="p1 px2 w-full b b-slate-2 dark:(b-slate-6 bg-slate-7) rounded-md outline-none focus:b-blue-5" />
+                <TextField.Input class="p1 px2 w-full b b-slate-2 dark:(b-slate-6 bg-slate-7) rounded-md outline-none focus:b-primary-5" />
               </TextField>
               {/* TODO: Don't repeat yourself */}
               <OptionSelector
@@ -516,7 +516,7 @@ function Sidebar() {
 
       <div class="flex flex-row items-center gap-1">
         <DropdownMenu open={actionMenuOpen()} onOpenChange={setActionMenuOpen}>
-          <DropdownMenu.Trigger class="group p1 size-8 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-blue-5 ui-expanded:bg-blue-5 transition-transform outline-none">
+          <DropdownMenu.Trigger class="group p1 size-8 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-primary-5 ui-expanded:bg-primary-5 transition-transform outline-none">
             <div class="i-lucide:kanban bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white ui-expanded:!bg-white" />
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
@@ -566,7 +566,7 @@ function Sidebar() {
           >
             <ToggleGroup.Item
               value="config"
-              class="group size-8 p1 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-blue-5 ui-pressed:bg-blue-5 transition-transform"
+              class="group size-8 p1 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-primary-5 ui-pressed:bg-primary-5 transition-transform"
             >
               <div class="i-lucide:cog bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white ui-pressed:!bg-white" />
             </ToggleGroup.Item>
@@ -593,7 +593,7 @@ function OptionSelector(props: {
       itemComponent={(props) => (
         <Select.Item
           item={props.item}
-          class="p1 flex flex-row items-center justify-between rounded-md ui-highlighted:(bg-blue-5 text-white) cursor-pointer"
+          class="p1 flex flex-row items-center justify-between rounded-md ui-highlighted:(bg-primary-5 text-white) cursor-pointer"
         >
           <Select.ItemLabel>{props.item.rawValue}</Select.ItemLabel>
           <Select.ItemIndicator class="size-6 flex items-center justify-center">
@@ -649,7 +649,7 @@ function PresetSlider(props: PresetSliderProps) {
       <div class="flex w-full text-sm items-center">
         <Show when={props.checkable}>
           <Checkbox
-            class="size-4 rounded-sm b b-slate-3 mr-1 ui-checked:(!b-blue-5 bg-blue-5)"
+            class="size-4 rounded-sm b b-slate-3 mr-1 ui-checked:(!b-primary-5 bg-primary-5)"
             checked={props.checkable!.checked}
             onChange={(v) => props.checkable!.setChecked(v)}
           >
@@ -668,8 +668,8 @@ function PresetSlider(props: PresetSliderProps) {
       </div>
       <div class="w-full flex p1">
         <Slider.Track class="w-full h-2 bg-slate-2 dark:bg-slate-6 rounded-full relative ui-disabled:cursor-not-allowed">
-          <Slider.Fill class="absolute bg-blue-5 rounded-full h-full ui-disabled:bg-blue-2" />
-          <Slider.Thumb class="block w-2 h-4 bg-blue-5 ui-disabled:bg-blue-2 rounded-sm -top-1 outline-none">
+          <Slider.Fill class="absolute bg-primary-5 rounded-full h-full ui-disabled:bg-primary-2" />
+          <Slider.Thumb class="block w-2 h-4 bg-primary-5 ui-disabled:bg-primary-2 rounded-sm -top-1 outline-none">
             <Slider.Input />
           </Slider.Thumb>
         </Slider.Track>
@@ -697,19 +697,19 @@ function PauseNumField(props: {
     >
       <NumberField.Label>{props.label}</NumberField.Label>
       <div class="flex flex-row gap-1 items-center">
-        <NumberField.Input class="h-8 w-full outline-none rounded-lg b b-slate-2 dark:(b-slate-6 bg-slate-7) focus:b-blue-3 px-1" />
+        <NumberField.Input class="h-8 w-full outline-none rounded-lg b b-slate-2 dark:(b-slate-6 bg-slate-7) focus:b-primary-3 px-1" />
         <div class="flex flex-col">
           <NumberField.IncrementTrigger
             aria-label="Increment"
             class="size-4 bg-transparent group"
           >
-            <div class="i-lucide:chevron-up size-full group-hover:bg-blue-5 group-active:bg-blue-7" />
+            <div class="i-lucide:chevron-up size-full group-hover:bg-primary-5 group-active:bg-primary-7" />
           </NumberField.IncrementTrigger>
           <NumberField.DecrementTrigger
             aria-label="Decrement"
             class="size-4 bg-transparent group"
           >
-            <div class="i-lucide:chevron-down size-full group-hover:bg-blue-5 group-active:bg-blue-7" />
+            <div class="i-lucide:chevron-down size-full group-hover:bg-primary-5 group-active:bg-primary-7" />
           </NumberField.DecrementTrigger>
         </div>
       </div>

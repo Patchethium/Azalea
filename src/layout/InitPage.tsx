@@ -58,8 +58,8 @@ function InitPage() {
   return (
     <div class="flex relative items-center justify-center wfull hfull">
       <div
-        class="relative flex flex-col items-start gap-1 bg-white dark:bg-slate-8 p8 rounded-2xl b-1 border-blue-2 selection:(text-white bg-blue-5)
-       before:(content-empty inset-0 scale-110 absolute left-0 top-0 blur-150 wfull hfull -z-10 rounded-3xl bg-gradient-to-br from-blue-3 to-green-3 rounded-2xl animate-duration-7000 animate-pulse)"
+        class="relative flex flex-col items-start gap-1 bg-white dark:bg-slate-8 p8 rounded-2xl b-1 border-primary-2 selection:(text-white bg-primary-5)
+       before:(content-empty inset-0 scale-110 absolute left-0 top-0 blur-150 wfull hfull -z-10 rounded-3xl bg-gradient-to-br from-primary-3 to-green-3 rounded-2xl animate-duration-7000 animate-pulse)"
       >
         <div class="text-center text-xl font-600 text-slate-9 dark:text-slate-1">
           {t1("init_dialog.intro")}
@@ -77,7 +77,7 @@ function InitPage() {
                 class="flex flex-row gap-2 items-center"
               >
                 <RadioGroup.ItemInput />
-                <RadioGroup.ItemControl class="w5 h5 rounded-full bg-white dark:bg-slate-7 b-1 border-gray-2 dark:border-slate-5 flex justify-center items-center ui-checked:bg-blue-5">
+                <RadioGroup.ItemControl class="w5 h5 rounded-full bg-white dark:bg-slate-7 b-1 border-gray-2 dark:border-slate-5 flex justify-center items-center ui-checked:bg-primary-5">
                   <RadioGroup.ItemIndicator class="w2 h2 bg-white rounded-full" />
                 </RadioGroup.ItemControl>
                 <RadioGroup.ItemLabel class="">
@@ -91,7 +91,7 @@ function InitPage() {
           <I18NSelect />
           <div class="m-auto" />
           <Button
-            class="py2 px3 rounded-lg bg-blue-5 text-white hover:bg-blue-6 focus:(bg-blue-6 outline-solid outline-3 outline-blue-2) active:bg-blue-7"
+            class="py2 px3 rounded-lg bg-primary-5 text-white hover:bg-primary-6 focus:(bg-primary-6 outline-solid outline-3 outline-primary-2) active:bg-primary-7"
             disabled={action() === null}
             onClick={executeAction}
           >

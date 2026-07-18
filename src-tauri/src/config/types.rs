@@ -50,6 +50,8 @@ pub struct UIConfig {
   pub locale: Locale,
   #[serde(default)]
   pub dark_mode: bool,
+  #[serde(default = "primary_color_default")]
+  pub primary_color: String,
   #[serde(default = "bottom_scale_default")]
   pub bottom_scale: usize,
   #[serde(default)]
@@ -73,6 +75,7 @@ impl Default for UIConfig {
     Self {
       locale: Default::default(),
       dark_mode: false,
+      primary_color: primary_color_default(),
       bottom_scale: bottom_scale_default(),
       auto_save: Default::default(),
       bottom_ratio: bottom_ratio_default(),
@@ -83,6 +86,10 @@ impl Default for UIConfig {
       last_exported_dir: None,
     }
   }
+}
+
+fn primary_color_default() -> String {
+  "#3b82f6".to_string()
 }
 
 fn bottom_scale_default() -> usize {

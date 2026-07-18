@@ -70,7 +70,7 @@ function BottomPanel() {
           >
             {t1("bottom.tuning")}
           </Tabs.Trigger>
-          <Tabs.Indicator class="bg-blue-5 h-1px absolute transition-all bottom-0 left-0" />
+          <Tabs.Indicator class="bg-primary-5 h-1px absolute transition-all bottom-0 left-0" />
         </Tabs.List>
       </div>
 
@@ -240,7 +240,7 @@ function ControlBar(props: { onWaveformSynthesized: () => void }) {
         onClick={focusPrev}
         disabled={!prevExists()}
       >
-        <div class="i-lucide:skip-back size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+        <div class="i-lucide:skip-back size-full group-hover:bg-primary-5 group-active:bg-primary-6" />
       </Button>
       <Button
         class="group h-6 w-6 bg-transparent rounded-md ui-disabled:(cursor-not-allowed opacity-50)"
@@ -252,10 +252,10 @@ function ControlBar(props: { onWaveformSynthesized: () => void }) {
         <Show
           when={isPlaying()}
           fallback={
-            <div class="i-lucide:play size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+            <div class="i-lucide:play size-full group-hover:bg-primary-5 group-active:bg-primary-6" />
           }
         >
-          <div class="i-lucide:square size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+          <div class="i-lucide:square size-full group-hover:bg-primary-5 group-active:bg-primary-6" />
         </Show>
       </Button>
       <Button
@@ -265,14 +265,14 @@ function ControlBar(props: { onWaveformSynthesized: () => void }) {
         title={t1("bottom.play_all_from_selection")}
         aria-label={t1("bottom.play_all_from_selection")}
       >
-        <div class="i-lucide:list-video size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+        <div class="i-lucide:list-video size-full group-hover:bg-primary-5 group-active:bg-primary-6" />
       </Button>
       <Button
         class="group h-5 w-5 bg-transparent rounded-md ui-disabled:(cursor-not-allowed opacity-50)"
         onClick={focusNext}
         disabled={!nextExists()}
       >
-        <div class="i-lucide:skip-forward size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+        <div class="i-lucide:skip-forward size-full group-hover:bg-primary-5 group-active:bg-primary-6" />
       </Button>
       <div class="flex-1" />
     </div>
@@ -680,7 +680,7 @@ function TuningPanel(props: { previewRevision: number }) {
             onChange={(v) => setScale(v[0])}
           >
             <Slider.Track class="w-full h-2 bg-slate-2 dark:bg-slate-6 rounded-full relative">
-              <Slider.Fill class="absolute bg-slate-3 dark:bg-slate-5 rounded-full h-full group-hover:bg-blue-5" />
+              <Slider.Fill class="absolute bg-slate-3 dark:bg-slate-5 rounded-full h-full group-hover:bg-primary-5" />
               <Slider.Thumb class="block size-4 bg-transparent rounded-full -top-1 outline-none">
                 <Slider.Input />
               </Slider.Thumb>
@@ -740,8 +740,8 @@ function TuningItems(props: {
             orientation="vertical"
           >
             <Slider.Track class="size-full bg-transparent relative group">
-              <Slider.Fill class="absolute bg-transparent w-full group-hover:!bg-blue-50 dark:group-hover:!bg-blue-9" />
-              <Slider.Thumb class="block h-1px w-full bg-slate-4 outline-none group-hover:!bg-blue-5">
+              <Slider.Fill class="absolute bg-transparent w-full group-hover:!bg-primary-50 dark:group-hover:!bg-primary-9" />
+              <Slider.Thumb class="block h-1px w-full bg-slate-4 outline-none group-hover:!bg-primary-5">
                 <Slider.Input />
               </Slider.Thumb>
             </Slider.Track>
@@ -772,7 +772,7 @@ function TuningItems(props: {
         >
           <Show when={consonantPixels() != null}>
             <div
-              class="flex items-center justify-center b-dashed b-r b-slate3 dark:b-slate-6 hover:!bg-blue-50 dark:hover:!bg-blue-9"
+              class="flex items-center justify-center b-dashed b-r b-slate3 dark:b-slate-6 hover:!bg-primary-50 dark:hover:!bg-primary-9"
               onMouseDown={() =>
                 props.startDraggingDur(
                   props.mora.consonant_length!,
@@ -785,7 +785,7 @@ function TuningItems(props: {
             </div>
           </Show>
           <div
-            class="flex items-center justify-center hover:!bg-blue-50 dark:hover:!bg-blue-9"
+            class="flex items-center justify-center hover:!bg-primary-50 dark:hover:!bg-primary-9"
             onMouseDown={() =>
               props.startDraggingDur(props.mora.vowel_length, "vowel")
             }
@@ -806,6 +806,7 @@ function SpectrogramCanvas(props: {
   postSilence: number;
   stale: boolean;
 }) {
+  const { config } = useConfigStore()!;
   let canvasRef!: HTMLCanvasElement;
 
   createEffect(() => {
@@ -839,6 +840,13 @@ function SpectrogramCanvas(props: {
 
     const context = canvasRef.getContext("2d");
     if (context === null) return;
+    const configuredColor = config.ui_config.primary_color ?? "#3b82f6";
+    const primaryColor = /^#[0-9a-f]{6}$/i.test(configuredColor)
+      ? configuredColor
+      : "#3b82f6";
+    const red = Number.parseInt(primaryColor.slice(1, 3), 16);
+    const green = Number.parseInt(primaryColor.slice(3, 5), 16);
+    const blue = Number.parseInt(primaryColor.slice(5, 7), 16);
     const pixels = context.createImageData(visibleFrames, melBins);
     for (let y = 0; y < melBins; y++) {
       const sourceBin = melBins - y - 1;
@@ -846,9 +854,9 @@ function SpectrogramCanvas(props: {
         const strength =
           values[sourceBin * frameCount + audibleStart + x] / 255;
         const pixel = (y * visibleFrames + x) * 4;
-        pixels.data[pixel] = 37;
-        pixels.data[pixel + 1] = 99;
-        pixels.data[pixel + 2] = 235;
+        pixels.data[pixel] = red;
+        pixels.data[pixel + 1] = green;
+        pixels.data[pixel + 2] = blue;
         pixels.data[pixel + 3] = Math.round(
           Math.max(0, strength - 0.08) ** 1.35 * 105,
         );
@@ -1113,8 +1121,8 @@ function AccentPhraseItem(props: {
       >
         <div class="w-full flex p1">
           <Slider.Track class="w-full h-2 bg-slate-2 dark:bg-slate-6 rounded-full relative ui-disabled:cursor-not-allowed">
-            <Slider.Fill class="absolute bg-blue-5 rounded-full h-full ui-disabled:bg-blue-2" />
-            <Slider.Thumb class="block w-2 h-4 bg-blue-5 ui-disabled:bg-blue-2 rounded-sm -top-1 outline-none">
+            <Slider.Fill class="absolute bg-primary-5 rounded-full h-full ui-disabled:bg-primary-2" />
+            <Slider.Thumb class="block w-2 h-4 bg-primary-5 ui-disabled:bg-primary-2 rounded-sm -top-1 outline-none">
               <Slider.Input />
             </Slider.Thumb>
           </Slider.Track>
@@ -1140,11 +1148,11 @@ function AccentPhraseItem(props: {
             return (
               <div class="flex justify-center items-center flex-row rounded-md">
                 <div
-                  class="size-8 bg-blue-1 dark:bg-blue-9 items-center justify-center flex rounded-md cursor-pointer text-sm"
+                  class="size-8 bg-primary-1 dark:bg-primary-9 items-center justify-center flex rounded-md cursor-pointer text-sm"
                   classList={{
                     "mt-10": !high(),
                     "mb-10": high(),
-                    "b b-blue-3": phonemeHovered(),
+                    "b b-primary-3": phonemeHovered(),
                   }}
                   onMouseEnter={() => setPhonemeHovered(true)}
                   onMouseLeave={() => setPhonemeHovered(false)}
@@ -1157,7 +1165,7 @@ function AccentPhraseItem(props: {
                   fallback={
                     /* Pause mora area, this shouldn't be highlighted when button is hovered */
                     <div
-                      class="m-2 w-8 h-full rounded-md flex items-center justify-center hover:(bg-blue-50 dark:bg-blue-9) cursor-pointer"
+                      class="m-2 w-8 h-full rounded-md flex items-center justify-center hover:(bg-primary-50 dark:bg-primary-9) cursor-pointer"
                       classList={{
                         "!bg-transparent": pauseMoraHovered(),
                       }}
@@ -1171,9 +1179,9 @@ function AccentPhraseItem(props: {
                         classList={{
                           "bg-transparent text-transparent b-dashed":
                             props.phrase.pause_mora == null,
-                          "bg-blue-1 dark:bg-blue-9 hover:(b b-blue-3)":
+                          "bg-primary-1 dark:bg-primary-9 hover:(b b-primary-3)":
                             props.phrase.pause_mora != null,
-                          "text-black dark:text-white b b-blue-3":
+                          "text-black dark:text-white b b-primary-3":
                             pauseMoraHovered(),
                         }}
                         onMouseEnter={() => setPauseMoraHovered(true)}
@@ -1186,14 +1194,14 @@ function AccentPhraseItem(props: {
                   }
                 >
                   <div
-                    class="bg-transparent w-4 flex items-center justify-center flex hover:bg-blue-50 dark:hover:bg-blue-9 rounded-md h-24 cursor-pointer"
+                    class="bg-transparent w-4 flex items-center justify-center flex hover:bg-primary-50 dark:hover:bg-primary-9 rounded-md h-24 cursor-pointer"
                     onMouseEnter={() => setHovered(i())}
                     onMouseLeave={() => setHovered(-1)}
                     onClick={() => props.onSplit(i() + 1)}
                   >
                     <svg
                       aria-label="Accent connection line"
-                      class="top-0 text-blue-3"
+                      class="top-0 text-primary-3"
                     >
                       <line
                         x1="0"
@@ -1226,7 +1234,7 @@ function AccentPhraseItem(props: {
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <TextField.Input class="p1 px2 w-full b b-slate-2 dark:(b-slate-6 bg-slate-7) rounded-md outline-none focus:b-blue-5" />
+              <TextField.Input class="p1 px2 w-full b b-slate-2 dark:(b-slate-6 bg-slate-7) rounded-md outline-none focus:b-primary-5" />
             </TextField>
           </div>
         </Show>

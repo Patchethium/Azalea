@@ -336,7 +336,7 @@ function TextBlock(props: { index: number }) {
     <div class="py-1.5">
       <div
         class="flex flex-col relative px3 pb1 b-l-2 b-slate-2 dark:b-slate-6 bg-white dark:bg-slate-8"
-        classList={{ " !border-blue-5 shadow-md": selected() }}
+        classList={{ " !border-primary-5 shadow-md": selected() }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
@@ -354,19 +354,19 @@ function TextBlock(props: { index: number }) {
               }}
             >
               <EditButton edit={addTextBelow}>
-                <div class="i-lucide:plus w-full h-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+                <div class="i-lucide:plus w-full h-full group-hover:bg-primary-5 group-active:bg-primary-6" />
               </EditButton>
               <EditButton edit={saveAudio} disable={!saveable()}>
-                <div class="i-lucide:save w-full h-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+                <div class="i-lucide:save w-full h-full group-hover:bg-primary-5 group-active:bg-primary-6" />
               </EditButton>
               <EditButton edit={moveUp} disable={props.index === 0}>
-                <div class="i-lucide:chevron-up w-full h-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+                <div class="i-lucide:chevron-up w-full h-full group-hover:bg-primary-5 group-active:bg-primary-6" />
               </EditButton>
               <EditButton
                 edit={moveDown}
                 disable={props.index === textStore.length - 1}
               >
-                <div class="i-lucide:chevron-down w-full h-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+                <div class="i-lucide:chevron-down w-full h-full group-hover:bg-primary-5 group-active:bg-primary-6" />
               </EditButton>
               <EditButton edit={remove}>
                 <div class="i-lucide:trash2 w-full h-full group-hover:bg-red-5 group-active:bg-red-6" />

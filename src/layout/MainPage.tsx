@@ -33,7 +33,7 @@ function MainPage() {
           aria-label="Resize Handle"
           class="group basis-2 px-[2px] bg-transparent pr-3 flex items-center justify-center"
         >
-          <div class="size-full rounded transition-colors bg-transparent group-hover:bg-blue-5 group-active:bg-blue-5 h-[1px]" />
+          <div class="size-full rounded transition-colors bg-transparent group-hover:bg-primary-5 group-active:bg-primary-5 h-[1px]" />
         </Resizable.Handle>
         <Resizable.Panel
           initialSize={config.ui_config.bottom_ratio ?? 0.3}

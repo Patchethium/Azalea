@@ -127,7 +127,7 @@ function PresetItem(props: PresetItemProps) {
       <Show when={hovered()} fallback={<div />}>
         <div class="flex gap-1">
           <Button
-            class="hover:text-blue-5 rounded text-slate-7 dark:text-slate-3 bg-transparent"
+            class="hover:text-primary-5 rounded text-slate-7 dark:text-slate-3 bg-transparent"
             title={t1("preset_manager.copy_to_project")}
             onClick={() => props.copyTo(props.preset)}
           >

@@ -1,11 +1,15 @@
+import { ColorArea } from "@kobalte/core/color-area";
+import { ColorSwatch } from "@kobalte/core/color-swatch";
+import { parseColor } from "@kobalte/core/colors";
 import { Dialog } from "@kobalte/core/dialog";
 import { Link } from "@kobalte/core/link";
 import { NumberField } from "@kobalte/core/number-field";
+import { Popover } from "@kobalte/core/popover";
 import { Select } from "@kobalte/core/select";
 import { Switch } from "@kobalte/core/switch";
 import { open } from "@tauri-apps/plugin-shell";
 import _ from "lodash";
-import { ParentProps, Show } from "solid-js";
+import { createMemo, ParentProps, Show } from "solid-js";
 import { Locale } from "../binding";
 import { AppDialogContent } from "../components/AppDialogContent";
 import { useConfigStore } from "../contexts/config";
@@ -44,10 +48,13 @@ function ConfigPage() {
               class="inline-flex items-center select-none cursor-pointer justify-center"
             >
               <Switch.Input class="outline-2px" />
-              <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-blue-5)">
+              <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5)">
                 <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
               </Switch.Control>
             </Switch>
+          </ConfigItem>
+          <ConfigItem label={t1("config.primary_color")}>
+            <PrimaryColorPicker />
           </ConfigItem>
           <ConfigItem label={t1("config.truncation_len")}>
             <NumberField
@@ -71,19 +78,19 @@ function ConfigPage() {
                 </NumberField.Label>
               </Show>
               <div class="flex flex-row gap-1 items-center w-16">
-                <NumberField.Input class="h-8 w-full outline-none rounded-lg b b-slate-2 dark:(b-slate-6 bg-slate-8) focus:b-blue-3 px-1" />
+                <NumberField.Input class="h-8 w-full outline-none rounded-lg b b-slate-2 dark:(b-slate-6 bg-slate-8) focus:b-primary-3 px-1" />
                 <div class="flex flex-col">
                   <NumberField.IncrementTrigger
                     aria-label="Increment"
                     class="size-4 bg-transparent group"
                   >
-                    <div class="i-lucide:chevron-up size-full group-hover:bg-blue-5 group-active:bg-blue-7" />
+                    <div class="i-lucide:chevron-up size-full group-hover:bg-primary-5 group-active:bg-primary-7" />
                   </NumberField.IncrementTrigger>
                   <NumberField.DecrementTrigger
                     aria-label="Decrement"
                     class="size-4 bg-transparent group"
                   >
-                    <div class="i-lucide:chevron-down size-full group-hover:bg-blue-5 group-active:bg-blue-7" />
+                    <div class="i-lucide:chevron-down size-full group-hover:bg-primary-5 group-active:bg-primary-7" />
                   </NumberField.DecrementTrigger>
                 </div>
               </div>
@@ -96,7 +103,7 @@ function ConfigPage() {
               class="inline-flex items-center select-none cursor-pointer justify-center"
             >
               <Switch.Input class="outline-2px" />
-              <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-blue-5)">
+              <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5)">
                 <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
               </Switch.Control>
             </Switch>
@@ -108,7 +115,7 @@ function ConfigPage() {
               class="inline-flex items-center select-none cursor-pointer justify-center"
             >
               <Switch.Input class="outline-2px" />
-              <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-blue-5)">
+              <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5)">
                 <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
               </Switch.Control>
             </Switch>
@@ -119,13 +126,99 @@ function ConfigPage() {
           <div class="flex-1" />
           <Link
             onClick={() => open("https://github.com/Patchethium/Azalea")}
-            class="flex flex-row items-center hover:(text-slate-9 dark:text-white underline underline-blue-4) cursor-pointer"
+            class="flex flex-row items-center hover:(text-slate-9 dark:text-white underline underline-primary-4) cursor-pointer"
           >
             GitHub <div class="i-lucide:square-arrow-out-up-right" />
           </Link>
         </div>
       </AppDialogContent>
     </Dialog>
+  );
+}
+
+function PrimaryColorPicker() {
+  const { config, setConfig } = useConfigStore()!;
+  const { t1 } = usei18n()!;
+  const colorHex = () => config.ui_config.primary_color ?? "#3b82f6";
+  const color = createMemo(() => {
+    const value = colorHex();
+    return parseColor(/^#[0-9a-f]{6}$/i.test(value) ? value : "#3b82f6");
+  });
+  const setPrimaryColor = (value: ReturnType<typeof parseColor>) => {
+    setConfig(
+      "ui_config",
+      "primary_color",
+      value.toString("hex").toLowerCase(),
+    );
+  };
+  const normalizeColor = () => {
+    const hslColor = color().toFormat("hsl");
+    const hue =
+      hslColor.getChannelValue("saturation") === 0
+        ? parseColor("#3b82f6").toFormat("hsl").getChannelValue("hue")
+        : hslColor.getChannelValue("hue");
+    setPrimaryColor(parseColor(`hsl(${hue}, 80%, 60%)`));
+  };
+
+  return (
+    <Popover placement="bottom-end" gutter={8}>
+      <Popover.Trigger
+        aria-label={t1("config.primary_color")}
+        title={t1("config.primary_color")}
+        class="size-8 cursor-pointer rounded-md b b-slate-2 dark:b-slate-6 bg-transparent p1 outline-none focus-visible:(b-primary-5 ring-2 ring-primary-2)"
+      >
+        <ColorSwatch
+          value={color()}
+          colorName={colorHex()}
+          class="size-full rounded-sm b b-black/15 dark:b-white/20"
+        />
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content class="z-60 w-56 rounded-lg b b-slate-2 dark:b-slate-6 bg-white dark:bg-slate-8 p3 shadow-lg outline-none">
+          <Popover.Arrow class="fill-white dark:fill-slate-8" />
+          <div class="mb3 flex items-center gap2">
+            <ColorSwatch
+              value={color()}
+              colorName={colorHex()}
+              class="size-8 rounded-md b b-black/15 dark:b-white/20"
+            />
+            <div>
+              <Popover.Title class="text-sm font-semibold">
+                {t1("config.primary_color")}
+              </Popover.Title>
+              <div class="font-mono text-xs uppercase text-slate-6 dark:text-slate-3">
+                {colorHex()}
+              </div>
+            </div>
+          </div>
+          <ColorArea
+            value={color()}
+            colorSpace="hsl"
+            onChange={setPrimaryColor}
+            class="relative w-full touch-none select-none"
+          >
+            <div class="mb2 flex items-center text-sm">
+              <ColorArea.Label>{t1("config.hue_saturation")}</ColorArea.Label>
+              <div class="flex-1" />
+              <button
+                type="button"
+                onClick={normalizeColor}
+                class="flex items-center gap1 rounded-md bg-transparent px2 py1 text-xs hover:bg-slate-1 dark:hover:bg-slate-7"
+              >
+                <div class="i-lucide:wand-sparkles size-4" />
+                {t1("config.normalize")}
+              </button>
+            </div>
+            <ColorArea.Background class="relative h-28 w-full rounded-md b b-slate-2 dark:b-slate-6">
+              <ColorArea.Thumb class="block size-5 rounded-full b-2 b-white bg-[var(--kb-color-current)] shadow-md outline-none ring-black/20 focus-visible:ring-2">
+                <ColorArea.HiddenInputX />
+                <ColorArea.HiddenInputY />
+              </ColorArea.Thumb>
+            </ColorArea.Background>
+          </ColorArea>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover>
   );
 }
 
@@ -141,7 +234,7 @@ function ConfigItem(props: ConfigItemProps) {
       {props.label}
       {props.experimental && (
         <div
-          class="i-lucide:flask-conical ml-1 size-5 text-slate-7 hover:bg-blue-5"
+          class="i-lucide:flask-conical ml-1 size-5 text-slate-7 hover:bg-primary-5"
           title={t1("config.experimental")}
         />
       )}
@@ -165,7 +258,7 @@ function I18NSelect() {
       itemComponent={(props) => (
         <Select.Item
           item={props.item}
-          class="p1 flex flex-row items-center justify-between rounded-md outline-none ui-highlighted:(bg-blue-5 text-white) cursor-pointer"
+          class="p1 flex flex-row items-center justify-between rounded-md outline-none ui-highlighted:(bg-primary-5 text-white) cursor-pointer"
         >
           <Select.ItemLabel class="w-36 flex flex-row px1 outline-none">
             {localeNames[props.item.rawValue as Locale]}

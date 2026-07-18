@@ -58,6 +58,14 @@ function App() {
     );
   });
 
+  createEffect(() => {
+    const configuredColor = config.ui_config.primary_color ?? "#3b82f6";
+    const primaryColor = /^#[0-9a-f]{6}$/i.test(configuredColor)
+      ? configuredColor
+      : "#3b82f6";
+    document.documentElement.style.setProperty("--primary-color", primaryColor);
+  });
+
   return (
     <main class="absolute h-full w-full left-0 top-0 flex flex-row bg-slate-1 text-slate-9 dark:(bg-slate-9 text-slate-1)">
       <Show
@@ -85,7 +93,7 @@ function App() {
               aria-label="Resize Handle"
               class="group basis-2 bg-transparent py-3 flex items-center justify-center px-2px"
             >
-              <div class="rounded transition-colors bg-transparent group-hover:bg-blue-5 group-active:bg-blue-5 h-full w-[1px]" />
+              <div class="rounded transition-colors bg-transparent group-hover:bg-primary-5 group-active:bg-primary-5 h-full w-[1px]" />
             </Resizable.Handle>
             <Resizable.Panel
               class="w-full overflow-hidden"
