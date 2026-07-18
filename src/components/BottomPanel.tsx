@@ -49,7 +49,7 @@ function BottomPanel() {
   return (
     <Tabs
       aria-label="Bottom Panel Tabs"
-      class="size-full flex flex-col bg-white border border-slate-2 rounded-lg overflow-hidden outline-none select-none"
+      class="size-full flex flex-col bg-white dark:bg-slate-8 border border-slate-2 dark:border-slate-6 rounded-lg overflow-hidden outline-none select-none"
       orientation="horizontal"
       value={uiStore.bottomPanel}
       onChange={setPanel}
@@ -59,13 +59,13 @@ function BottomPanel() {
       <div class="absolute">
         <Tabs.List class="w-full flex flex-row items-center relative p-1 outline-none select-none">
           <Tabs.Trigger
-            class="bg-transparent hover:bg-slate-1 px-2 rounded-md outline-none select-none"
+            class="bg-transparent hover:bg-slate-1 dark:hover:bg-slate-7 px-2 rounded-md outline-none select-none"
             value="accent"
           >
             {t1("bottom.accent")}
           </Tabs.Trigger>
           <Tabs.Trigger
-            class="bg-transparent hover:bg-slate-1 px-2 rounded-md outline-none select-none"
+            class="bg-transparent hover:bg-slate-1 dark:hover:bg-slate-7 px-2 rounded-md outline-none select-none"
             value="tuning"
           >
             {t1("bottom.tuning")}
@@ -233,7 +233,7 @@ function ControlBar(props: { onWaveformSynthesized: () => void }) {
   };
 
   return (
-    <div class="w-full h-8 p2 flex m-l-auto flex-row items-center justify-center gap-1 b-b b-slate-3 select-none">
+    <div class="w-full h-8 p2 flex m-l-auto flex-row items-center justify-center gap-1 b-b b-slate-3 dark:b-slate-6 select-none">
       <div class="flex-1" />
       <Button
         class="group h-5 w-5 bg-transparent rounded-md ui-disabled:(cursor-not-allowed opacity-50)"
@@ -670,7 +670,7 @@ function TuningPanel(props: { previewRevision: number }) {
           </div>
         </Show>
       </div>
-      <div class="h-6 w-full b-dashed b-slate-3 flex items-center px-2 justify-between">
+      <div class="h-6 w-full b-dashed b-slate-3 dark:b-slate-6 flex items-center px-2 justify-between">
         <Show when={queryExists()}>
           <Slider
             class="relative flex flex-col w-20% select-none items-center group"
@@ -679,8 +679,8 @@ function TuningPanel(props: { previewRevision: number }) {
             value={[scale()]}
             onChange={(v) => setScale(v[0])}
           >
-            <Slider.Track class="w-full h-2 bg-slate-2 rounded-full relative">
-              <Slider.Fill class="absolute bg-slate-3 rounded-full h-full group-hover:bg-blue-5" />
+            <Slider.Track class="w-full h-2 bg-slate-2 dark:bg-slate-6 rounded-full relative">
+              <Slider.Fill class="absolute bg-slate-3 dark:bg-slate-5 rounded-full h-full group-hover:bg-blue-5" />
               <Slider.Thumb class="block size-4 bg-transparent rounded-full -top-1 outline-none">
                 <Slider.Input />
               </Slider.Thumb>
@@ -716,7 +716,7 @@ function TuningItems(props: {
   const [durHovered, setDurHovered] = createSignal(false);
   return (
     <div
-      class="flex flex-none flex-col b-dashed b-r b-slate-3 h-100% select-none relative z-1"
+      class="flex flex-none flex-col b-dashed b-r b-slate-3 dark:b-slate-6 h-100% select-none relative z-1"
       style={{
         width: `${totalPixels()}px`,
       }}
@@ -725,10 +725,12 @@ function TuningItems(props: {
       <Show when={!whisper()}>
         <Show
           when={!unvoiced()}
-          fallback={<div class="flex-1 content-empty b-dashed b-b b-slate-3" />}
+          fallback={
+            <div class="flex-1 content-empty b-dashed b-b b-slate-3 dark:b-slate-6" />
+          }
         >
           <Slider
-            class="flex-1 b-b b-slate-3 b-dashed overflow-hidden"
+            class="flex-1 b-b b-slate-3 dark:b-slate-6 b-dashed overflow-hidden"
             classList={{ "opacity-60": spectrogramPreviewEnabled() }}
             minValue={props.minPitch}
             maxValue={props.maxPitch}
@@ -738,7 +740,7 @@ function TuningItems(props: {
             orientation="vertical"
           >
             <Slider.Track class="size-full bg-transparent relative group">
-              <Slider.Fill class="absolute bg-transparent w-full group-hover:!bg-blue-50" />
+              <Slider.Fill class="absolute bg-transparent w-full group-hover:!bg-blue-50 dark:group-hover:!bg-blue-9" />
               <Slider.Thumb class="block h-1px w-full bg-slate-4 outline-none group-hover:!bg-blue-5">
                 <Slider.Input />
               </Slider.Thumb>
@@ -748,7 +750,7 @@ function TuningItems(props: {
       </Show>
       {/* Duration */}
       <div
-        class="flex flex-row bg-white"
+        class="flex flex-row bg-white dark:bg-slate-8"
         onMouseEnter={() => {
           setDurHovered(true);
         }}
@@ -770,7 +772,7 @@ function TuningItems(props: {
         >
           <Show when={consonantPixels() != null}>
             <div
-              class="flex items-center justify-center b-dashed b-r b-slate3 hover:!bg-blue-50"
+              class="flex items-center justify-center b-dashed b-r b-slate3 dark:b-slate-6 hover:!bg-blue-50 dark:hover:!bg-blue-9"
               onMouseDown={() =>
                 props.startDraggingDur(
                   props.mora.consonant_length!,
@@ -783,7 +785,7 @@ function TuningItems(props: {
             </div>
           </Show>
           <div
-            class="flex items-center justify-center hover:!bg-blue-50"
+            class="flex items-center justify-center hover:!bg-blue-50 dark:hover:!bg-blue-9"
             onMouseDown={() =>
               props.startDraggingDur(props.mora.vowel_length, "vowel")
             }
@@ -1110,7 +1112,7 @@ function AccentPhraseItem(props: {
         onChangeEnd={props.refreshMoraData} // workaround to prevent slider from losing focus during update
       >
         <div class="w-full flex p1">
-          <Slider.Track class="w-full h-2 bg-slate-2 rounded-full relative ui-disabled:cursor-not-allowed">
+          <Slider.Track class="w-full h-2 bg-slate-2 dark:bg-slate-6 rounded-full relative ui-disabled:cursor-not-allowed">
             <Slider.Fill class="absolute bg-blue-5 rounded-full h-full ui-disabled:bg-blue-2" />
             <Slider.Thumb class="block w-2 h-4 bg-blue-5 ui-disabled:bg-blue-2 rounded-sm -top-1 outline-none">
               <Slider.Input />
@@ -1138,7 +1140,7 @@ function AccentPhraseItem(props: {
             return (
               <div class="flex justify-center items-center flex-row rounded-md">
                 <div
-                  class="size-8 bg-blue-1 items-center justify-center flex rounded-md cursor-pointer text-sm"
+                  class="size-8 bg-blue-1 dark:bg-blue-9 items-center justify-center flex rounded-md cursor-pointer text-sm"
                   classList={{
                     "mt-10": !high(),
                     "mb-10": high(),
@@ -1155,7 +1157,7 @@ function AccentPhraseItem(props: {
                   fallback={
                     /* Pause mora area, this shouldn't be highlighted when button is hovered */
                     <div
-                      class="m-2 w-8 h-full rounded-md flex items-center justify-center hover:(bg-blue-50) cursor-pointer"
+                      class="m-2 w-8 h-full rounded-md flex items-center justify-center hover:(bg-blue-50 dark:bg-blue-9) cursor-pointer"
                       classList={{
                         "!bg-transparent": pauseMoraHovered(),
                       }}
@@ -1169,9 +1171,10 @@ function AccentPhraseItem(props: {
                         classList={{
                           "bg-transparent text-transparent b-dashed":
                             props.phrase.pause_mora == null,
-                          "bg-blue-1 hover:(b b-blue-3)":
+                          "bg-blue-1 dark:bg-blue-9 hover:(b b-blue-3)":
                             props.phrase.pause_mora != null,
-                          "text-black b b-blue-3": pauseMoraHovered(),
+                          "text-black dark:text-white b b-blue-3":
+                            pauseMoraHovered(),
                         }}
                         onMouseEnter={() => setPauseMoraHovered(true)}
                         onMouseLeave={() => setPauseMoraHovered(false)}
@@ -1183,7 +1186,7 @@ function AccentPhraseItem(props: {
                   }
                 >
                   <div
-                    class="bg-transparent w-4 flex items-center justify-center flex hover:bg-blue-50 rounded-md h-24 cursor-pointer"
+                    class="bg-transparent w-4 flex items-center justify-center flex hover:bg-blue-50 dark:hover:bg-blue-9 rounded-md h-24 cursor-pointer"
                     onMouseEnter={() => setHovered(i())}
                     onMouseLeave={() => setHovered(-1)}
                     onClick={() => props.onSplit(i() + 1)}
@@ -1223,7 +1226,7 @@ function AccentPhraseItem(props: {
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <TextField.Input class="p1 px2 w-full b b-slate-2 rounded-md outline-none focus:b-blue-5" />
+              <TextField.Input class="p1 px2 w-full b b-slate-2 dark:(b-slate-6 bg-slate-7) rounded-md outline-none focus:b-blue-5" />
             </TextField>
           </div>
         </Show>

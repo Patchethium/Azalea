@@ -335,7 +335,7 @@ function TextBlock(props: { index: number }) {
   return (
     <div class="py-1.5">
       <div
-        class="flex flex-col relative px3 pb1 b-l-2 b-slate-2 bg-white"
+        class="flex flex-col relative px3 pb1 b-l-2 b-slate-2 dark:b-slate-6 bg-white dark:bg-slate-8"
         classList={{ " !border-blue-5 shadow-md": selected() }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
@@ -348,7 +348,7 @@ function TextBlock(props: { index: number }) {
         >
           <Show when={selected() || hovered() || toolbarHovered()}>
             <div
-              class="absolute right-0 flex p1 rounded-lg bg-white shadow-md -top-5 pointer-events-auto z-10"
+              class="absolute right-0 flex p1 rounded-lg bg-white dark:bg-slate-7 shadow-md -top-5 pointer-events-auto z-10"
               classList={{
                 "opacity-50": hovered() && !selected() && !toolbarHovered(),
               }}
@@ -394,7 +394,7 @@ function TextBlock(props: { index: number }) {
           onClick={() => setSelected(props.index)}
         >
           <div class="flex-1 pointer-events-none" />
-          <div class="text-sm text-slate-8 select-none pointer-events-none">
+          <div class="text-sm text-slate-8 dark:text-slate-2 select-none pointer-events-none">
             <Show
               when={isStyleIdValid() && currentPreset()}
               fallback={
@@ -414,19 +414,19 @@ function TextBlock(props: { index: number }) {
               title={synthStateText()}
             >
               <div
-                class="bg-slate-3 w-3 h-3 rounded-full"
+                class="bg-slate-3 dark:bg-slate-6 w-3 h-3 rounded-full"
                 classList={{
                   "!bg-red-4": trafficLightNumber() >= 0,
                 }}
               />
               <div
-                class="bg-slate-3 w-3 h-3 rounded-full"
+                class="bg-slate-3 dark:bg-slate-6 w-3 h-3 rounded-full"
                 classList={{
                   "!bg-yellow-4": trafficLightNumber() >= 1,
                 }}
               />
               <div
-                class="bg-slate-3 w-3 h-3 rounded-full"
+                class="bg-slate-3 dark:bg-slate-6 w-3 h-3 rounded-full"
                 classList={{ "!bg-green-4": trafficLightNumber() >= 2 }}
               />
             </div>

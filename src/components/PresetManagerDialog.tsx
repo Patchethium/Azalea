@@ -48,20 +48,20 @@ export function PresetManagerDialog(props: PresetManagerDialogProps) {
       <Dialog.Portal>
         <Dialog.Overlay class="fixed inset-0 z-50 bg-black/50" />
         <div class="fixed inset-0 z-50 flex items-center justify-center">
-          <Dialog.Content class="bg-white p-4 rounded-lg shadow-lg max-w-4xl w-full h-[60%] flex flex-col gap-4">
-            <div class="flex justify-between items-center border-b pb-2">
+          <Dialog.Content class="bg-white dark:bg-slate-8 p-4 rounded-lg shadow-lg max-w-4xl w-full h-[60%] flex flex-col gap-4">
+            <div class="flex justify-between items-center border-b dark:border-slate-6 pb-2">
               <Dialog.Title class="text-lg font-bold">
                 {t1("preset_manager.title")}
               </Dialog.Title>
-              <Dialog.CloseButton class="p-1 hover:bg-slate-100 rounded bg-transparent">
+              <Dialog.CloseButton class="p-1 hover:bg-slate-100 dark:hover:bg-slate-7 rounded bg-transparent">
                 <div class="i-lucide:x size-6" />
               </Dialog.CloseButton>
             </div>
 
             <div class="flex flex-row gap-4 flex-1 overflow-hidden min-h-0">
               {/* Project Presets Column */}
-              <div class="flex-1 flex flex-col gap-2 border rounded-md p-2">
-                <h3 class="font-semibold text-center bg-slate-100 p-1 rounded">
+              <div class="flex-1 flex flex-col gap-2 border dark:border-slate-6 rounded-md p-2">
+                <h3 class="font-semibold text-center bg-slate-100 dark:bg-slate-7 p-1 rounded">
                   {t1("preset_manager.project_presets")}
                 </h3>
                 <div class="flex-1 overflow-y-auto flex flex-col gap-2">
@@ -80,8 +80,8 @@ export function PresetManagerDialog(props: PresetManagerDialogProps) {
               </div>
 
               {/* System Presets Column */}
-              <div class="flex-1 flex flex-col gap-2 border rounded-md p-2">
-                <h3 class="font-semibold text-center bg-slate-100 p-1 rounded">
+              <div class="flex-1 flex flex-col gap-2 border dark:border-slate-6 rounded-md p-2">
+                <h3 class="font-semibold text-center bg-slate-100 dark:bg-slate-7 p-1 rounded">
                   {t1("preset_manager.system_presets")}
                 </h3>
                 <div class="flex-1 overflow-y-auto flex flex-col gap-2">
@@ -119,7 +119,7 @@ function PresetItem(props: PresetItemProps) {
   const [hovered, setHovered] = createSignal(false);
   return (
     <div
-      class="flex items-center justify-between p-2 border rounded hover:bg-slate-50"
+      class="flex items-center justify-between p-2 border dark:border-slate-6 rounded hover:bg-slate-50 dark:hover:bg-slate-7"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -127,7 +127,7 @@ function PresetItem(props: PresetItemProps) {
       <Show when={hovered()} fallback={<div />}>
         <div class="flex gap-1">
           <Button
-            class="hover:text-blue-5 rounded text-slate-7 bg-transparent"
+            class="hover:text-blue-5 rounded text-slate-7 dark:text-slate-3 bg-transparent"
             title={t1("preset_manager.copy_to_project")}
             onClick={() => props.copyTo(props.preset)}
           >
@@ -140,7 +140,7 @@ function PresetItem(props: PresetItemProps) {
             />
           </Button>
           <Button
-            class="hover:text-red-5 rounded text-slate-7 bg-transparent"
+            class="hover:text-red-5 rounded text-slate-7 dark:text-slate-3 bg-transparent"
             title={t1("preset_manager.delete")}
             onClick={() => props.delete(props.index)}
           >

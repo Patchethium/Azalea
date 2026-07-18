@@ -45,6 +45,7 @@
     "close": "設定を閉じる",
     "sidebar_desp": "このスペースは以降のバージョンで索引として使われる見込みです。",
     "lang": "言語",
+    "dark_mode": "ダークテーマ",
     "experimental": "実験的な機能",
     "background_buffering": "音声生成バッファリング",
     "spectrogram_preview": "スペクトログラムプレビュー",

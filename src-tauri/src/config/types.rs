@@ -48,6 +48,8 @@ impl Default for Locale {
 pub struct UIConfig {
   #[serde(default)]
   pub locale: Locale,
+  #[serde(default)]
+  pub dark_mode: bool,
   #[serde(default = "bottom_scale_default")]
   pub bottom_scale: usize,
   #[serde(default)]
@@ -70,6 +72,7 @@ impl Default for UIConfig {
   fn default() -> Self {
     Self {
       locale: Default::default(),
+      dark_mode: false,
       bottom_scale: bottom_scale_default(),
       auto_save: Default::default(),
       bottom_ratio: bottom_ratio_default(),

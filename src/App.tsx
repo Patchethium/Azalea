@@ -51,8 +51,15 @@ function App() {
     }
   });
 
+  createEffect(() => {
+    document.documentElement.classList.toggle(
+      "dark",
+      config.ui_config.dark_mode ?? false,
+    );
+  });
+
   return (
-    <main class="absolute h-full w-full left-0 top-0 flex flex-row bg-slate-1">
+    <main class="absolute h-full w-full left-0 top-0 flex flex-row bg-slate-1 text-slate-9 dark:(bg-slate-9 text-slate-1)">
       <Show
         when={!initializing() && !coreInitializeResource.loading}
         fallback={

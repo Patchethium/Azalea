@@ -5,6 +5,15 @@
   background-size: 20px 20px; /* size of grid spacing */
 }
 
+:global(.dark) .canvas {
+  background-color: #0f172a;
+  background-image: radial-gradient(#334155, 1px, transparent 0);
+}
+
 html {
   overscroll-behavior: none;
+}
+
+:global(html.dark) {
+  color-scheme: dark;
 }

@@ -37,6 +37,18 @@ function ConfigPage() {
           <ConfigItem label={t1("config.lang")}>
             <I18NSelect />
           </ConfigItem>
+          <ConfigItem label={t1("config.dark_mode")}>
+            <Switch
+              checked={config.ui_config.dark_mode ?? false}
+              onChange={(v) => setConfig("ui_config", "dark_mode", v)}
+              class="inline-flex items-center select-none cursor-pointer justify-center"
+            >
+              <Switch.Input class="outline-2px" />
+              <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-blue-5)">
+                <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
+              </Switch.Control>
+            </Switch>
+          </ConfigItem>
           <ConfigItem label={t1("config.truncation_len")}>
             <NumberField
               minValue={0}
@@ -59,7 +71,7 @@ function ConfigPage() {
                 </NumberField.Label>
               </Show>
               <div class="flex flex-row gap-1 items-center w-16">
-                <NumberField.Input class="h-8 w-full outline-none rounded-lg b b-slate-2 focus:b-blue-3 px-1" />
+                <NumberField.Input class="h-8 w-full outline-none rounded-lg b b-slate-2 dark:(b-slate-6 bg-slate-8) focus:b-blue-3 px-1" />
                 <div class="flex flex-col">
                   <NumberField.IncrementTrigger
                     aria-label="Increment"
@@ -84,7 +96,7 @@ function ConfigPage() {
               class="inline-flex items-center select-none cursor-pointer justify-center"
             >
               <Switch.Input class="outline-2px" />
-              <Switch.Control class="bg-slate-3 rounded-full w-12 h-6 p1 ui-checked:(bg-blue-5)">
+              <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-blue-5)">
                 <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
               </Switch.Control>
             </Switch>
@@ -96,18 +108,18 @@ function ConfigPage() {
               class="inline-flex items-center select-none cursor-pointer justify-center"
             >
               <Switch.Input class="outline-2px" />
-              <Switch.Control class="bg-slate-3 rounded-full w-12 h-6 p1 ui-checked:(bg-blue-5)">
+              <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-blue-5)">
                 <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
               </Switch.Control>
             </Switch>
           </ConfigItem>
         </div>
-        <div class="h-8 w-full px3 text-sm flex items-center justify-center text-slate-7 gap-2">
+        <div class="h-8 w-full px3 text-sm flex items-center justify-center text-slate-7 dark:text-slate-3 gap-2">
           <div class="select-none cursor-default">Azalea v0.1.0</div>
           <div class="flex-1" />
           <Link
             onClick={() => open("https://github.com/Patchethium/Azalea")}
-            class="flex flex-row items-center hover:(text-slate-9 underline underline-blue-4) cursor-pointer"
+            class="flex flex-row items-center hover:(text-slate-9 dark:text-white underline underline-blue-4) cursor-pointer"
           >
             GitHub <div class="i-lucide:square-arrow-out-up-right" />
           </Link>
@@ -125,7 +137,7 @@ interface ConfigItemProps extends ParentProps {
 function ConfigItem(props: ConfigItemProps) {
   const { t1 } = usei18n()!;
   return (
-    <div class="wfull items-center justify-center flex flex-row p2 b-b b-slate-2 select-none cursor-default">
+    <div class="wfull items-center justify-center flex flex-row p2 b-b b-slate-2 dark:b-slate-7 select-none cursor-default">
       {props.label}
       {props.experimental && (
         <div
@@ -169,7 +181,7 @@ function I18NSelect() {
       <Select.Trigger
         class="flex flex-row items-center justify-between p3 w-full outline-none
               h-8 bg-transparent border border-slate-2 rounded-md
-              hover:(bg-slate-1)"
+              hover:(bg-slate-1 dark:bg-slate-7) dark:border-slate-6"
         aria-label={t1("config.lang")}
       >
         <Select.Value<string>>
@@ -180,7 +192,7 @@ function I18NSelect() {
         </Select.Icon>
       </Select.Trigger>
       <Select.Portal>
-        <Select.Content class="bg-white w-full rounded-lg border outline-none border-slate-2 z-60">
+        <Select.Content class="bg-white dark:bg-slate-8 w-full rounded-lg border outline-none border-slate-2 dark:border-slate-6 z-60">
           <Select.Listbox class="flex flex-col p2 outline-none" />
         </Select.Content>
       </Select.Portal>

@@ -39,6 +39,7 @@
     "close": "Close config",
     "sidebar_desp": "This space will be used for indexing in future versions.",
     "lang": "Language",
+    "dark_mode": "Dark theme",
     "experimental": "Experimental Features",
     "background_buffering": "Background Buffering for Audio Generation",
     "spectrogram_preview": "Spectrogram Preview",

@@ -18,11 +18,11 @@ export function ShortcutReferenceDialog() {
   return (
     <Dialog>
       <Dialog.Trigger
-        class="group size-8 p1 rounded-lg bg-white shadow-md hover:bg-blue-5 ui-expanded:bg-blue-5 transition-transform outline-none"
+        class="group size-8 p1 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-blue-5 ui-expanded:bg-blue-5 transition-transform outline-none"
         title={t1("shortcuts.open")}
         aria-label={t1("shortcuts.open")}
       >
-        <div class="i-lucide:keyboard bg-slate-8 size-full group-hover:bg-white ui-expanded:!bg-white" />
+        <div class="i-lucide:keyboard bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white ui-expanded:!bg-white" />
       </Dialog.Trigger>
       <AppDialogContent
         title={t1("shortcuts.title")}
@@ -32,12 +32,12 @@ export function ShortcutReferenceDialog() {
         <div class="flex flex-col px4 py2">
           <For each={shortcuts()}>
             {(shortcut) => (
-              <div class="flex items-center gap3 py3 b-b b-slate-2 last:b-b-0">
+              <div class="flex items-center gap3 py3 b-b b-slate-2 dark:b-slate-6 last:b-b-0">
                 <div class="flex items-center gap1 min-w-36">
                   <For each={shortcut.keys}>
                     {(key, index) => (
                       <>
-                        <kbd class="min-w-7 px2 py1 text-center text-sm font-mono bg-slate-1 b b-slate-3 rounded shadow-sm">
+                        <kbd class="min-w-7 px2 py1 text-center text-sm font-mono bg-slate-1 dark:bg-slate-7 b b-slate-3 dark:b-slate-5 rounded shadow-sm">
                           {key}
                         </kbd>
                         <Show when={index() < shortcut.keys.length - 1}>

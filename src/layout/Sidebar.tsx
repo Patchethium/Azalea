@@ -64,10 +64,11 @@ function PresetCard(props: PresetCardProps) {
   return (
     <div class="p1 group" {...props}>
       <div
-        class="items-start rounded-r-md p1 pl2 group-hover:bg-slate-2 overflow-hidden bg-white border-l-2 border-slate-1
-        cursor-default select-none w-full min-h-[fit-content] group-active:bg-white flex flex-col"
+        class="items-start rounded-r-md p1 pl2 group-hover:bg-slate-2 dark:group-hover:bg-slate-7 overflow-hidden bg-white dark:bg-slate-8 border-l-2 border-slate-1 dark:border-slate-7
+        cursor-default select-none w-full min-h-[fit-content] group-active:bg-white dark:group-active:bg-slate-8 flex flex-col"
         classList={{
-          "shadow-md group-hover:bg-white !border-blue-5": props.selected,
+          "shadow-md group-hover:bg-white dark:group-hover:bg-slate-8 !border-blue-5":
+            props.selected,
         }}
       >
         <div>{preset()?.name ?? ""}</div>
@@ -352,7 +353,7 @@ function Sidebar() {
   return (
     <div class="size-full bg-transparent flex flex-col gap-1 pl2 pr0 overflow-y-hidden">
       {/* Controls */}
-      <div class="w-auto flex items-center rounded-md bg-white mt-2 mx-1 p1 shadow-md z-10">
+      <div class="w-auto flex items-center rounded-md bg-white dark:bg-slate-8 mt-2 mx-1 p1 shadow-md z-10">
         <Button
           class="size-6 i-lucide:plus hover:bg-blue-5 active:bg-blue-6"
           onClick={createPreset}
@@ -415,18 +416,18 @@ function Sidebar() {
       >
         <Accordion.Item
           value="preset"
-          class="transition-all rounded-md bg-white border border-slate-2 bg-transparent shadow-sm"
+          class="transition-all rounded-md bg-white dark:bg-slate-8 border border-slate-2 dark:border-slate-6 bg-transparent shadow-sm"
         >
           <Accordion.Header>
             <Accordion.Trigger
-              class={`w-full flex select-none justify-between bg-transparent items-center hover:bg-white p1 px2 rounded-md ${style.trigger}`}
+              class={`w-full flex select-none justify-between bg-transparent items-center hover:bg-white dark:hover:bg-slate-7 p1 px2 rounded-md ${style.trigger}`}
             >
               {t1("preset.title")}
               <div class={`i-lucide:chevron-down size-5 ${style.icon}`} />
             </Accordion.Trigger>
           </Accordion.Header>
           <Accordion.Content
-            class={`${style.accordion_content} b-t b-slate-2 py0 px2 flex flex-col`}
+            class={`${style.accordion_content} b-t b-slate-2 dark:b-slate-6 py0 px2 flex flex-col`}
           >
             <Show
               when={currentPreset()}
@@ -447,7 +448,7 @@ function Sidebar() {
                 value={currentPreset()?.name}
                 onChange={setPresetName}
               >
-                <TextField.Input class="p1 px2 w-full b b-slate-2 rounded-md outline-none focus:b-blue-5" />
+                <TextField.Input class="p1 px2 w-full b b-slate-2 dark:(b-slate-6 bg-slate-7) rounded-md outline-none focus:b-blue-5" />
               </TextField>
               {/* TODO: Don't repeat yourself */}
               <OptionSelector
@@ -515,12 +516,12 @@ function Sidebar() {
 
       <div class="flex flex-row items-center gap-1">
         <DropdownMenu open={actionMenuOpen()} onOpenChange={setActionMenuOpen}>
-          <DropdownMenu.Trigger class="group p1 size-8 rounded-lg bg-white shadow-md hover:bg-blue-5 ui-expanded:bg-blue-5 transition-transform outline-none">
-            <div class="i-lucide:kanban bg-slate-8 size-full group-hover:bg-white ui-expanded:!bg-white" />
+          <DropdownMenu.Trigger class="group p1 size-8 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-blue-5 ui-expanded:bg-blue-5 transition-transform outline-none">
+            <div class="i-lucide:kanban bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white ui-expanded:!bg-white" />
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Arrow size={8} />
-            <DropdownMenu.Content class="bg-white p-1 outline-none shadow-md rounded-md b b-slate-2">
+            <DropdownMenu.Content class="bg-white dark:bg-slate-8 p-1 outline-none shadow-md rounded-md b b-slate-2 dark:b-slate-6">
               <DropdownMenu.Item
                 class={`${style.menu_item}`}
                 onClick={newProject}
@@ -565,9 +566,9 @@ function Sidebar() {
           >
             <ToggleGroup.Item
               value="config"
-              class="group size-8 p1 rounded-lg bg-white shadow-md hover:bg-blue-5 ui-pressed:bg-blue-5 transition-transform"
+              class="group size-8 p1 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-blue-5 ui-pressed:bg-blue-5 transition-transform"
             >
-              <div class="i-lucide:cog bg-slate-8 size-full group-hover:bg-white ui-pressed:!bg-white" />
+              <div class="i-lucide:cog bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white ui-pressed:!bg-white" />
             </ToggleGroup.Item>
           </ToggleGroup>
         </div>
@@ -605,9 +606,9 @@ function OptionSelector(props: {
         {props.name}
       </Select.Label>
       <Select.Trigger
-        class="flex flex-row items-center justify-between px2 w-full bg-white
+        class="flex flex-row items-center justify-between px2 w-full bg-white dark:bg-slate-8
                         h-8 bg-transparent border border-slate-2 rounded-md
-                        hover:(bg-slate-1)"
+                        hover:(bg-slate-1 dark:bg-slate-7) dark:border-slate-6"
       >
         <Select.Value<string>>{(state) => state.selectedOption()}</Select.Value>
         <Select.Icon>
@@ -615,8 +616,8 @@ function OptionSelector(props: {
         </Select.Icon>
       </Select.Trigger>
       <Select.Portal>
-        <Select.Content class="bg-white w-full rounded-lg border border-slate-2 overflow-y-auto max-h-[50vh]">
-          <Select.Listbox class="bg-white flex flex-col p1 overflow-y-hidden" />
+        <Select.Content class="bg-white dark:bg-slate-8 w-full rounded-lg border border-slate-2 dark:border-slate-6 overflow-y-auto max-h-[50vh]">
+          <Select.Listbox class="bg-white dark:bg-slate-8 flex flex-col p1 overflow-y-hidden" />
         </Select.Content>
       </Select.Portal>
     </Select>
@@ -666,7 +667,7 @@ function PresetSlider(props: PresetSliderProps) {
         {props.appendix ?? ""}
       </div>
       <div class="w-full flex p1">
-        <Slider.Track class="w-full h-2 bg-slate-2 rounded-full relative ui-disabled:cursor-not-allowed">
+        <Slider.Track class="w-full h-2 bg-slate-2 dark:bg-slate-6 rounded-full relative ui-disabled:cursor-not-allowed">
           <Slider.Fill class="absolute bg-blue-5 rounded-full h-full ui-disabled:bg-blue-2" />
           <Slider.Thumb class="block w-2 h-4 bg-blue-5 ui-disabled:bg-blue-2 rounded-sm -top-1 outline-none">
             <Slider.Input />
@@ -696,7 +697,7 @@ function PauseNumField(props: {
     >
       <NumberField.Label>{props.label}</NumberField.Label>
       <div class="flex flex-row gap-1 items-center">
-        <NumberField.Input class="h-8 w-full outline-none rounded-lg b b-slate-2 focus:b-blue-3 px-1" />
+        <NumberField.Input class="h-8 w-full outline-none rounded-lg b b-slate-2 dark:(b-slate-6 bg-slate-7) focus:b-blue-3 px-1" />
         <div class="flex flex-col">
           <NumberField.IncrementTrigger
             aria-label="Increment"
