@@ -32,7 +32,6 @@ pub fn run() {
     .commands(collect_commands![
       clear_caches,
       pick_core,
-      download_core,
       init_config,
       get_config,
       set_config,

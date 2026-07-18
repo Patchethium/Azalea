@@ -347,12 +347,6 @@ pub async fn save_audio(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn download_core(_url: String) -> Result<(), String> {
-  todo!()
-}
-
-#[tauri::command]
-#[specta::specta]
 pub async fn pick_core(app: AppHandle) -> Option<CoreConfig> {
   let path = app.dialog().file().blocking_pick_folder();
   match path {
