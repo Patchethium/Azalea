@@ -10,7 +10,7 @@ use std::io::Cursor;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, State};
 use tauri_plugin_dialog::DialogExt;
 use tokio::sync::OnceCell;
 use voicevox_core::{AccentPhrase, AudioQuery, StyleId, VoiceModelMeta};
@@ -268,6 +268,7 @@ pub async fn _synthesize(
 #[tauri::command]
 #[specta::specta]
 pub async fn play_audio(
+  app: AppHandle,
   state: State<'_, AppState>,
   audio_query: AudioQuery,
   speaker_id: StyleId,
@@ -279,7 +280,12 @@ pub async fn play_audio(
     speaker_id,
   )
   .await?;
-  let audio_player = AudioPlayer::play(wav).await?;
+  let audio_player = AudioPlayer::play(wav, move || {
+    if let Err(error) = app.emit("audio-playback-finished", ()) {
+      eprintln!("Failed to emit playback completion: {error}");
+    }
+  })
+  .await?;
   state
     .audio_player
     .write()
@@ -298,6 +304,7 @@ pub struct AudioSequenceItem {
 #[specta::specta]
 /// Synthesizes and queues multiple audio queries for uninterrupted playback.
 pub async fn play_audio_sequence(
+  app: AppHandle,
   state: State<'_, AppState>,
   items: Vec<AudioSequenceItem>,
 ) -> std::result::Result<(), String> {
@@ -316,7 +323,12 @@ pub async fn play_audio_sequence(
       .await?,
     );
   }
-  let audio_player = AudioPlayer::play_many(wavs).await?;
+  let audio_player = AudioPlayer::play_many(wavs, move || {
+    if let Err(error) = app.emit("audio-playback-finished", ()) {
+      eprintln!("Failed to emit playback completion: {error}");
+    }
+  })
+  .await?;
   state
     .audio_player
     .write()

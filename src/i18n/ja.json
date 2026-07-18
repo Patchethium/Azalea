@@ -13,6 +13,7 @@
     "no_query": "テキストを入力してください",
     "accent": "アクセント",
     "tuning": "調整",
+    "play": "選択したセルを再生",
     "play_all_from_selection": "選択したセル以降をすべて再生",
     "stop": "再生を停止"
   },

@@ -3,6 +3,7 @@ import { Slider } from "@kobalte/core/slider";
 import { Tabs } from "@kobalte/core/tabs";
 import { TextField } from "@kobalte/core/text-field";
 import { debounce } from "@solid-primitives/scheduled";
+import { listen } from "@tauri-apps/api/event";
 import _ from "lodash";
 // the bottom panel where users do most of their tuning
 import {
@@ -88,6 +89,7 @@ function ControlBar(props: { onWaveformSynthesized: () => void }) {
   const { textStore, projectPresetStore } = useTextStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
   const { systemStore } = useSystemStore()!;
+  const [isPlaying, setIsPlaying] = createSignal(false);
 
   const currentText = () => textStore[uiStore.selectedTextBlockIndex];
   const queryExists = () => {
@@ -129,11 +131,13 @@ function ControlBar(props: { onWaveformSynthesized: () => void }) {
   const speak = async () => {
     const _currentPreset = unwrap(currentPreset());
     if (_currentPreset == null || !queryExists()) return false;
+    if (isPlaying()) await stop();
     const result = await commands.playAudio(
       getModifiedQuery(unwrap(currentText().query!), _currentPreset),
       _currentPreset.style_id,
     );
     if (result.status === "ok") {
+      setIsPlaying(true);
       props.onWaveformSynthesized();
       return true;
     } else {
@@ -146,10 +150,25 @@ function ControlBar(props: { onWaveformSynthesized: () => void }) {
     const result = await commands.stopAudio();
     if (result.status === "error") {
       console.error("Failed to stop audio:", result.error);
+    } else {
+      setIsPlaying(false);
     }
   };
 
   onMount(() => {
+    let disposed = false;
+    let unlistenPlaybackFinished: (() => void) | undefined;
+    void listen("audio-playback-finished", () => setIsPlaying(false)).then(
+      (unlisten) => {
+        if (disposed) unlisten();
+        else unlistenPlaybackFinished = unlisten;
+      },
+    );
+    onCleanup(() => {
+      disposed = true;
+      unlistenPlaybackFinished?.();
+    });
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!isPlaybackShortcutAllowed(event)) return;
 
@@ -203,10 +222,12 @@ function ControlBar(props: { onWaveformSynthesized: () => void }) {
   );
 
   const speakAllFromSelection = async () => {
+    if (isPlaying()) await stop();
     const result = await commands.playAudioSequence(playableFromSelection());
     if (result.status === "error") {
       console.error("Failed to play audio sequence:", result.error);
     } else {
+      setIsPlaying(true);
       props.onWaveformSynthesized();
     }
   };
@@ -223,18 +244,19 @@ function ControlBar(props: { onWaveformSynthesized: () => void }) {
       </Button>
       <Button
         class="group h-6 w-6 bg-transparent rounded-md ui-disabled:(cursor-not-allowed opacity-50)"
-        onClick={speak}
-        disabled={!queryExists()}
+        onClick={() => (isPlaying() ? stop() : speak())}
+        disabled={!isPlaying() && !queryExists()}
+        title={t1(isPlaying() ? "bottom.stop" : "bottom.play")}
+        aria-label={t1(isPlaying() ? "bottom.stop" : "bottom.play")}
       >
-        <div class="i-lucide:play size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
-      </Button>
-      <Button
-        class="group h-5 w-5 bg-transparent rounded-md"
-        onClick={stop}
-        title={t1("bottom.stop")}
-        aria-label={t1("bottom.stop")}
-      >
-        <div class="i-lucide:square size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+        <Show
+          when={isPlaying()}
+          fallback={
+            <div class="i-lucide:play size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+          }
+        >
+          <div class="i-lucide:square size-full group-hover:bg-blue-5 group-active:bg-blue-6" />
+        </Show>
       </Button>
       <Button
         class="group h-6 w-6 bg-transparent rounded-md ui-disabled:(cursor-not-allowed opacity-50)"

@@ -13,6 +13,7 @@
     "no_query": "No Query",
     "accent": "Accent",
     "tuning": "Tuning",
+    "play": "Play selected cell",
     "play_all_from_selection": "Play selected cell and all cells below",
     "stop": "Stop playback"
   },

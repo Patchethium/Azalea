@@ -1,6 +1,9 @@
 use rodio::{OutputStream, Sink};
 use std::io::Cursor;
-use tauri::async_runtime::{channel, spawn, spawn_blocking, JoinHandle, Sender, TokioHandle};
+use std::thread;
+use std::time::Duration;
+use tauri::async_runtime::{channel, spawn, spawn_blocking, JoinHandle, Sender};
+use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::oneshot;
 
 pub struct AudioPlayer {
@@ -9,28 +12,34 @@ pub struct AudioPlayer {
 }
 
 impl AudioPlayer {
-  pub async fn play(wav: Vec<u8>) -> Result<Self, String> {
-    Self::play_many(vec![wav]).await
+  pub async fn play<F>(wav: Vec<u8>, on_finished: F) -> Result<Self, String>
+  where
+    F: FnOnce() + Send + 'static,
+  {
+    Self::play_many(vec![wav], on_finished).await
   }
 
-  pub async fn play_many(wavs: Vec<Vec<u8>>) -> Result<Self, String> {
+  pub async fn play_many<F>(wavs: Vec<Vec<u8>>, on_finished: F) -> Result<Self, String>
+  where
+    F: FnOnce() + Send + 'static,
+  {
     let (stop_tx, mut stop_rx) = channel::<()>(1);
     let (ready_tx, ready_rx) = oneshot::channel::<Result<(), String>>();
 
     let handle = spawn(async move {
-      if let Err(e) = spawn_blocking(move || {
+      let naturally_finished = spawn_blocking(move || {
         let (_stream, stream_handle) = match OutputStream::try_default() {
           Ok(v) => v,
           Err(e) => {
             let _ = ready_tx.send(Err(format!("Failed to open audio output: {e}")));
-            return;
+            return false;
           }
         };
         let sink = match Sink::try_new(&stream_handle) {
           Ok(v) => v,
           Err(e) => {
             let _ = ready_tx.send(Err(format!("Failed to create audio sink: {e}")));
-            return;
+            return false;
           }
         };
         for wav in wavs {
@@ -38,20 +47,32 @@ impl AudioPlayer {
             Ok(v) => v,
             Err(e) => {
               let _ = ready_tx.send(Err(format!("Failed to decode WAV audio: {e}")));
-              return;
+              return false;
             }
           };
           sink.append(decoder);
         }
         sink.play();
         let _ = ready_tx.send(Ok(()));
-        // only this works, I don't know nothing about async Rust (@ _ @)
-        TokioHandle::current().block_on(stop_rx.recv());
-        sink.stop();
+        loop {
+          match stop_rx.try_recv() {
+            Ok(()) | Err(TryRecvError::Disconnected) => {
+              sink.stop();
+              return false;
+            }
+            Err(TryRecvError::Empty) => {}
+          }
+          if sink.empty() {
+            return true;
+          }
+          thread::sleep(Duration::from_millis(10));
+        }
       })
-      .await
-      {
-        eprintln!("Audio player task panicked: {e:?}");
+      .await;
+      match naturally_finished {
+        Ok(true) => on_finished(),
+        Ok(false) => {}
+        Err(e) => eprintln!("Audio player task panicked: {e:?}"),
       }
     });
 
