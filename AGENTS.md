@@ -6,6 +6,16 @@ Azalea is a Tauri 2 desktop application. The SolidJS/TypeScript frontend lives i
 
 The Rust backend is under `src-tauri/`. Tauri commands are grouped in `src-tauri/src/commands/`, configuration handling in `config/`, and audio code in `audio/`. Rust integration tests and fixtures live in `src-tauri/tests/`. Application icons are in `src-tauri/icons/`; project artwork is in `icon/`. Treat `src/binding.ts` as generated bindings and avoid hand-editing it.
 
+## Spectrogram Preview
+
+The pitch-tuning panel in `src/components/BottomPanel.tsx` renders a mel spectrogram on a canvas behind the pitch controls. Do not show it in the accent panel. Its width follows the editable mora-duration timeline; configured leading and trailing silence is cropped from the preview so the image remains aligned with that timeline.
+
+`get_spectrogram_preview` in `src-tauri/src/commands/core.rs` reuses the same waveform LRU cache as playback, decodes the cached WAV to mono samples, and runs `MelSpec` from `src-tauri/src/audio/spectal.rs`. Keep the frontend payload compact and normalized rather than transferring the full waveform unless a future implementation specifically needs it. Run CPU-heavy spectrogram extraction in a blocking task.
+
+Refresh behavior depends on `UIConfig.buffer_render`: with buffering enabled, debounce refreshes alongside automatic waveform synthesis; without it, refresh only after playback has synthesized the waveform. Preserve the previous canvas while a replacement is pending and render it grayed out until the new spectrogram arrives. Stale async responses must not replace newer previews.
+
+`UIConfig.spectrogram_preview` controls the feature and defaults to enabled. Disabling it must cancel pending refreshes, clear the canvas, and avoid spectrogram extraction. Keep its switch in `src/layout/ConfigPage.tsx`, synchronize its English and Japanese labels, and regenerate `src/binding.ts` after changing related Rust commands or types.
+
 ## Build, Test, and Development Commands
 
 - `pnpm install` installs frontend and Tauri CLI dependencies.
