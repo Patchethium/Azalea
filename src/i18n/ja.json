@@ -26,6 +26,14 @@
     "play_next": "選択したセルを再生して次へ移動",
     "stop_playback": "再生を停止"
   },
+  "about": {
+    "title": "Azaleaについて",
+    "close": "Azaleaについてを閉じる",
+    "github": "GitHub",
+    "tagline": "軽量なVOICEVOX非公式GUI",
+    "version": "バージョン",
+    "license": "オープンソースライセンス"
+  },
   "text_block": {
     "synth_state": {
       "no_query": "クエリなし",
@@ -38,7 +46,8 @@
     "new_project": "新しいプロジェクト",
     "load_project": "プロジェクト読み込み",
     "save_project": "プロジェクト保存",
-    "auto_save": "自動保存"
+    "auto_save": "自動保存",
+    "about": "このアプリについて"
   },
   "config": {
     "title": "設定",

@@ -26,6 +26,7 @@ import {
 } from "solid-js";
 import { produce } from "solid-js/store";
 import { commands, Preset, StyleId } from "../binding";
+import { AboutDialog } from "../components/AboutDialog";
 import { PresetManagerDialog } from "../components/PresetManagerDialog";
 import { ShortcutReferenceDialog } from "../components/ShortcutReferenceDialog";
 import { useConfigStore } from "../contexts/config";
@@ -107,6 +108,7 @@ function Sidebar() {
 
   const [expanded, setExpanded] = createSignal(["preset"]);
   const [presetManagerOpen, setPresetManagerOpen] = createSignal(false);
+  const [aboutOpen, setAboutOpen] = createSignal(false);
 
   const currentText = () => textStore[uiStore.selectedTextBlockIndex];
 
@@ -551,6 +553,13 @@ function Sidebar() {
                   <div class="i-lucide:check size-full" />
                 </DropdownMenu.ItemIndicator>
               </DropdownMenu.CheckboxItem>
+              <DropdownMenu.Separator class="mx-2 my-1" />
+              <DropdownMenu.Item
+                class={`${style.menu_item}`}
+                onClick={() => setAboutOpen(true)}
+              >
+                {t1("menu.about")}
+              </DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu>
@@ -573,6 +582,7 @@ function Sidebar() {
           </ToggleGroup>
         </div>
       </div>
+      <AboutDialog open={aboutOpen()} onOpenChange={setAboutOpen} />
     </div>
   );
 }

@@ -2,12 +2,10 @@ import { ColorArea } from "@kobalte/core/color-area";
 import { ColorSwatch } from "@kobalte/core/color-swatch";
 import { parseColor } from "@kobalte/core/colors";
 import { Dialog } from "@kobalte/core/dialog";
-import { Link } from "@kobalte/core/link";
 import { NumberField } from "@kobalte/core/number-field";
 import { Popover } from "@kobalte/core/popover";
 import { Select } from "@kobalte/core/select";
 import { Switch } from "@kobalte/core/switch";
-import { open } from "@tauri-apps/plugin-shell";
 import _ from "lodash";
 import { createMemo, ParentProps, Show } from "solid-js";
 import { Locale } from "../binding";
@@ -120,16 +118,6 @@ function ConfigPage() {
               </Switch.Control>
             </Switch>
           </ConfigItem>
-        </div>
-        <div class="h-8 w-full px3 text-sm flex items-center justify-center text-slate-7 dark:text-slate-3 gap-2">
-          <div class="select-none cursor-default">Azalea v0.1.0</div>
-          <div class="flex-1" />
-          <Link
-            onClick={() => open("https://github.com/Patchethium/Azalea")}
-            class="flex flex-row items-center hover:(text-slate-9 dark:text-white underline underline-primary-4) cursor-pointer"
-          >
-            GitHub <div class="i-lucide:square-arrow-out-up-right" />
-          </Link>
         </div>
       </AppDialogContent>
     </Dialog>

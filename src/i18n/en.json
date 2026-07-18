@@ -26,6 +26,14 @@
     "play_next": "Play selected cell and advance",
     "stop_playback": "Stop playback"
   },
+  "about": {
+    "title": "About Azalea",
+    "close": "Close about dialog",
+    "github": "GitHub",
+    "tagline": "A lightweight, unofficial VOICEVOX GUI",
+    "version": "Version",
+    "license": "Open source license"
+  },
   "text_block": {
     "synth_state": {
       "no_query": "No Query",
@@ -53,7 +61,8 @@
     "new_project": "New Project",
     "load_project": "Load Project",
     "save_project": "Save Project",
-    "auto_save": "Auto Save"
+    "auto_save": "Auto Save",
+    "about": "About"
   },
   "preset": {
     "title": "Preset",
