@@ -85,12 +85,8 @@ function App() {
               initialSize={1.0 - (config.ui_config.side_ratio ?? 0.5)}
               minSize={0.5}
             >
-              <Show when={uiStore.page == null}>
-                <MainPage />
-              </Show>
-              <Show when={uiStore.page === "config"}>
-                <ConfigPage />
-              </Show>
+              <MainPage />
+              <ConfigPage />
             </Resizable.Panel>
           </Resizable>
         </Show>

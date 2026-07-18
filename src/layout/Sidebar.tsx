@@ -329,177 +329,167 @@ function Sidebar() {
 
   return (
     <div class="size-full bg-transparent flex flex-col gap-1 pl2 pr0 overflow-y-hidden">
-      <Show
-        when={uiStore.page == null}
-        fallback={
-          <div class="size-full items-start justify-start p-3 overflow-y-hidden">
-            <div class="text-lg font-bold">{t1("config.title")}</div>
-            <div class="text-sm">{t1("config.sidebar_desp")}</div>
-          </div>
-        }
+      {/* Controls */}
+      <div class="w-auto flex items-center rounded-md bg-white mt-2 mx-1 p1 shadow-md z-10">
+        <Button
+          class="size-6 i-lucide:plus hover:bg-blue-5 active:bg-blue-6"
+          onClick={createPreset}
+        />
+        <Button
+          class="size-6 i-lucide:chevron-up hover:bg-blue-5 active:bg-blue-6 ui-disabled:(cursor-not-allowed opacity-50)"
+          disabled={
+            currentText().preset_id === null || currentText().preset_id === 0
+          }
+          onClick={() => handleMovePresetUp(currentText().preset_id ?? 0)}
+          title={t1("preset_manager.title")}
+        />
+        <Button
+          class="size-6 i-lucide:chevron-down hover:bg-blue-5 active:bg-blue-6 ui-disabled:(cursor-not-allowed opacity-50)"
+          disabled={
+            currentText().preset_id === null ||
+            currentText().preset_id === projectPresetStore.length - 1
+          }
+          onClick={() => handleMovePresetDown(currentText().preset_id ?? 0)}
+          title={t1("preset_manager.title")}
+        />
+        <div class="flex-1" />
+        <Button
+          class="size-6 i-lucide:library hover:bg-blue-5 active:bg-blue-6"
+          onClick={() => setPresetManagerOpen(true)}
+          title={t1("preset_manager.title")}
+        />
+        <Button
+          class="size-6 i-lucide:trash2 hover:bg-red-5 active:bg-red-6"
+          onClick={removePreset}
+        />
+      </div>
+      <div class="size-full flex flex-col overflow-hidden">
+        <div class="size-full gap-1 overflow-auto pl-0 pr-2 pt-1">
+          <For each={projectPresetStore}>
+            {(_, i) => (
+              <PresetCard
+                preset_idx={i()}
+                selected={i() === currentText().preset_id}
+                onClick={() => {
+                  setTextPresetIdx(i());
+                }}
+              />
+            )}
+          </For>
+        </div>
+
+        <PresetManagerDialog
+          open={presetManagerOpen()}
+          onOpenChange={setPresetManagerOpen}
+        />
+      </div>
+
+      <Accordion
+        collapsible
+        multiple
+        defaultValue={["preset"]}
+        value={expanded()}
+        onChange={setExpanded}
       >
-        {/* Controls */}
-        <div class="w-auto flex items-center rounded-md bg-white mt-2 mx-1 p1 shadow-md z-10">
-          <Button
-            class="size-6 i-lucide:plus hover:bg-blue-5 active:bg-blue-6"
-            onClick={createPreset}
-          />
-          <Button
-            class="size-6 i-lucide:chevron-up hover:bg-blue-5 active:bg-blue-6 ui-disabled:(cursor-not-allowed opacity-50)"
-            disabled={
-              currentText().preset_id === null || currentText().preset_id === 0
-            }
-            onClick={() => handleMovePresetUp(currentText().preset_id ?? 0)}
-            title={t1("preset_manager.title")}
-          />
-          <Button
-            class="size-6 i-lucide:chevron-down hover:bg-blue-5 active:bg-blue-6 ui-disabled:(cursor-not-allowed opacity-50)"
-            disabled={
-              currentText().preset_id === null ||
-              currentText().preset_id === projectPresetStore.length - 1
-            }
-            onClick={() => handleMovePresetDown(currentText().preset_id ?? 0)}
-            title={t1("preset_manager.title")}
-          />
-          <div class="flex-1" />
-          <Button
-            class="size-6 i-lucide:library hover:bg-blue-5 active:bg-blue-6"
-            onClick={() => setPresetManagerOpen(true)}
-            title={t1("preset_manager.title")}
-          />
-          <Button
-            class="size-6 i-lucide:trash2 hover:bg-red-5 active:bg-red-6"
-            onClick={removePreset}
-          />
-        </div>
-        <div class="size-full flex flex-col overflow-hidden">
-          <div class="size-full gap-1 overflow-auto pl-0 pr-2 pt-1">
-            <For each={projectPresetStore}>
-              {(_, i) => (
-                <PresetCard
-                  preset_idx={i()}
-                  selected={i() === currentText().preset_id}
-                  onClick={() => {
-                    setTextPresetIdx(i());
-                  }}
-                />
-              )}
-            </For>
-          </div>
-
-          <PresetManagerDialog
-            open={presetManagerOpen()}
-            onOpenChange={setPresetManagerOpen}
-          />
-        </div>
-
-        <Accordion
-          collapsible
-          multiple
-          defaultValue={["preset"]}
-          value={expanded()}
-          onChange={setExpanded}
+        <Accordion.Item
+          value="preset"
+          class="transition-all rounded-md bg-white border border-slate-2 bg-transparent shadow-sm"
         >
-          <Accordion.Item
-            value="preset"
-            class="transition-all rounded-md bg-white border border-slate-2 bg-transparent shadow-sm"
-          >
-            <Accordion.Header>
-              <Accordion.Trigger
-                class={`w-full flex select-none justify-between bg-transparent items-center hover:bg-white p1 px2 rounded-md ${style.trigger}`}
-              >
-                {t1("preset.title")}
-                <div class={`i-lucide:chevron-down size-5 ${style.icon}`} />
-              </Accordion.Trigger>
-            </Accordion.Header>
-            <Accordion.Content
-              class={`${style.accordion_content} b-t b-slate-2 py0 px2 flex flex-col`}
+          <Accordion.Header>
+            <Accordion.Trigger
+              class={`w-full flex select-none justify-between bg-transparent items-center hover:bg-white p1 px2 rounded-md ${style.trigger}`}
             >
-              <Show
-                when={currentPreset()}
-                fallback={
-                  <div class="text-sm text-slate-5 p1 select-none cursor-default">
-                    {projectPresetStore?.length
-                      ? t1("preset.no_preset_selected")
-                      : t1("preset.get_started")}
-                  </div>
-                }
-              >
-                <div class="w-full h-1" />
-                <span class="text-sm select-none cursor-default">
-                  {t1("preset.name")}
-                </span>
-                <TextField
-                  class="w-full"
-                  value={currentPreset()?.name}
-                  onChange={setPresetName}
-                >
-                  <TextField.Input class="p1 px2 w-full b b-slate-2 rounded-md outline-none focus:b-blue-5" />
-                </TextField>
-                {/* TODO: Don't repeat yourself */}
-                <OptionSelector
-                  name={t1("preset.speaker")}
-                  options={availableSpeakerNames()}
-                  value={curMeta()?.name ?? ""}
-                  onChange={selectSpeakerByName}
-                />
-                <OptionSelector
-                  name={t1("preset.style")}
-                  options={availableStyleNames()}
-                  value={curStyle()?.name ?? ""}
-                  onChange={setStyleByName}
-                />
-                <PresetSlider
-                  name={t1("preset.speed")}
-                  min={50}
-                  max={200}
-                  step={1}
-                  appendix="%"
-                  value={speed()!}
-                  setValue={setSpeed}
-                />
-                <PresetSlider
-                  name={t1("preset.pitch")}
-                  min={-0.5}
-                  max={0.5}
-                  step={0.01}
-                  value={pitch()!}
-                  setValue={setPitch}
-                />
-                <PresetSlider
-                  name={t1("preset.intonation")}
-                  min={0.0}
-                  max={2.0}
-                  step={0.01}
-                  value={intonation()!}
-                  setValue={setIntonation}
-                />
-                <PresetSlider
-                  name={t1("preset.volume")}
-                  min={0.0}
-                  max={2.0}
-                  step={0.01}
-                  value={volume()!}
-                  setValue={setVolume}
-                />
-                <div class="flex flex-row gap2">
-                  <PauseNumField
-                    label={t1("preset.start_sli")}
-                    value={startSli()}
-                    setValue={setStartSli}
-                  />
-                  <PauseNumField
-                    label={t1("preset.end_sli")}
-                    value={endSli()}
-                    setValue={setEndSli}
-                  />
+              {t1("preset.title")}
+              <div class={`i-lucide:chevron-down size-5 ${style.icon}`} />
+            </Accordion.Trigger>
+          </Accordion.Header>
+          <Accordion.Content
+            class={`${style.accordion_content} b-t b-slate-2 py0 px2 flex flex-col`}
+          >
+            <Show
+              when={currentPreset()}
+              fallback={
+                <div class="text-sm text-slate-5 p1 select-none cursor-default">
+                  {projectPresetStore?.length
+                    ? t1("preset.no_preset_selected")
+                    : t1("preset.get_started")}
                 </div>
-                <div class="h-2 w-full" />
-              </Show>
-            </Accordion.Content>
-          </Accordion.Item>
-        </Accordion>
-      </Show>
+              }
+            >
+              <div class="w-full h-1" />
+              <span class="text-sm select-none cursor-default">
+                {t1("preset.name")}
+              </span>
+              <TextField
+                class="w-full"
+                value={currentPreset()?.name}
+                onChange={setPresetName}
+              >
+                <TextField.Input class="p1 px2 w-full b b-slate-2 rounded-md outline-none focus:b-blue-5" />
+              </TextField>
+              {/* TODO: Don't repeat yourself */}
+              <OptionSelector
+                name={t1("preset.speaker")}
+                options={availableSpeakerNames()}
+                value={curMeta()?.name ?? ""}
+                onChange={selectSpeakerByName}
+              />
+              <OptionSelector
+                name={t1("preset.style")}
+                options={availableStyleNames()}
+                value={curStyle()?.name ?? ""}
+                onChange={setStyleByName}
+              />
+              <PresetSlider
+                name={t1("preset.speed")}
+                min={50}
+                max={200}
+                step={1}
+                appendix="%"
+                value={speed()!}
+                setValue={setSpeed}
+              />
+              <PresetSlider
+                name={t1("preset.pitch")}
+                min={-0.5}
+                max={0.5}
+                step={0.01}
+                value={pitch()!}
+                setValue={setPitch}
+              />
+              <PresetSlider
+                name={t1("preset.intonation")}
+                min={0.0}
+                max={2.0}
+                step={0.01}
+                value={intonation()!}
+                setValue={setIntonation}
+              />
+              <PresetSlider
+                name={t1("preset.volume")}
+                min={0.0}
+                max={2.0}
+                step={0.01}
+                value={volume()!}
+                setValue={setVolume}
+              />
+              <div class="flex flex-row gap2">
+                <PauseNumField
+                  label={t1("preset.start_sli")}
+                  value={startSli()}
+                  setValue={setStartSli}
+                />
+                <PauseNumField
+                  label={t1("preset.end_sli")}
+                  value={endSli()}
+                  setValue={setEndSli}
+                />
+              </div>
+              <div class="h-2 w-full" />
+            </Show>
+          </Accordion.Content>
+        </Accordion.Item>
+      </Accordion>
 
       <div class="flex flex-row items-center gap-1">
         <DropdownMenu open={actionMenuOpen()} onOpenChange={setActionMenuOpen}>
