@@ -630,7 +630,7 @@ export type SynthesisJobRequest = { blockId: string; generationId: number; audio
 export type SynthesisJobState = "Queued" | "Running" | "Completed" | "Failed" | "Cancelled" | "Evicted"
 export type TextBlockProps = { text: string; query: AudioQuery | null; preset_id: number | null }
 export type ThemeMode = "System" | "Light" | "Dark"
-export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; side_ratio?: number; buffer_render?: boolean; spectrogram_preview?: boolean; name_truncation_len?: number; last_exported_dir?: string | null }
+export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; side_ratio?: number; buffer_render?: boolean; synthesis_delay_ms?: number; spectrogram_preview?: boolean; name_truncation_len?: number; last_exported_dir?: string | null }
 
 /** tauri-specta globals **/
 

@@ -64,6 +64,8 @@
     "title": "設定",
     "close": "設定を閉じる",
     "sidebar_desp": "このスペースは以降のバージョンで索引として使われる見込みです。",
+    "general": "一般",
+    "synthesis": "音声合成",
     "lang": "言語",
     "theme": "テーマ",
     "theme_system": "システム",
@@ -74,6 +76,8 @@
     "normalize": "標準化",
     "experimental": "実験的な機能",
     "background_buffering": "音声生成バッファリング",
+    "synthesis_delay": "音声合成リクエストの待機時間",
+    "milliseconds": "ミリ秒",
     "spectrogram_preview": "スペクトログラムプレビュー",
     "truncation_len": "最大ファイル名の長さ",
     "no_truncation": "無制限"

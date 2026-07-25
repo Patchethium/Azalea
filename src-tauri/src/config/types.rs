@@ -70,6 +70,8 @@ pub struct UIConfig {
   pub side_ratio: f32,
   #[serde(default = "buffer_render_default")]
   pub buffer_render: bool,
+  #[serde(default = "synthesis_delay_ms_default")]
+  pub synthesis_delay_ms: u32,
   #[serde(default = "spectrogram_preview_default")]
   pub spectrogram_preview: bool,
   #[serde(default = "name_truncation_len_default")]
@@ -89,6 +91,7 @@ impl Default for UIConfig {
       bottom_ratio: bottom_ratio_default(),
       side_ratio: side_ratio_default(),
       buffer_render: buffer_render_default(),
+      synthesis_delay_ms: synthesis_delay_ms_default(),
       spectrogram_preview: spectrogram_preview_default(),
       name_truncation_len: name_truncation_len_default(),
       last_exported_dir: None,
@@ -114,6 +117,10 @@ pub(super) fn side_ratio_default() -> f32 {
 
 fn buffer_render_default() -> bool {
   false
+}
+
+fn synthesis_delay_ms_default() -> u32 {
+  600
 }
 
 fn spectrogram_preview_default() -> bool {
@@ -167,4 +174,15 @@ pub struct TextBlockProps {
 pub struct Project {
   pub blocks: Vec<TextBlockProps>,
   pub presets: Vec<Preset>,
+}
+
+#[cfg(test)]
+mod tests {
+  use super::UIConfig;
+
+  #[test]
+  fn missing_synthesis_delay_uses_default() {
+    let config: UIConfig = serde_json::from_str("{}").unwrap();
+    assert_eq!(config.synthesis_delay_ms, 600);
+  }
 }

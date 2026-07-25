@@ -57,6 +57,8 @@
     "title": "Config",
     "close": "Close config",
     "sidebar_desp": "This space will be used for indexing in future versions.",
+    "general": "General",
+    "synthesis": "Synthesis",
     "lang": "Language",
     "theme": "Theme",
     "theme_system": "System",
@@ -67,6 +69,8 @@
     "normalize": "Normalize",
     "experimental": "Experimental Features",
     "background_buffering": "Background Buffering for Audio Generation",
+    "synthesis_delay": "Synthesis request delay",
+    "milliseconds": "ms",
     "spectrogram_preview": "Spectrogram Preview",
     "truncation_len": "File name truncation length",
     "no_truncation": "No truncation"

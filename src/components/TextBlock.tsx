@@ -1,5 +1,5 @@
 import { Button } from "@kobalte/core/button";
-import { debounce } from "@solid-primitives/scheduled";
+import { debounce, type Scheduled } from "@solid-primitives/scheduled";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import _ from "lodash";
 import {
@@ -379,37 +379,52 @@ function TextBlock(props: { index: number }) {
     }
   };
 
-  const enqueueSynthesis = debounce(
-    async (
-      request: SynthesisJobRequest,
-      activeRequest: ActiveSynthesisRequest,
-    ) => {
-      if (disposed || activeSynthesisRequest !== activeRequest) {
-        return;
-      }
-      activeRequest.submitted = true;
-      const result = await commands.synthesize(request);
-      if (disposed || activeSynthesisRequest !== activeRequest) {
-        if (result.status === "ok") {
-          void commands.cancelSynthesis(
-            synthesisBlockId,
-            activeRequest.generationId,
-          );
-        }
-        return;
-      }
-      if (result.status === "error") {
-        setSynthState("Failed");
-        console.error(
-          "Failed to queue synthesis for block",
-          props.index,
-          ":",
-          result.error,
+  const submitSynthesis = async (
+    request: SynthesisJobRequest,
+    activeRequest: ActiveSynthesisRequest,
+  ) => {
+    if (disposed || activeSynthesisRequest !== activeRequest) {
+      return;
+    }
+    activeRequest.submitted = true;
+    const result = await commands.synthesize(request);
+    if (disposed || activeSynthesisRequest !== activeRequest) {
+      if (result.status === "ok") {
+        void commands.cancelSynthesis(
+          synthesisBlockId,
+          activeRequest.generationId,
         );
       }
-    },
-    600,
-  );
+      return;
+    }
+    if (result.status === "error") {
+      setSynthState("Failed");
+      console.error(
+        "Failed to queue synthesis for block",
+        props.index,
+        ":",
+        result.error,
+      );
+    }
+  };
+
+  let scheduledSynthesis:
+    | Scheduled<[SynthesisJobRequest, ActiveSynthesisRequest]>
+    | undefined;
+  const clearScheduledSynthesis = () => {
+    scheduledSynthesis?.clear();
+    scheduledSynthesis = undefined;
+  };
+  const enqueueSynthesis = (
+    request: SynthesisJobRequest,
+    activeRequest: ActiveSynthesisRequest,
+  ) => {
+    clearScheduledSynthesis();
+    const configuredDelay = config.ui_config.synthesis_delay_ms ?? 600;
+    const delay = Math.min(Math.max(Math.trunc(configuredDelay), 0), 10_000);
+    scheduledSynthesis = debounce(submitSynthesis, delay);
+    scheduledSynthesis(request, activeRequest);
+  };
 
   onMount(() => {
     void events.synthesisJobEvent
@@ -450,7 +465,7 @@ function TextBlock(props: { index: number }) {
     const preset = currentPreset();
     const bufferingEnabled = config.ui_config.buffer_render;
     if (!bufferingEnabled || query === null || preset === null) {
-      enqueueSynthesis.clear();
+      clearScheduledSynthesis();
       cancelSynthesisRequest(activeSynthesisRequest);
       activeSynthesisRequest = null;
       lastSynthesisSignature = null;
@@ -464,7 +479,7 @@ function TextBlock(props: { index: number }) {
       return;
     }
 
-    enqueueSynthesis.clear();
+    clearScheduledSynthesis();
     cancelSynthesisRequest(activeSynthesisRequest);
     synthesisGeneration += 1;
     const activeRequest: ActiveSynthesisRequest = {
@@ -488,7 +503,7 @@ function TextBlock(props: { index: number }) {
   });
 
   onCleanup(() => {
-    enqueueSynthesis.clear();
+    clearScheduledSynthesis();
     cancelSynthesisRequest(activeSynthesisRequest);
     activeSynthesisRequest = null;
     unlistenSynthesis?.();
