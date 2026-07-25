@@ -58,14 +58,14 @@ Tier meanings:
 
 ### Responsive synthesis jobs
 
-- [ ] Move blocking query and synthesis work onto a bounded background worker
+- [x] Move blocking query and synthesis work onto a bounded background worker
       system.
-- [ ] Avoid holding shared cache locks while inference is running.
-- [ ] Give each request a generation ID so stale work can be ignored or
+- [x] Avoid holding shared cache locks while inference is running.
+- [x] Give each request a generation ID so stale work can be ignored or
       cancelled safely.
-- [ ] Expose queued, running, completed, failed, cancelled, and evicted states
+- [x] Expose queued, running, completed, failed, cancelled, and evicted states
       through events.
-- [ ] Add per-block cancellation and reliable cache-eviction notification.
+- [x] Add per-block cancellation and reliable cache-eviction notification.
 
 ### Versioned project compatibility
 

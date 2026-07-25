@@ -3,6 +3,7 @@ pub mod audio;
 pub mod commands;
 pub mod config;
 pub mod core;
+mod synthesis;
 use core::Core;
 
 use commands::*;
@@ -12,21 +13,25 @@ use specta_typescript::Typescript;
 use std::sync::{Arc, Mutex, RwLock};
 use tauri::async_runtime::RwLock as TokioRwLock;
 use tauri::Manager;
-use tokio::sync::OnceCell;
+use tokio::sync::Semaphore;
 
 use tauri_specta::{collect_commands, collect_events, Builder, Event};
 
 use voicevox_core::{AudioQuery, StyleId};
 
-pub type WavLruType = lru::LruCache<(String, StyleId), Arc<OnceCell<Vec<u8>>>>;
+use synthesis::{SynthesisJobEvent, SynthesisQueue, WaveformCacheEntry};
+
+pub(crate) type WavLruType = lru::LruCache<(String, StyleId), WaveformCacheEntry>;
 
 type LockedState<T> = RwLock<Option<T>>;
 pub struct AppState {
-  pub core: TokioRwLock<Option<Core>>,
-  pub query_lru: LockedState<lru::LruCache<(String, StyleId), AudioQuery>>,
-  pub wav_lru: TokioRwLock<Option<WavLruType>>, // use an async Lock for wav cache so synthesis can be async
-  pub config_manager: LockedState<config::ConfigManager>,
-  pub audio_player: LockedState<audio::AudioPlayer>,
+  pub(crate) core: TokioRwLock<Option<Arc<Core>>>,
+  pub(crate) core_task_gate: Arc<Semaphore>,
+  pub(crate) query_lru: LockedState<lru::LruCache<(String, StyleId), AudioQuery>>,
+  pub(crate) wav_lru: TokioRwLock<Option<WavLruType>>,
+  pub(crate) synthesis_queue: SynthesisQueue,
+  pub(crate) config_manager: LockedState<config::ConfigManager>,
+  pub(crate) audio_player: LockedState<audio::AudioPlayer>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -47,6 +52,7 @@ pub fn run() {
       replace_mora_pitch,
       replace_mora_duration,
       synthesize,
+      cancel_synthesis,
       synthesize_state,
       get_spectrogram_preview,
       play_audio,
@@ -60,7 +66,11 @@ pub fn run() {
       save_project,
       load_project,
     ])
-    .events(collect_events![InitializationEvent, FrontendReadyEvent]);
+    .events(collect_events![
+      InitializationEvent,
+      FrontendReadyEvent,
+      SynthesisJobEvent
+    ]);
 
   // In debug mode, export the typescript bindings
   #[cfg(debug_assertions)]
@@ -81,8 +91,10 @@ pub fn run() {
   app
     .manage(AppState {
       core: TokioRwLock::new(None),
+      core_task_gate: Arc::new(Semaphore::new(1)),
       query_lru: RwLock::new(None),
       wav_lru: TokioRwLock::new(None),
+      synthesis_queue: SynthesisQueue::default(),
       config_manager: RwLock::new(None),
       audio_player: RwLock::new(None),
     })
@@ -90,6 +102,7 @@ pub fn run() {
     .setup(move |app| {
       builder.mount_events(app);
       let app_handle = app.handle().clone();
+      start_synthesis_worker(app_handle.clone());
       let startup = Arc::new(Mutex::new(None::<InitializationEvent>));
       let ready_startup = startup.clone();
       let ready_app = app_handle.clone();

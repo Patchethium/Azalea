@@ -1,5 +1,5 @@
 import { Button } from "@kobalte/core/button";
-import { createScheduled, debounce } from "@solid-primitives/scheduled";
+import { debounce } from "@solid-primitives/scheduled";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import _ from "lodash";
 import {
@@ -10,18 +10,48 @@ import {
   JSX,
   on,
   onCleanup,
+  onMount,
   ParentComponent,
   Show,
   splitProps,
 } from "solid-js";
 import { produce, unwrap } from "solid-js/store";
-import { AudioQuery, commands, SynthState } from "../binding";
+import {
+  AudioQuery,
+  commands,
+  events,
+  SynthesisJobRequest,
+  SynthesisJobState,
+} from "../binding";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { useMetaStore } from "../contexts/meta";
 import { type TextBlockProps, useTextStore } from "../contexts/text";
 import { useUIStore } from "../contexts/ui";
 import { getModifiedQuery } from "../utils";
+
+let synthesisBlockSequence = 0;
+
+const createSynthesisBlockId = () => {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  synthesisBlockSequence += 1;
+  return `text-block-${Date.now()}-${synthesisBlockSequence}`;
+};
+
+const synthesisRequestFingerprint = (query: AudioQuery, speakerId: number) => {
+  const serialized = JSON.stringify([speakerId, query]);
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < serialized.length; index += 1) {
+    hash ^= serialized.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return {
+    hash: `${(hash >>> 0).toString(16).padStart(8, "0")}-${serialized.length}`,
+    signature: serialized,
+  };
+};
 
 interface ComponentProps extends JSX.HTMLAttributes<HTMLDivElement> {
   text: string;
@@ -308,10 +338,6 @@ function TextBlock(props: { index: number }) {
     });
   };
 
-  const [synthState, setSynthState] = createSignal<SynthState>("UnInitialized");
-
-  const synthSchedule = createScheduled((fn) => debounce(fn, 1000));
-
   const currentModifiedQuery = createMemo(() => {
     const preset = currentPreset();
     const query = currentQuery();
@@ -321,57 +347,193 @@ function TextBlock(props: { index: number }) {
     return getModifiedQuery(unwrap(query!), preset);
   });
 
-  createEffect(async () => {
-    if (synthSchedule() && config.ui_config.buffer_render) {
-      setSynthState("Pending");
-      const query = currentModifiedQuery();
-      if (query === null || currentPreset() === null) {
-        setSynthState("UnInitialized");
-        return;
-      }
-      const res = await commands.synthesize(query, currentPreset()!.style_id!);
-      if (res.status === "ok") {
-        // update the cache in the backend
-        setSynthState("Done");
-        console.log("Synthesis successful for block", props.index);
-      } else {
-        setSynthState("UnInitialized");
-        console.error(
-          "Synthesis failed for block",
-          props.index,
-          ":",
-          res.error,
-        );
-      }
-    }
-  });
+  type ActiveSynthesisRequest = {
+    generationId: number;
+    hash: string;
+    submitted: boolean;
+  };
 
-  const trafficLightNumber = () => {
-    if (currentText().query === null || currentPreset() === null) {
-      return -1; // all lights off if no query or preset
-    }
-    switch (synthState()) {
-      case "UnInitialized":
-        return 0;
-      case "Pending":
-        return 1;
-      case "Done":
-        return 2;
+  const synthesisBlockId = createSynthesisBlockId();
+  const [synthState, setSynthState] = createSignal<SynthesisJobState | "Idle">(
+    "Idle",
+  );
+  let synthesisGeneration = 0;
+  let activeSynthesisRequest: ActiveSynthesisRequest | null = null;
+  let lastSynthesisSignature: string | null = null;
+  let unlistenSynthesis: (() => void) | undefined;
+
+  const cancelSynthesisRequest = (request: ActiveSynthesisRequest | null) => {
+    if (request?.submitted) {
+      void commands
+        .cancelSynthesis(synthesisBlockId, request.generationId)
+        .then((result) => {
+          if (result.status === "error") {
+            console.error(
+              "Failed to cancel synthesis for block",
+              props.index,
+              ":",
+              result.error,
+            );
+          }
+        });
     }
   };
 
+  const enqueueSynthesis = debounce(
+    async (
+      request: SynthesisJobRequest,
+      activeRequest: ActiveSynthesisRequest,
+    ) => {
+      if (disposed || activeSynthesisRequest !== activeRequest) {
+        return;
+      }
+      activeRequest.submitted = true;
+      const result = await commands.synthesize(request);
+      if (disposed || activeSynthesisRequest !== activeRequest) {
+        if (result.status === "ok") {
+          void commands.cancelSynthesis(
+            synthesisBlockId,
+            activeRequest.generationId,
+          );
+        }
+        return;
+      }
+      if (result.status === "error") {
+        setSynthState("Failed");
+        console.error(
+          "Failed to queue synthesis for block",
+          props.index,
+          ":",
+          result.error,
+        );
+      }
+    },
+    600,
+  );
+
+  onMount(() => {
+    void events.synthesisJobEvent
+      .listen(({ payload }) => {
+        const activeRequest = activeSynthesisRequest;
+        if (
+          payload.blockId !== synthesisBlockId ||
+          activeRequest === null ||
+          payload.generationId !== activeRequest.generationId ||
+          payload.hash !== activeRequest.hash
+        ) {
+          return;
+        }
+        setSynthState(payload.state);
+        if (payload.state === "Failed") {
+          console.error(
+            "Synthesis failed for block",
+            props.index,
+            ":",
+            payload.error,
+          );
+        }
+      })
+      .then((unlisten) => {
+        if (disposed) {
+          unlisten();
+        } else {
+          unlistenSynthesis = unlisten;
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to listen for synthesis events:", error);
+      });
+  });
+
+  createEffect(() => {
+    const query = currentModifiedQuery();
+    const preset = currentPreset();
+    const bufferingEnabled = config.ui_config.buffer_render;
+    if (!bufferingEnabled || query === null || preset === null) {
+      enqueueSynthesis.clear();
+      cancelSynthesisRequest(activeSynthesisRequest);
+      activeSynthesisRequest = null;
+      lastSynthesisSignature = null;
+      setSynthState("Idle");
+      return;
+    }
+
+    const speakerId = preset.style_id;
+    const { hash, signature } = synthesisRequestFingerprint(query, speakerId);
+    if (signature === lastSynthesisSignature) {
+      return;
+    }
+
+    enqueueSynthesis.clear();
+    cancelSynthesisRequest(activeSynthesisRequest);
+    synthesisGeneration += 1;
+    const activeRequest: ActiveSynthesisRequest = {
+      generationId: synthesisGeneration,
+      hash,
+      submitted: false,
+    };
+    activeSynthesisRequest = activeRequest;
+    lastSynthesisSignature = signature;
+    setSynthState("Queued");
+    enqueueSynthesis(
+      {
+        blockId: synthesisBlockId,
+        generationId: activeRequest.generationId,
+        audioQuery: query,
+        speakerId,
+        hash,
+      },
+      activeRequest,
+    );
+  });
+
+  onCleanup(() => {
+    enqueueSynthesis.clear();
+    cancelSynthesisRequest(activeSynthesisRequest);
+    activeSynthesisRequest = null;
+    unlistenSynthesis?.();
+  });
+
   const synthStateText = () => {
-    switch (trafficLightNumber()) {
-      case -1:
-        return t1("text_block.synth_state.no_query");
-      case 0:
+    if (currentText().query === null || currentPreset() === null) {
+      return t1("text_block.synth_state.no_query");
+    }
+    switch (synthState()) {
+      case "Idle":
         return t1("text_block.synth_state.not_started");
-      case 1:
+      case "Queued":
+        return t1("text_block.synth_state.queued");
+      case "Running":
         return t1("text_block.synth_state.in_progress");
-      case 2:
+      case "Completed":
         return t1("text_block.synth_state.completed");
+      case "Failed":
+        return t1("text_block.synth_state.failed");
+      case "Cancelled":
+        return t1("text_block.synth_state.cancelled");
+      case "Evicted":
+        return t1("text_block.synth_state.evicted");
       default:
-        return "";
+        return t1("text_block.synth_state.no_query");
+    }
+  };
+
+  const synthStateIcon = () => {
+    switch (synthState()) {
+      case "Queued":
+        return "i-lucide:clock-3";
+      case "Running":
+        return "i-lucide:loader-circle";
+      case "Completed":
+        return "i-lucide:check";
+      case "Failed":
+        return "i-lucide:triangle-alert";
+      case "Cancelled":
+        return "i-lucide:circle-slash";
+      case "Evicted":
+        return "i-lucide:archive-restore";
+      default:
+        return "i-lucide:circle-dashed";
     }
   };
 
@@ -446,31 +608,30 @@ function TextBlock(props: { index: number }) {
             </Show>
           </div>
           <Show when={config.ui_config.buffer_render}>
-            {/* The traffic light presenting synthesis state */}
-            <div
-              class="flex flex-row items-center ml-2 gap-1"
+            <output
+              aria-label={synthStateText()}
+              class="ml-2 flex size-5 items-center justify-center rounded-full border border-slate-2 bg-slate-1/80 text-slate-5 shadow-sm dark:(border-slate-6 bg-slate-8/80 text-slate-4)"
               classList={{
-                "opacity-50": !selected(),
+                "opacity-60": !selected(),
+                "!border-amber-2 !bg-amber-1/70 !text-amber-7 dark:(!border-amber-8/60 !bg-amber-9/20 !text-amber-4)":
+                  selected() && synthState() === "Queued",
+                "!border-sky-2 !bg-sky-1/70 !text-sky-7 dark:(!border-sky-8/60 !bg-sky-9/20 !text-sky-4)":
+                  selected() && synthState() === "Running",
+                "!border-emerald-2 !bg-emerald-1/70 !text-emerald-7 dark:(!border-emerald-8/60 !bg-emerald-9/20 !text-emerald-4)":
+                  selected() && synthState() === "Completed",
+                "!border-rose-2 !bg-rose-1/70 !text-rose-7 dark:(!border-rose-8/60 !bg-rose-9/20 !text-rose-4)":
+                  selected() && synthState() === "Failed",
               }}
               title={synthStateText()}
             >
-              <div
-                class="bg-slate-3 dark:bg-slate-6 w-3 h-3 rounded-full"
+              <span
+                aria-hidden="true"
+                class={`size-3 ${synthStateIcon()}`}
                 classList={{
-                  "!bg-red-4": trafficLightNumber() >= 0,
+                  "animate-spin": synthState() === "Running",
                 }}
               />
-              <div
-                class="bg-slate-3 dark:bg-slate-6 w-3 h-3 rounded-full"
-                classList={{
-                  "!bg-yellow-4": trafficLightNumber() >= 1,
-                }}
-              />
-              <div
-                class="bg-slate-3 dark:bg-slate-6 w-3 h-3 rounded-full"
-                classList={{ "!bg-green-4": trafficLightNumber() >= 2 }}
-              />
-            </div>
+            </output>
           </Show>
         </div>
       </div>

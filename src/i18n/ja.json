@@ -45,8 +45,12 @@
     "synth_state": {
       "no_query": "クエリなし",
       "not_started": "未開始",
+      "queued": "待機中",
       "in_progress": "進行中",
-      "completed": "完了"
+      "completed": "完了",
+      "failed": "失敗",
+      "cancelled": "キャンセル済み",
+      "evicted": "バッファ対象外"
     }
   },
   "menu": {

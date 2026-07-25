@@ -45,8 +45,12 @@
     "synth_state": {
       "no_query": "No Query",
       "not_started": "Not Started",
+      "queued": "Queued",
       "in_progress": "In Progress",
-      "completed": "Completed"
+      "completed": "Completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "evicted": "No Longer Buffered"
     }
   },
   "config": {

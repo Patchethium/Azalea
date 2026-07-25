@@ -126,20 +126,22 @@ async replaceMoraDuration(ap: AccentPhrase[], styleId: StyleId) : Promise<Result
 }
 },
 /**
- * Synthesizes audio from audio query and put it into cache.
- * 
- * It doesn't guarantee the cached waveform is always there,
- * so the edge guard is still needed when retrieving from cache.
- * 
- * It's used in buffering audio generation in the background to reduce latency,
- * also needs to be async so that it can be invoked in the background.
- * 
- * TODO: invoke an event when wavform is dropped from cache so that frontend can be notified
- * or find another way to guarantee the viability of the cached waveforms.
+ * Queues a synthesis request and returns without waiting for inference.
  */
-async synthesize(audioQuery: AudioQuery, speakerId: StyleId) : Promise<Result<null, string>> {
+async synthesize(request: SynthesisJobRequest) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("synthesize", { audioQuery, speakerId }) };
+    return { status: "ok", data: await TAURI_INVOKE("synthesize", { request }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Cancels queued work for one block. Running inference is marked stale and its result is ignored.
+ */
+async cancelSynthesis(blockId: string, generationId: number | null) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cancel_synthesis", { blockId, generationId }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -245,10 +247,12 @@ async loadProject(path: string) : Promise<Result<Project, string>> {
 
 export const events = __makeEvents__<{
 frontendReadyEvent: FrontendReadyEvent,
-initializationEvent: InitializationEvent
+initializationEvent: InitializationEvent,
+synthesisJobEvent: SynthesisJobEvent
 }>({
 frontendReadyEvent: "frontend-ready-event",
-initializationEvent: "initialization-event"
+initializationEvent: "initialization-event",
+synthesisJobEvent: "synthesis-job-event"
 })
 
 /** user-defined constants **/
@@ -621,6 +625,9 @@ export type SynthState =
  * synthesis is done, contains waveform
  */
 "Done"
+export type SynthesisJobEvent = { blockId: string; generationId: number; hash: string; state: SynthesisJobState; error: string | null }
+export type SynthesisJobRequest = { blockId: string; generationId: number; audioQuery: AudioQuery; speakerId: StyleId; hash: string }
+export type SynthesisJobState = "Queued" | "Running" | "Completed" | "Failed" | "Cancelled" | "Evicted"
 export type TextBlockProps = { text: string; query: AudioQuery | null; preset_id: number | null }
 export type ThemeMode = "System" | "Light" | "Dark"
 export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; side_ratio?: number; buffer_render?: boolean; spectrogram_preview?: boolean; name_truncation_len?: number; last_exported_dir?: string | null }

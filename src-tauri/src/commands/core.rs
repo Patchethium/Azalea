@@ -1,7 +1,11 @@
-use super::utils::{state_async_mut, state_async_ref, state_mut};
+use super::utils::state_mut;
 use crate::config::CoreConfig;
+use crate::synthesis::{
+  eviction_events, SynthesisJob, SynthesisJobEvent, SynthesisJobRequest, SynthesisJobState,
+  WaveformCacheEntry, WaveformCacheOwner,
+};
+use crate::AppState;
 use crate::{audio::spectal::MelSpec, audio::AudioPlayer, core::Core};
-use crate::{AppState, WavLruType};
 
 use ndarray::Array1;
 use rodio::Source;
@@ -10,8 +14,9 @@ use std::io::Cursor;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
+use tauri_specta::Event;
 use tokio::sync::OnceCell;
 use voicevox_core::{AccentPhrase, AudioQuery, StyleId, VoiceModelMeta};
 
@@ -30,8 +35,12 @@ pub async fn initialize_core(
   config: CoreConfig,
 ) -> std::result::Result<(), String> {
   if state.core.read().await.is_none() {
-    let core = Core::init(&config).map_err(|e| e.to_string())?;
-    state.core.write().await.replace(core);
+    let core_config = config.clone();
+    let core = tauri::async_runtime::spawn_blocking(move || Core::init(&core_config))
+      .await
+      .map_err(|e| format!("Core initialization task failed: {e}"))?
+      .map_err(|e| e.to_string())?;
+    state.core.write().await.replace(Arc::new(core));
   } else {
     return Err("Core already loaded".into());
   }
@@ -67,8 +76,41 @@ pub async fn initialize_core(
 #[tauri::command]
 #[specta::specta]
 pub async fn get_metas(state: State<'_, AppState>) -> std::result::Result<VoiceModelMeta, String> {
-  let metas = state_async_ref!(state, core).metas.clone();
+  let metas = state
+    .core
+    .read()
+    .await
+    .as_ref()
+    .ok_or("core is not initialized")?
+    .metas
+    .clone();
   Ok(metas.values().flatten().cloned().collect())
+}
+
+async fn run_core_task<T, F>(state: &AppState, task: F) -> Result<T, String>
+where
+  T: Send + 'static,
+  F: FnOnce(Arc<Core>) -> Result<T, String> + Send + 'static,
+{
+  let core = state
+    .core
+    .read()
+    .await
+    .as_ref()
+    .cloned()
+    .ok_or("core is not initialized")?;
+  let permit = state
+    .core_task_gate
+    .clone()
+    .acquire_owned()
+    .await
+    .map_err(|_| "Core task worker is unavailable")?;
+  tauri::async_runtime::spawn_blocking(move || {
+    let _permit = permit;
+    task(core)
+  })
+  .await
+  .map_err(|e| format!("Core task failed: {e}"))?
 }
 
 /// Encodes text into audio query
@@ -82,10 +124,14 @@ pub async fn audio_query(
   if let Some(cache) = state_mut!(state, query_lru).get(&(text.clone(), speaker_id)) {
     return Ok(cache.clone());
   }
-  let query = state_async_ref!(state, core)
-    .audio_query(&text, speaker_id)
-    .map_err(|e| e.to_string())?;
-  state_mut!(state, query_lru).put((text.clone(), speaker_id), query.clone());
+  let cache_key = (text.clone(), speaker_id);
+  let query = run_core_task(&state, move |core| {
+    core
+      .audio_query(&text, speaker_id)
+      .map_err(|e| e.to_string())
+  })
+  .await?;
+  state_mut!(state, query_lru).put(cache_key, query.clone());
   Ok(query)
 }
 
@@ -97,9 +143,12 @@ pub async fn accent_phrases(
   text: String,
   speaker_id: StyleId,
 ) -> std::result::Result<Vec<AccentPhrase>, String> {
-  state_async_ref!(state, core)
-    .accent_phrases(&text, speaker_id)
-    .map_err(|e| e.to_string())
+  run_core_task(&state, move |core| {
+    core
+      .accent_phrases(&text, speaker_id)
+      .map_err(|e| e.to_string())
+  })
+  .await
 }
 
 /// Replace mora data (pitch and duration) in accent phrases
@@ -110,9 +159,10 @@ pub async fn replace_mora(
   ap: Vec<AccentPhrase>,
   style_id: StyleId,
 ) -> std::result::Result<Vec<AccentPhrase>, String> {
-  state_async_ref!(state, core)
-    .replace_mora(ap, style_id)
-    .map_err(|e| e.to_string())
+  run_core_task(&state, move |core| {
+    core.replace_mora(ap, style_id).map_err(|e| e.to_string())
+  })
+  .await
 }
 
 /// Replace pitch in accent phrases
@@ -123,9 +173,12 @@ pub async fn replace_mora_pitch(
   ap: Vec<AccentPhrase>,
   style_id: StyleId,
 ) -> std::result::Result<Vec<AccentPhrase>, String> {
-  state_async_ref!(state, core)
-    .replace_mora_pitch(ap, style_id)
-    .map_err(|e| e.to_string())
+  run_core_task(&state, move |core| {
+    core
+      .replace_mora_pitch(ap, style_id)
+      .map_err(|e| e.to_string())
+  })
+  .await
 }
 
 /// Replace duration in accent phrases
@@ -136,36 +189,95 @@ pub async fn replace_mora_duration(
   ap: Vec<AccentPhrase>,
   style_id: StyleId,
 ) -> std::result::Result<Vec<AccentPhrase>, String> {
-  state_async_ref!(state, core)
-    .replace_mora_duration(ap, style_id)
-    .map_err(|e| e.to_string())
+  run_core_task(&state, move |core| {
+    core
+      .replace_mora_duration(ap, style_id)
+      .map_err(|e| e.to_string())
+  })
+  .await
 }
 
 #[tauri::command]
 #[specta::specta]
-/// Synthesizes audio from audio query and put it into cache.
-///
-/// It doesn't guarantee the cached waveform is always there,
-/// so the edge guard is still needed when retrieving from cache.
-///
-/// It's used in buffering audio generation in the background to reduce latency,
-/// also needs to be async so that it can be invoked in the background.
-///
-/// TODO: invoke an event when wavform is dropped from cache so that frontend can be notified
-/// or find another way to guarantee the viability of the cached waveforms.
+/// Queues a synthesis request and returns without waiting for inference.
 pub async fn synthesize(
+  app: AppHandle,
   state: State<'_, AppState>,
-  audio_query: AudioQuery,
-  speaker_id: StyleId,
+  request: SynthesisJobRequest,
 ) -> std::result::Result<(), String> {
-  let _ = _synthesize(
-    state_async_mut!(state, wav_lru),
-    state_async_ref!(state, core),
-    audio_query,
-    speaker_id,
-  )
-  .await?;
+  if request.block_id.trim().is_empty() {
+    return Err("block_id must not be empty".into());
+  }
+  if request.hash.trim().is_empty() {
+    return Err("hash must not be empty".into());
+  }
+  let query_key = serde_json::to_string(&request.audio_query).map_err(|e| e.to_string())?;
+  let events = state
+    .synthesis_queue
+    .enqueue(SynthesisJob::new(request, query_key));
+  emit_synthesis_events(&app, events);
   Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+/// Cancels queued work for one block. Running inference is marked stale and its result is ignored.
+pub async fn cancel_synthesis(
+  app: AppHandle,
+  state: State<'_, AppState>,
+  block_id: String,
+  generation_id: Option<u64>,
+) -> std::result::Result<(), String> {
+  let events = state.synthesis_queue.cancel(&block_id, generation_id);
+  emit_synthesis_events(&app, events);
+  Ok(())
+}
+
+fn emit_synthesis_events(app: &AppHandle, events: impl IntoIterator<Item = SynthesisJobEvent>) {
+  for event in events {
+    if let Err(error) = event.emit(app) {
+      eprintln!("Failed to emit synthesis job event: {error}");
+    }
+  }
+}
+
+pub fn start_synthesis_worker(app: AppHandle) {
+  tauri::async_runtime::spawn(async move {
+    loop {
+      let job = {
+        let state = app.state::<AppState>();
+        state.synthesis_queue.next().await
+      };
+      emit_synthesis_events(&app, [job.identity.event(SynthesisJobState::Running, None)]);
+
+      let result = {
+        let state = app.state::<AppState>();
+        synthesize_cached(
+          &app,
+          &state,
+          job.request.audio_query,
+          job.request.speaker_id,
+          Some(WaveformCacheOwner {
+            identity: job.identity.clone(),
+          }),
+        )
+        .await
+      };
+
+      let is_current = {
+        let state = app.state::<AppState>();
+        state.synthesis_queue.finish(&job.identity)
+      };
+      if !is_current {
+        continue;
+      }
+      let event = match result {
+        Ok(_) => job.identity.event(SynthesisJobState::Completed, None),
+        Err(error) => job.identity.event(SynthesisJobState::Failed, Some(error)),
+      };
+      emit_synthesis_events(&app, [event]);
+    }
+  });
 }
 
 #[derive(specta::Type, Serialize)]
@@ -226,42 +338,81 @@ fn create_spectrogram_preview(wav: Vec<u8>) -> Result<SpectrogramPreview, String
 #[specta::specta]
 /// Gets a compact mel spectrogram from the same cached waveform used for playback.
 pub async fn get_spectrogram_preview(
+  app: AppHandle,
   state: State<'_, AppState>,
   audio_query: AudioQuery,
   speaker_id: StyleId,
 ) -> Result<SpectrogramPreview, String> {
-  let wav = _synthesize(
-    state_async_mut!(state, wav_lru),
-    state_async_ref!(state, core),
-    audio_query,
-    speaker_id,
-  )
-  .await?;
+  let wav = synthesize_cached(&app, &state, audio_query, speaker_id, None).await?;
 
   tauri::async_runtime::spawn_blocking(move || create_spectrogram_preview(wav))
     .await
     .map_err(|e| format!("Spectrogram task failed: {e}"))?
 }
 
-/// Decode audio query to waveform.
-/// FIXME: `clone` is abused, optimize it.
-pub async fn _synthesize(
-  cache: &mut WavLruType,
-  wrapper: &Core,
+/// Synthesizes or retrieves a waveform without holding the shared cache lock during inference.
+async fn synthesize_cached(
+  app: &AppHandle,
+  state: &AppState,
   audio_query: AudioQuery,
   speaker_id: StyleId,
+  owner: Option<WaveformCacheOwner>,
 ) -> std::result::Result<Vec<u8>, String> {
   let query_string = serde_json::to_string(&audio_query).map_err(|e| e.to_string())?;
-  let cell = cache
-    .get_or_insert((query_string, speaker_id), || Arc::new(OnceCell::new()))
-    .clone();
+  let cache_key = (query_string, speaker_id);
+  let (cell, evicted) = {
+    let mut cache_guard = state.wav_lru.write().await;
+    let cache = cache_guard.as_mut().ok_or("wav_lru is not initialized")?;
+    if let Some(entry) = cache.get(&cache_key) {
+      (entry.cell.clone(), None)
+    } else {
+      let cell = Arc::new(OnceCell::new());
+      let evicted = cache.push(cache_key.clone(), WaveformCacheEntry::new(cell.clone()));
+      (cell, evicted)
+    }
+  };
+  if let Some((_, entry)) = evicted {
+    emit_synthesis_events(app, eviction_events(entry));
+  }
+
+  let query_for_task = audio_query.clone();
   let wav = cell
     .get_or_try_init(|| async {
-      wrapper
-        .synthesis(&audio_query, speaker_id)
-        .map_err(|e| e.to_string())
+      run_core_task(state, move |core| {
+        core
+          .synthesis(&query_for_task, speaker_id)
+          .map_err(|e| e.to_string())
+      })
+      .await
     })
     .await?;
+
+  let evicted = {
+    let mut cache_guard = state.wav_lru.write().await;
+    let cache = cache_guard.as_mut().ok_or("wav_lru is not initialized")?;
+    let is_current_cell = cache
+      .get(&cache_key)
+      .map(|entry| Arc::ptr_eq(&entry.cell, &cell))
+      .unwrap_or(false);
+    if is_current_cell {
+      if let Some(owner) = owner {
+        cache
+          .get_mut(&cache_key)
+          .expect("cache entry disappeared while locked")
+          .add_owner(owner);
+      }
+      None
+    } else {
+      let mut entry = WaveformCacheEntry::new(cell.clone());
+      if let Some(owner) = owner {
+        entry.add_owner(owner);
+      }
+      cache.push(cache_key, entry)
+    }
+  };
+  if let Some((_, entry)) = evicted {
+    emit_synthesis_events(app, eviction_events(entry));
+  }
   Ok(wav.clone())
 }
 
@@ -273,15 +424,10 @@ pub async fn play_audio(
   audio_query: AudioQuery,
   speaker_id: StyleId,
 ) -> std::result::Result<(), String> {
-  let wav = _synthesize(
-    state_async_mut!(state, wav_lru),
-    state_async_ref!(state, core),
-    audio_query,
-    speaker_id,
-  )
-  .await?;
+  let wav = synthesize_cached(&app, &state, audio_query, speaker_id, None).await?;
+  let playback_app = app.clone();
   let audio_player = AudioPlayer::play(wav, move || {
-    if let Err(error) = app.emit("audio-playback-finished", ()) {
+    if let Err(error) = playback_app.emit("audio-playback-finished", ()) {
       eprintln!("Failed to emit playback completion: {error}");
     }
   })
@@ -313,18 +459,11 @@ pub async fn play_audio_sequence(
   }
   let mut wavs = Vec::with_capacity(items.len());
   for item in items {
-    wavs.push(
-      _synthesize(
-        state_async_mut!(state, wav_lru),
-        state_async_ref!(state, core),
-        item.audio_query,
-        item.speaker_id,
-      )
-      .await?,
-    );
+    wavs.push(synthesize_cached(&app, &state, item.audio_query, item.speaker_id, None).await?);
   }
+  let playback_app = app.clone();
   let audio_player = AudioPlayer::play_many(wavs, move || {
-    if let Err(error) = app.emit("audio-playback-finished", ()) {
+    if let Err(error) = playback_app.emit("audio-playback-finished", ()) {
       eprintln!("Failed to emit playback completion: {error}");
     }
   })
@@ -356,18 +495,13 @@ pub async fn stop_audio(state: State<'_, AppState>) -> std::result::Result<(), S
 #[tauri::command]
 #[specta::specta]
 pub async fn save_audio(
+  app: AppHandle,
   state: State<'_, AppState>,
   path: String,
   audio_query: AudioQuery,
   speaker_id: StyleId,
 ) -> std::result::Result<String, String> {
-  let waveform = _synthesize(
-    state_async_mut!(state, wav_lru),
-    state_async_ref!(state, core),
-    audio_query,
-    speaker_id,
-  )
-  .await?;
+  let waveform = synthesize_cached(&app, &state, audio_query, speaker_id, None).await?;
   std::fs::write(&path, waveform).map_err(|e| e.to_string())?;
   Ok(path)
 }
@@ -391,8 +525,24 @@ pub async fn pick_core(app: AppHandle) -> Option<CoreConfig> {
 
 #[tauri::command]
 #[specta::specta]
-pub async fn clear_caches(state: State<'_, AppState>) -> Result<(), String> {
-  state_async_mut!(state, wav_lru).clear();
+pub async fn clear_caches(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+  let eviction_events = {
+    let mut cache_guard = state.wav_lru.write().await;
+    let cache = cache_guard.as_mut().ok_or("wav_lru is not initialized")?;
+    let events = cache
+      .iter()
+      .flat_map(|(_, entry)| {
+        entry
+          .owners
+          .iter()
+          .map(|owner| owner.identity.event(SynthesisJobState::Evicted, None))
+          .collect::<Vec<_>>()
+      })
+      .collect::<Vec<_>>();
+    cache.clear();
+    events
+  };
+  emit_synthesis_events(&app, eviction_events);
   state_mut!(state, query_lru).clear();
   Ok(())
 }
@@ -418,8 +568,10 @@ pub async fn synthesize_state(
   speaker_id: StyleId,
 ) -> std::result::Result<SynthState, String> {
   let query_string = serde_json::to_string(&query).map_err(|e| e.to_string())?;
-  if let Some(cell) = state_async_mut!(state, wav_lru).get(&(query_string.clone(), speaker_id)) {
-    if cell.get().is_some() {
+  let mut cache_guard = state.wav_lru.write().await;
+  let cache = cache_guard.as_mut().ok_or("wav_lru is not initialized")?;
+  if let Some(entry) = cache.get(&(query_string, speaker_id)) {
+    if entry.cell.get().is_some() {
       return Ok(SynthState::Done);
     } else {
       return Ok(SynthState::Pending);
