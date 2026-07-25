@@ -11,31 +11,31 @@ browser/OS conventions.
 Keep the first step deliberately small and limited to modifier-based workflow
 shortcuts. Do not introduce unmodified single-letter shortcuts.
 
-| Shortcut             | Action                                      |
-| -------------------- | ------------------------------------------- |
-| `Ctrl/Cmd + S`       | Save the current project                    |
-| `Ctrl/Cmd + Enter`   | Generate/play the selected cell and stay    |
-| `Shift + Enter`      | Generate/play the selected cell, then advance |
-| `Ctrl/Cmd + Space`   | Stop playback                               |
+| Shortcut           | Action                                        |
+| ------------------ | --------------------------------------------- |
+| `Ctrl/Cmd + S`     | Save the current project                      |
+| `Ctrl/Cmd + Enter` | Generate/play the selected cell and stay      |
+| `Shift + Enter`    | Generate/play the selected cell, then advance |
+| `Ctrl/Cmd + Space` | Stop playback                                 |
 
 Implementation rules:
 
-* Use `Cmd` on macOS and `Ctrl` on Windows/Linux.
-* Ignore auto-repeat so holding a key cannot queue duplicate work.
-* Preserve ordinary text input for all other keys.
-* Do not run playback shortcuts while a dialog or non-editor form control has
+- Use `Cmd` on macOS and `Ctrl` on Windows/Linux.
+- Ignore auto-repeat so holding a key cannot queue duplicate work.
+- Preserve ordinary text input for all other keys.
+- Do not run playback shortcuts while a dialog or non-editor form control has
   focus; saving remains available throughout the application.
-* Reuse the same actions as the visible controls rather than duplicating their
+- Reuse the same actions as the visible controls rather than duplicating their
   behavior.
 
 Acceptance criteria:
 
-* The shortcuts work while the selected text cell is being edited.
-* Play shortcuts do nothing when the selected cell has no usable query/preset.
-* `Shift + Enter` advances only after playback starts successfully and remains
+- The shortcuts work while the selected text cell is being edited.
+- Play shortcuts do nothing when the selected cell has no usable query/preset.
+- `Shift + Enter` advances only after playback starts successfully and remains
   on the final cell when there is no next cell.
-* Stop is harmless when nothing is playing.
-* Frontend checks and Rust tests pass.
+- Stop is harmless when nothing is playing.
+- Frontend checks and Rust tests pass.
 
 ### Step 2: focus-safe cell operations
 
@@ -154,12 +154,12 @@ For a notebook-style TTS workflow, cell selection is especially useful:
 
 Because the same key can mean different things, make the current mode visually obvious.
 
-* In **edit mode**, preserve standard browser and OS text shortcuts.
-* In **command mode**, single-letter shortcuts such as `A`, `B`, `D`, and `R` are safe.
-* Avoid overriding `Ctrl/Cmd + R`, because browsers use it for reload.
-* Avoid overriding `Ctrl/Cmd + W`, `Ctrl/Cmd + T`, and `Ctrl/Cmd + N`.
-* Use `Cmd` on macOS and `Ctrl` on Windows/Linux.
-* Ignore single-letter command shortcuts while focus is inside text fields, dropdowns, or dialogs.
-* Consider requiring `D`, `D` or a confirmation for destructive actions.
+- In **edit mode**, preserve standard browser and OS text shortcuts.
+- In **command mode**, single-letter shortcuts such as `A`, `B`, `D`, and `R` are safe.
+- Avoid overriding `Ctrl/Cmd + R`, because browsers use it for reload.
+- Avoid overriding `Ctrl/Cmd + W`, `Ctrl/Cmd + T`, and `Ctrl/Cmd + N`.
+- Use `Cmd` on macOS and `Ctrl` on Windows/Linux.
+- Ignore single-letter command shortcuts while focus is inside text fields, dropdowns, or dialogs.
+- Consider requiring `D`, `D` or a confirmation for destructive actions.
 
 A strong minimal first release would include: `Enter`, `Esc`, `Shift + Enter`, `Ctrl/Cmd + Enter`, `A`, `B`, `D D`, `C`, `X`, `V`, arrow-key navigation, save, play/pause, regenerate, stop, and a command palette.
