@@ -87,13 +87,14 @@ function Sidebar() {
   const { metas, availableStyleIds } = useMetaStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
   const {
-    textStore,
     setTextStore,
     projectPresetStore,
     setProjectPresetStore,
     project,
     projectPath,
     setProjectPath,
+    selectedTextBlock,
+    selectedTextBlockIndex,
     newProject,
   } = useTextStore()!;
   const { config, setConfig } = useConfigStore()!;
@@ -101,8 +102,11 @@ function Sidebar() {
   const { t1 } = usei18n()!;
 
   const setStyleId = (styleId: StyleId) => {
-    if (styleId in availableStyleIds()) {
-      setProjectPresetStore(currentText().preset_id ?? 0, "style_id", styleId);
+    const presetId = currentText()?.preset_id;
+    if (presetId !== null && presetId !== undefined) {
+      if (styleId in availableStyleIds()) {
+        setProjectPresetStore(presetId, "style_id", styleId);
+      }
     }
   };
 
@@ -110,13 +114,14 @@ function Sidebar() {
   const [presetManagerOpen, setPresetManagerOpen] = createSignal(false);
   const [aboutOpen, setAboutOpen] = createSignal(false);
 
-  const currentText = () => textStore[uiStore.selectedTextBlockIndex];
+  const currentText = selectedTextBlock;
 
   const currentPreset = createMemo(() => {
-    if (projectPresetStore.length === 0) {
+    const presetId = currentText()?.preset_id;
+    if (projectPresetStore.length === 0 || presetId == null) {
       return null;
     }
-    return projectPresetStore[currentText().preset_id ?? 0];
+    return projectPresetStore[presetId] ?? null;
   });
 
   const curMeta = () =>
@@ -135,13 +140,10 @@ function Sidebar() {
   };
 
   const selectSpeakerByName = (name: string) => {
+    const presetId = currentText()?.preset_id;
     const speaker = metas.find((meta) => meta.name === name);
-    if (speaker) {
-      setProjectPresetStore(
-        currentText().preset_id ?? 0,
-        "style_id",
-        speaker.styles[0].id,
-      );
+    if (speaker && presetId !== null && presetId !== undefined) {
+      setProjectPresetStore(presetId, "style_id", speaker.styles[0].id);
     }
   };
 
@@ -151,7 +153,10 @@ function Sidebar() {
   };
 
   const createPresetSetter = (key: keyof Preset) => (value: number) => {
-    setProjectPresetStore(currentText().preset_id ?? 0, key, value);
+    const presetId = currentText()?.preset_id;
+    if (presetId !== null && presetId !== undefined) {
+      setProjectPresetStore(presetId, key, value);
+    }
   };
 
   const pitch = createMemo(() => currentPreset()?.pitch);
@@ -173,15 +178,15 @@ function Sidebar() {
   const setEndSli = createPresetSetter("end_slience");
 
   const setPresetName = (name: string) => {
-    setProjectPresetStore(currentText().preset_id ?? 0, "name", name);
+    const presetId = currentText()?.preset_id;
+    if (presetId !== null && presetId !== undefined) {
+      setProjectPresetStore(presetId, "name", name);
+    }
   };
 
   const setTextPresetIdx = (preset_idx: number) => {
-    setTextStore(
-      produce((draft) => {
-        draft[uiStore.selectedTextBlockIndex].preset_id = preset_idx;
-      }),
-    );
+    if (currentText() === null) return;
+    setTextStore(selectedTextBlockIndex(), "preset_id", preset_idx);
   };
 
   const createPreset = () => {
@@ -203,8 +208,8 @@ function Sidebar() {
   };
 
   const removePreset = () => {
-    const idx = currentText().preset_id;
-    if (idx !== null) {
+    const idx = currentText()?.preset_id;
+    if (idx !== null && idx !== undefined) {
       // set every text block that uses this preset to use null as preset_id
       setTextStore(
         produce((draft) => {
@@ -288,8 +293,11 @@ function Sidebar() {
       case "ok": {
         // directly setting the whole project won't work
         const project = res.data;
-        setTextStore(project.blocks);
-        setProjectPresetStore(project.presets);
+        batch(() => {
+          setTextStore(project.blocks);
+          setProjectPresetStore(project.presets);
+          setUIStore("selectedTextBlockIndex", 0);
+        });
         break;
       }
       case "error": {
@@ -363,18 +371,18 @@ function Sidebar() {
         <Button
           class="size-6 i-lucide:chevron-up hover:bg-primary-5 active:bg-primary-6 ui-disabled:(cursor-not-allowed opacity-50)"
           disabled={
-            currentText().preset_id === null || currentText().preset_id === 0
+            currentText()?.preset_id == null || currentText()?.preset_id === 0
           }
-          onClick={() => handleMovePresetUp(currentText().preset_id ?? 0)}
+          onClick={() => handleMovePresetUp(currentText()?.preset_id ?? 0)}
           title={t1("preset_manager.title")}
         />
         <Button
           class="size-6 i-lucide:chevron-down hover:bg-primary-5 active:bg-primary-6 ui-disabled:(cursor-not-allowed opacity-50)"
           disabled={
-            currentText().preset_id === null ||
-            currentText().preset_id === projectPresetStore.length - 1
+            currentText()?.preset_id == null ||
+            currentText()?.preset_id === projectPresetStore.length - 1
           }
-          onClick={() => handleMovePresetDown(currentText().preset_id ?? 0)}
+          onClick={() => handleMovePresetDown(currentText()?.preset_id ?? 0)}
           title={t1("preset_manager.title")}
         />
         <div class="flex-1" />
@@ -384,7 +392,8 @@ function Sidebar() {
           title={t1("preset_manager.title")}
         />
         <Button
-          class="size-6 i-lucide:trash2 hover:bg-red-5 active:bg-red-6"
+          class="size-6 i-lucide:trash2 hover:bg-red-5 active:bg-red-6 ui-disabled:(cursor-not-allowed opacity-50)"
+          disabled={currentText()?.preset_id == null}
           onClick={removePreset}
         />
       </div>
@@ -394,7 +403,7 @@ function Sidebar() {
             {(_, i) => (
               <PresetCard
                 preset_idx={i()}
-                selected={i() === currentText().preset_id}
+                selected={i() === currentText()?.preset_id}
                 onClick={() => {
                   setTextPresetIdx(i());
                 }}

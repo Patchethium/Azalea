@@ -16,10 +16,10 @@ Tier meanings:
 
 ### Reliable empty-project state
 
-- [ ] Guarantee that a new project always contains at least one editable text
+- [x] Guarantee that a new project always contains at least one editable text
       block.
-- [ ] Add an explicit empty-state action for creating the first block.
-- [ ] Guard every selected-block lookup and keep the selected index in bounds
+- [x] Add an explicit empty-state action for creating the first block.
+- [x] Guard every selected-block lookup and keep the selected index in bounds
       after loading, deleting, or resetting blocks.
 
 ### Project safety and recovery

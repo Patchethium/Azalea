@@ -11,6 +11,7 @@
   "loading": "ローディング中",
   "bottom": {
     "no_query": "テキストを入力してください",
+    "no_block": "テキストセルが選択されていません",
     "accent": "アクセント",
     "tuning": "調整",
     "play": "選択したセルを再生",
@@ -35,6 +36,12 @@
     "license": "オープンソースライセンス"
   },
   "text_block": {
+    "input_label": "読み上げるテキスト",
+    "empty_project": {
+      "title": "このプロジェクトにはテキストセルがありません",
+      "description": "最初のテキストセルを作成して入力を始めましょう。",
+      "create": "テキストセルを作成"
+    },
     "synth_state": {
       "no_query": "クエリなし",
       "not_started": "未開始",

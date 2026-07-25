@@ -38,6 +38,7 @@ type DraggingMode = "consonant" | "vowel" | "pause";
 
 function BottomPanel() {
   const { t1 } = usei18n()!;
+  const { selectedTextBlock } = useTextStore()!;
   const [previewRevision, setPreviewRevision] = createSignal(0);
   const waveformSynthesized = () =>
     setPreviewRevision((revision) => revision + 1);
@@ -47,93 +48,111 @@ function BottomPanel() {
     setUIStore("bottomPanel", p as BottomPanelType);
   };
   return (
-    <Tabs
-      aria-label="Bottom Panel Tabs"
-      class="size-full flex flex-col bg-white dark:bg-slate-8 border border-slate-2 dark:border-slate-6 rounded-lg overflow-hidden outline-none select-none"
-      orientation="horizontal"
-      value={uiStore.bottomPanel}
-      onChange={setPanel}
-      defaultValue="accent"
+    <Show
+      when={selectedTextBlock()}
+      fallback={
+        <div class="size-full flex items-center justify-center rounded-lg border border-slate-2 bg-white text-sm text-slate-5 dark:(border-slate-6 bg-slate-8 text-slate-4)">
+          {t1("bottom.no_block")}
+        </div>
+      }
     >
-      <ControlBar onWaveformSynthesized={waveformSynthesized} />
-      <div class="absolute">
-        <Tabs.List class="w-full flex flex-row items-center relative p-1 outline-none select-none">
-          <Tabs.Trigger
-            class="bg-transparent hover:bg-slate-1 dark:hover:bg-slate-7 px-2 rounded-md outline-none select-none"
-            value="accent"
-          >
-            {t1("bottom.accent")}
-          </Tabs.Trigger>
-          <Tabs.Trigger
-            class="bg-transparent hover:bg-slate-1 dark:hover:bg-slate-7 px-2 rounded-md outline-none select-none"
-            value="tuning"
-          >
-            {t1("bottom.tuning")}
-          </Tabs.Trigger>
-          <Tabs.Indicator class="bg-primary-5 h-1px absolute transition-all bottom-0 left-0" />
-        </Tabs.List>
-      </div>
+      <Tabs
+        aria-label="Bottom Panel Tabs"
+        class="size-full flex flex-col bg-white dark:bg-slate-8 border border-slate-2 dark:border-slate-6 rounded-lg overflow-hidden outline-none select-none"
+        orientation="horizontal"
+        value={uiStore.bottomPanel}
+        onChange={setPanel}
+        defaultValue="accent"
+      >
+        <ControlBar onWaveformSynthesized={waveformSynthesized} />
+        <div class="absolute">
+          <Tabs.List class="w-full flex flex-row items-center relative p-1 outline-none select-none">
+            <Tabs.Trigger
+              class="bg-transparent hover:bg-slate-1 dark:hover:bg-slate-7 px-2 rounded-md outline-none select-none"
+              value="accent"
+            >
+              {t1("bottom.accent")}
+            </Tabs.Trigger>
+            <Tabs.Trigger
+              class="bg-transparent hover:bg-slate-1 dark:hover:bg-slate-7 px-2 rounded-md outline-none select-none"
+              value="tuning"
+            >
+              {t1("bottom.tuning")}
+            </Tabs.Trigger>
+            <Tabs.Indicator class="bg-primary-5 h-1px absolute transition-all bottom-0 left-0" />
+          </Tabs.List>
+        </div>
 
-      <Tabs.Content class="flex-1 size-full" value="accent">
-        <PhonemePanel />
-      </Tabs.Content>
-      <Tabs.Content class="flex-1 size-full" value="tuning">
-        <TuningPanel previewRevision={previewRevision()} />
-      </Tabs.Content>
-    </Tabs>
+        <Tabs.Content class="flex-1 size-full" value="accent">
+          <PhonemePanel />
+        </Tabs.Content>
+        <Tabs.Content class="flex-1 size-full" value="tuning">
+          <TuningPanel previewRevision={previewRevision()} />
+        </Tabs.Content>
+      </Tabs>
+    </Show>
   );
 }
 
 function ControlBar(props: { onWaveformSynthesized: () => void }) {
   const { t1 } = usei18n()!;
-  const { textStore, projectPresetStore } = useTextStore()!;
-  const { uiStore, setUIStore } = useUIStore()!;
+  const {
+    textStore,
+    projectPresetStore,
+    selectedTextBlock,
+    selectedTextBlockIndex,
+  } = useTextStore()!;
+  const { setUIStore } = useUIStore()!;
   const { systemStore } = useSystemStore()!;
   const [isPlaying, setIsPlaying] = createSignal(false);
 
-  const currentText = () => textStore[uiStore.selectedTextBlockIndex];
+  const currentText = selectedTextBlock;
   const queryExists = () => {
-    const currentQuery = currentText().query;
-    if (currentQuery === null) return false;
+    const currentQuery = currentText()?.query;
+    if (currentQuery == null) return false;
     if (currentQuery.accent_phrases.length === 0) return false;
     return true;
   };
 
   const prevExists = createMemo(
-    () => uiStore.selectedTextBlockIndex > 0 && textStore.length > 1,
+    () => selectedTextBlockIndex() > 0 && textStore.length > 1,
   );
 
   const nextExists = createMemo(
     () =>
-      uiStore.selectedTextBlockIndex < textStore.length - 1 &&
-      textStore.length > 1,
+      selectedTextBlockIndex() < textStore.length - 1 && textStore.length > 1,
   );
 
   const focusNext = () => {
-    if (uiStore.selectedTextBlockIndex < textStore.length - 1) {
-      setUIStore("selectedTextBlockIndex", uiStore.selectedTextBlockIndex + 1);
+    const index = selectedTextBlockIndex();
+    if (index < textStore.length - 1) {
+      setUIStore("selectedTextBlockIndex", index + 1);
     }
   };
 
   const focusPrev = () => {
-    if (uiStore.selectedTextBlockIndex > 0) {
-      setUIStore("selectedTextBlockIndex", uiStore.selectedTextBlockIndex - 1);
+    const index = selectedTextBlockIndex();
+    if (index > 0) {
+      setUIStore("selectedTextBlockIndex", index - 1);
     }
   };
 
   const currentPreset = createMemo(() => {
-    if (projectPresetStore.length === 0 || currentText().preset_id === null) {
+    const presetId = currentText()?.preset_id;
+    if (projectPresetStore.length === 0 || presetId == null) {
       return null;
     }
-    return projectPresetStore[currentText().preset_id ?? 0];
+    return projectPresetStore[presetId] ?? null;
   });
 
   const speak = async () => {
+    const block = currentText();
     const _currentPreset = unwrap(currentPreset());
-    if (_currentPreset == null || !queryExists()) return false;
+    if (block === null || _currentPreset == null || !queryExists())
+      return false;
     if (isPlaying()) await stop();
     const result = await commands.playAudio(
-      getModifiedQuery(unwrap(currentText().query!), _currentPreset),
+      getModifiedQuery(unwrap(block.query!), _currentPreset),
       _currentPreset.style_id,
     );
     if (result.status === "ok") {
@@ -201,7 +220,7 @@ function ControlBar(props: { onWaveformSynthesized: () => void }) {
   });
 
   const playableFromSelection = createMemo(() =>
-    textStore.slice(uiStore.selectedTextBlockIndex).flatMap((block) => {
+    textStore.slice(selectedTextBlockIndex()).flatMap((block) => {
       const preset =
         block.preset_id === null ? null : projectPresetStore[block.preset_id];
       if (
@@ -280,7 +299,12 @@ function ControlBar(props: { onWaveformSynthesized: () => void }) {
 }
 
 function TuningPanel(props: { previewRevision: number }) {
-  const { textStore, setTextStore, projectPresetStore } = useTextStore()!;
+  const {
+    setTextStore,
+    projectPresetStore,
+    selectedTextBlock,
+    selectedTextBlockIndex,
+  } = useTextStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
   const { config, setConfig, spectrogramPreviewEnabled } = useConfigStore()!;
   const {
@@ -305,32 +329,34 @@ function TuningPanel(props: { previewRevision: number }) {
 
   let scrollAreaRef!: HTMLDivElement;
 
-  const currentText = () => textStore[uiStore.selectedTextBlockIndex];
-  const selectedIdx = () => uiStore.selectedTextBlockIndex;
+  const currentText = selectedTextBlock;
+  const selectedIdx = () =>
+    currentText() === null ? null : selectedTextBlockIndex();
 
   const queryExists = () => {
-    const currentQuery = currentText().query;
-    if (currentQuery === null) return false;
+    const currentQuery = currentText()?.query;
+    if (currentQuery == null) return false;
     if (currentQuery.accent_phrases.length === 0) return false;
     return true;
   };
 
   const currentPreset = createMemo(() => {
-    if (projectPresetStore.length === 0 || currentText().preset_id === null) {
+    const presetId = currentText()?.preset_id;
+    if (projectPresetStore.length === 0 || presetId == null) {
       return null;
     }
-    return projectPresetStore[currentText().preset_id ?? 0];
+    return projectPresetStore[presetId] ?? null;
   });
 
   const currentModifiedQuery = createMemo(() => {
-    const query = currentText().query;
+    const query = currentText()?.query;
     const preset = currentPreset();
-    if (query === null || preset === null) return null;
+    if (query == null || preset === null) return null;
     return getModifiedQuery(query, preset);
   });
 
   const timelineDuration = createMemo(() =>
-    (currentText().query?.accent_phrases ?? []).reduce(
+    (currentText()?.query?.accent_phrases ?? []).reduce(
       (total, phrase) =>
         total +
         phrase.moras.reduce(
@@ -465,8 +491,10 @@ function TuningPanel(props: { previewRevision: number }) {
   const [dragStartX, setStartX] = createSignal<number | null>(null);
 
   const setConsonantLength = (i: number, j: number, v: number) => {
+    const index = selectedIdx();
+    if (index === null) return;
     setTextStore(
-      selectedIdx(),
+      index,
       "query",
       "accent_phrases",
       i,
@@ -478,8 +506,10 @@ function TuningPanel(props: { previewRevision: number }) {
   };
 
   const setVowelLength = (i: number, j: number, v: number) => {
+    const index = selectedIdx();
+    if (index === null) return;
     setTextStore(
-      selectedIdx(),
+      index,
       "query",
       "accent_phrases",
       i,
@@ -491,8 +521,10 @@ function TuningPanel(props: { previewRevision: number }) {
   };
 
   const setPauseLength = (i: number, v: number) => {
+    const index = selectedIdx();
+    if (index === null) return;
     setTextStore(
-      selectedIdx(),
+      index,
       "query",
       "accent_phrases",
       i,
@@ -503,16 +535,9 @@ function TuningPanel(props: { previewRevision: number }) {
   };
 
   const setPitch = (i: number, j: number, v: number) => {
-    setTextStore(
-      selectedIdx(),
-      "query",
-      "accent_phrases",
-      i,
-      "moras",
-      j,
-      "pitch",
-      v,
-    );
+    const index = selectedIdx();
+    if (index === null) return;
+    setTextStore(index, "query", "accent_phrases", i, "moras", j, "pitch", v);
   };
 
   const handleDragFinish = (_e: MouseEvent) => {
@@ -621,7 +646,7 @@ function TuningPanel(props: { previewRevision: number }) {
                 />
               )}
             </Show>
-            <For each={currentText().query?.accent_phrases}>
+            <For each={currentText()?.query?.accent_phrases}>
               {(ap, i) => (
                 <>
                   <For each={ap.moras}>
@@ -884,45 +909,49 @@ function SpectrogramCanvas(props: {
 // and combining/splitting accent phrases
 function PhonemePanel() {
   const { t1 } = usei18n()!;
-  const { textStore, setTextStore, projectPresetStore } = useTextStore()!;
-  const { uiStore } = useUIStore()!;
+  const {
+    textStore,
+    setTextStore,
+    projectPresetStore,
+    selectedTextBlock,
+    selectedTextBlockIndex,
+  } = useTextStore()!;
 
-  const currentText = () => textStore[uiStore.selectedTextBlockIndex];
+  const currentText = selectedTextBlock;
+  const selectedIdx = () =>
+    currentText() === null ? null : selectedTextBlockIndex();
   const currentPreset = createMemo(() => {
-    if (textStore.length === 0 || currentText().preset_id === null) {
+    const presetId = currentText()?.preset_id;
+    if (presetId == null) {
       return null;
     }
-    return projectPresetStore[currentText().preset_id ?? 0];
+    return projectPresetStore[presetId] ?? null;
   });
 
   const setPhrase = (index: number, p: AccentPhrase) => {
-    setTextStore(
-      uiStore.selectedTextBlockIndex,
-      "query",
-      "accent_phrases",
-      index,
-      p,
-    );
+    const textIndex = selectedIdx();
+    if (textIndex === null) return;
+    setTextStore(textIndex, "query", "accent_phrases", index, p);
   };
 
   const refreshMoraData = debounce(async () => {
-    const ap = currentText().query?.accent_phrases;
+    const sourceBlock = currentText();
+    const textIndex = sourceBlock === null ? null : selectedTextBlockIndex();
+    const ap = sourceBlock?.query?.accent_phrases;
     const p = currentPreset();
-    if (!ap || !p) return;
+    if (textIndex === null || !ap || !p) return;
     const new_ap = await commands.replaceMora(ap, p.style_id);
-    if (new_ap.status === "ok") {
-      setTextStore(
-        uiStore.selectedTextBlockIndex,
-        "query",
-        "accent_phrases",
-        new_ap.data,
-      );
+    if (new_ap.status === "ok" && textStore[textIndex] === sourceBlock) {
+      setTextStore(textIndex, "query", "accent_phrases", new_ap.data);
     }
   }, 300);
 
+  onCleanup(() => refreshMoraData.clear());
+
   const splitPhrase = useSideEffect((apIndex: number, moraIndex: number) => {
-    const aps = currentText().query?.accent_phrases;
-    if (aps == null) {
+    const textIndex = selectedIdx();
+    const aps = currentText()?.query?.accent_phrases;
+    if (textIndex === null || aps == null) {
       console.error("No accent phrases to split");
       return;
     }
@@ -949,7 +978,7 @@ function PhonemePanel() {
       // right ap will inherit the pause mora
     };
     setTextStore(
-      uiStore.selectedTextBlockIndex,
+      textIndex,
       "query",
       "accent_phrases",
       produce((draft) => {
@@ -959,8 +988,9 @@ function PhonemePanel() {
   }, refreshMoraData);
 
   const combinePhrase = useSideEffect((apIndex: number) => {
-    const aps = currentText().query?.accent_phrases;
-    if (aps == null) {
+    const textIndex = selectedIdx();
+    const aps = currentText()?.query?.accent_phrases;
+    if (textIndex === null || aps == null) {
       console.error("No accent phrases to combine");
       return;
     }
@@ -981,7 +1011,7 @@ function PhonemePanel() {
       pause_mora: right.pause_mora,
     };
     setTextStore(
-      uiStore.selectedTextBlockIndex,
+      textIndex,
       "query",
       "accent_phrases",
       produce((draft) => {
@@ -991,26 +1021,31 @@ function PhonemePanel() {
   }, refreshMoraData);
 
   const handleEditPhoneme = async (apIndex: number, newText: string) => {
+    const sourceBlock = currentText();
+    const textIndex = sourceBlock === null ? null : selectedTextBlockIndex();
+    const query = sourceBlock?.query;
+    const preset = currentPreset();
+    if (
+      textIndex === null ||
+      query === null ||
+      query === undefined ||
+      !preset
+    ) {
+      return;
+    }
     const text = [];
-    for (let i = 0; i < currentText().query!.accent_phrases.length; i++) {
+    for (let i = 0; i < query.accent_phrases.length; i++) {
       if (i !== apIndex) {
-        text.push(
-          currentText()
-            .query!.accent_phrases[i].moras.map((m) => m.text)
-            .join(""),
-        );
+        text.push(query.accent_phrases[i].moras.map((m) => m.text).join(""));
       } else {
         text.push(newText);
       }
     }
     const combinedText = text.join("");
-    const newAps = await commands.accentPhrases(
-      combinedText,
-      currentPreset()!.style_id,
-    );
-    if (newAps.status === "ok") {
+    const newAps = await commands.accentPhrases(combinedText, preset.style_id);
+    if (newAps.status === "ok" && textStore[textIndex] === sourceBlock) {
       setTextStore(
-        uiStore.selectedTextBlockIndex,
+        textIndex,
         "query",
         "accent_phrases",
         apIndex,
@@ -1021,8 +1056,8 @@ function PhonemePanel() {
 
   // TODO: don't repeat yourself with TuningPanel
   const queryExists = () => {
-    const currentQuery = currentText().query;
-    if (currentQuery === null) return false;
+    const currentQuery = currentText()?.query;
+    if (currentQuery == null) return false;
     if (currentQuery.accent_phrases.length === 0) return false;
     return true;
   };
@@ -1037,7 +1072,7 @@ function PhonemePanel() {
           </div>
         }
       >
-        <For each={currentText().query?.accent_phrases}>
+        <For each={currentText()?.query?.accent_phrases}>
           {(phrase, i) => (
             <AccentPhraseItem
               phrase={phrase}

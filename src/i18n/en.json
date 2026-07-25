@@ -11,6 +11,7 @@
   "loading": "Loading",
   "bottom": {
     "no_query": "No Query",
+    "no_block": "No text cell selected",
     "accent": "Accent",
     "tuning": "Tuning",
     "play": "Play selected cell",
@@ -35,6 +36,12 @@
     "license": "Open source license"
   },
   "text_block": {
+    "input_label": "Text to synthesize",
+    "empty_project": {
+      "title": "This project has no text cells",
+      "description": "Create a text cell to start writing.",
+      "create": "Create text cell"
+    },
     "synth_state": {
       "no_query": "No Query",
       "not_started": "Not Started",

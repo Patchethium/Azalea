@@ -3,6 +3,7 @@ import { createScheduled, debounce } from "@solid-primitives/scheduled";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import _ from "lodash";
 import {
+  batch,
   createEffect,
   createMemo,
   createSignal,
@@ -11,49 +12,72 @@ import {
   onCleanup,
   ParentComponent,
   Show,
+  splitProps,
 } from "solid-js";
 import { produce, unwrap } from "solid-js/store";
 import { AudioQuery, commands, SynthState } from "../binding";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { useMetaStore } from "../contexts/meta";
-import { useTextStore } from "../contexts/text";
+import { type TextBlockProps, useTextStore } from "../contexts/text";
 import { useUIStore } from "../contexts/ui";
 import { getModifiedQuery } from "../utils";
 
 interface ComponentProps extends JSX.HTMLAttributes<HTMLDivElement> {
   text: string;
   setText: (text: string) => void;
+  focused: boolean;
+  placeholder: string;
 }
 
 function AutogrowInput(props: ComponentProps) {
+  const [local, inputProps] = splitProps(props, [
+    "text",
+    "setText",
+    "focused",
+    "placeholder",
+  ]);
   let inputRef: HTMLDivElement | undefined;
 
   createEffect(
-    on([() => props.text], () => {
+    on([() => local.text], () => {
       if (inputRef !== undefined) {
-        if (props.text !== inputRef.innerText) {
-          inputRef.innerText = props.text;
+        if (local.text !== inputRef.innerText) {
+          inputRef.innerText = local.text;
         }
       }
     }),
   );
 
+  createEffect(() => {
+    if (local.focused) inputRef?.focus();
+  });
+
   const handleInput = () => {
     if (inputRef !== undefined) {
       const text = inputRef.innerText === "\n" ? "" : inputRef.innerText;
-      props.setText(text);
+      local.setText(text);
     }
   };
 
   return (
-    <div
-      contentEditable="plaintext-only"
-      class="w-full outline-none"
-      {...props}
-      ref={inputRef}
-      onInput={handleInput}
-    />
+    <div class="relative w-full">
+      <Show when={local.text === ""}>
+        <span
+          aria-hidden="true"
+          class="pointer-events-none absolute inset-0 text-slate-4 dark:text-slate-5"
+        >
+          {local.placeholder}
+        </span>
+      </Show>
+      <div
+        contentEditable="plaintext-only"
+        class="relative min-h-6 w-full outline-none"
+        {...inputProps}
+        ref={inputRef}
+        onInput={handleInput}
+      />
+    </div>
   );
 }
 
@@ -74,9 +98,14 @@ const EditButton: ParentComponent<{
 };
 
 function TextBlock(props: { index: number }) {
-  const { textStore, setTextStore, projectPresetStore } = useTextStore()!;
+  const {
+    textStore,
+    setTextStore,
+    projectPresetStore,
+    selectedTextBlockIndex,
+  } = useTextStore()!;
   const { availableStyleIds: availableSpeakerIds } = useMetaStore()!;
-  const { uiStore, setUIStore } = useUIStore()!;
+  const { setUIStore } = useUIStore()!;
   const { config, setConfig } = useConfigStore()!;
   const { t1 } = usei18n()!;
   const currentText = createMemo(() => textStore[props.index]);
@@ -112,31 +141,54 @@ function TextBlock(props: { index: number }) {
     return availableSpeakerIds().includes(curPreset?.style_id ?? 0);
   });
 
-  const fetchAudioQuery = _.throttle(async (text: string, styleId: number) => {
-    const audio_query = await commands.audioQuery(text, styleId);
-    if (audio_query.status === "ok") {
-      setQuery(audio_query.data);
-    } else {
-      console.error(audio_query.error);
-    }
-  }, 500);
+  let queryRequestRevision = 0;
+  let disposed = false;
+  const fetchAudioQuery = _.throttle(
+    async (
+      text: string,
+      styleId: number,
+      requestRevision: number,
+      sourceBlock: TextBlockProps,
+    ) => {
+      const audio_query = await commands.audioQuery(text, styleId);
+      if (
+        disposed ||
+        requestRevision !== queryRequestRevision ||
+        textStore[props.index] !== sourceBlock
+      ) {
+        return;
+      }
+      if (audio_query.status === "ok") {
+        setQuery(audio_query.data);
+      } else {
+        console.error(audio_query.error);
+      }
+    },
+    500,
+  );
 
-  onCleanup(() => fetchAudioQuery.cancel());
+  onCleanup(() => {
+    disposed = true;
+    queryRequestRevision++;
+    fetchAudioQuery.cancel();
+  });
 
   createEffect(() => {
+    const sourceBlock = currentText();
     const curPreset = currentPreset();
-    const text = currentText().text;
+    const text = sourceBlock.text;
+    const requestRevision = ++queryRequestRevision;
     if (curPreset === null || text === "") {
       fetchAudioQuery.cancel();
       setQuery(null);
     } else if (isStyleIdValid()) {
-      fetchAudioQuery(text, curPreset?.style_id ?? 0);
+      fetchAudioQuery(text, curPreset.style_id, requestRevision, sourceBlock);
+    } else {
+      fetchAudioQuery.cancel();
     }
   });
 
-  const selected = createMemo(
-    () => uiStore.selectedTextBlockIndex === props.index,
-  );
+  const selected = createMemo(() => selectedTextBlockIndex() === props.index);
 
   const setSelected = (index: number) => {
     setUIStore("selectedTextBlockIndex", index);
@@ -238,32 +290,23 @@ function TextBlock(props: { index: number }) {
       setTextStore(0, { text: "" });
       return;
     }
-    if (selected()) {
-      // usually we focus on the text block above
-      // but if it's already the first one, we focus on the next one
-      // which, in this case, is exactly the 0th one after removing
-      if (props.index === 0) {
-        setUIStore("selectedTextBlockIndex", 0);
-      } else {
-        setUIStore("selectedTextBlockIndex", props.index - 1);
-      }
+    const selectedIndex = selectedTextBlockIndex();
+    const remainingBlocks = textStore.filter((_, i) => i !== props.index);
+    let nextSelectedIndex = selectedIndex;
+    if (selectedIndex === props.index) {
+      nextSelectedIndex = props.index === 0 ? 0 : props.index - 1;
+    } else if (selectedIndex > props.index) {
+      nextSelectedIndex = selectedIndex - 1;
     }
-    // there's a bug here, if we're focusing on the last one
-    // and remove one block above, the focused index will be out of bound
-    // we focus one block above before removing to fix this
-    if (uiStore.selectedTextBlockIndex > props.index) {
-      setUIStore("selectedTextBlockIndex", uiStore.selectedTextBlockIndex! - 1);
-    }
-    setTextStore(textStore.filter((_, i) => i !== props.index));
+    nextSelectedIndex = Math.min(
+      Math.max(nextSelectedIndex, 0),
+      remainingBlocks.length - 1,
+    );
+    batch(() => {
+      setTextStore(remainingBlocks);
+      setUIStore("selectedTextBlockIndex", nextSelectedIndex);
+    });
   };
-
-  let inputFieldRef: HTMLInputElement | undefined;
-
-  createEffect(() => {
-    if (selected()) {
-      inputFieldRef?.focus();
-    }
-  });
 
   const [synthState, setSynthState] = createSignal<SynthState>("UnInitialized");
 
@@ -381,11 +424,9 @@ function TextBlock(props: { index: number }) {
           <AutogrowInput
             text={currentText().text}
             setText={setText}
-            onInput={(e) => {
-              if (e.target != null)
-                setText((e.target as HTMLDivElement).innerText);
-            }}
-            ref={inputFieldRef}
+            focused={selected()}
+            placeholder={t1("text_block.input_label")}
+            aria-label={t1("text_block.input_label")}
             onFocus={() => setSelected(props.index)}
           />
         </div>
