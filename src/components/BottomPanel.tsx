@@ -799,7 +799,6 @@ function TuningItems(props: {
   };
   const vowelPixels = (): number => props.mora.vowel_length! * scale();
   const totalPixels = (): number => (consonantPixels() ?? 0) + vowelPixels();
-  const [durHovered, setDurHovered] = createSignal(false);
   return (
     <div
       class="flex flex-none flex-col b-dashed b-r b-slate-3 dark:b-slate-6 h-100% select-none relative z-1"
@@ -836,50 +835,35 @@ function TuningItems(props: {
       </Show>
       {/* Duration */}
       <div
-        class="flex flex-row bg-white dark:bg-slate-8"
-        onMouseEnter={() => {
-          setDurHovered(true);
-        }}
-        onMouseLeave={() => {
-          setDurHovered(false);
-        }}
+        class="group relative flex flex-row bg-white dark:bg-slate-8"
         classList={{
           "h-full": whisper(),
           "h-12": !whisper(),
         }}
       >
-        <Show
-          when={durHovered()}
-          fallback={
-            <div class="flex size-full items-center justify-center">
-              {props.isPause ? "" : props.mora.text}
-            </div>
-          }
-        >
-          <Show when={consonantPixels() != null}>
-            <div
-              class="flex items-center justify-center b-dashed b-r b-slate3 dark:b-slate-6 hover:!bg-primary-50 dark:hover:!bg-primary-9"
-              onMouseDown={() =>
-                props.startDraggingDur(
-                  props.mora.consonant_length!,
-                  "consonant",
-                )
-              }
-              style={{ width: `${consonantPixels()}px` }}
-            >
-              {props.mora.consonant}
-            </div>
-          </Show>
+        <div class="pointer-events-none absolute inset-0 flex items-center justify-center group-hover:invisible">
+          {props.isPause ? "" : props.mora.text}
+        </div>
+        <Show when={consonantPixels() != null}>
           <div
-            class="flex items-center justify-center hover:!bg-primary-50 dark:hover:!bg-primary-9"
+            class="invisible flex items-center justify-center b-dashed b-r b-slate3 group-hover:visible dark:b-slate-6 hover:!bg-primary-50 dark:hover:!bg-primary-9"
             onMouseDown={() =>
-              props.startDraggingDur(props.mora.vowel_length, "vowel")
+              props.startDraggingDur(props.mora.consonant_length!, "consonant")
             }
-            style={{ width: `${vowelPixels()}px` }}
+            style={{ width: `${consonantPixels()}px` }}
           >
-            {props.isPause ? "" : props.mora.vowel}
+            {props.mora.consonant}
           </div>
         </Show>
+        <div
+          class="invisible flex items-center justify-center group-hover:visible hover:!bg-primary-50 dark:hover:!bg-primary-9"
+          onMouseDown={() =>
+            props.startDraggingDur(props.mora.vowel_length, "vowel")
+          }
+          style={{ width: `${vowelPixels()}px` }}
+        >
+          {props.isPause ? "" : props.mora.vowel}
+        </div>
       </div>
     </div>
   );
