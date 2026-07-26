@@ -1,0 +1,115 @@
+{
+  "title": "Azalea",
+  "init_dialog": {
+    "intro": "欢迎使用 Azalea，一款非官方 VOICEVOX 图形界面",
+    "before": "开始之前，Azalea 需要知道 VOICEVOX 的位置",
+    "installed.desp": "我的电脑已安装 VOICEVOX",
+    "installed.button": "选择位置",
+    "later.desp": "稍后再说",
+    "later.button": "好的"
+  },
+  "loading": "加载中",
+  "bottom": {
+    "no_query": "尚无查询",
+    "no_block": "未选择文本单元格",
+    "accent": "重音",
+    "tuning": "调音",
+    "play": "播放选中的单元格",
+    "play_all_from_selection": "播放选中的单元格及下方所有单元格",
+    "stop": "停止播放"
+  },
+  "shortcuts": {
+    "title": "键盘快捷键",
+    "open": "显示键盘快捷键",
+    "close": "关闭键盘快捷键",
+    "instructions": "选择一个快捷键，然后按下新的组合键。",
+    "edit": "编辑快捷键",
+    "recording": "请按键…（按 Esc 取消）",
+    "conflict": "该快捷键已被占用。",
+    "reset": "恢复默认快捷键",
+    "reset_all": "全部恢复默认",
+    "save_project": "保存项目",
+    "play_current": "播放选中的单元格",
+    "play_next": "播放选中的单元格并移至下一个",
+    "stop_playback": "停止播放"
+  },
+  "about": {
+    "title": "关于 Azalea",
+    "close": "关闭“关于 Azalea”对话框",
+    "github": "GitHub",
+    "tagline": "一款轻量的非官方 VOICEVOX 图形界面",
+    "version": "版本",
+    "license": "开源许可证"
+  },
+  "text_block": {
+    "input_label": "待合成文本",
+    "empty_project": {
+      "title": "此项目中没有文本单元格",
+      "description": "创建一个文本单元格即可开始输入。",
+      "create": "创建文本单元格"
+    },
+    "synth_state": {
+      "no_query": "无查询",
+      "not_started": "未开始",
+      "queued": "排队中",
+      "in_progress": "处理中",
+      "completed": "已完成",
+      "failed": "失败",
+      "cancelled": "已取消",
+      "evicted": "已移出缓冲区"
+    }
+  },
+  "config": {
+    "title": "设置",
+    "close": "关闭设置",
+    "sidebar_desp": "此区域将在未来版本中用于索引。",
+    "general": "常规",
+    "synthesis": "语音合成",
+    "lang": "语言",
+    "theme": "主题",
+    "theme_system": "系统",
+    "theme_light": "浅色",
+    "theme_dark": "深色",
+    "primary_color": "主色调",
+    "hue_saturation": "色相和饱和度",
+    "normalize": "标准化",
+    "experimental": "实验性功能",
+    "background_buffering": "后台缓冲音频生成",
+    "synthesis_delay": "合成请求延迟",
+    "milliseconds": "毫秒",
+    "spectrogram_preview": "频谱图预览",
+    "truncation_len": "文件名截断长度",
+    "no_truncation": "不截断"
+  },
+  "menu": {
+    "new_project": "新建项目",
+    "load_project": "加载项目",
+    "save_project": "保存项目",
+    "auto_save": "自动保存",
+    "about": "关于"
+  },
+  "preset": {
+    "title": "预设",
+    "new_preset": "新建预设",
+    "name": "名称",
+    "speaker": "说话人",
+    "style": "风格",
+    "speed": "语速",
+    "pitch": "音高",
+    "intonation": "语调",
+    "volume": "音量",
+    "start_sli": "起始静音",
+    "end_sli": "结束静音",
+    "no_preset_selected": "未选择预设",
+    "get_started": "新建预设以开始使用"
+  },
+  "preset_manager": {
+    "title": "预设管理",
+    "close": "关闭预设管理器",
+    "project_presets": "项目预设",
+    "system_presets": "系统预设",
+    "copy_to_system": "复制到系统",
+    "copy_to_project": "复制到项目",
+    "delete": "删除"
+  }
+}

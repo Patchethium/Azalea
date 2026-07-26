@@ -3,11 +3,13 @@ import _ from "lodash";
 import { Locale } from "../binding";
 import * as en_dict from "./en.json";
 import * as ja_dict from "./ja.json";
+import * as zh_cn_dict from "./zh-CN.json";
 
 export type RawDict = typeof en_dict;
 
 export const en: RawDict = en_dict;
 export const ja: RawDict = ja_dict;
+export const zhCn: RawDict = zh_cn_dict;
 
 export type Dict = i18n.Flatten<RawDict>;
 
@@ -17,6 +19,8 @@ function _getDict(locale: Locale): RawDict {
       return en;
     case "Ja":
       return ja;
+    case "ZhCn":
+      return zhCn;
   }
 }
 
@@ -30,14 +34,16 @@ function getCoverage(merged: RawDict, primary: RawDict): number {
 const coverages = {
   En: 1.0, // English is the primary language
   Ja: getCoverage(ja, en),
+  ZhCn: getCoverage(zhCn, en),
 };
 
 const localeNames: Record<Locale, string> = {
   En: "English",
   Ja: "日本語",
+  ZhCn: "简体中文",
 };
 
-const possibleLocales: Locale[] = ["En", "Ja"];
+const possibleLocales: Locale[] = ["En", "Ja", "ZhCn"];
 
 function mergeDict(primary: unknown, fallback: RawDict): RawDict {
   return _.merge({}, fallback, primary);

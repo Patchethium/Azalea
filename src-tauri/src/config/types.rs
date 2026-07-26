@@ -36,6 +36,7 @@ pub fn cache_size_default() -> usize {
 pub enum Locale {
   Ja,
   En,
+  ZhCn,
 }
 
 impl Default for Locale {

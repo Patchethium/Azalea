@@ -14,7 +14,7 @@ The pitch-tuning panel in `src/components/BottomPanel.tsx` renders a mel spectro
 
 Refresh behavior depends on `UIConfig.buffer_render`: with buffering enabled, debounce refreshes alongside automatic waveform synthesis; without it, refresh only after playback has synthesized the waveform. Preserve the previous canvas while a replacement is pending and render it grayed out until the new spectrogram arrives. Stale async responses must not replace newer previews.
 
-`UIConfig.spectrogram_preview` controls the feature and defaults to enabled. Disabling it must cancel pending refreshes, clear the canvas, and avoid spectrogram extraction. Keep its switch in `src/layout/ConfigPage.tsx`, synchronize its English and Japanese labels, and regenerate `src/binding.ts` after changing related Rust commands or types.
+`UIConfig.spectrogram_preview` controls the feature and defaults to enabled. Disabling it must cancel pending refreshes, clear the canvas, and avoid spectrogram extraction. Keep its switch in `src/layout/ConfigPage.tsx`, synchronize its English, Japanese, and Simplified Chinese labels, and regenerate `src/binding.ts` after changing related Rust commands or types.
 
 ## Build, Test, and Development Commands
 
@@ -31,7 +31,7 @@ Linux development also requires the Tauri prerequisites, `clang`, and `mold`. Th
 
 ## Coding Style & Naming Conventions
 
-Use two-space indentation in both TypeScript and Rust, as configured by Biome and `rustfmt.toml`. Keep TypeScript strict and prefer focused Solid components. Name components and pages in `PascalCase.tsx`, context and utility modules in `camelCase.ts`, and CSS modules `*.module.css`. Rust modules, functions, and test files use `snake_case`; types use `PascalCase`. Run `pnpm check` and `cargo fmt` before submitting changes. Keep English and Japanese translation keys synchronized.
+Use two-space indentation in both TypeScript and Rust, as configured by Biome and `rustfmt.toml`. Keep TypeScript strict and prefer focused Solid components. Name components and pages in `PascalCase.tsx`, context and utility modules in `camelCase.ts`, and CSS modules `*.module.css`. Rust modules, functions, and test files use `snake_case`; types use `PascalCase`. Run `pnpm check` and `cargo fmt` before submitting changes. Keep English, Japanese, and Simplified Chinese translation keys synchronized.
 
 ## Testing Guidelines
 
