@@ -16,7 +16,6 @@ Azalea is a place for me to put ideas that can't be merged into VOICEVOX GUI its
 - I18N: English and Japanese are supported, new languages can be added easily by a JSON file.
 - Custom themes: Change the themes (primary color) in GUI.
 - Talk-only: Although VOICEVOX supports singing synthesis, Azalea focuses on TTS only, excluding singing-related elements for a cleaner UI.
-- Guided Synthesis(experimental): A forced-aligner is bundled to provide word-level timing information from any audio input, which can be directly used in the GUI for synthesis, creating a Voice Conversion-like experience.
 
 More to come...
 
