@@ -7,8 +7,7 @@ mod synthesis;
 use core::Core;
 
 use commands::*;
-// somehow release build will warn about this, but it's necessary
-#[allow(unused_imports)]
+#[cfg(any(debug_assertions, test))]
 use specta_typescript::Typescript;
 use std::sync::{Arc, Mutex, RwLock};
 use tauri::async_runtime::RwLock as TokioRwLock;
@@ -34,9 +33,8 @@ pub struct AppState {
   pub(crate) audio_player: LockedState<audio::AudioPlayer>,
 }
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
-  let builder = Builder::<tauri::Wry>::new()
+fn specta_builder() -> Builder<tauri::Wry> {
+  Builder::<tauri::Wry>::new()
     .commands(collect_commands![
       clear_caches,
       pick_core,
@@ -70,16 +68,26 @@ pub fn run() {
       InitializationEvent,
       FrontendReadyEvent,
       SynthesisJobEvent
-    ]);
+    ])
+}
 
-  // In debug mode, export the typescript bindings
-  #[cfg(debug_assertions)]
+#[cfg(any(debug_assertions, test))]
+fn export_typescript_bindings(builder: &Builder<tauri::Wry>) {
+  let binding_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../src/binding.ts");
   builder
     .export(
       Typescript::default().bigint(specta_typescript::BigIntExportBehavior::Number),
-      "../src/binding.ts",
+      binding_path,
     )
     .expect("Failed to export typescript");
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+  let builder = specta_builder();
+
+  #[cfg(debug_assertions)]
+  export_typescript_bindings(&builder);
 
   let app = tauri::Builder::default()
     .plugin(tauri_plugin_dialog::init())
@@ -134,4 +142,14 @@ pub fn run() {
     })
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn regenerate_typescript_bindings() {
+    export_typescript_bindings(&specta_builder());
+  }
 }

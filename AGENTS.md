@@ -25,9 +25,12 @@ Refresh behavior depends on `UIConfig.buffer_render`: with buffering enabled, de
 - `pnpm tauri build` creates a production desktop package.
 - `pnpm check` runs Biome linting and formatting checks on `src/`.
 - `cd src-tauri && cargo test` runs all Rust unit and integration tests.
+- `cd src-tauri && cargo test --lib regenerate_typescript_bindings` regenerates `src/binding.ts` without launching the desktop application.
 - `cd src-tauri && cargo fmt --check` verifies Rust formatting.
 
 Linux development also requires the Tauri prerequisites, `clang`, and `mold`. The development core path is stored in `config_dev/config.toml`.
+
+`src/binding.ts` is generated from the registered Tauri commands, events, and their Rust types by `tauri-specta`. After changing any of them, agents and other automation should run the dedicated `regenerate_typescript_bindings` test and commit the resulting binding changes. Do not edit the generated file by hand.
 
 ## Coding Style & Naming Conventions
 
