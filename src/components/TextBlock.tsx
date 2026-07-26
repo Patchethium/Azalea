@@ -14,6 +14,7 @@ import {
   ParentComponent,
   Show,
   splitProps,
+  untrack,
 } from "solid-js";
 import { produce, unwrap } from "solid-js/store";
 import {
@@ -26,19 +27,15 @@ import {
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { useMetaStore } from "../contexts/meta";
-import { type TextBlockProps, useTextStore } from "../contexts/text";
+import {
+  createTextBlock,
+  type TextBlockProps,
+  useTextStore,
+} from "../contexts/text";
 import { useUIStore } from "../contexts/ui";
 import { getModifiedQuery } from "../utils";
 
-let synthesisBlockSequence = 0;
-
-const createSynthesisBlockId = () => {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  synthesisBlockSequence += 1;
-  return `text-block-${Date.now()}-${synthesisBlockSequence}`;
-};
+let synthesisGenerationSequence = 0;
 
 const synthesisRequestFingerprint = (query: AudioQuery, speakerId: number) => {
   const serialized = JSON.stringify([speakerId, query]);
@@ -226,22 +223,13 @@ function TextBlock(props: { index: number }) {
 
   // the toobar actions
   const addTextBelow = () => {
-    setTextStore(textStore.length, {
-      text: "",
-      query: null,
-      preset_id: 0,
-    });
-    // shift every text block below by 1
-    for (let i = textStore.length - 1; i > props.index + 1; i--) {
-      const temp = textStore[i];
-      setTextStore(i, textStore[i - 1]);
-      setTextStore(i - 1, temp);
-    }
-    // clear the below text block
-    setTextStore(props.index + 1, {
-      text: "",
-      preset_id: currentText().preset_id,
-    });
+    const nextBlocks = textStore.map((block) => _.cloneDeep(unwrap(block)));
+    nextBlocks.splice(
+      props.index + 1,
+      0,
+      createTextBlock(currentText().preset_id),
+    );
+    setTextStore(nextBlocks);
     // focus on the new text block
     setUIStore("selectedTextBlockIndex", props.index + 1);
   };
@@ -348,16 +336,15 @@ function TextBlock(props: { index: number }) {
   });
 
   type ActiveSynthesisRequest = {
+    blockId: string;
     generationId: number;
     hash: string;
     submitted: boolean;
   };
 
-  const synthesisBlockId = createSynthesisBlockId();
   const [synthState, setSynthState] = createSignal<SynthesisJobState | "Idle">(
     "Idle",
   );
-  let synthesisGeneration = 0;
   let activeSynthesisRequest: ActiveSynthesisRequest | null = null;
   let lastSynthesisSignature: string | null = null;
   let unlistenSynthesis: (() => void) | undefined;
@@ -365,7 +352,7 @@ function TextBlock(props: { index: number }) {
   const cancelSynthesisRequest = (request: ActiveSynthesisRequest | null) => {
     if (request?.submitted) {
       void commands
-        .cancelSynthesis(synthesisBlockId, request.generationId)
+        .cancelSynthesis(request.blockId, request.generationId)
         .then((result) => {
           if (result.status === "error") {
             console.error(
@@ -391,7 +378,7 @@ function TextBlock(props: { index: number }) {
     if (disposed || activeSynthesisRequest !== activeRequest) {
       if (result.status === "ok") {
         void commands.cancelSynthesis(
-          synthesisBlockId,
+          activeRequest.blockId,
           activeRequest.generationId,
         );
       }
@@ -420,7 +407,9 @@ function TextBlock(props: { index: number }) {
     activeRequest: ActiveSynthesisRequest,
   ) => {
     clearScheduledSynthesis();
-    const configuredDelay = config.ui_config.synthesis_delay_ms ?? 600;
+    const configuredDelay = untrack(
+      () => config.ui_config.synthesis_delay_ms ?? 600,
+    );
     const delay = Math.min(Math.max(Math.trunc(configuredDelay), 0), 10_000);
     scheduledSynthesis = debounce(submitSynthesis, delay);
     scheduledSynthesis(request, activeRequest);
@@ -431,8 +420,8 @@ function TextBlock(props: { index: number }) {
       .listen(({ payload }) => {
         const activeRequest = activeSynthesisRequest;
         if (
-          payload.blockId !== synthesisBlockId ||
           activeRequest === null ||
+          payload.blockId !== activeRequest.blockId ||
           payload.generationId !== activeRequest.generationId ||
           payload.hash !== activeRequest.hash
         ) {
@@ -473,26 +462,29 @@ function TextBlock(props: { index: number }) {
       return;
     }
 
+    const blockId = currentText().runtimeId;
     const speakerId = preset.style_id;
     const { hash, signature } = synthesisRequestFingerprint(query, speakerId);
-    if (signature === lastSynthesisSignature) {
+    const blockSignature = `${blockId}:${signature}`;
+    if (blockSignature === lastSynthesisSignature) {
       return;
     }
 
     clearScheduledSynthesis();
     cancelSynthesisRequest(activeSynthesisRequest);
-    synthesisGeneration += 1;
+    synthesisGenerationSequence += 1;
     const activeRequest: ActiveSynthesisRequest = {
-      generationId: synthesisGeneration,
+      blockId,
+      generationId: synthesisGenerationSequence,
       hash,
       submitted: false,
     };
     activeSynthesisRequest = activeRequest;
-    lastSynthesisSignature = signature;
+    lastSynthesisSignature = blockSignature;
     setSynthState("Queued");
     enqueueSynthesis(
       {
-        blockId: synthesisBlockId,
+        blockId,
         generationId: activeRequest.generationId,
         audioQuery: query,
         speakerId,

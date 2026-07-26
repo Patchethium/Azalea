@@ -95,6 +95,7 @@ function Sidebar() {
     setProjectPath,
     selectedTextBlock,
     selectedTextBlockIndex,
+    replaceTextBlocks,
     newProject,
   } = useTextStore()!;
   const { config, setConfig } = useConfigStore()!;
@@ -294,7 +295,7 @@ function Sidebar() {
         // directly setting the whole project won't work
         const project = res.data;
         batch(() => {
-          setTextStore(project.blocks);
+          replaceTextBlocks(project.blocks);
           setProjectPresetStore(project.presets);
           setUIStore("selectedTextBlockIndex", 0);
         });

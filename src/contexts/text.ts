@@ -1,21 +1,34 @@
 import { createContextProvider } from "@solid-primitives/context";
 import { batch, createEffect, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
-import { AudioQuery, Preset, Project } from "../binding";
+import {
+  Preset,
+  Project,
+  TextBlockProps as ProjectTextBlockProps,
+} from "../binding";
 import { usei18n } from "./i18n";
 import { useMetaStore } from "./meta";
 import { useUIStore } from "./ui";
 
-type TextBlockProps = {
-  text: string;
-  preset_id: number | null;
-  query: AudioQuery | null;
+type TextBlockProps = ProjectTextBlockProps & {
+  runtimeId: string;
+};
+
+let textBlockSequence = 0;
+
+const createTextBlockId = () => {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  textBlockSequence += 1;
+  return `text-block-${Date.now()}-${textBlockSequence}`;
 };
 
 const createTextBlock = (
   presetId: number | null,
   text = "",
 ): TextBlockProps => ({
+  runtimeId: createTextBlockId(),
   text,
   preset_id: presetId,
   query: null,
@@ -37,13 +50,22 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     presets: [],
   });
   const [textStore, setTextStore] = createStore<TextBlockProps[]>(
-    project.blocks,
+    project.blocks as TextBlockProps[],
   );
   const [projectPresetStore, setProjectPresetStore] = createStore<Preset[]>(
     project.presets,
   );
 
   const [projectPath, setProjectPath] = createSignal<string | null>(null);
+
+  const replaceTextBlocks = (blocks: ProjectTextBlockProps[]) => {
+    setTextStore(
+      blocks.map((block) => ({
+        ...block,
+        runtimeId: createTextBlockId(),
+      })),
+    );
+  };
 
   const selectedTextBlockIndex = () =>
     clampTextBlockIndex(uiStore.selectedTextBlockIndex, textStore.length);
@@ -102,9 +124,10 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     selectedTextBlock,
     selectedTextBlockIndex,
     createFirstTextBlock,
+    replaceTextBlocks,
     newProject,
   };
 });
 
-export { TextProvider, useTextStore };
+export { createTextBlock, TextProvider, useTextStore };
 export type { TextBlockProps };

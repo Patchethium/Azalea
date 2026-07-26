@@ -2,7 +2,7 @@ import { Button } from "@kobalte/core/button";
 import { Slider } from "@kobalte/core/slider";
 import { Tabs } from "@kobalte/core/tabs";
 import { TextField } from "@kobalte/core/text-field";
-import { debounce } from "@solid-primitives/scheduled";
+import { debounce, type Scheduled } from "@solid-primitives/scheduled";
 import { listen } from "@tauri-apps/api/event";
 import _ from "lodash";
 // the bottom panel where users do most of their tuning
@@ -35,13 +35,17 @@ import { isPlaybackShortcutAllowed, isPrimaryShortcut } from "../shortcuts";
 import { getModifiedQuery, useSideEffect } from "../utils";
 
 type DraggingMode = "consonant" | "vowel" | "pause";
+type WaveformSynthesisNotice = {
+  blockId: string;
+  audioQuery: AudioQuery;
+  speakerId: number;
+};
 
 function BottomPanel() {
   const { t1 } = usei18n()!;
   const { selectedTextBlock } = useTextStore()!;
-  const [previewRevision, setPreviewRevision] = createSignal(0);
-  const waveformSynthesized = () =>
-    setPreviewRevision((revision) => revision + 1);
+  const [waveformSynthesisNotice, setWaveformSynthesisNotice] =
+    createSignal<WaveformSynthesisNotice | null>(null);
   const { uiStore, setUIStore } = useUIStore()!;
 
   const setPanel = (p: string) => {
@@ -64,7 +68,7 @@ function BottomPanel() {
         onChange={setPanel}
         defaultValue="accent"
       >
-        <ControlBar onWaveformSynthesized={waveformSynthesized} />
+        <ControlBar onWaveformSynthesized={setWaveformSynthesisNotice} />
         <div class="absolute">
           <Tabs.List class="w-full flex flex-row items-center relative p-1 outline-none select-none">
             <Tabs.Trigger
@@ -87,14 +91,16 @@ function BottomPanel() {
           <PhonemePanel />
         </Tabs.Content>
         <Tabs.Content class="flex-1 size-full" value="tuning">
-          <TuningPanel previewRevision={previewRevision()} />
+          <TuningPanel waveformSynthesisNotice={waveformSynthesisNotice()} />
         </Tabs.Content>
       </Tabs>
     </Show>
   );
 }
 
-function ControlBar(props: { onWaveformSynthesized: () => void }) {
+function ControlBar(props: {
+  onWaveformSynthesized: (notice: WaveformSynthesisNotice) => void;
+}) {
   const { t1 } = usei18n()!;
   const {
     textStore,
@@ -151,13 +157,18 @@ function ControlBar(props: { onWaveformSynthesized: () => void }) {
     if (block === null || _currentPreset == null || !queryExists())
       return false;
     if (isPlaying()) await stop();
+    const audioQuery = getModifiedQuery(unwrap(block.query!), _currentPreset);
     const result = await commands.playAudio(
-      getModifiedQuery(unwrap(block.query!), _currentPreset),
+      audioQuery,
       _currentPreset.style_id,
     );
     if (result.status === "ok") {
       setIsPlaying(true);
-      props.onWaveformSynthesized();
+      props.onWaveformSynthesized({
+        blockId: block.runtimeId,
+        audioQuery,
+        speakerId: _currentPreset.style_id,
+      });
       return true;
     } else {
       console.error("Failed to play audio:", result.error);
@@ -233,8 +244,9 @@ function ControlBar(props: { onWaveformSynthesized: () => void }) {
       }
       return [
         {
-          audio_query: getModifiedQuery(unwrap(block.query), unwrap(preset)),
-          speaker_id: preset.style_id,
+          blockId: block.runtimeId,
+          audioQuery: getModifiedQuery(unwrap(block.query), unwrap(preset)),
+          speakerId: preset.style_id,
         },
       ];
     }),
@@ -242,12 +254,24 @@ function ControlBar(props: { onWaveformSynthesized: () => void }) {
 
   const speakAllFromSelection = async () => {
     if (isPlaying()) await stop();
-    const result = await commands.playAudioSequence(playableFromSelection());
+    const playable = playableFromSelection();
+    const result = await commands.playAudioSequence(
+      playable.map((item) => ({
+        audio_query: item.audioQuery,
+        speaker_id: item.speakerId,
+      })),
+    );
     if (result.status === "error") {
       console.error("Failed to play audio sequence:", result.error);
     } else {
       setIsPlaying(true);
-      props.onWaveformSynthesized();
+      const selectedBlock = currentText();
+      const selectedItem = playable.find(
+        (item) => item.blockId === selectedBlock?.runtimeId,
+      );
+      if (selectedItem !== undefined) {
+        props.onWaveformSynthesized(selectedItem);
+      }
     }
   };
 
@@ -298,7 +322,9 @@ function ControlBar(props: { onWaveformSynthesized: () => void }) {
   );
 }
 
-function TuningPanel(props: { previewRevision: number }) {
+function TuningPanel(props: {
+  waveformSynthesisNotice: WaveformSynthesisNotice | null;
+}) {
   const {
     setTextStore,
     projectPresetStore,
@@ -310,6 +336,7 @@ function TuningPanel(props: { previewRevision: number }) {
   const {
     getCacheKey,
     getCachedSpectrogram,
+    getLastCachedSpectrogram,
     cacheSpectrogram,
     clearSpectrogramCache,
     beginSpectrogramRequest,
@@ -370,37 +397,42 @@ function TuningPanel(props: { previewRevision: number }) {
   );
 
   const getCurrentSpectrogram = () => {
+    const block = currentText();
     const query = currentModifiedQuery();
     const preset = currentPreset();
-    if (query === null || preset === null) return null;
-    return getCachedSpectrogram(query, preset.style_id);
+    if (block === null || query === null || preset === null) return null;
+    return getCachedSpectrogram(block.runtimeId, query, preset.style_id);
   };
 
   const [spectrogram, setSpectrogram] = createSignal<SpectrogramPreview | null>(
-    spectrogramPreviewEnabled() ? getCurrentSpectrogram() : null,
+    null,
   );
   const [spectrogramStale, setSpectrogramStale] = createSignal(false);
   let mounted = true;
 
   const refreshSpectrogram = async (
+    blockId: string,
     audioQuery: AudioQuery,
     speakerId: number,
   ) => {
-    const request = beginSpectrogramRequest();
+    const request = beginSpectrogramRequest(blockId);
     const requestKey = getCacheKey(audioQuery, speakerId);
-    setSpectrogramStale(true);
+    if (currentText()?.runtimeId === blockId) {
+      setSpectrogramStale(spectrogram() !== null);
+    }
     try {
       const result = await commands.getSpectrogramPreview(
         audioQuery,
         speakerId,
       );
-      if (!isLatestSpectrogramRequest(request)) return;
+      if (!isLatestSpectrogramRequest(blockId, request)) return;
       if (result.status === "ok") {
-        cacheSpectrogram(audioQuery, speakerId, result.data);
+        cacheSpectrogram(blockId, audioQuery, speakerId, result.data);
         const currentQuery = currentModifiedQuery();
         const preset = currentPreset();
         if (
           mounted &&
+          currentText()?.runtimeId === blockId &&
           currentQuery !== null &&
           preset !== null &&
           getCacheKey(currentQuery, preset.style_id) === requestKey
@@ -416,23 +448,50 @@ function TuningPanel(props: { previewRevision: number }) {
     }
   };
 
-  const scheduleSpectrogramRefresh = debounce(
-    (audioQuery: AudioQuery, speakerId: number) => {
-      void refreshSpectrogram(audioQuery, speakerId);
-    },
-    1000,
-  );
+  let scheduledSpectrogramRefresh:
+    | Scheduled<[string, AudioQuery, number]>
+    | undefined;
+  const clearScheduledSpectrogramRefresh = () => {
+    scheduledSpectrogramRefresh?.clear();
+    scheduledSpectrogramRefresh = undefined;
+  };
+  const scheduleSpectrogramRefresh = (
+    blockId: string,
+    audioQuery: AudioQuery,
+    speakerId: number,
+  ) => {
+    clearScheduledSpectrogramRefresh();
+    const configuredDelay = config.ui_config.synthesis_delay_ms ?? 600;
+    const delay = Math.min(Math.max(Math.trunc(configuredDelay), 0), 10_000);
+    scheduledSpectrogramRefresh = debounce(
+      (scheduledBlockId, scheduledQuery, scheduledSpeakerId) => {
+        void refreshSpectrogram(
+          scheduledBlockId,
+          scheduledQuery,
+          scheduledSpeakerId,
+        );
+      },
+      delay,
+    );
+    scheduledSpectrogramRefresh(blockId, audioQuery, speakerId);
+  };
 
   createEffect(() => {
+    const block = currentText();
     const query = currentModifiedQuery();
     const preset = currentPreset();
     const bufferRender = config.ui_config.buffer_render;
     const previewEnabled = spectrogramPreviewEnabled();
-    scheduleSpectrogramRefresh.clear();
+    clearScheduledSpectrogramRefresh();
     if (!previewEnabled) {
       setSpectrogram(null);
       setSpectrogramStale(false);
       clearSpectrogramCache();
+      return;
+    }
+    if (block === null) {
+      setSpectrogram(null);
+      setSpectrogramStale(false);
       return;
     }
     const cachedSpectrogram = getCurrentSpectrogram();
@@ -441,27 +500,29 @@ function TuningPanel(props: { previewRevision: number }) {
       setSpectrogramStale(false);
       return;
     }
-    setSpectrogramStale(true);
-    if (previewEnabled && bufferRender && query !== null && preset !== null) {
-      scheduleSpectrogramRefresh(query, preset.style_id);
+    const lastSpectrogram = getLastCachedSpectrogram(block.runtimeId);
+    setSpectrogram(lastSpectrogram);
+    setSpectrogramStale(lastSpectrogram !== null);
+    if (bufferRender && query !== null && preset !== null) {
+      scheduleSpectrogramRefresh(block.runtimeId, query, preset.style_id);
     }
   });
 
   createEffect(
     on(
-      () => props.previewRevision,
-      (revision) => {
+      () => props.waveformSynthesisNotice,
+      (notice) => {
         if (
-          revision === 0 ||
+          notice === null ||
           config.ui_config.buffer_render ||
           !spectrogramPreviewEnabled()
         )
           return;
-        const query = currentModifiedQuery();
-        const preset = currentPreset();
-        if (query !== null && preset !== null) {
-          void refreshSpectrogram(query, preset.style_id);
-        }
+        void refreshSpectrogram(
+          notice.blockId,
+          notice.audioQuery,
+          notice.speakerId,
+        );
       },
     ),
   );
@@ -601,7 +662,7 @@ function TuningPanel(props: { previewRevision: number }) {
 
   onCleanup(() => {
     mounted = false;
-    scheduleSpectrogramRefresh.clear();
+    clearScheduledSpectrogramRefresh();
     if (scrollAreaRef) {
       setUIStore("bottom_scroll_pos", scrollAreaRef.scrollLeft);
     }
