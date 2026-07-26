@@ -464,6 +464,8 @@ export type CoreConfig = {
 ort_path: string; ojt_dir: string; vvm_dir: string; cache_size?: number }
 export type FrontendReadyEvent = null
 export type InitializationEvent = { config: AzaleaConfig | null; core_initialized: boolean; metas: CharacterMeta[] | null; range: ([StyleId, [number, number]])[]; error: string | null }
+export type KeyboardShortcut = { key: string; primary?: boolean; secondary?: boolean; shift?: boolean; alt?: boolean }
+export type KeyboardShortcuts = { save_project?: KeyboardShortcut; play_current?: KeyboardShortcut; play_next?: KeyboardShortcut; stop_playback?: KeyboardShortcut }
 export type Locale = "Ja" | "En"
 /**
  * モーラ（子音＋母音）ごとの情報。
@@ -630,7 +632,7 @@ export type SynthesisJobRequest = { blockId: string; generationId: number; audio
 export type SynthesisJobState = "Queued" | "Running" | "Completed" | "Failed" | "Cancelled" | "Evicted"
 export type TextBlockProps = { text: string; query: AudioQuery | null; preset_id: number | null }
 export type ThemeMode = "System" | "Light" | "Dark"
-export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; side_ratio?: number; buffer_render?: boolean; synthesis_delay_ms?: number; spectrogram_preview?: boolean; name_truncation_len?: number; last_exported_dir?: string | null }
+export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; side_ratio?: number; buffer_render?: boolean; synthesis_delay_ms?: number; spectrogram_preview?: boolean; name_truncation_len?: number; last_exported_dir?: string | null; shortcuts?: KeyboardShortcuts }
 
 /** tauri-specta globals **/
 

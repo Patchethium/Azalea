@@ -78,6 +78,8 @@ pub struct UIConfig {
   pub name_truncation_len: usize,
   #[serde(default)]
   pub last_exported_dir: Option<String>,
+  #[serde(default)]
+  pub shortcuts: KeyboardShortcuts,
 }
 
 impl Default for UIConfig {
@@ -95,6 +97,7 @@ impl Default for UIConfig {
       spectrogram_preview: spectrogram_preview_default(),
       name_truncation_len: name_truncation_len_default(),
       last_exported_dir: None,
+      shortcuts: Default::default(),
     }
   }
 }
@@ -129,6 +132,70 @@ fn spectrogram_preview_default() -> bool {
 
 fn name_truncation_len_default() -> usize {
   0
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Type)]
+pub struct KeyboardShortcut {
+  pub key: String,
+  #[serde(default)]
+  pub primary: bool,
+  #[serde(default)]
+  pub secondary: bool,
+  #[serde(default)]
+  pub shift: bool,
+  #[serde(default)]
+  pub alt: bool,
+}
+
+impl KeyboardShortcut {
+  fn new(key: &str, primary: bool, shift: bool) -> Self {
+    Self {
+      key: key.to_string(),
+      primary,
+      secondary: false,
+      shift,
+      alt: false,
+    }
+  }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Type)]
+pub struct KeyboardShortcuts {
+  #[serde(default = "save_project_shortcut_default")]
+  pub save_project: KeyboardShortcut,
+  #[serde(default = "play_current_shortcut_default")]
+  pub play_current: KeyboardShortcut,
+  #[serde(default = "play_next_shortcut_default")]
+  pub play_next: KeyboardShortcut,
+  #[serde(default = "stop_playback_shortcut_default")]
+  pub stop_playback: KeyboardShortcut,
+}
+
+impl Default for KeyboardShortcuts {
+  fn default() -> Self {
+    Self {
+      save_project: save_project_shortcut_default(),
+      play_current: play_current_shortcut_default(),
+      play_next: play_next_shortcut_default(),
+      stop_playback: stop_playback_shortcut_default(),
+    }
+  }
+}
+
+fn save_project_shortcut_default() -> KeyboardShortcut {
+  KeyboardShortcut::new("S", true, false)
+}
+
+fn play_current_shortcut_default() -> KeyboardShortcut {
+  KeyboardShortcut::new("Enter", true, false)
+}
+
+fn play_next_shortcut_default() -> KeyboardShortcut {
+  KeyboardShortcut::new("Enter", false, true)
+}
+
+fn stop_playback_shortcut_default() -> KeyboardShortcut {
+  KeyboardShortcut::new("Space", true, false)
 }
 
 #[derive(Clone, Deserialize, Serialize, Type)]
@@ -178,11 +245,35 @@ pub struct Project {
 
 #[cfg(test)]
 mod tests {
-  use super::UIConfig;
+  use super::{KeyboardShortcut, UIConfig};
 
   #[test]
-  fn missing_synthesis_delay_uses_default() {
+  fn missing_settings_use_defaults() {
     let config: UIConfig = serde_json::from_str("{}").unwrap();
     assert_eq!(config.synthesis_delay_ms, 600);
+    assert_eq!(
+      config.shortcuts.play_next,
+      KeyboardShortcut::new("Enter", false, true)
+    );
+  }
+
+  #[test]
+  fn missing_shortcut_action_uses_default() {
+    let config: UIConfig =
+      serde_json::from_str(r#"{"shortcuts":{"save_project":{"key":"P","alt":true}}}"#).unwrap();
+    assert_eq!(
+      config.shortcuts.save_project,
+      KeyboardShortcut {
+        key: "P".to_string(),
+        primary: false,
+        secondary: false,
+        shift: false,
+        alt: true,
+      }
+    );
+    assert_eq!(
+      config.shortcuts.stop_playback,
+      KeyboardShortcut::new("Space", true, false)
+    );
   }
 }

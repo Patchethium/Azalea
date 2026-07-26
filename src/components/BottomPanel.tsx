@@ -31,7 +31,11 @@ import { useSpectrogramStore } from "../contexts/spectrogram";
 import { useSystemStore } from "../contexts/system";
 import { useTextStore } from "../contexts/text";
 import { type BottomPanelType, useUIStore } from "../contexts/ui";
-import { isPlaybackShortcutAllowed, isPrimaryShortcut } from "../shortcuts";
+import {
+  isShortcutAllowed,
+  matchesShortcut,
+  resolveShortcut,
+} from "../shortcuts";
 import { getModifiedQuery, useSideEffect } from "../utils";
 
 type DraggingMode = "consonant" | "vowel" | "pause";
@@ -109,6 +113,7 @@ function ControlBar(props: {
     selectedTextBlockIndex,
   } = useTextStore()!;
   const { setUIStore } = useUIStore()!;
+  const { config } = useConfigStore()!;
   const { systemStore } = useSystemStore()!;
   const [isPlaying, setIsPlaying] = createSignal(false);
 
@@ -200,18 +205,24 @@ function ControlBar(props: {
     });
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (!isPlaybackShortcutAllowed(event)) return;
+      if (!isShortcutAllowed(event)) return;
 
-      const playAndStay =
-        !event.shiftKey && isPrimaryShortcut(event, "Enter", systemStore.os);
-      const playAndAdvance =
-        event.key === "Enter" &&
-        event.shiftKey &&
-        !event.ctrlKey &&
-        !event.metaKey &&
-        !event.altKey;
-      const stopPlayback =
-        !event.shiftKey && isPrimaryShortcut(event, " ", systemStore.os);
+      const shortcuts = config.ui_config.shortcuts;
+      const playAndStay = matchesShortcut(
+        event,
+        resolveShortcut(shortcuts, "play_current"),
+        systemStore.os,
+      );
+      const playAndAdvance = matchesShortcut(
+        event,
+        resolveShortcut(shortcuts, "play_next"),
+        systemStore.os,
+      );
+      const stopPlayback = matchesShortcut(
+        event,
+        resolveShortcut(shortcuts, "stop_playback"),
+        systemStore.os,
+      );
 
       if (playAndStay) {
         event.preventDefault();

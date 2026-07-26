@@ -35,7 +35,11 @@ import { useMetaStore } from "../contexts/meta";
 import { useSystemStore } from "../contexts/system";
 import { useTextStore } from "../contexts/text";
 import { PageType, useUIStore } from "../contexts/ui";
-import { isPrimaryShortcut } from "../shortcuts";
+import {
+  isShortcutAllowed,
+  matchesShortcut,
+  resolveShortcut,
+} from "../shortcuts";
 import style from "./sidebar.module.css";
 
 interface PresetCardProps extends JSX.HTMLAttributes<HTMLDivElement> {
@@ -264,9 +268,12 @@ function Sidebar() {
   onMount(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
-        event.repeat ||
-        event.shiftKey ||
-        !isPrimaryShortcut(event, "s", systemStore.os)
+        !isShortcutAllowed(event) ||
+        !matchesShortcut(
+          event,
+          resolveShortcut(config.ui_config.shortcuts, "save_project"),
+          systemStore.os,
+        )
       ) {
         return;
       }
