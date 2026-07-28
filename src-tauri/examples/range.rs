@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fs::write;
 
 use azalea_lib::{
@@ -28,8 +28,7 @@ fn main() {
   let root = std::path::Path::new(PROJ_ROOT).to_path_buf();
   let core = Core::init(&core_config()).unwrap();
   let metas = core.metas.clone();
-  let pitch_range: std::sync::Mutex<HashMap<StyleId, (f32, f32)>> =
-    std::sync::Mutex::new(HashMap::new());
+  let mut pitch_range = BTreeMap::<StyleId, (f32, f32)>::new();
   let text_path = root.join("tests").join(BENCHMARK_TEXT);
   let lines = std::fs::read_to_string(text_path).unwrap();
   let lines: Vec<&str> = lines.lines().collect();
@@ -80,7 +79,7 @@ fn main() {
           "{}/{}: low: {}, high: {}",
           character.name, style.name, low, high
         );
-        pitch_range.lock().unwrap().insert(id, (low, high));
+        pitch_range.insert(id, (low, high));
       }
     });
   });
