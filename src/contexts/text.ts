@@ -34,7 +34,7 @@ const createTextBlock = (
   query: null,
 });
 
-const clampTextBlockIndex = (index: number, blockCount: number) => {
+export const clampTextBlockIndex = (index: number, blockCount: number) => {
   if (blockCount === 0 || !Number.isFinite(index)) return 0;
   return Math.min(Math.max(Math.trunc(index), 0), blockCount - 1);
 };
@@ -57,6 +57,13 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
   );
 
   const [projectPath, setProjectPath] = createSignal<string | null>(null);
+
+  createEffect(() => {
+    setProject({
+      blocks: textStore.map(({ runtimeId: _, ...block }) => ({ ...block })),
+      presets: projectPresetStore.map((item) => ({ ...item })),
+    });
+  });
 
   const replaceTextBlocks = (blocks: ProjectTextBlockProps[]) => {
     setTextStore(

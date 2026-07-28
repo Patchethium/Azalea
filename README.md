@@ -62,9 +62,9 @@ As long as these files share the same parent directory, Azalea should be able to
 
 ### Setting the dev config
 
-The config file used in development is located in `config_dev/config.toml`. You can set the core path in the GUI launched by `pnpm tauri dev` and this file will be created automatically.
+The config file used in development is located in `config_dev/config.json`. You can set the core path in the GUI launched by `pnpm tauri dev` and this file will be created automatically.
 
-In release builds, the config file is located in the `{config_dir}/azalea/config.toml` directory according to the OS. See [here](https://codeberg.org/dirs/dirs-rs#features) for where the config directory is on each OS.
+In release builds, the config file is located at `{config_dir}/azalea/config.json` according to the OS. See [here](https://codeberg.org/dirs/dirs-rs#features) for where the config directory is on each OS.
 
 ### Setup
 
@@ -77,12 +77,55 @@ pnpm i
 pnpm tauri dev
 # production build
 pnpm tauri build
+# frontend lint and formatting
+pnpm check
 # You may also want to clean the artifacts after building, it's 10 GB or so
 cd src-tauri
 cargo clean
-# Frontend lint&format, dev only
-pnpm check
 ```
+
+### Testing
+
+The frontend suite and Rust unit tests are deterministic and do not require an
+audio device or a graphical session. The Rust integration suite also exercises
+the real VOICEVOX Core, so configure a development core in
+`config_dev/config.json` or set `AZALEA_TEST_CORE_DIR` to a directory containing
+the runtime, OpenJTalk dictionary, and VVM assets.
+
+```sh
+# from the repository root
+pnpm test:all
+
+# Rust formatting, followed by all Rust tests
+cd src-tauri
+cargo fmt --check
+cargo test --locked -- --test-threads=1
+```
+
+`pnpm test:e2e` builds an E2E-only Tauri binary and runs the packaged
+WebdriverIO smoke test. It opens an Azalea application window during a local
+run; CI runs the same test headlessly under Xvfb.
+
+```sh
+# from the repository root
+pnpm test:e2e
+```
+
+The single Rust test command above includes
+`real_core_supports_the_complete_talk_pipeline`; it is not ignored or hidden
+behind a Cargo feature. `AZALEA_TEST_CORE_DIR` overrides the development
+configuration:
+
+```sh
+AZALEA_TEST_CORE_DIR=/path/to/voicevox \
+  cargo test --locked -- --test-threads=1
+```
+
+A missing or invalid environment override and a missing development core fail
+the suite instead of silently skipping the real-core test.
+
+`pnpm test:coverage` produces an optional frontend coverage report. The
+project does not currently enforce a coverage threshold.
 
 ### Pitch Range
 
@@ -97,7 +140,10 @@ cd src-tauri
 cargo run --example range
 ```
 
-The range data will be stored in `src-tauri/src/assets/range.toml` and bundled into the binary automatically.
+This maintenance command uses the same `AZALEA_TEST_CORE_DIR` override and
+development-config fallback as the real-core test.
+
+The range data will be stored in `src-tauri/src/assets/range.json` and bundled into the binary automatically.
 
 ### Building Notes
 

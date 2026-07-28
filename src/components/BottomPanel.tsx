@@ -880,7 +880,7 @@ function TuningItems(props: {
   );
 }
 
-function SpectrogramCanvas(props: {
+export function SpectrogramCanvas(props: {
   preview: SpectrogramPreview;
   width: number;
   preSilence: number;

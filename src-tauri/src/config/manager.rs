@@ -1,13 +1,15 @@
 use super::types::side_ratio_default;
 use anyhow::Result;
-use std::fs::{create_dir_all, File};
+use std::fs::create_dir_all;
+#[cfg(not(feature = "e2e"))]
+use std::fs::File;
 use std::path::PathBuf;
 use std::sync::LazyLock;
 
 use super::AzaleaConfig;
 
 /// Use the config directory to store the config file in release mode.
-#[cfg(not(debug_assertions))]
+#[cfg(all(not(debug_assertions), not(feature = "e2e")))]
 static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
   use dirs::config_dir;
   let mut config_dir = config_dir().expect("System config directory is not available");
@@ -16,7 +18,7 @@ static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
 });
 
 /// for development, use the project directory to store the config file.
-#[cfg(debug_assertions)]
+#[cfg(all(debug_assertions, not(feature = "e2e")))]
 static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
   let config_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
   let config_dir = config_dir
@@ -24,6 +26,9 @@ static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
     .expect("CARGO_MANIFEST_DIR has no parent directory");
   config_dir.join("config_dev")
 });
+
+#[cfg(feature = "e2e")]
+static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| std::env::temp_dir().join("azalea-e2e"));
 
 /// This struct serves the purpose of serializing/deserializing it to/from a file.
 /// It also saves a in-memory copy of the config.
@@ -43,6 +48,7 @@ impl Default for ConfigManager {
 }
 
 impl ConfigManager {
+  #[cfg(not(feature = "e2e"))]
   pub fn new() -> Result<Self> {
     let mut config_manager = Self::default();
     if config_manager.config_path.exists() {
@@ -57,6 +63,22 @@ impl ConfigManager {
       File::create(&config_manager.config_path)?;
       config_manager.save()?;
     }
+    Ok(config_manager)
+  }
+
+  #[cfg(feature = "e2e")]
+  pub fn new() -> Result<Self> {
+    let mut config_manager = Self::default();
+    config_manager.config.ui_config.buffer_render = true;
+    config_manager.config.ui_config.synthesis_delay_ms = 0;
+    config_manager.config.ui_config.spectrogram_preview = false;
+    create_dir_all(
+      config_manager
+        .config_path
+        .parent()
+        .expect("Config path has no parent directory"),
+    )?;
+    config_manager.save()?;
     Ok(config_manager)
   }
 
@@ -92,5 +114,64 @@ impl ConfigManager {
     let config = serde_json::to_string(&self.config)?;
     std::fs::write(path, config)?;
     Ok(())
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::config::types::{Locale, ThemeMode};
+
+  #[test]
+  fn save_and_load_as_round_trip_all_settings() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("config.json");
+    let mut source = ConfigManager::default();
+    source.config.ui_config.locale = Locale::Ja;
+    source.config.ui_config.theme_mode = ThemeMode::Dark;
+    source.config.ui_config.primary_color = "#123456".into();
+    source.config.ui_config.spectrogram_preview = false;
+
+    source.save_as(&path).unwrap();
+    let mut loaded = ConfigManager::default();
+    loaded.load_as(&path).unwrap();
+
+    assert!(matches!(loaded.config.ui_config.locale, Locale::Ja));
+    assert!(matches!(
+      loaded.config.ui_config.theme_mode,
+      ThemeMode::Dark
+    ));
+    assert_eq!(loaded.config.ui_config.primary_color, "#123456");
+    assert!(!loaded.config.ui_config.spectrogram_preview);
+  }
+
+  #[test]
+  fn load_repairs_non_finite_side_panel_ranges() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("config.json");
+    std::fs::write(
+      &path,
+      r#"{"core_config":null,"ui_config":{"side_ratio":4},"system_presets":[]}"#,
+    )
+    .unwrap();
+    let mut manager = ConfigManager::default();
+
+    manager.load_as(&path).unwrap();
+
+    assert_eq!(manager.config.ui_config.side_ratio, side_ratio_default());
+  }
+
+  #[test]
+  fn malformed_or_missing_files_return_errors_without_replacing_memory() {
+    let directory = tempfile::tempdir().unwrap();
+    let malformed = directory.path().join("malformed.json");
+    std::fs::write(&malformed, "{").unwrap();
+    let missing = directory.path().join("missing.json");
+    let mut manager = ConfigManager::default();
+    manager.config.ui_config.primary_color = "#abcdef".into();
+
+    assert!(manager.load_as(&malformed).is_err());
+    assert_eq!(manager.config.ui_config.primary_color, "#abcdef");
+    assert!(manager.load_as(&missing).is_err());
   }
 }

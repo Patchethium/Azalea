@@ -209,3 +209,83 @@ impl Core {
     Ok(())
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  fn ort_name() -> &'static str {
+    #[cfg(target_os = "linux")]
+    return "libvoicevox_onnxruntime.so";
+    #[cfg(target_os = "macos")]
+    return "libvoicevox_onnxruntime.dylib";
+    #[cfg(target_os = "windows")]
+    return "voicevox_onnxruntime.dll";
+  }
+
+  #[test]
+  fn searches_exact_and_partial_files_and_directories() {
+    let root = tempfile::tempdir().unwrap();
+    let nested = root.path().join("one").join("two");
+    let dictionary = nested.join("open_jtalk_dic_utf_8-1.11-custom");
+    std::fs::create_dir_all(&dictionary).unwrap();
+    let model = nested.join("speaker.vvm");
+    std::fs::write(&model, b"model").unwrap();
+
+    assert_eq!(
+      search_file("speaker.vvm", root.path(), false),
+      Some(model.clone())
+    );
+    assert_eq!(search_file(".vvm", root.path(), true), Some(model));
+    assert_eq!(
+      search_dir("open_jtalk_dic_utf_8-1.11", root.path(), true),
+      Some(dictionary)
+    );
+    assert_eq!(search_file("missing", root.path(), false), None);
+  }
+
+  #[test]
+  fn search_respects_the_eight_level_limit() {
+    let root = tempfile::tempdir().unwrap();
+    let mut nested = root.path().to_path_buf();
+    for level in 0..9 {
+      nested.push(format!("level-{level}"));
+    }
+    std::fs::create_dir_all(&nested).unwrap();
+    std::fs::write(nested.join("too-deep.vvm"), b"model").unwrap();
+
+    assert_eq!(search_file(".vvm", root.path(), true), None);
+  }
+
+  #[test]
+  fn find_path_discovers_a_complete_installation_tree() {
+    let root = tempfile::tempdir().unwrap();
+    let runtime = root.path().join("runtime");
+    let dictionary = root.path().join("open_jtalk_dic_utf_8-1.11");
+    let models = root.path().join("models");
+    std::fs::create_dir_all(&runtime).unwrap();
+    std::fs::create_dir_all(&dictionary).unwrap();
+    std::fs::create_dir_all(&models).unwrap();
+    let ort = runtime.join(ort_name());
+    std::fs::write(&ort, b"runtime").unwrap();
+    std::fs::write(models.join("speaker.vvm"), b"model").unwrap();
+
+    let config = Core::find_path(root.path()).unwrap();
+
+    assert_eq!(config.ort_path, ort);
+    assert_eq!(config.ojt_dir, dictionary);
+    assert_eq!(config.vvm_dir, models);
+    assert_eq!(
+      config.cache_size,
+      crate::config::types::cache_size_default()
+    );
+  }
+
+  #[test]
+  fn find_path_rejects_incomplete_installations() {
+    let root = tempfile::tempdir().unwrap();
+    std::fs::write(root.path().join("speaker.vvm"), b"model").unwrap();
+
+    assert!(Core::find_path(root.path()).is_none());
+  }
+}

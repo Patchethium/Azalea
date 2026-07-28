@@ -1,0 +1,29 @@
+{
+  "build": {
+    "beforeBuildCommand": "cross-env VITE_E2E=1 pnpm run build"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "security": {
+      "capabilities": [
+        {
+          "identifier": "e2e",
+          "description": "Test-only capabilities for the packaged WebdriverIO smoke suite",
+          "windows": [
+            "main"
+          ],
+          "permissions": [
+            "core:default",
+            "shell:allow-open",
+            "dialog:default",
+            "wdio:default",
+            "wdio-webdriver:default"
+          ]
+        }
+      ]
+    }
+  },
+  "bundle": {
+    "active": false
+  }
+}

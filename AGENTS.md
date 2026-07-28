@@ -24,11 +24,21 @@ Refresh behavior depends on `UIConfig.buffer_render`: with buffering enabled, de
 - `pnpm build` creates the frontend bundle with Vite.
 - `pnpm tauri build` creates a production desktop package.
 - `pnpm check` runs Biome linting and formatting checks on `src/`.
-- `cd src-tauri && cargo test` runs all Rust unit and integration tests.
+- `pnpm test:run` runs the deterministic Vitest frontend suite once.
+- `pnpm test:coverage` runs the frontend suite with an optional V8 coverage
+  report; no coverage threshold is currently enforced.
+- `pnpm test:e2e` builds the E2E-only Tauri binary and runs the packaged
+  WebdriverIO smoke test. A real application window opens locally.
+- `pnpm test:all` runs frontend checks, the frontend build, frontend tests, and
+  every Rust test, including the real VOICEVOX pipeline; it does not run the
+  packaged smoke test.
+- `cd src-tauri && cargo test --locked -- --test-threads=1` runs
+  every Rust unit and integration test in one command, including the real
+  VOICEVOX pipeline.
 - `cd src-tauri && cargo test --lib regenerate_typescript_bindings` regenerates `src/binding.ts` without launching the desktop application.
 - `cd src-tauri && cargo fmt --check` verifies Rust formatting.
 
-Linux development also requires the Tauri prerequisites, `clang`, and `mold`. The development core path is stored in `config_dev/config.toml`.
+Linux development also requires the Tauri prerequisites, `clang`, and `mold`. The development core path is stored in `config_dev/config.json`.
 
 `src/binding.ts` is generated from the registered Tauri commands, events, and their Rust types by `tauri-specta`. After changing any of them, agents and other automation should run the dedicated `regenerate_typescript_bindings` test and commit the resulting binding changes. Do not edit the generated file by hand.
 
@@ -38,7 +48,40 @@ Use two-space indentation in both TypeScript and Rust, as configured by Biome an
 
 ## Testing Guidelines
 
-Add Rust integration coverage in `src-tauri/tests/`, using descriptive `snake_case` test names. Place small fixtures beside those tests. There is currently no frontend test framework or stated coverage threshold; for UI changes, manually verify the affected flow with `pnpm tauri dev` and describe that verification in the pull request.
+Keep frontend tests colocated as `*.test.ts` or `*.test.tsx`; shared DOM,
+Tauri IPC/event mocks, providers, and VOICEVOX fixtures live in `src/test/`.
+Use Vitest and Solid Testing Library to test behavior through accessible
+interactions. Cover stale asynchronous responses, listener/timer cleanup, and
+error paths explicitly. Do not make the default frontend suite depend on a
+running Tauri application.
+
+Add Rust unit tests beside the implementation and integration tests in
+`src-tauri/tests/`, using descriptive `snake_case` test names. Use temporary
+directories and Tauri's mock runtime where practical. Rust unit tests must not
+depend on `config_dev`, VOICEVOX assets, network access, a graphical session,
+audio hardware, or test ordering.
+
+The complete Rust suite includes real VOICEVOX compatibility. It falls back to
+the core in `config_dev/config.json`; `AZALEA_TEST_CORE_DIR` overrides that
+configuration:
+
+```sh
+cd src-tauri
+cargo test --locked -- --test-threads=1
+```
+
+Do not ignore or feature-gate the real-core target. The complete suite must
+fail clearly when neither the environment override nor the development
+configuration supplies a valid core; do not silently skip it.
+
+The packaged smoke test uses the `e2e` Cargo feature and deterministic
+test-only command behavior. Keep that behavior feature-gated so production
+builds continue to use the real VOICEVOX and audio boundaries. The local smoke
+test opens an application window; CI runs it under Xvfb.
+
+There is no coverage threshold yet. `pnpm test:coverage` is informational;
+future frontend and Rust coverage enforcement is tracked in
+`.agents/todos/roadmap.md`.
 
 ## Commit & Pull Request Guidelines
 

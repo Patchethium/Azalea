@@ -132,3 +132,62 @@ impl MelSpec {
     mel_spec
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn frequency_and_mel_conversions_round_trip() {
+    for frequency in [0.0, 80.0, 440.0, 8_000.0, 12_000.0] {
+      let restored = MelSpec::mel2hz(MelSpec::hz2mel(frequency));
+      assert!((restored - frequency).abs() < 1e-8);
+    }
+  }
+
+  #[test]
+  fn hanning_window_and_filterbank_have_expected_invariants() {
+    let window = MelSpec::hanning(1024);
+    assert_eq!(window.len(), 1024);
+    assert!(window[0].abs() < f64::EPSILON);
+    assert!(window[1023].abs() < 1e-12);
+    assert!(window
+      .iter()
+      .all(|value| value.is_finite() && *value >= 0.0));
+
+    let filterbank = MelSpec::mel_filter_bank(96, 1024, 24_000);
+    assert_eq!(filterbank.dim(), (96, 513));
+    for row in filterbank.rows() {
+      assert!(row.iter().all(|value| value.is_finite() && *value >= 0.0));
+      assert!((row.sum() - 1.0).abs() < 1e-10);
+    }
+  }
+
+  #[test]
+  fn empty_and_short_signals_produce_one_finite_frame() {
+    let mut extractor = MelSpec::new(1024, 32, 256, 24_000);
+    let empty = extractor.process(Array1::zeros(0));
+    let short = extractor.process(Array1::zeros(100));
+
+    assert_eq!(empty.dim(), (32, 1));
+    assert_eq!(short.dim(), (32, 1));
+    assert!(empty.iter().all(|value| value.is_finite()));
+    assert!(short.iter().all(|value| value.is_finite()));
+  }
+
+  #[test]
+  fn tonal_signal_has_multiple_frames_and_non_uniform_energy() {
+    let signal = Array1::from_iter(
+      (0..2400).map(|sample| (2.0 * std::f64::consts::PI * 440.0 * sample as f64 / 24_000.0).sin()),
+    );
+    let mut extractor = MelSpec::new(1024, 48, 256, 24_000);
+    let result = extractor.process(signal);
+
+    assert_eq!(result.nrows(), 48);
+    assert!(result.ncols() > 1);
+    assert!(result.iter().all(|value| value.is_finite()));
+    let minimum = result.iter().copied().fold(f64::INFINITY, f64::min);
+    let maximum = result.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    assert!(maximum > minimum);
+  }
+}

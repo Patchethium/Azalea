@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::{Notify, OnceCell};
 use voicevox_core::{AudioQuery, StyleId};
 
+#[cfg_attr(feature = "e2e", allow(dead_code))]
 const SYNTHESIS_QUEUE_CAPACITY: usize = 256;
 
 #[derive(Clone, Debug, Deserialize, Serialize, specta::Type)]
@@ -47,6 +48,7 @@ pub(crate) struct SynthesisJobIdentity {
 }
 
 impl SynthesisJobIdentity {
+  #[cfg_attr(feature = "e2e", allow(dead_code))]
   fn has_same_payload(&self, other: &Self) -> bool {
     self.query_key == other.query_key && self.speaker_id == other.speaker_id
   }
@@ -86,6 +88,7 @@ struct SynthesisQueueState {
   pending: VecDeque<SynthesisJob>,
   running: Option<SynthesisJobIdentity>,
   latest_by_block: HashMap<String, SynthesisJobIdentity>,
+  #[cfg_attr(feature = "e2e", allow(dead_code))]
   latest_generation_by_block: HashMap<String, u64>,
 }
 
@@ -104,6 +107,7 @@ impl Default for SynthesisQueue {
 }
 
 impl SynthesisQueue {
+  #[cfg_attr(feature = "e2e", allow(dead_code))]
   pub fn enqueue(&self, job: SynthesisJob) -> Vec<SynthesisJobEvent> {
     let mut state = self.state.lock().unwrap();
     let mut events = Vec::new();
@@ -304,6 +308,8 @@ pub(crate) fn eviction_events(
 #[cfg(test)]
 mod tests {
   use serde_json::json;
+  use std::sync::mpsc;
+  use std::thread;
 
   use super::*;
 
@@ -390,5 +396,100 @@ mod tests {
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].state, SynthesisJobState::Cancelled);
     assert!(!queue.finish(&running.identity));
+  }
+
+  #[test]
+  fn duplicate_pending_and_running_jobs_report_their_existing_state() {
+    let queue = SynthesisQueue::default();
+    let duplicate = job("block", 1, 1.0);
+    queue.enqueue(duplicate.clone());
+
+    let pending_events = queue.enqueue(duplicate.clone());
+    assert_eq!(pending_events.len(), 1);
+    assert_eq!(pending_events[0].state, SynthesisJobState::Queued);
+
+    let running = queue.pop_next().unwrap();
+    let running_events = queue.enqueue(duplicate);
+    assert_eq!(running_events.len(), 1);
+    assert_eq!(running_events[0].state, SynthesisJobState::Running);
+    assert!(queue.finish(&running.identity));
+  }
+
+  #[test]
+  fn cancellation_can_target_one_generation_or_every_generation() {
+    let queue = SynthesisQueue::default();
+    queue.enqueue(job("first", 1, 1.0));
+    queue.enqueue(job("second", 1, 1.0));
+
+    assert!(queue.cancel("first", Some(9)).is_empty());
+    let targeted = queue.cancel("first", Some(1));
+    assert_eq!(targeted.len(), 1);
+    assert_eq!(targeted[0].block_id, "first");
+    assert_eq!(queue.pop_next().unwrap().identity.block_id, "second");
+
+    queue.enqueue(job("third", 4, 1.0));
+    let all = queue.cancel("third", None);
+    assert_eq!(all.len(), 1);
+    assert_eq!(all[0].generation_id, 4);
+  }
+
+  #[test]
+  fn full_queue_evicts_the_oldest_pending_block() {
+    let queue = SynthesisQueue::default();
+    for index in 0..SYNTHESIS_QUEUE_CAPACITY {
+      queue.enqueue(job(&format!("block-{index}"), 1, 1.0));
+    }
+
+    let events = queue.enqueue(job("newest", 1, 1.0));
+
+    assert_eq!(events.len(), 2);
+    assert_eq!(events[0].block_id, "block-0");
+    assert_eq!(events[0].state, SynthesisJobState::Evicted);
+    assert_eq!(events[1].block_id, "newest");
+    assert_eq!(events[1].state, SynthesisJobState::Queued);
+    assert_eq!(queue.pop_next().unwrap().identity.block_id, "block-1");
+  }
+
+  #[test]
+  fn cache_ownership_is_unique_per_block_and_emits_evictions() {
+    let cell = Arc::new(OnceCell::new());
+    let mut entry = WaveformCacheEntry::new(cell);
+    entry.add_owner(WaveformCacheOwner {
+      identity: job("same", 1, 1.0).identity,
+    });
+    entry.add_owner(WaveformCacheOwner {
+      identity: job("other", 1, 1.0).identity,
+    });
+    entry.add_owner(WaveformCacheOwner {
+      identity: job("same", 2, 1.2).identity,
+    });
+
+    assert_eq!(entry.owners.len(), 2);
+    let events = eviction_events(entry).collect::<Vec<_>>();
+    assert_eq!(events.len(), 2);
+    assert!(events
+      .iter()
+      .all(|event| event.state == SynthesisJobState::Evicted));
+    assert!(events
+      .iter()
+      .any(|event| event.block_id == "same" && event.generation_id == 2));
+  }
+
+  #[test]
+  fn waiting_consumer_is_woken_by_a_concurrent_enqueue() {
+    let queue = Arc::new(SynthesisQueue::default());
+    let consumer_queue = queue.clone();
+    let (started_tx, started_rx) = mpsc::channel();
+    let consumer = thread::spawn(move || {
+      started_tx.send(()).unwrap();
+      tauri::async_runtime::block_on(consumer_queue.next())
+    });
+
+    started_rx.recv().unwrap();
+    queue.enqueue(job("concurrent", 3, 1.0));
+
+    let received = consumer.join().unwrap();
+    assert_eq!(received.identity.block_id, "concurrent");
+    assert_eq!(received.identity.generation_id, 3);
   }
 }

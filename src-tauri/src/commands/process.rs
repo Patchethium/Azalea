@@ -47,3 +47,30 @@ pub fn parent_path(p: String) -> Option<String> {
     None => None,
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn path_helpers_join_and_find_parents() {
+    let joined = join_path("workspace".into(), "audio.wav".into());
+    assert_eq!(
+      joined,
+      format!("workspace{}audio.wav", std::path::MAIN_SEPARATOR)
+    );
+    assert_eq!(parent_path(joined), Some("workspace".into()));
+    assert_eq!(parent_path("filename".into()), Some(String::new()));
+  }
+
+  #[test]
+  fn reported_os_matches_the_compilation_target() {
+    let os = tauri::async_runtime::block_on(get_os());
+    match std::env::consts::OS {
+      "linux" => assert!(matches!(os, OS::Linux)),
+      "macos" => assert!(matches!(os, OS::MacOS)),
+      "windows" => assert!(matches!(os, OS::Windows)),
+      other => panic!("unsupported test target: {other}"),
+    }
+  }
+}

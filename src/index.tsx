@@ -1,31 +1,13 @@
 /* @refresh reload */
-import { render } from "solid-js/web";
-import App from "./App";
 import "virtual:uno.css";
 import "@unocss/reset/tailwind-compat.css";
-import { MultiProvider } from "@solid-primitives/context";
-import { ConfigProvider } from "./contexts/config";
-import { i18nProvider } from "./contexts/i18n";
-import { MetaProvider } from "./contexts/meta";
-import { SpectrogramProvider } from "./contexts/spectrogram";
-import { SystemProvider } from "./contexts/system";
-import { TextProvider } from "./contexts/text";
-import { UIProvider } from "./contexts/ui";
 
-render(() => {
-  return (
-    <MultiProvider
-      values={[
-        [MetaProvider, []],
-        [UIProvider, null],
-        [SpectrogramProvider, null],
-        [ConfigProvider, null],
-        [SystemProvider, null],
-        [i18nProvider, null],
-        [TextProvider, null],
-      ]}
-    >
-      <App />
-    </MultiProvider>
-  );
-}, document.getElementById("root") as HTMLElement);
+const start = async () => {
+  if (import.meta.env.VITE_E2E === "1") {
+    await import("@wdio/tauri-plugin");
+  }
+  const { mountApp } = await import("./mountApp");
+  mountApp();
+};
+
+void start();

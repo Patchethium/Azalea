@@ -82,6 +82,7 @@
     "no_truncation": "No truncation"
   },
   "menu": {
+    "project_actions": "Project actions",
     "new_project": "New Project",
     "load_project": "Load Project",
     "save_project": "Save Project",

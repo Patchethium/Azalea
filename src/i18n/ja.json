@@ -60,6 +60,7 @@
     }
   },
   "menu": {
+    "project_actions": "プロジェクト操作",
     "new_project": "新しいプロジェクト",
     "load_project": "プロジェクト読み込み",
     "save_project": "プロジェクト保存",

@@ -93,7 +93,10 @@ function ConfigPage() {
               onChange={(v) => setConfig("ui_config", "buffer_render", v)}
               class="inline-flex items-center select-none cursor-pointer justify-center"
             >
-              <Switch.Input class="outline-2px" />
+              <Switch.Input
+                aria-label={t1("config.background_buffering")}
+                class="outline-2px"
+              />
               <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5)">
                 <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
               </Switch.Control>
@@ -110,7 +113,10 @@ function ConfigPage() {
               onChange={setSpectrogramPreviewEnabled}
               class="inline-flex items-center select-none cursor-pointer justify-center"
             >
-              <Switch.Input class="outline-2px" />
+              <Switch.Input
+                aria-label={t1("config.spectrogram_preview")}
+                class="outline-2px"
+              />
               <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5)">
                 <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
               </Switch.Control>
@@ -406,4 +412,4 @@ function I18NSelect() {
 }
 
 export default ConfigPage;
-export { I18NSelect };
+export { ConfigPage, I18NSelect };

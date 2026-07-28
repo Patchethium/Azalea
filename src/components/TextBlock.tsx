@@ -37,7 +37,10 @@ import { getModifiedQuery } from "../utils";
 
 let synthesisGenerationSequence = 0;
 
-const synthesisRequestFingerprint = (query: AudioQuery, speakerId: number) => {
+export const synthesisRequestFingerprint = (
+  query: AudioQuery,
+  speakerId: number,
+) => {
   const serialized = JSON.stringify([speakerId, query]);
   let hash = 0x811c9dc5;
   for (let index = 0; index < serialized.length; index += 1) {

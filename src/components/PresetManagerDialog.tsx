@@ -119,7 +119,11 @@ function PresetItem(props: PresetItemProps) {
         <div class="flex gap-1">
           <Button
             class="hover:text-primary-5 rounded text-slate-7 dark:text-slate-3 bg-transparent"
-            title={t1("preset_manager.copy_to_project")}
+            title={t1(
+              props.direction === "right"
+                ? "preset_manager.copy_to_system"
+                : "preset_manager.copy_to_project",
+            )}
             onClick={() => props.copyTo(props.preset)}
           >
             <div

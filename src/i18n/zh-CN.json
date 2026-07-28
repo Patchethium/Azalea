@@ -82,6 +82,7 @@
     "no_truncation": "不截断"
   },
   "menu": {
+    "project_actions": "项目操作",
     "new_project": "新建项目",
     "load_project": "加载项目",
     "save_project": "保存项目",

@@ -246,7 +246,7 @@ pub struct Project {
 
 #[cfg(test)]
 mod tests {
-  use super::{KeyboardShortcut, UIConfig};
+  use super::{AzaleaConfig, KeyboardShortcut, UIConfig};
 
   #[test]
   fn missing_settings_use_defaults() {
@@ -275,6 +275,41 @@ mod tests {
     assert_eq!(
       config.shortcuts.stop_playback,
       KeyboardShortcut::new("Space", true, false)
+    );
+  }
+
+  #[test]
+  fn empty_application_config_has_a_default_preset_and_preview() {
+    let config: AzaleaConfig = serde_json::from_str(r#"{"ui_config":{}}"#).unwrap();
+
+    assert_eq!(config.system_presets.len(), 1);
+    assert_eq!(config.system_presets[0].name, "Default");
+    assert!(config.ui_config.spectrogram_preview);
+    assert_eq!(config.ui_config.primary_color, "#3b82f6");
+    assert_eq!(config.ui_config.bottom_ratio, 0.3);
+    assert_eq!(config.ui_config.side_ratio, 0.2);
+  }
+
+  #[test]
+  fn shortcut_round_trip_preserves_all_platform_modifiers() {
+    let input = r#"{
+      "shortcuts": {
+        "save_project": {
+          "key": "P",
+          "primary": true,
+          "secondary": true,
+          "shift": true,
+          "alt": true
+        }
+      }
+    }"#;
+    let config: UIConfig = serde_json::from_str(input).unwrap();
+    let serialized = serde_json::to_string(&config).unwrap();
+    let restored: UIConfig = serde_json::from_str(&serialized).unwrap();
+
+    assert_eq!(
+      restored.shortcuts.save_project,
+      config.shortcuts.save_project
     );
   }
 }

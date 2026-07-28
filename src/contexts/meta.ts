@@ -19,10 +19,10 @@ const [MetaProvider, useMetaStore] = createContextProvider(() => {
           // combine styles
           combinedMetas[existingMetaIndex].styles = [
             ...combinedMetas[existingMetaIndex].styles,
-            ...newMeta.styles,
+            ..._.cloneDeep(newMeta.styles),
           ];
         } else {
-          combinedMetas.push(newMeta);
+          combinedMetas.push(_.cloneDeep(newMeta));
         }
       });
       // sort styles by id for each meta

@@ -221,6 +221,9 @@ Tier meanings:
 
 ## Roadmap Maintenance
 
+- [ ] Add coverage enforcement: remeasure frontend and Rust baselines with the
+      CI toolchain, round thresholds down to whole percentages, publish
+      coverage artifacts, and only ratchet the gates upward.
 - [ ] Update the root `ROADMAP.md` so implemented spectrogram and accent-editing
       work is marked complete.
 - [ ] Reconcile README Core/config instructions with the current implementation.

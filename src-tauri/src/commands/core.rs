@@ -15,6 +15,7 @@ use std::num::NonZeroUsize;
 use std::sync::Arc;
 
 use tauri::{AppHandle, Emitter, Manager, State};
+#[cfg(not(feature = "e2e"))]
 use tauri_plugin_dialog::DialogExt;
 use tauri_specta::Event;
 use tokio::sync::OnceCell;
@@ -27,7 +28,15 @@ pub async fn init_core(
   state: State<'_, AppState>,
   config: CoreConfig,
 ) -> std::result::Result<(), String> {
-  initialize_core(&state, config).await
+  #[cfg(feature = "e2e")]
+  {
+    let _ = (state, config);
+    Ok(())
+  }
+  #[cfg(not(feature = "e2e"))]
+  {
+    initialize_core(&state, config).await
+  }
 }
 
 pub async fn initialize_core(
@@ -76,15 +85,35 @@ pub async fn initialize_core(
 #[tauri::command]
 #[specta::specta]
 pub async fn get_metas(state: State<'_, AppState>) -> std::result::Result<VoiceModelMeta, String> {
-  let metas = state
-    .core
-    .read()
-    .await
-    .as_ref()
-    .ok_or("core is not initialized")?
-    .metas
-    .clone();
-  Ok(metas.values().flatten().cloned().collect())
+  #[cfg(feature = "e2e")]
+  {
+    let _ = state;
+    serde_json::from_value(serde_json::json!([{
+      "name": "E2E Speaker",
+      "styles": [{
+        "id": 1,
+        "name": "Normal",
+        "type": "talk",
+        "order": 0
+      }],
+      "version": "1.0.0",
+      "speaker_uuid": "e2e-speaker",
+      "order": 0
+    }]))
+    .map_err(|error| format!("Invalid built-in E2E metadata: {error}"))
+  }
+  #[cfg(not(feature = "e2e"))]
+  {
+    let metas = state
+      .core
+      .read()
+      .await
+      .as_ref()
+      .ok_or("core is not initialized")?
+      .metas
+      .clone();
+    Ok(metas.values().flatten().cloned().collect())
+  }
 }
 
 async fn run_core_task<T, F>(state: &AppState, task: F) -> Result<T, String>
@@ -121,18 +150,50 @@ pub async fn audio_query(
   text: String,
   speaker_id: StyleId,
 ) -> std::result::Result<AudioQuery, String> {
-  if let Some(cache) = state_mut!(state, query_lru).get(&(text.clone(), speaker_id)) {
-    return Ok(cache.clone());
+  #[cfg(feature = "e2e")]
+  {
+    let _ = (state, speaker_id);
+    serde_json::from_value(serde_json::json!({
+      "accent_phrases": [{
+        "moras": [{
+          "text": text,
+          "consonant": null,
+          "consonant_length": null,
+          "vowel": "a",
+          "vowel_length": 0.12,
+          "pitch": 5.4
+        }],
+        "accent": 1,
+        "pause_mora": null,
+        "is_interrogative": false
+      }],
+      "speedScale": 1.0,
+      "pitchScale": 0.0,
+      "intonationScale": 1.0,
+      "volumeScale": 1.0,
+      "prePhonemeLength": 0.1,
+      "postPhonemeLength": 0.1,
+      "outputSamplingRate": 24000,
+      "outputStereo": false,
+      "kana": null
+    }))
+    .map_err(|error| format!("Invalid built-in E2E audio query: {error}"))
   }
-  let cache_key = (text.clone(), speaker_id);
-  let query = run_core_task(&state, move |core| {
-    core
-      .audio_query(&text, speaker_id)
-      .map_err(|e| e.to_string())
-  })
-  .await?;
-  state_mut!(state, query_lru).put(cache_key, query.clone());
-  Ok(query)
+  #[cfg(not(feature = "e2e"))]
+  {
+    if let Some(cache) = state_mut!(state, query_lru).get(&(text.clone(), speaker_id)) {
+      return Ok(cache.clone());
+    }
+    let cache_key = (text.clone(), speaker_id);
+    let query = run_core_task(&state, move |core| {
+      core
+        .audio_query(&text, speaker_id)
+        .map_err(|e| e.to_string())
+    })
+    .await?;
+    state_mut!(state, query_lru).put(cache_key, query.clone());
+    Ok(query)
+  }
 }
 
 /// Encodes text into accent phrases
@@ -205,17 +266,37 @@ pub async fn synthesize(
   state: State<'_, AppState>,
   request: SynthesisJobRequest,
 ) -> std::result::Result<(), String> {
+  validate_synthesis_request(&request)?;
+  let query_key = serde_json::to_string(&request.audio_query).map_err(|e| e.to_string())?;
+  let job = SynthesisJob::new(request, query_key);
+  #[cfg(feature = "e2e")]
+  {
+    let _ = state;
+    emit_synthesis_events(
+      &app,
+      [
+        job.identity.event(SynthesisJobState::Queued, None),
+        job.identity.event(SynthesisJobState::Running, None),
+        job.identity.event(SynthesisJobState::Completed, None),
+      ],
+    );
+    Ok(())
+  }
+  #[cfg(not(feature = "e2e"))]
+  {
+    let events = state.synthesis_queue.enqueue(job);
+    emit_synthesis_events(&app, events);
+    Ok(())
+  }
+}
+
+fn validate_synthesis_request(request: &SynthesisJobRequest) -> Result<(), String> {
   if request.block_id.trim().is_empty() {
     return Err("block_id must not be empty".into());
   }
   if request.hash.trim().is_empty() {
     return Err("hash must not be empty".into());
   }
-  let query_key = serde_json::to_string(&request.audio_query).map_err(|e| e.to_string())?;
-  let events = state
-    .synthesis_queue
-    .enqueue(SynthesisJob::new(request, query_key));
-  emit_synthesis_events(&app, events);
   Ok(())
 }
 
@@ -280,7 +361,7 @@ pub fn start_synthesis_worker(app: AppHandle) {
   });
 }
 
-#[derive(specta::Type, Serialize)]
+#[derive(Debug, specta::Type, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SpectrogramPreview {
   pub values: Vec<u8>,
@@ -424,20 +505,28 @@ pub async fn play_audio(
   audio_query: AudioQuery,
   speaker_id: StyleId,
 ) -> std::result::Result<(), String> {
-  let wav = synthesize_cached(&app, &state, audio_query, speaker_id, None).await?;
-  let playback_app = app.clone();
-  let audio_player = AudioPlayer::play(wav, move || {
-    if let Err(error) = playback_app.emit("audio-playback-finished", ()) {
-      eprintln!("Failed to emit playback completion: {error}");
-    }
-  })
-  .await?;
-  state
-    .audio_player
-    .write()
-    .map_err(|e| e.to_string())?
-    .replace(audio_player);
-  Ok(())
+  #[cfg(feature = "e2e")]
+  {
+    let _ = (app, state, audio_query, speaker_id);
+    Ok(())
+  }
+  #[cfg(not(feature = "e2e"))]
+  {
+    let wav = synthesize_cached(&app, &state, audio_query, speaker_id, None).await?;
+    let playback_app = app.clone();
+    let audio_player = AudioPlayer::play(wav, move || {
+      if let Err(error) = playback_app.emit("audio-playback-finished", ()) {
+        eprintln!("Failed to emit playback completion: {error}");
+      }
+    })
+    .await?;
+    state
+      .audio_player
+      .write()
+      .map_err(|e| e.to_string())?
+      .replace(audio_player);
+    Ok(())
+  }
 }
 
 #[derive(Clone, serde::Deserialize, specta::Type)]
@@ -509,17 +598,30 @@ pub async fn save_audio(
 #[tauri::command]
 #[specta::specta]
 pub async fn pick_core(app: AppHandle) -> Option<CoreConfig> {
-  let path = app.dialog().file().blocking_pick_folder();
-  match path {
-    Some(dir) => {
-      let path = dir.as_path();
-      if let Some(p) = path {
-        Core::find_path(p)
-      } else {
-        None
+  #[cfg(feature = "e2e")]
+  {
+    let _ = app;
+    Some(CoreConfig {
+      ort_path: "/e2e/runtime".into(),
+      ojt_dir: "/e2e/dictionary".into(),
+      vvm_dir: "/e2e/models".into(),
+      cache_size: 4,
+    })
+  }
+  #[cfg(not(feature = "e2e"))]
+  {
+    let path = app.dialog().file().blocking_pick_folder();
+    match path {
+      Some(dir) => {
+        let path = dir.as_path();
+        if let Some(p) = path {
+          Core::find_path(p)
+        } else {
+          None
+        }
       }
+      None => None,
     }
-    None => None,
   }
 }
 
@@ -578,5 +680,94 @@ pub async fn synthesize_state(
     }
   } else {
     return Ok(SynthState::UnInitialized);
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use serde_json::json;
+
+  fn wav(channels: u16, sample_rate: u32, frames: usize) -> Vec<u8> {
+    let mut cursor = Cursor::new(Vec::new());
+    {
+      let spec = hound::WavSpec {
+        channels,
+        sample_rate,
+        bits_per_sample: 16,
+        sample_format: hound::SampleFormat::Int,
+      };
+      let mut writer = hound::WavWriter::new(&mut cursor, spec).unwrap();
+      for frame in 0..frames {
+        for channel in 0..channels {
+          let phase = 2.0 * std::f64::consts::PI * (220.0 + 220.0 * channel as f64) * frame as f64
+            / sample_rate as f64;
+          writer.write_sample((phase.sin() * 8_000.0) as i16).unwrap();
+        }
+      }
+      writer.finalize().unwrap();
+    }
+    cursor.into_inner()
+  }
+
+  fn synthesis_request(block_id: &str, hash: &str) -> SynthesisJobRequest {
+    SynthesisJobRequest {
+      block_id: block_id.into(),
+      generation_id: 1,
+      audio_query: serde_json::from_value(json!({
+        "accent_phrases": [],
+        "speedScale": 1.0,
+        "pitchScale": 0.0,
+        "intonationScale": 1.0,
+        "volumeScale": 1.0,
+        "prePhonemeLength": 0.1,
+        "postPhonemeLength": 0.1,
+        "outputSamplingRate": 24000,
+        "outputStereo": false
+      }))
+      .unwrap(),
+      speaker_id: StyleId(1),
+      hash: hash.into(),
+    }
+  }
+
+  #[test]
+  fn synthesis_request_validation_rejects_blank_identifiers() {
+    assert_eq!(
+      validate_synthesis_request(&synthesis_request(" ", "hash")),
+      Err("block_id must not be empty".into())
+    );
+    assert_eq!(
+      validate_synthesis_request(&synthesis_request("block", "\n")),
+      Err("hash must not be empty".into())
+    );
+    assert!(validate_synthesis_request(&synthesis_request("block", "hash")).is_ok());
+  }
+
+  #[test]
+  fn spectrogram_preview_is_compact_normalized_and_duration_aware() {
+    let preview = create_spectrogram_preview(wav(1, 24_000, 12_000)).unwrap();
+
+    assert_eq!(preview.mel_bins, 96);
+    assert!(preview.frame_count > 1);
+    assert_eq!(preview.values.len(), preview.frame_count * preview.mel_bins);
+    assert!((preview.duration_seconds - 0.5).abs() < 1e-6);
+    assert!(preview.values.iter().any(|value| *value > 0));
+  }
+
+  #[test]
+  fn spectrogram_preview_downmixes_stereo_and_handles_short_audio() {
+    let stereo = create_spectrogram_preview(wav(2, 48_000, 48)).unwrap();
+
+    assert_eq!(stereo.frame_count, 1);
+    assert_eq!(stereo.values.len(), 96);
+    assert!((stereo.duration_seconds - 0.001).abs() < 1e-9);
+  }
+
+  #[test]
+  fn spectrogram_preview_rejects_malformed_wav_data() {
+    let error = create_spectrogram_preview(b"not a wave file".to_vec()).unwrap_err();
+
+    assert!(error.contains("Failed to decode WAV audio"));
   }
 }

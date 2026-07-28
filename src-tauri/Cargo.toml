@@ -14,6 +14,9 @@ edition = "2021"
 name = "azalea_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+e2e = ["dep:tauri-plugin-wdio", "dep:tauri-plugin-wdio-webdriver"]
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
@@ -38,12 +41,19 @@ tauri-specta = { version = "=2.0.0-rc.21", features = ["derive", "typescript"] }
 dirs = "6"
 tauri-plugin-dialog = "2"
 tauri-plugin-prevent-default = "4.0.3"
+tauri-plugin-wdio = { version = "1", optional = true }
+tauri-plugin-wdio-webdriver = { version = "1", optional = true }
 tokio = { version = "1" }
 
 [dependencies.voicevox_core]
 git = "https://github.com/Patchethium/voicevox_core.git"
 branch = "specta"
 features = ["specta", "load-onnxruntime"]
+
+[dev-dependencies]
+hound = "3.5"
+tauri = { version = "2.1.1", features = ["test"] }
+tempfile = "3"
 
 [profile.dev]
 incremental = true

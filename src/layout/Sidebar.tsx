@@ -318,6 +318,7 @@ function Sidebar() {
   const scheduledSave = createScheduled((fn) => throttle(fn, 500));
 
   createEffect(() => {
+    JSON.stringify(project);
     if (scheduledSave() && config.ui_config.auto_save && projectPath() !== null)
       saveProject();
   });
@@ -535,7 +536,10 @@ function Sidebar() {
 
       <div class="flex flex-row items-center gap-1">
         <DropdownMenu open={actionMenuOpen()} onOpenChange={setActionMenuOpen}>
-          <DropdownMenu.Trigger class="group p1 size-8 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-primary-5 ui-expanded:bg-primary-5 transition-transform outline-none">
+          <DropdownMenu.Trigger
+            aria-label={t1("menu.project_actions")}
+            class="group p1 size-8 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-primary-5 ui-expanded:bg-primary-5 transition-transform outline-none"
+          >
             <div class="i-lucide:kanban bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white ui-expanded:!bg-white" />
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
