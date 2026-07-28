@@ -52,8 +52,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes clang mold libasound2-dev libwebkit2gtk-4.1-dev
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt
 
@@ -94,8 +94,8 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
 
       - name: Build and run packaged smoke test
         run: xvfb-run --auto-servernum pnpm test:e2e
