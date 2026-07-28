@@ -194,8 +194,15 @@ impl Core {
   }
 
   pub fn unload_all_speakers(&self) -> Result<()> {
-    for vvm_id in self.speaker_to_vvm.values().collect::<HashSet<_>>() {
-      self.synthesizer.unload_voice_model(*vvm_id)?;
+    for vvm_id in self
+      .speaker_to_vvm
+      .values()
+      .copied()
+      .collect::<HashSet<_>>()
+    {
+      if self.synthesizer.is_loaded_voice_model(vvm_id) {
+        self.synthesizer.unload_voice_model(vvm_id)?;
+      }
     }
     Ok(())
   }
@@ -205,7 +212,9 @@ impl Core {
       Some(id) => *id,
       None => return Ok(()),
     };
-    self.synthesizer.unload_voice_model(vvm_id)?;
+    if self.synthesizer.is_loaded_voice_model(vvm_id) {
+      self.synthesizer.unload_voice_model(vvm_id)?;
+    }
     Ok(())
   }
 }
