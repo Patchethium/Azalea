@@ -1,0 +1,40 @@
+name: Sync upstream hermes-webui
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # daily at 06:00 UTC
+  workflow_dispatch:        # allow manual trigger from the Actions UI
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          # Use a PAT so the push can trigger the build-release workflow.
+          # Falls back to GITHUB_TOKEN (won't trigger downstream workflows).
+          token: ${{ secrets.SYNC_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Update hermes-webui submodule to latest upstream master
+        run: git submodule update --remote --merge hermes-webui
+
+      - name: Check for changes
+        id: diff
+        run: |
+          git diff --quiet hermes-webui \
+            && echo "changed=false" >> "$GITHUB_OUTPUT" \
+            || echo "changed=true"  >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push updated submodule pointer
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          NEW_SHA=$(git -C hermes-webui rev-parse --short HEAD)
+          git add hermes-webui
+          git commit -m "chore: bump hermes-webui to ${NEW_SHA}"
+          git push
