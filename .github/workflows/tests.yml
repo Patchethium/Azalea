@@ -2,7 +2,41 @@ name: tests
 
 on:
   push:
+    paths:
+      - ".cargo/**"
+      - ".github/workflows/tests.yml"
+      - "e2e/**"
+      - "patches/**"
+      - "src/**"
+      - "src-tauri/**"
+      - "biome.json"
+      - "index.html"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "rustfmt.toml"
+      - "tsconfig*.json"
+      - "uno.config.ts"
+      - "vite.config.ts"
+      - "vitest.config.ts"
+      - "wdio.conf.ts"
   pull_request:
+    paths:
+      - ".cargo/**"
+      - ".github/workflows/tests.yml"
+      - "e2e/**"
+      - "patches/**"
+      - "src/**"
+      - "src-tauri/**"
+      - "biome.json"
+      - "index.html"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "rustfmt.toml"
+      - "tsconfig*.json"
+      - "uno.config.ts"
+      - "vite.config.ts"
+      - "vitest.config.ts"
+      - "wdio.conf.ts"
   workflow_dispatch:
 
 permissions:
