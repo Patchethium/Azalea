@@ -7,12 +7,18 @@ import { describe, expect, it, vi } from "vitest";
 import { commands } from "../binding";
 import { ConfigProvider, useConfigStore } from "../contexts/config";
 import { i18nProvider } from "../contexts/i18n";
-import { MetaProvider } from "../contexts/meta";
+import { MetaProvider, useMetaStore } from "../contexts/meta";
 import { SpectrogramProvider } from "../contexts/spectrogram";
 import { SystemProvider } from "../contexts/system";
 import { TextProvider, useTextStore } from "../contexts/text";
 import { UIProvider, useUIStore } from "../contexts/ui";
-import { audioQuery, config, preset, spectrogram } from "../test/fixtures";
+import {
+  audioQuery,
+  config,
+  metas,
+  preset,
+  spectrogram,
+} from "../test/fixtures";
 import { BottomPanel, SpectrogramCanvas } from "./BottomPanel";
 
 const renderCanvas = (
@@ -83,16 +89,26 @@ const renderPanel = (
     appConfig = useConfigStore()!;
     text = useTextStore()!;
     ui = useUIStore()!;
+    const meta = useMetaStore()!;
     onMount(() => {
       batch(() => {
+        meta.setMetas(metas);
         appConfig.setConfig(config(configOverrides));
         appConfig.setRange({ 1: [4, 6] });
         text.setProjectPresetStore([preset()]);
         text.replaceTextBlocks([
-          { text: "first", query: audioQuery(), preset_id: 0 },
           {
+            id: "first-block",
+            text: "first",
+            query: audioQuery(),
+            query_is_modified: false,
+            preset_id: 0,
+          },
+          {
+            id: "second-block",
             text: "second",
             query: audioQuery({ speedScale: 1.1 }),
+            query_is_modified: false,
             preset_id: 0,
           },
         ]);
@@ -335,6 +351,7 @@ describe("BottomPanel playback", () => {
         getTextStore().textStore[0].query?.accent_phrases[0].moras[0].text,
       ).toBe("サ"),
     );
+    expect(getTextStore().textStore[0].query_is_modified).toBe(true);
   });
 
   it("edits pitch and duration on the tuning timeline", async () => {
@@ -364,5 +381,6 @@ describe("BottomPanel playback", () => {
         getTextStore().textStore[0].query?.accent_phrases[0].moras[0].pitch,
       ).toBeCloseTo(5.41),
     );
+    expect(getTextStore().textStore[0].query_is_modified).toBe(true);
   });
 });

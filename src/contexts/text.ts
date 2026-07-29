@@ -2,6 +2,7 @@ import { createContextProvider } from "@solid-primitives/context";
 import { batch, createEffect, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import {
+  CharacterMeta,
   Preset,
   Project,
   TextBlockProps as ProjectTextBlockProps,
@@ -10,9 +11,7 @@ import { usei18n } from "./i18n";
 import { useMetaStore } from "./meta";
 import { useUIStore } from "./ui";
 
-type TextBlockProps = ProjectTextBlockProps & {
-  runtimeId: string;
-};
+type TextBlockProps = ProjectTextBlockProps;
 
 let textBlockSequence = 0;
 
@@ -28,11 +27,61 @@ const createTextBlock = (
   presetId: number | null,
   text = "",
 ): TextBlockProps => ({
-  runtimeId: createTextBlockId(),
+  id: createTextBlockId(),
   text,
   preset_id: presetId,
   query: null,
+  query_is_modified: false,
 });
+
+type PresetStyle = {
+  speaker: CharacterMeta;
+  style: CharacterMeta["styles"][number];
+};
+
+export const findPresetStyle = (
+  preset: Preset,
+  metas: CharacterMeta[],
+): PresetStyle | null => {
+  if (
+    preset.speaker_uuid !== null &&
+    preset.speaker_uuid !== undefined &&
+    preset.style_name !== null &&
+    preset.style_name !== undefined
+  ) {
+    const speaker = metas.find(
+      (candidate) => candidate.speaker_uuid === preset.speaker_uuid,
+    );
+    const style = speaker?.styles.find(
+      (candidate) => candidate.name === preset.style_name,
+    );
+    return speaker !== undefined && style !== undefined
+      ? { speaker, style }
+      : null;
+  }
+
+  for (const speaker of metas) {
+    const style = speaker.styles.find(
+      (candidate) => candidate.id === preset.style_id,
+    );
+    if (style !== undefined) return { speaker, style };
+  }
+  return null;
+};
+
+export const resolvePresetIdentity = (
+  preset: Preset,
+  metas: CharacterMeta[],
+): Preset => {
+  const identity = findPresetStyle(preset, metas);
+  if (identity === null) return { ...preset };
+  return {
+    ...preset,
+    style_id: identity.style.id,
+    speaker_uuid: identity.speaker.speaker_uuid,
+    style_name: identity.style.name,
+  };
+};
 
 export const clampTextBlockIndex = (index: number, blockCount: number) => {
   if (blockCount === 0 || !Number.isFinite(index)) return 0;
@@ -40,7 +89,7 @@ export const clampTextBlockIndex = (index: number, blockCount: number) => {
 };
 
 const [TextProvider, useTextStore] = createContextProvider(() => {
-  const { availableStyleIds } = useMetaStore()!;
+  const { availableStyleIds, metas } = useMetaStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
   const { t1 } = usei18n()!;
   const [project, setProject] = createStore<Project>({
@@ -60,18 +109,33 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
 
   createEffect(() => {
     setProject({
-      blocks: textStore.map(({ runtimeId: _, ...block }) => ({ ...block })),
+      blocks: textStore.map((block) => ({ ...block })),
       presets: projectPresetStore.map((item) => ({ ...item })),
     });
   });
 
+  createEffect(() => {
+    projectPresetStore.forEach((preset, index) => {
+      const resolved = resolvePresetIdentity(preset, metas);
+      if (
+        resolved.style_id !== preset.style_id ||
+        resolved.speaker_uuid !== preset.speaker_uuid ||
+        resolved.style_name !== preset.style_name
+      ) {
+        setProjectPresetStore(index, resolved);
+      }
+    });
+  });
+
   const replaceTextBlocks = (blocks: ProjectTextBlockProps[]) => {
-    setTextStore(
-      blocks.map((block) => ({
-        ...block,
-        runtimeId: createTextBlockId(),
-      })),
-    );
+    setTextStore(blocks.map((block) => ({ ...block })));
+  };
+
+  const markQueryModified = (index: number) => {
+    const query = textStore[index]?.query;
+    if (query !== null && query !== undefined) {
+      setTextStore(index, "query_is_modified", true);
+    }
   };
 
   const selectedTextBlockIndex = () =>
@@ -107,6 +171,8 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
         {
           name: t1("preset.new_preset"),
           style_id: Math.min(...availableStyleIds()),
+          speaker_uuid: null,
+          style_name: null,
           speed: 100,
           pitch: 0.0,
           intonation: 1.0,
@@ -131,6 +197,7 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     selectedTextBlock,
     selectedTextBlockIndex,
     createFirstTextBlock,
+    markQueryModified,
     replaceTextBlocks,
     newProject,
   };

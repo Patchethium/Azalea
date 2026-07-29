@@ -12,7 +12,7 @@ describe("text-block helpers", () => {
     expect(clampTextBlockIndex(index, count)).toBe(expected);
   });
 
-  it("creates independent runtime-only blocks", () => {
+  it("creates blocks with independent stable IDs", () => {
     vi.spyOn(crypto, "randomUUID")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000001")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000002");
@@ -21,12 +21,13 @@ describe("text-block helpers", () => {
     const second = createTextBlock(null);
 
     expect(first).toEqual({
-      runtimeId: "00000000-0000-4000-8000-000000000001",
+      id: "00000000-0000-4000-8000-000000000001",
       text: "hello",
       preset_id: 2,
       query: null,
+      query_is_modified: false,
     });
-    expect(second.runtimeId).not.toBe(first.runtimeId);
+    expect(second.id).not.toBe(first.id);
     expect(second).toMatchObject({ text: "", preset_id: null, query: null });
   });
 });

@@ -27,9 +27,10 @@ import {
 } from "../binding";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
+import { useMetaStore } from "../contexts/meta";
 import { useSpectrogramStore } from "../contexts/spectrogram";
 import { useSystemStore } from "../contexts/system";
-import { useTextStore } from "../contexts/text";
+import { findPresetStyle, useTextStore } from "../contexts/text";
 import { type BottomPanelType, useUIStore } from "../contexts/ui";
 import {
   isShortcutAllowed,
@@ -112,6 +113,7 @@ function ControlBar(props: {
     selectedTextBlock,
     selectedTextBlockIndex,
   } = useTextStore()!;
+  const { metas } = useMetaStore()!;
   const { setUIStore } = useUIStore()!;
   const { config } = useConfigStore()!;
   const { systemStore } = useSystemStore()!;
@@ -153,7 +155,10 @@ function ControlBar(props: {
     if (projectPresetStore.length === 0 || presetId == null) {
       return null;
     }
-    return projectPresetStore[presetId] ?? null;
+    const preset = projectPresetStore[presetId];
+    return preset !== undefined && findPresetStyle(preset, metas) !== null
+      ? preset
+      : null;
   });
 
   const speak = async () => {
@@ -170,7 +175,7 @@ function ControlBar(props: {
     if (result.status === "ok") {
       setIsPlaying(true);
       props.onWaveformSynthesized({
-        blockId: block.runtimeId,
+        blockId: block.id,
         audioQuery,
         speakerId: _currentPreset.style_id,
       });
@@ -249,13 +254,14 @@ function ControlBar(props: {
         block.query === null ||
         block.query.accent_phrases.length === 0 ||
         preset === undefined ||
-        preset === null
+        preset === null ||
+        findPresetStyle(preset, metas) === null
       ) {
         return [];
       }
       return [
         {
-          blockId: block.runtimeId,
+          blockId: block.id,
           audioQuery: getModifiedQuery(unwrap(block.query), unwrap(preset)),
           speakerId: preset.style_id,
         },
@@ -278,7 +284,7 @@ function ControlBar(props: {
       setIsPlaying(true);
       const selectedBlock = currentText();
       const selectedItem = playable.find(
-        (item) => item.blockId === selectedBlock?.runtimeId,
+        (item) => item.blockId === selectedBlock?.id,
       );
       if (selectedItem !== undefined) {
         props.onWaveformSynthesized(selectedItem);
@@ -338,10 +344,12 @@ function TuningPanel(props: {
 }) {
   const {
     setTextStore,
+    markQueryModified,
     projectPresetStore,
     selectedTextBlock,
     selectedTextBlockIndex,
   } = useTextStore()!;
+  const { metas } = useMetaStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
   const { config, setConfig, spectrogramPreviewEnabled } = useConfigStore()!;
   const {
@@ -383,7 +391,10 @@ function TuningPanel(props: {
     if (projectPresetStore.length === 0 || presetId == null) {
       return null;
     }
-    return projectPresetStore[presetId] ?? null;
+    const preset = projectPresetStore[presetId];
+    return preset !== undefined && findPresetStyle(preset, metas) !== null
+      ? preset
+      : null;
   });
 
   const currentModifiedQuery = createMemo(() => {
@@ -412,7 +423,7 @@ function TuningPanel(props: {
     const query = currentModifiedQuery();
     const preset = currentPreset();
     if (block === null || query === null || preset === null) return null;
-    return getCachedSpectrogram(block.runtimeId, query, preset.style_id);
+    return getCachedSpectrogram(block.id, query, preset.style_id);
   };
 
   const [spectrogram, setSpectrogram] = createSignal<SpectrogramPreview | null>(
@@ -428,7 +439,7 @@ function TuningPanel(props: {
   ) => {
     const request = beginSpectrogramRequest(blockId);
     const requestKey = getCacheKey(audioQuery, speakerId);
-    if (currentText()?.runtimeId === blockId) {
+    if (currentText()?.id === blockId) {
       setSpectrogramStale(spectrogram() !== null);
     }
     try {
@@ -443,7 +454,7 @@ function TuningPanel(props: {
         const preset = currentPreset();
         if (
           mounted &&
-          currentText()?.runtimeId === blockId &&
+          currentText()?.id === blockId &&
           currentQuery !== null &&
           preset !== null &&
           getCacheKey(currentQuery, preset.style_id) === requestKey
@@ -511,11 +522,11 @@ function TuningPanel(props: {
       setSpectrogramStale(false);
       return;
     }
-    const lastSpectrogram = getLastCachedSpectrogram(block.runtimeId);
+    const lastSpectrogram = getLastCachedSpectrogram(block.id);
     setSpectrogram(lastSpectrogram);
     setSpectrogramStale(lastSpectrogram !== null);
     if (bufferRender && query !== null && preset !== null) {
-      scheduleSpectrogramRefresh(block.runtimeId, query, preset.style_id);
+      scheduleSpectrogramRefresh(block.id, query, preset.style_id);
     }
   });
 
@@ -575,6 +586,7 @@ function TuningPanel(props: {
       "consonant_length",
       v,
     );
+    markQueryModified(index);
   };
 
   const setVowelLength = (i: number, j: number, v: number) => {
@@ -590,6 +602,7 @@ function TuningPanel(props: {
       "vowel_length",
       v,
     );
+    markQueryModified(index);
   };
 
   const setPauseLength = (i: number, v: number) => {
@@ -604,12 +617,14 @@ function TuningPanel(props: {
       "vowel_length",
       v,
     );
+    markQueryModified(index);
   };
 
   const setPitch = (i: number, j: number, v: number) => {
     const index = selectedIdx();
     if (index === null) return;
     setTextStore(index, "query", "accent_phrases", i, "moras", j, "pitch", v);
+    markQueryModified(index);
   };
 
   const handleDragFinish = (_e: MouseEvent) => {
@@ -968,10 +983,12 @@ function PhonemePanel() {
   const {
     textStore,
     setTextStore,
+    markQueryModified,
     projectPresetStore,
     selectedTextBlock,
     selectedTextBlockIndex,
   } = useTextStore()!;
+  const { metas } = useMetaStore()!;
 
   const currentText = selectedTextBlock;
   const selectedIdx = () =>
@@ -981,13 +998,17 @@ function PhonemePanel() {
     if (presetId == null) {
       return null;
     }
-    return projectPresetStore[presetId] ?? null;
+    const preset = projectPresetStore[presetId];
+    return preset !== undefined && findPresetStyle(preset, metas) !== null
+      ? preset
+      : null;
   });
 
   const setPhrase = (index: number, p: AccentPhrase) => {
     const textIndex = selectedIdx();
     if (textIndex === null) return;
     setTextStore(textIndex, "query", "accent_phrases", index, p);
+    markQueryModified(textIndex);
   };
 
   const refreshMoraData = debounce(async () => {
@@ -999,6 +1020,7 @@ function PhonemePanel() {
     const new_ap = await commands.replaceMora(ap, p.style_id);
     if (new_ap.status === "ok" && textStore[textIndex] === sourceBlock) {
       setTextStore(textIndex, "query", "accent_phrases", new_ap.data);
+      markQueryModified(textIndex);
     }
   }, 300);
 
@@ -1041,6 +1063,7 @@ function PhonemePanel() {
         draft.splice(apIndex, 1, leftAp, rightAp);
       }),
     );
+    markQueryModified(textIndex);
   }, refreshMoraData);
 
   const combinePhrase = useSideEffect((apIndex: number) => {
@@ -1074,6 +1097,7 @@ function PhonemePanel() {
         draft.splice(apIndex, 2, combinedAp);
       }),
     );
+    markQueryModified(textIndex);
   }, refreshMoraData);
 
   const handleEditPhoneme = async (apIndex: number, newText: string) => {
@@ -1107,6 +1131,7 @@ function PhonemePanel() {
         apIndex,
         newAps.data[apIndex],
       );
+      markQueryModified(textIndex);
     }
   };
 

@@ -15,7 +15,12 @@ import { ConfigProvider, useConfigStore } from "./config";
 import { i18nProvider } from "./i18n";
 import { MetaProvider, useMetaStore } from "./meta";
 import { SpectrogramProvider, useSpectrogramStore } from "./spectrogram";
-import { TextProvider, useTextStore } from "./text";
+import {
+  findPresetStyle,
+  resolvePresetIdentity,
+  TextProvider,
+  useTextStore,
+} from "./text";
 import { UIProvider, useUIStore } from "./ui";
 
 type MetaStore = NonNullable<ReturnType<typeof useMetaStore>>;
@@ -134,7 +139,7 @@ describe("ConfigProvider", () => {
 });
 
 describe("TextProvider", () => {
-  it("maintains selection and runtime IDs when replacing and removing project data", async () => {
+  it("maintains selection and stable IDs when replacing and removing project data", async () => {
     let text!: TextStore;
     let ui!: UiStore;
     let meta!: MetaStore;
@@ -162,25 +167,47 @@ describe("TextProvider", () => {
     meta.setMetas(metas);
     text.setProjectPresetStore([preset()]);
     text.replaceTextBlocks([
-      { text: "first", query: null, preset_id: 0 },
-      { text: "second", query: audioQuery(), preset_id: 0 },
+      {
+        id: "first-id",
+        text: "first",
+        query: null,
+        query_is_modified: false,
+        preset_id: 0,
+      },
+      {
+        id: "second-id",
+        text: "second",
+        query: audioQuery(),
+        query_is_modified: false,
+        preset_id: 0,
+      },
     ]);
     ui.setUIStore("selectedTextBlockIndex", 99);
 
     await waitFor(() => expect(text.selectedTextBlockIndex()).toBe(1));
     expect(text.selectedTextBlock()?.text).toBe("second");
-    expect(text.textStore[0].runtimeId).toBeTruthy();
-    expect(text.textStore[0].runtimeId).not.toBe(text.textStore[1].runtimeId);
+    expect(text.textStore[0].id).toBe("first-id");
+    expect(text.textStore[1].id).toBe("second-id");
     await waitFor(() =>
       expect(text.project).toMatchObject({
         blocks: [
-          { text: "first", preset_id: 0 },
-          { text: "second", preset_id: 0 },
+          {
+            id: "first-id",
+            text: "first",
+            query_is_modified: false,
+            preset_id: 0,
+          },
+          {
+            id: "second-id",
+            text: "second",
+            query_is_modified: false,
+            preset_id: 0,
+          },
         ],
         presets: [{ name: "Default" }],
       }),
     );
-    expect(text.project.blocks[0]).not.toHaveProperty("runtimeId");
+    expect(text.project.blocks[0]).toHaveProperty("id", "first-id");
 
     text.setTextStore([]);
     text.createFirstTextBlock();
@@ -189,6 +216,7 @@ describe("TextProvider", () => {
       text: "",
       preset_id: 0,
       query: null,
+      query_is_modified: false,
     });
     expect(ui.uiStore.selectedTextBlockIndex).toBe(0);
   });
@@ -223,7 +251,37 @@ describe("TextProvider", () => {
     expect(text.projectPath()).toBeNull();
     expect(text.projectPresetStore).toHaveLength(1);
     expect(text.projectPresetStore[0].style_id).toBe(1);
+    expect(text.projectPresetStore[0]).toMatchObject({
+      speaker_uuid: "speaker-1",
+      style_name: "Normal",
+    });
     expect(text.textStore).toHaveLength(1);
     expect(text.textStore[0].preset_id).toBe(0);
+  });
+
+  it("remaps style IDs by speaker UUID and style name", () => {
+    const movedStyleMetas = [
+      {
+        ...metas[0],
+        styles: [{ ...metas[0].styles[0], id: 42, name: "Normal" }],
+      },
+    ];
+    const storedPreset = preset({
+      style_id: 1,
+      speaker_uuid: "speaker-1",
+      style_name: "Normal",
+    });
+
+    expect(resolvePresetIdentity(storedPreset, movedStyleMetas)).toMatchObject({
+      style_id: 42,
+      speaker_uuid: "speaker-1",
+      style_name: "Normal",
+    });
+    expect(
+      findPresetStyle(
+        preset({ speaker_uuid: "missing-speaker", style_name: "Normal" }),
+        metas,
+      ),
+    ).toBeNull();
   });
 });

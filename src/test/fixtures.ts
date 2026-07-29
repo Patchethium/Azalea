@@ -41,6 +41,8 @@ export const audioQuery = (
 export const preset = (overrides: Partial<Preset> = {}): Preset => ({
   name: "Default",
   style_id: 1,
+  speaker_uuid: "speaker-1",
+  style_name: "Normal",
   speed: 100,
   pitch: 0,
   intonation: 1,

@@ -29,6 +29,7 @@ import { usei18n } from "../contexts/i18n";
 import { useMetaStore } from "../contexts/meta";
 import {
   createTextBlock,
+  findPresetStyle,
   type TextBlockProps,
   useTextStore,
 } from "../contexts/text";
@@ -134,7 +135,7 @@ function TextBlock(props: { index: number }) {
     projectPresetStore,
     selectedTextBlockIndex,
   } = useTextStore()!;
-  const { availableStyleIds: availableSpeakerIds } = useMetaStore()!;
+  const { metas } = useMetaStore()!;
   const { setUIStore } = useUIStore()!;
   const { config, setConfig } = useConfigStore()!;
   const { t1 } = usei18n()!;
@@ -144,14 +145,21 @@ function TextBlock(props: { index: number }) {
     if (projectPresetStore.length === 0 || currentText().preset_id === null) {
       return null;
     }
-    return projectPresetStore[currentText().preset_id ?? 0];
+    const preset = projectPresetStore[currentText().preset_id ?? 0];
+    return preset !== undefined && findPresetStyle(preset, metas) !== null
+      ? preset
+      : null;
   });
 
   const [hovered, setHovered] = createSignal(false);
   const [toolbarHovered, setToolbarHovered] = createSignal(false);
 
   const setText = (text: string) => {
-    setTextStore(props.index, { ...currentText(), text });
+    setTextStore(props.index, {
+      ...currentText(),
+      text,
+      query_is_modified: false,
+    });
   };
 
   const setQuery = (query: AudioQuery | null) => {
@@ -159,16 +167,14 @@ function TextBlock(props: { index: number }) {
       props.index,
       produce((draft) => {
         draft.query = query;
+        draft.query_is_modified = false;
       }),
     );
   };
 
-  const isStyleIdValid = createMemo(() => {
+  const currentPresetStyle = createMemo(() => {
     const curPreset = currentPreset();
-    if (curPreset === null) {
-      return false;
-    }
-    return availableSpeakerIds().includes(curPreset?.style_id ?? 0);
+    return curPreset === null ? null : findPresetStyle(curPreset, metas);
   });
 
   let queryRequestRevision = 0;
@@ -203,20 +209,33 @@ function TextBlock(props: { index: number }) {
     fetchAudioQuery.cancel();
   });
 
-  createEffect(() => {
-    const sourceBlock = currentText();
-    const curPreset = currentPreset();
-    const text = sourceBlock.text;
-    const requestRevision = ++queryRequestRevision;
-    if (curPreset === null || text === "") {
-      fetchAudioQuery.cancel();
-      setQuery(null);
-    } else if (isStyleIdValid()) {
-      fetchAudioQuery(text, curPreset.style_id, requestRevision, sourceBlock);
-    } else {
-      fetchAudioQuery.cancel();
-    }
-  });
+  createEffect(
+    on(
+      [
+        () => currentText().id,
+        () => currentText().text,
+        () => currentPresetStyle()?.style.id,
+      ],
+      ([blockId, text, styleId], previousInput) => {
+        const sourceBlock = currentText();
+        const requestRevision = ++queryRequestRevision;
+        if (text === "") {
+          fetchAudioQuery.cancel();
+          setQuery(null);
+        } else if (
+          (previousInput === undefined || previousInput[0] !== blockId) &&
+          sourceBlock.query_is_modified &&
+          sourceBlock.query !== null
+        ) {
+          fetchAudioQuery.cancel();
+        } else if (styleId !== undefined) {
+          fetchAudioQuery(text, styleId, requestRevision, sourceBlock);
+        } else {
+          fetchAudioQuery.cancel();
+        }
+      },
+    ),
+  );
 
   const selected = createMemo(() => selectedTextBlockIndex() === props.index);
 
@@ -465,7 +484,7 @@ function TextBlock(props: { index: number }) {
       return;
     }
 
-    const blockId = currentText().runtimeId;
+    const blockId = currentText().id;
     const speakerId = preset.style_id;
     const { hash, signature } = synthesisRequestFingerprint(query, speakerId);
     const blockSignature = `${blockId}:${signature}`;
@@ -609,7 +628,7 @@ function TextBlock(props: { index: number }) {
           <div class="flex-1 pointer-events-none" />
           <div class="text-sm text-slate-8 dark:text-slate-2 select-none pointer-events-none">
             <Show
-              when={isStyleIdValid() && currentPreset()}
+              when={currentPresetStyle() !== null && currentPreset()}
               fallback={
                 <p class="text-yellow-7">{t1("preset.no_preset_selected")}</p>
               }

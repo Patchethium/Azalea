@@ -38,7 +38,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 type TextStore = NonNullable<ReturnType<typeof useTextStore>>;
 type ConfigStore = NonNullable<ReturnType<typeof useConfigStore>>;
 
-const renderBlock = (bufferRender: boolean) => {
+const renderBlock = (bufferRender: boolean, queryIsModified = false) => {
   let text!: TextStore;
   let appConfig!: ConfigStore;
   const Harness: Component = () => {
@@ -57,8 +57,10 @@ const renderBlock = (bufferRender: boolean) => {
         text.setProjectPresetStore([preset()]);
         text.replaceTextBlocks([
           {
+            id: "text-block",
             text: "hello",
             query: audioQuery(),
+            query_is_modified: queryIsModified,
             preset_id: 0,
           },
         ]);
@@ -111,10 +113,34 @@ describe("TextBlock", () => {
     await waitFor(() =>
       expect(getTextStore().textStore[0].query?.speedScale).toBe(1.2),
     );
+    expect(getTextStore().textStore[0].query_is_modified).toBe(false);
 
     getConfigStore().setConfig("ui_config", "buffer_render", false);
     await waitFor(() =>
       expect(screen.queryByRole("status")).not.toBeInTheDocument(),
+    );
+  });
+
+  it("preserves a loaded query override until its source text changes", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    const query = vi.spyOn(commands, "audioQuery").mockResolvedValue({
+      status: "ok",
+      data: audioQuery({ speedScale: 1.4 }),
+    });
+    const { getTextStore } = renderBlock(false, true);
+
+    await screen.findByLabelText("Text to synthesize");
+    expect(query).not.toHaveBeenCalled();
+    expect(getTextStore().textStore[0].query_is_modified).toBe(true);
+
+    const editor = screen.getByLabelText("Text to synthesize");
+    editor.innerText = "changed";
+    fireEvent.input(editor);
+    await waitFor(() => expect(query).toHaveBeenCalledWith("changed", 1), {
+      timeout: 1_500,
+    });
+    await waitFor(() =>
+      expect(getTextStore().textStore[0].query_is_modified).toBe(false),
     );
   });
 

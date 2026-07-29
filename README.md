@@ -66,6 +66,31 @@ The config file used in development is located in `config_dev/config.json`. You 
 
 In release builds, the config file is located at `{config_dir}/azalea/config.json` according to the OS. See [here](https://codeberg.org/dirs/dirs-rs#features) for where the config directory is on each OS.
 
+### Project file compatibility
+
+Azalea project files use the `.azp` extension and contain a JSON
+`schema_version`. New projects are currently saved with schema version `1`.
+Projects created before versioning was introduced do not contain this field;
+Azalea treats those files as legacy version `0`, migrates them while loading,
+and writes the current format on the next save. Files created with a newer
+schema version than the running Azalea release are rejected with an error
+instead of being loaded incorrectly.
+
+Schema version `1` gives every text block a persistent ID and records each
+preset's speaker UUID and style name so changed numeric style IDs can be
+remapped safely. Pristine generated `AudioQuery` data is regenerated after
+loading rather than stored in the project file; queries containing manual
+accent, phoneme, pitch, or duration edits are retained as explicit
+`query_override` data.
+
+Schema version `1` has not been released yet, so evolve it in place until the
+first release that includes versioned project files. After it is released,
+persisted project-structure changes must increment
+`CURRENT_PROJECT_SCHEMA_VERSION` in `src-tauri/src/commands/project.rs`, add a
+migration for every supported older version, and extend the project command
+tests. Keep the version marker at the `.azp` serialization boundary unless it
+also needs to become application state.
+
 ### Setup
 
 ```sh

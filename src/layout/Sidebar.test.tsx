@@ -22,18 +22,23 @@ vi.mock("@tauri-apps/plugin-dialog", () => dialogs);
 
 describe("Sidebar project lifecycle", () => {
   it("saves the live project, loads replacement data, and autosaves edits", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
     const invocations: Array<{ cmd: string; args: Record<string, unknown> }> =
       [];
     mockIPC((cmd, args) => {
       invocations.push({ cmd, args: args as Record<string, unknown> });
       if (cmd === "get_os") return "Linux";
       if (cmd === "load_project") {
+        if ((args as { path?: string }).path === "/tmp/rejected.azp") {
+          throw "unsupported project schema";
+        }
         return {
           blocks: [
             {
+              id: "loaded-block",
               text: "Loaded block",
               query: audioQuery({ speedScale: 1.2 }),
+              query_is_modified: true,
               preset_id: 0,
             },
           ],
@@ -43,7 +48,9 @@ describe("Sidebar project lifecycle", () => {
       return null;
     });
     dialogs.save.mockResolvedValue("/tmp/current.azp");
-    dialogs.open.mockResolvedValue("/tmp/loaded.azp");
+    dialogs.open
+      .mockResolvedValueOnce("/tmp/loaded.azp")
+      .mockResolvedValueOnce("/tmp/rejected.azp");
     let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
     let text!: NonNullable<ReturnType<typeof useTextStore>>;
     const Harness: Component = () => {
@@ -56,7 +63,13 @@ describe("Sidebar project lifecycle", () => {
           meta.setMetas(metas);
           text.setProjectPresetStore([preset()]);
           text.replaceTextBlocks([
-            { text: "Current block", query: audioQuery(), preset_id: 0 },
+            {
+              id: "current-block",
+              text: "Current block",
+              query: audioQuery(),
+              query_is_modified: false,
+              preset_id: 0,
+            },
           ]);
         });
       });
@@ -92,13 +105,13 @@ describe("Sidebar project lifecycle", () => {
       path: "/tmp/current.azp",
       allowCreate: true,
       project: {
-        blocks: [{ text: "Current block", preset_id: 0 }],
+        blocks: [{ id: "current-block", text: "Current block", preset_id: 0 }],
         presets: [{ name: "Default" }],
       },
     });
     expect(
       (firstSave.args.project as { blocks: unknown[] }).blocks[0],
-    ).not.toHaveProperty("runtimeId");
+    ).toHaveProperty("id", "current-block");
 
     await user.click(
       await screen.findByRole("button", { name: "Project actions" }),
@@ -124,7 +137,24 @@ describe("Sidebar project lifecycle", () => {
       .at(-1)!;
     expect(lastSave.args).toMatchObject({
       path: "/tmp/loaded.azp",
-      project: { blocks: [{ text: "Autosaved edit" }] },
+      project: { blocks: [{ id: "loaded-block", text: "Autosaved edit" }] },
     });
+
+    await user.click(
+      await screen.findByRole("button", { name: "Project actions" }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Load Project" }),
+    );
+    await waitFor(() =>
+      expect(
+        invocations.filter(
+          ({ cmd, args }) =>
+            cmd === "load_project" && args.path === "/tmp/rejected.azp",
+        ),
+      ).toHaveLength(1),
+    );
+    expect(text.projectPath()).toBe("/tmp/loaded.azp");
+    expect(text.textStore[0].text).toBe("Autosaved edit");
   });
 });

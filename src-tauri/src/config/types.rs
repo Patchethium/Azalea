@@ -214,6 +214,10 @@ pub struct Preset {
   pub start_slience: f32,
   /// in seconds, 0.0-3.0, 0 is default for no slience
   pub end_slience: f32,
+  #[serde(default)]
+  pub speaker_uuid: Option<String>,
+  #[serde(default)]
+  pub style_name: Option<String>,
 }
 
 impl Default for Preset {
@@ -227,14 +231,18 @@ impl Default for Preset {
       volume: 1.0,
       start_slience: 0.0,
       end_slience: 0.0,
+      speaker_uuid: None,
+      style_name: None,
     }
   }
 }
 
 #[derive(Clone, Deserialize, Serialize, Type)]
 pub struct TextBlockProps {
+  pub id: String,
   pub text: String,
   pub query: Option<AudioQuery>,
+  pub query_is_modified: bool,
   pub preset_id: Option<usize>,
 }
 

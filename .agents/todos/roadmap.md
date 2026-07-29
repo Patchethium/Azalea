@@ -69,12 +69,12 @@ Tier meanings:
 
 ### Versioned project compatibility
 
-- [ ] Add a schema version to `.azp` files.
-- [ ] Add validation and migrations for older project versions.
-- [ ] Give blocks stable IDs instead of relying only on array positions.
-- [ ] Store speaker/style identity fallbacks for projects opened with a
+- [x] Add a schema version to `.azp` files.
+- [x] Add validation and migrations for older project versions.
+- [x] Give blocks stable IDs instead of relying only on array positions.
+- [x] Store speaker/style identity fallbacks for projects opened with a
       different model set.
-- [ ] Avoid persisting derived `AudioQuery` data when it can be regenerated
+- [x] Avoid persisting derived `AudioQuery` data when it can be regenerated
       safely.
 
 ## Necessary
@@ -224,8 +224,6 @@ Tier meanings:
 - [ ] Add coverage enforcement: remeasure frontend and Rust baselines with the
       CI toolchain, round thresholds down to whole percentages, publish
       coverage artifacts, and only ratchet the gates upward.
-- [ ] Update the root `ROADMAP.md` so implemented spectrogram and accent-editing
-      work is marked complete.
 - [ ] Reconcile README Core/config instructions with the current implementation.
 - [ ] Synchronize application version and license metadata across Tauri, Cargo,
       package metadata, and documentation.

@@ -33,7 +33,7 @@ import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { useMetaStore } from "../contexts/meta";
 import { useSystemStore } from "../contexts/system";
-import { useTextStore } from "../contexts/text";
+import { findPresetStyle, useTextStore } from "../contexts/text";
 import { PageType, useUIStore } from "../contexts/ui";
 import {
   isShortcutAllowed,
@@ -56,15 +56,12 @@ function PresetCard(props: PresetCardProps) {
     }
     return projectPresetStore[props.preset_idx];
   });
-  const speaker = createMemo(() =>
-    metas.find((meta) =>
-      meta.styles.find((style) => style.id === preset()?.style_id),
-    ),
-  );
-  const style = createMemo(
-    () =>
-      speaker()?.styles.find((style) => style.id === preset()?.style_id)?.name,
-  );
+  const identity = createMemo(() => {
+    const currentPreset = preset();
+    return currentPreset === null || currentPreset === undefined
+      ? null
+      : findPresetStyle(currentPreset, metas);
+  });
 
   return (
     <div class="p1 group" {...props}>
@@ -78,9 +75,9 @@ function PresetCard(props: PresetCardProps) {
       >
         <div>{preset()?.name ?? ""}</div>
         <div class="text-xs text-slate-5 flex flex-row items-center">
-          {speaker()?.name}
+          {identity()?.speaker.name}
           <span class="mx-1">{">"}</span>
-          {style()}
+          {identity()?.style.name}
         </div>
       </div>
     </div>
@@ -88,7 +85,7 @@ function PresetCard(props: PresetCardProps) {
 }
 
 function Sidebar() {
-  const { metas, availableStyleIds } = useMetaStore()!;
+  const { metas } = useMetaStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
   const {
     setTextStore,
@@ -108,10 +105,36 @@ function Sidebar() {
 
   const setStyleId = (styleId: StyleId) => {
     const presetId = currentText()?.preset_id;
-    if (presetId !== null && presetId !== undefined) {
-      if (styleId in availableStyleIds()) {
+    const styleChanged =
+      presetId !== null &&
+      presetId !== undefined &&
+      projectPresetStore[presetId]?.style_id !== styleId;
+    const speaker = metas.find((candidate) =>
+      candidate.styles.some((style) => style.id === styleId),
+    );
+    const style = speaker?.styles.find((candidate) => candidate.id === styleId);
+    if (
+      presetId !== null &&
+      presetId !== undefined &&
+      speaker !== undefined &&
+      style !== undefined
+    ) {
+      batch(() => {
         setProjectPresetStore(presetId, "style_id", styleId);
-      }
+        setProjectPresetStore(presetId, "speaker_uuid", speaker.speaker_uuid);
+        setProjectPresetStore(presetId, "style_name", style.name);
+        if (styleChanged) {
+          setTextStore(
+            produce((blocks) => {
+              for (const block of blocks) {
+                if (block.preset_id === presetId) {
+                  block.query_is_modified = false;
+                }
+              }
+            }),
+          );
+        }
+      });
     }
   };
 
@@ -129,13 +152,12 @@ function Sidebar() {
     return projectPresetStore[presetId] ?? null;
   });
 
-  const curMeta = () =>
-    metas.find((meta) =>
-      meta.styles.find((style) => style.id === currentPreset()?.style_id),
-    );
-
-  const curStyle = () =>
-    curMeta()?.styles.find((style) => style.id === currentPreset()?.style_id);
+  const currentStyleIdentity = createMemo(() => {
+    const preset = currentPreset();
+    return preset === null ? null : findPresetStyle(preset, metas);
+  });
+  const curMeta = () => currentStyleIdentity()?.speaker;
+  const curStyle = () => currentStyleIdentity()?.style;
 
   const availableStyleNames = () =>
     _.flatMap(curMeta()?.styles.map((s) => s.name)) ?? [];
@@ -145,10 +167,9 @@ function Sidebar() {
   };
 
   const selectSpeakerByName = (name: string) => {
-    const presetId = currentText()?.preset_id;
     const speaker = metas.find((meta) => meta.name === name);
-    if (speaker && presetId !== null && presetId !== undefined) {
-      setProjectPresetStore(presetId, "style_id", speaker.styles[0].id);
+    if (speaker !== undefined && speaker.styles.length > 0) {
+      setStyleId(speaker.styles[0].id);
     }
   };
 
@@ -190,8 +211,19 @@ function Sidebar() {
   };
 
   const setTextPresetIdx = (preset_idx: number) => {
-    if (currentText() === null) return;
-    setTextStore(selectedTextBlockIndex(), "preset_id", preset_idx);
+    const block = currentText();
+    if (block === null) return;
+    const previousStyle =
+      block.preset_id === null
+        ? null
+        : projectPresetStore[block.preset_id]?.style_id;
+    const nextStyle = projectPresetStore[preset_idx]?.style_id;
+    batch(() => {
+      setTextStore(selectedTextBlockIndex(), "preset_id", preset_idx);
+      if (previousStyle !== nextStyle) {
+        setTextStore(selectedTextBlockIndex(), "query_is_modified", false);
+      }
+    });
   };
 
   const createPreset = () => {
@@ -204,6 +236,8 @@ function Sidebar() {
         start_slience: 200,
         end_slience: 200,
         style_id: 0,
+        speaker_uuid: null,
+        style_name: null,
       }),
       name: t1("preset.new_preset"),
     };
@@ -295,13 +329,13 @@ function Sidebar() {
       ],
     });
     if (path === null) return;
-    setProjectPath(path);
     const res = await commands.loadProject(path);
     switch (res.status) {
       case "ok": {
         // directly setting the whole project won't work
         const project = res.data;
         batch(() => {
+          setProjectPath(path);
           replaceTextBlocks(project.blocks);
           setProjectPresetStore(project.presets);
           setUIStore("selectedTextBlockIndex", 0);
