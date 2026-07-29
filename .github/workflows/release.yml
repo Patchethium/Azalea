@@ -24,13 +24,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+
       - name: setup node
         uses: actions/setup-node@v4
         with:
           node-version: 22.11.0
-
-      - name: install pnpm
-        run: npm install -g pnpm
+          cache: pnpm
 
       - name: install Rust nightly
         uses: dtolnay/rust-toolchain@nightly

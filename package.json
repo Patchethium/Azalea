@@ -15,13 +15,17 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e:build": "pnpm tauri build --debug --no-bundle --features e2e --config src-tauri/tauri.e2e.conf.json",
-    "test:e2e": "pnpm test:e2e:build && wdio run wdio.conf.ts",
+    "test:e2e:run": "wdio run wdio.conf.ts",
+    "test:e2e": "pnpm test:e2e:build && pnpm test:e2e:run",
     "test:all": "pnpm check && pnpm build && pnpm test:run && cargo test --locked --manifest-path src-tauri/Cargo.toml -- --test-threads=1"
   },
   "license": "MIT",
   "pnpm": {
     "overrides": {
       "@wdio/native-utils": "2.5.0"
+    },
+    "patchedDependencies": {
+      "@wdio/tauri-service@1.2.0": "patches/@wdio__tauri-service@1.2.0.patch"
     }
   },
   "dependencies": {

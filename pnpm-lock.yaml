@@ -7,6 +7,11 @@ settings:
 overrides:
   '@wdio/native-utils': 2.5.0
 
+patchedDependencies:
+  '@wdio/tauri-service@1.2.0':
+    hash: 6071aafb50c9412207cbcb4a72a19b6571702b1fa2d270db7b0f839aff9fc1da
+    path: patches/@wdio__tauri-service@1.2.0.patch
+
 importers:
 
   .:
@@ -98,7 +103,7 @@ importers:
         version: 1.2.0(tsx@4.23.1)
       '@wdio/tauri-service':
         specifier: ^1.2.0
-        version: 1.2.0(expect-webdriverio@5.7.0)(tsx@4.23.1)(webdriverio@9.30.0)
+        version: 1.2.0(patch_hash=6071aafb50c9412207cbcb4a72a19b6571702b1fa2d270db7b0f839aff9fc1da)(expect-webdriverio@5.7.0)(tsx@4.23.1)(webdriverio@9.30.0)
       cross-env:
         specifier: ^10.1.0
         version: 10.1.0
@@ -4969,7 +4974,7 @@ snapshots:
       - supports-color
       - tsx
 
-  '@wdio/tauri-service@1.2.0(expect-webdriverio@5.7.0)(tsx@4.23.1)(webdriverio@9.30.0)':
+  '@wdio/tauri-service@1.2.0(patch_hash=6071aafb50c9412207cbcb4a72a19b6571702b1fa2d270db7b0f839aff9fc1da)(expect-webdriverio@5.7.0)(tsx@4.23.1)(webdriverio@9.30.0)':
     dependencies:
       '@wdio/globals': 9.27.1(expect-webdriverio@5.7.0)(webdriverio@9.30.0)
       '@wdio/logger': 9.18.0

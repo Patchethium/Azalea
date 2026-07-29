@@ -1,0 +1,54 @@
+diff --git a/dist/cjs/index.js b/dist/cjs/index.js
+index 199d9ee179defe66f659ca67246db54a34e175ca..7608a604d5432e936b473baa140788207a79c436 100644
+--- a/dist/cjs/index.js
++++ b/dist/cjs/index.js
+@@ -2435,8 +2435,11 @@ class TauriLaunchService {
+         if (this.isEmbeddedMode && !this.perWorkerMode) {
+             await this.ensureEmbeddedServersHealthy();
+         }
+-        // Run environment diagnostics
+-        await this.diagnoseEnvironment(this.appBinaryPath);
++        // The embedded provider does not use tauri-driver or a platform
++        // WebDriver, so external-driver diagnostics are not relevant.
++        if (!this.isEmbeddedMode) {
++            await this.diagnoseEnvironment(this.appBinaryPath);
++        }
+         log$6.debug(`Tauri worker session started: ${cid}`);
+     }
+     /**
+@@ -3941,7 +3944,7 @@ class TauriWorkerService {
+                     }
+                 }
+             }
+-            else if (this.browser) {
++            else if (this.browser?.sessionId) {
+                 await restoreAllMocks.call({ browser: this.browser });
+             }
+             mockStore.clear();
+diff --git a/dist/esm/index.js b/dist/esm/index.js
+index 96bcb93875968ed51ed17cc9ceeca59eacc20bf1..84ce394f7817e5e59c999aa26cffd9869926172a 100644
+--- a/dist/esm/index.js
++++ b/dist/esm/index.js
+@@ -2431,8 +2431,11 @@ class TauriLaunchService {
+         if (this.isEmbeddedMode && !this.perWorkerMode) {
+             await this.ensureEmbeddedServersHealthy();
+         }
+-        // Run environment diagnostics
+-        await this.diagnoseEnvironment(this.appBinaryPath);
++        // The embedded provider does not use tauri-driver or a platform
++        // WebDriver, so external-driver diagnostics are not relevant.
++        if (!this.isEmbeddedMode) {
++            await this.diagnoseEnvironment(this.appBinaryPath);
++        }
+         log$6.debug(`Tauri worker session started: ${cid}`);
+     }
+     /**
+@@ -3937,7 +3940,7 @@ class TauriWorkerService {
+                     }
+                 }
+             }
+-            else if (this.browser) {
++            else if (this.browser?.sessionId) {
+                 await restoreAllMocks.call({ browser: this.browser });
+             }
+             mockStore.clear();
