@@ -18,15 +18,15 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10.4.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: pnpm
@@ -48,15 +48,15 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10.4.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: pnpm
@@ -80,7 +80,7 @@ jobs:
 
       - name: Restore VOICEVOX test assets
         id: voicevox_assets
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ runner.temp }}/voicevox-core
           key: voicevox-core-linux-x64-voicevox-ort-1.17.3-open-jtalk-1.11.1-vvm-0.16.4-0
@@ -135,7 +135,7 @@ jobs:
         run: pnpm test:e2e:build
 
       - name: Upload packaged smoke application
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: azalea-e2e-linux-x64
           path: src-tauri/target/debug/azalea
@@ -150,7 +150,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Linux runtime and display dependencies
         run: |
@@ -158,12 +158,12 @@ jobs:
           sudo apt-get install --yes libasound2-dev libwebkit2gtk-4.1-dev xauth xvfb
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10.4.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: pnpm
@@ -172,7 +172,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Download packaged smoke application
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: azalea-e2e-linux-x64
           path: src-tauri/target/debug

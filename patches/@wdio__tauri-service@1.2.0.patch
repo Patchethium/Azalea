@@ -1,8 +1,19 @@
 diff --git a/dist/cjs/index.js b/dist/cjs/index.js
-index 199d9ee179defe66f659ca67246db54a34e175ca..7608a604d5432e936b473baa140788207a79c436 100644
+index 199d9ee179defe66f659ca67246db54a34e175ca..3c44461540513c34227ddd2d7367140fa6f60acf 100644
 --- a/dist/cjs/index.js
 +++ b/dist/cjs/index.js
-@@ -2435,8 +2435,11 @@ class TauriLaunchService {
+@@ -1899,7 +1899,9 @@ class TauriLaunchService {
+         const basePort = options.tauriDriverPort || 4444;
+         this.portManager = new nativeCore.PortManager(basePort, 4445);
+         this.backendPortManager = new nativeCore.PortManager(options.crabnebulaBackendPort ?? 3000, 3001);
+-        this.driverPool = new DriverPool(options, options.nativeDriverPath || getWebKitWebDriverPath());
++        // DriverPool resolves the platform driver lazily when an external
++        // provider starts. Embedded mode never needs to probe for it.
++        this.driverPool = new DriverPool(options, options.nativeDriverPath);
+     }
+     /**
+      * Prepare the Tauri service
+@@ -2435,8 +2437,11 @@ class TauriLaunchService {
          if (this.isEmbeddedMode && !this.perWorkerMode) {
              await this.ensureEmbeddedServersHealthy();
          }
@@ -16,7 +27,7 @@ index 199d9ee179defe66f659ca67246db54a34e175ca..7608a604d5432e936b473baa14078820
          log$6.debug(`Tauri worker session started: ${cid}`);
      }
      /**
-@@ -3941,7 +3944,7 @@ class TauriWorkerService {
+@@ -3941,7 +3946,7 @@ class TauriWorkerService {
                      }
                  }
              }
@@ -26,10 +37,21 @@ index 199d9ee179defe66f659ca67246db54a34e175ca..7608a604d5432e936b473baa14078820
              }
              mockStore.clear();
 diff --git a/dist/esm/index.js b/dist/esm/index.js
-index 96bcb93875968ed51ed17cc9ceeca59eacc20bf1..84ce394f7817e5e59c999aa26cffd9869926172a 100644
+index 96bcb93875968ed51ed17cc9ceeca59eacc20bf1..1623e4a00bdd077e3cd7eff1df8a73e0c9130986 100644
 --- a/dist/esm/index.js
 +++ b/dist/esm/index.js
-@@ -2431,8 +2431,11 @@ class TauriLaunchService {
+@@ -1895,7 +1895,9 @@ class TauriLaunchService {
+         const basePort = options.tauriDriverPort || 4444;
+         this.portManager = new PortManager(basePort, 4445);
+         this.backendPortManager = new PortManager(options.crabnebulaBackendPort ?? 3000, 3001);
+-        this.driverPool = new DriverPool(options, options.nativeDriverPath || getWebKitWebDriverPath());
++        // DriverPool resolves the platform driver lazily when an external
++        // provider starts. Embedded mode never needs to probe for it.
++        this.driverPool = new DriverPool(options, options.nativeDriverPath);
+     }
+     /**
+      * Prepare the Tauri service
+@@ -2431,8 +2433,11 @@ class TauriLaunchService {
          if (this.isEmbeddedMode && !this.perWorkerMode) {
              await this.ensureEmbeddedServersHealthy();
          }
@@ -43,7 +65,7 @@ index 96bcb93875968ed51ed17cc9ceeca59eacc20bf1..84ce394f7817e5e59c999aa26cffd986
          log$6.debug(`Tauri worker session started: ${cid}`);
      }
      /**
-@@ -3937,7 +3940,7 @@ class TauriWorkerService {
+@@ -3937,7 +3942,7 @@ class TauriWorkerService {
                      }
                  }
              }
