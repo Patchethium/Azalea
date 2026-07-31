@@ -1,19 +1,11 @@
 import { describe, expect, it } from "vitest";
-import {
-  coverages,
-  en,
-  getDict,
-  ja,
-  localeNames,
-  possibleLocales,
-  zhCn,
-} from ".";
+import { coverages, getDict, ja, localeNames, possibleLocales, zhCn } from ".";
 
 describe("translations", () => {
   it("keeps all locale dictionaries synchronized", () => {
-    const englishKeys = Object.keys(en).sort();
-    expect(Object.keys(ja).sort()).toEqual(englishKeys);
-    expect(Object.keys(zhCn).sort()).toEqual(englishKeys);
+    const englishKeys = Object.keys(getDict("En")).sort();
+    expect(Object.keys(getDict("Ja", "Ja")).sort()).toEqual(englishKeys);
+    expect(Object.keys(getDict("ZhCn", "ZhCn")).sort()).toEqual(englishKeys);
     expect(coverages).toEqual({ En: 1, Ja: 1, ZhCn: 1 });
   });
 
@@ -30,5 +22,17 @@ describe("translations", () => {
     expect(getDict("ZhCn")["config.spectrogram_preview"]).toBe(
       zhCn.config.spectrogram_preview,
     );
+    expect(getDict("En")["speaker_selection.download_icons"]).toBe(
+      "Download speaker icons",
+    );
+    expect(getDict("Ja")["speaker_selection.download_icons"]).toBe(
+      "話者アイコンをダウンロード",
+    );
+    expect(getDict("ZhCn")["speaker_selection.download_icons"]).toBe(
+      "下载说话人图标",
+    );
+    expect(getDict("En")["config.clear_assets_cache"]).toBe("Clear cache");
+    expect(getDict("Ja")["config.clear_assets_cache"]).toBe("キャッシュを削除");
+    expect(getDict("ZhCn")["config.clear_assets_cache"]).toBe("清除缓存");
   });
 });

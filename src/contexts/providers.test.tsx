@@ -3,7 +3,7 @@ import { render, waitFor } from "@solidjs/testing-library";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import type { Component } from "solid-js";
 import { batch } from "solid-js";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   audioQuery,
   config,
@@ -28,6 +28,10 @@ type SpectrogramStore = NonNullable<ReturnType<typeof useSpectrogramStore>>;
 type ConfigStore = NonNullable<ReturnType<typeof useConfigStore>>;
 type TextStore = NonNullable<ReturnType<typeof useTextStore>>;
 type UiStore = NonNullable<ReturnType<typeof useUIStore>>;
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("MetaProvider", () => {
   it("combines duplicate speakers and sorts speakers and styles by ID", () => {
@@ -76,6 +80,78 @@ describe("MetaProvider", () => {
     expect(store.setMetas(metas)).toEqual(
       new Error("Metas are read-only and we already have some"),
     );
+  });
+
+  it("owns speaker icon Blob URLs across replacements, clears, and cleanup", () => {
+    const createObjectUrl = vi
+      .spyOn(URL, "createObjectURL")
+      .mockReturnValueOnce("blob:first")
+      .mockReturnValueOnce("blob:second")
+      .mockReturnValueOnce("blob:cleanup");
+    const revokeObjectUrl = vi.spyOn(URL, "revokeObjectURL");
+    let store!: MetaStore;
+    const Probe: Component = () => {
+      store = useMetaStore()!;
+      return null;
+    };
+    const rendered = render(() => (
+      <MultiProvider values={[[MetaProvider, []]]}>
+        <Probe />
+      </MultiProvider>
+    ));
+    const request = { speaker_uuid: "speaker", style_id: 7 };
+    const missingRequest = { speaker_uuid: "missing", style_id: 8 };
+    const result = (dataUrl: string) => [
+      { speaker_uuid: "speaker", data_url: dataUrl, error: null },
+    ];
+    const firstRevision = store.speakerIconRevision();
+
+    expect(
+      store.hydrateSpeakerIcons(
+        [request, missingRequest],
+        [
+          ...result("data:image/png;base64,Zmlyc3Q="),
+          { speaker_uuid: "missing", data_url: null, error: null },
+        ],
+        firstRevision,
+      ),
+    ).toBe(true);
+    expect(store.speakerIconUrl(request)).toBe("blob:first");
+    expect(store.speakerIconsAreHydrated([request, missingRequest])).toBe(true);
+    expect(createObjectUrl).toHaveBeenCalledWith(expect.any(Blob));
+
+    expect(
+      store.mergeSpeakerIcons(
+        [request],
+        result("data:image/png;base64,c2Vjb25k"),
+        firstRevision,
+      ),
+    ).toBe(true);
+    expect(store.speakerIconUrl(request)).toBe("blob:second");
+    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:first");
+
+    store.clearSpeakerIcons();
+    expect(store.speakerIconUrl(request)).toBeUndefined();
+    expect(store.speakerIconsAreHydrated([request])).toBe(true);
+    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:second");
+    expect(
+      store.hydrateSpeakerIcons(
+        [request],
+        result("data:image/png;base64,c3RhbGU="),
+        firstRevision,
+      ),
+    ).toBe(false);
+
+    const currentRevision = store.speakerIconRevision();
+    expect(
+      store.mergeSpeakerIcons(
+        [request],
+        result("data:image/png;base64,Y2xlYW51cA=="),
+        currentRevision,
+      ),
+    ).toBe(true);
+    rendered.unmount();
+    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:cleanup");
   });
 });
 

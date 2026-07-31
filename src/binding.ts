@@ -13,6 +13,38 @@ async clearCaches() : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async getCachedSpeakerIcons(requests: SpeakerIconRequest[]) : Promise<Result<SpeakerIconResult[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_cached_speaker_icons", { requests }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async downloadSpeakerIcons(requests: SpeakerIconRequest[]) : Promise<Result<SpeakerIconResult[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("download_speaker_icons", { requests }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getAssetsSize() : Promise<Result<number, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_assets_size") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async clearAssets() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("clear_assets") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async pickCore() : Promise<CoreConfig | null> {
     return await TAURI_INVOKE("pick_core");
 },
@@ -531,6 +563,8 @@ start_slience: number;
  */
 end_slience: number; speaker_uuid?: string | null; style_name?: string | null }
 export type Project = { blocks: TextBlockProps[]; presets: Preset[] }
+export type SpeakerIconRequest = { speaker_uuid: string; style_id: number }
+export type SpeakerIconResult = { speaker_uuid: string; data_url: string | null; error: string | null }
 export type SpectrogramPreview = { values: number[]; frameCount: number; melBins: number; durationSeconds: number }
 /**
  * スタイルID。

@@ -81,6 +81,12 @@
     "primary_color": "メインカラー",
     "hue_saturation": "色相と彩度",
     "normalize": "標準化",
+    "storage": "ストレージ",
+    "assets_cache": "ダウンロード済みアセット",
+    "assets_cache_loading": "計算中…",
+    "clear_assets_cache": "キャッシュを削除",
+    "clearing_assets_cache": "削除中…",
+    "assets_cache_error": "アセットキャッシュを読み込みまたは削除できませんでした。",
     "experimental": "実験的な機能",
     "background_buffering": "音声生成バッファリング",
     "synthesis_delay": "音声合成リクエストの待機時間",
@@ -107,7 +113,12 @@
   "speaker_selection": {
     "title": "話者を選択",
     "open": "話者一覧を開く",
-    "close": "話者選択を閉じる"
+    "close": "話者選択を閉じる",
+    "loading_icons": "保存済みの話者アイコンを読み込み中…",
+    "download_icons": "話者アイコンをダウンロード",
+    "downloading_icons": "話者アイコンをダウンロード中…",
+    "retry_download_icons": "話者アイコンのダウンロードを再試行",
+    "icon_download_failed": "一部の話者アイコンをダウンロードできませんでした。"
   },
   "preset_manager": {
     "title": "プリセット管理",

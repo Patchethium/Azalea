@@ -1,6 +1,7 @@
 use crate::config::manager::assets_dir;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
+use futures_util::{stream, StreamExt};
 use reqwest::{Client, Response, Url};
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -16,6 +17,7 @@ const RAW_CHARACTER_INFO_URL: &str =
   "https://raw.githubusercontent.com/VOICEVOX/voicevox_resource/main/character_info";
 const MAX_ICON_BYTES: usize = 2 * 1024 * 1024;
 const MAX_DIRECTORY_LIST_BYTES: usize = 2 * 1024 * 1024;
+const MAX_CONCURRENT_ICON_DOWNLOADS: usize = 8;
 const PNG_SIGNATURE: &[u8; 8] = b"\x89PNG\r\n\x1a\n";
 const HTTP_TIMEOUT: Duration = Duration::from_secs(20);
 
@@ -344,6 +346,7 @@ async fn download_speaker_icons_at(
           }
         }
         Ok(directories) => {
+          let mut downloads = Vec::new();
           for (index, path) in pending {
             let request = &requests[index];
             if let Ok(Some(bytes)) = read_cached_icon(&path) {
@@ -358,15 +361,30 @@ async fn download_speaker_icons_at(
               ));
               continue;
             };
-            results[index] = Some(
-              match download_icon(&client, directory, request.style_id).await {
-                Ok(bytes) => match write_icon_atomically(assets_root, &path, &bytes) {
-                  Ok(()) => SpeakerIconResult::cached(request, &bytes),
-                  Err(error) => SpeakerIconResult::failed(request, error),
-                },
+            downloads.push((index, path, directory.to_owned(), request.style_id));
+          }
+
+          let completed = stream::iter(downloads)
+            .map(|(index, path, directory, style_id)| {
+              let client = client.clone();
+              async move {
+                let downloaded = download_icon(&client, &directory, style_id).await;
+                (index, path, downloaded)
+              }
+            })
+            .buffer_unordered(MAX_CONCURRENT_ICON_DOWNLOADS)
+            .collect::<Vec<_>>()
+            .await;
+
+          for (index, path, downloaded) in completed {
+            let request = &requests[index];
+            results[index] = Some(match downloaded {
+              Ok(bytes) => match write_icon_atomically(assets_root, &path, &bytes) {
+                Ok(()) => SpeakerIconResult::cached(request, &bytes),
                 Err(error) => SpeakerIconResult::failed(request, error),
               },
-            );
+              Err(error) => SpeakerIconResult::failed(request, error),
+            });
           }
         }
       },
@@ -486,18 +504,25 @@ mod tests {
     let root = directory.path().join("assets");
     let valid_request = request("valid-speaker", 1);
     let invalid_request = request("invalid-speaker", 2);
+    let oversized_request = request("oversized-speaker", 3);
     let valid_path = speaker_icon_path(&root, &valid_request).unwrap();
     let invalid_path = speaker_icon_path(&root, &invalid_request).unwrap();
+    let oversized_path = speaker_icon_path(&root, &oversized_request).unwrap();
     fs::create_dir_all(valid_path.parent().unwrap()).unwrap();
     fs::write(&valid_path, VALID_PNG).unwrap();
     fs::write(&invalid_path, b"not png").unwrap();
+    fs::File::create(&oversized_path)
+      .unwrap()
+      .set_len(MAX_ICON_BYTES as u64 + 1)
+      .unwrap();
 
     let results = cached_speaker_icons_at(
       &root,
       vec![
         valid_request.clone(),
         invalid_request.clone(),
-        request("missing", 3),
+        oversized_request.clone(),
+        request("missing", 4),
       ],
     );
 
@@ -513,9 +538,11 @@ mod tests {
       .as_deref()
       .unwrap()
       .contains("PNG signature"));
+    assert_eq!(results[2].data_url, None);
+    assert!(results[2].error.as_deref().unwrap().contains("size limit"));
     assert_eq!(
-      results[2],
-      SpeakerIconResult::missing(&request("missing", 3))
+      results[3],
+      SpeakerIconResult::missing(&request("missing", 4))
     );
   }
 
@@ -540,14 +567,17 @@ mod tests {
   fn asset_size_and_clear_cover_the_whole_tree() {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path().join("assets");
+    let config_path = directory.path().join("config.json");
     fs::create_dir_all(root.join("speaker-icons")).unwrap();
     fs::create_dir_all(root.join("other/nested")).unwrap();
+    fs::write(&config_path, b"config").unwrap();
     fs::write(root.join("speaker-icons/one.png"), [0_u8; 11]).unwrap();
     fs::write(root.join("other/nested/two.bin"), [0_u8; 7]).unwrap();
 
     assert_eq!(assets_size_at(&root).unwrap(), 18);
     clear_assets_at(&root).unwrap();
     assert_eq!(assets_size_at(&root).unwrap(), 0);
+    assert_eq!(fs::read(&config_path).unwrap(), b"config");
     clear_assets_at(&root).unwrap();
   }
 

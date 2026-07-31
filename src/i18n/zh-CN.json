@@ -73,6 +73,12 @@
     "primary_color": "主色调",
     "hue_saturation": "色相和饱和度",
     "normalize": "标准化",
+    "storage": "存储",
+    "assets_cache": "已下载资源",
+    "assets_cache_loading": "正在计算…",
+    "clear_assets_cache": "清除缓存",
+    "clearing_assets_cache": "正在清除…",
+    "assets_cache_error": "无法读取或清除资源缓存。",
     "experimental": "实验性功能",
     "background_buffering": "后台缓冲音频生成",
     "synthesis_delay": "合成请求延迟",
@@ -107,7 +113,12 @@
   "speaker_selection": {
     "title": "选择说话人",
     "open": "浏览说话人",
-    "close": "关闭说话人选择"
+    "close": "关闭说话人选择",
+    "loading_icons": "正在加载已保存的说话人图标…",
+    "download_icons": "下载说话人图标",
+    "downloading_icons": "正在下载说话人图标…",
+    "retry_download_icons": "重试下载说话人图标",
+    "icon_download_failed": "部分说话人图标无法下载。"
   },
   "preset_manager": {
     "title": "预设管理",

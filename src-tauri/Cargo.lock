@@ -263,6 +263,7 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "dirs",
+ "futures-util",
  "hound",
  "lru",
  "ndarray",

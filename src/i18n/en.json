@@ -73,6 +73,12 @@
     "primary_color": "Primary color",
     "hue_saturation": "Hue and saturation",
     "normalize": "Normalize",
+    "storage": "Storage",
+    "assets_cache": "Downloaded assets",
+    "assets_cache_loading": "Calculating…",
+    "clear_assets_cache": "Clear cache",
+    "clearing_assets_cache": "Clearing…",
+    "assets_cache_error": "Could not read or clear the asset cache.",
     "experimental": "Experimental Features",
     "background_buffering": "Background Buffering for Audio Generation",
     "synthesis_delay": "Synthesis request delay",
@@ -107,7 +113,12 @@
   "speaker_selection": {
     "title": "Select Speaker",
     "open": "Browse speakers",
-    "close": "Close speaker selection"
+    "close": "Close speaker selection",
+    "loading_icons": "Loading saved speaker icons…",
+    "download_icons": "Download speaker icons",
+    "downloading_icons": "Downloading speaker icons…",
+    "retry_download_icons": "Retry downloading speaker icons",
+    "icon_download_failed": "Some speaker icons could not be downloaded."
   },
   "preset_manager": {
     "title": "Preset Manager",
