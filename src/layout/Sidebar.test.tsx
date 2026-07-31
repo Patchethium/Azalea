@@ -4,6 +4,7 @@ import { mockIPC } from "@tauri-apps/api/mocks";
 import userEvent from "@testing-library/user-event";
 import { batch, type Component, onMount } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
+import type { CharacterMeta } from "../binding";
 import { ConfigProvider, useConfigStore } from "../contexts/config";
 import { i18nProvider } from "../contexts/i18n";
 import { MetaProvider, useMetaStore } from "../contexts/meta";
@@ -12,6 +13,17 @@ import { TextProvider, useTextStore } from "../contexts/text";
 import { UIProvider } from "../contexts/ui";
 import { audioQuery, config, metas, preset } from "../test/fixtures";
 import Sidebar from "./Sidebar";
+
+const secondSpeaker: CharacterMeta = {
+  name: "Second Speaker",
+  speaker_uuid: "speaker-2",
+  version: "1.0.0",
+  order: 1,
+  styles: [
+    { id: 10, name: "Normal", order: 0, type: "talk" },
+    { id: 11, name: "Happy", order: 1, type: "talk" },
+  ],
+};
 
 const dialogs = vi.hoisted(() => ({
   open: vi.fn(),
@@ -156,5 +168,106 @@ describe("Sidebar project lifecycle", () => {
     );
     expect(text.projectPath()).toBe("/tmp/loaded.azp");
     expect(text.textStore[0].text).toBe("Autosaved edit");
+  });
+});
+
+describe("Sidebar speaker selection", () => {
+  it("leaves the preset unchanged until a speaker is selected", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    let text!: NonNullable<ReturnType<typeof useTextStore>>;
+
+    const Harness: Component = () => {
+      text = useTextStore()!;
+      const meta = useMetaStore()!;
+      onMount(() => {
+        batch(() => {
+          meta.setMetas([...metas, secondSpeaker]);
+          text.setProjectPresetStore([preset()]);
+          text.replaceTextBlocks([
+            {
+              id: "current-block",
+              text: "Current block",
+              query: audioQuery(),
+              query_is_modified: true,
+              preset_id: 0,
+            },
+            {
+              id: "related-block",
+              text: "Related block",
+              query: audioQuery(),
+              query_is_modified: true,
+              preset_id: 0,
+            },
+          ]);
+        });
+      });
+      return <Sidebar />;
+    };
+
+    render(() => (
+      <main>
+        <MultiProvider
+          values={[
+            [MetaProvider, []],
+            [UIProvider, null],
+            [ConfigProvider, null],
+            [SystemProvider, null],
+            [i18nProvider, null],
+            [TextProvider, null],
+          ]}
+        >
+          <Harness />
+        </MultiProvider>
+      </main>
+    ));
+
+    const browseSpeakers = await screen.findByRole("button", {
+      name: "Browse speakers",
+    });
+    await user.click(browseSpeakers);
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "Select Speaker",
+    });
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Speaker" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(
+      screen.getByRole("button", { name: "Second Speaker" }),
+    ).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(
+      screen.getByRole("button", { name: "Close speaker selection" }),
+    );
+    expect(text.projectPresetStore[0]).toMatchObject({
+      style_id: 1,
+      speaker_uuid: "speaker-1",
+      style_name: "Normal",
+    });
+
+    await user.click(browseSpeakers);
+    await user.click(
+      await screen.findByRole("button", { name: "Second Speaker" }),
+    );
+
+    expect(text.projectPresetStore[0]).toMatchObject({
+      style_id: 10,
+      speaker_uuid: "speaker-2",
+      style_name: "Normal",
+    });
+    expect(text.textStore.map((block) => block.query_is_modified)).toEqual([
+      false,
+      false,
+    ]);
+    expect(dialog).toHaveAttribute("data-closed");
+    expect(
+      screen.getByRole("button", { name: "Speaker Second Speaker" }),
+    ).toHaveTextContent("Second Speaker");
+    expect(
+      screen.getByRole("button", { name: "Style Normal" }),
+    ).toHaveTextContent("Normal");
   });
 });

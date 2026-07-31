@@ -29,6 +29,7 @@ import { commands, Preset, StyleId } from "../binding";
 import { AboutDialog } from "../components/AboutDialog";
 import { PresetManagerDialog } from "../components/PresetManagerDialog";
 import { ShortcutReferenceDialog } from "../components/ShortcutReferenceDialog";
+import { SpeakerSelectionDialog } from "../components/SpeakerSelectionDialog";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { useMetaStore } from "../contexts/meta";
@@ -140,6 +141,7 @@ function Sidebar() {
 
   const [expanded, setExpanded] = createSignal(["preset"]);
   const [presetManagerOpen, setPresetManagerOpen] = createSignal(false);
+  const [speakerSelectionOpen, setSpeakerSelectionOpen] = createSignal(false);
   const [aboutOpen, setAboutOpen] = createSignal(false);
 
   const currentText = selectedTextBlock;
@@ -510,6 +512,17 @@ function Sidebar() {
                 options={availableSpeakerNames()}
                 value={curMeta()?.name ?? ""}
                 onChange={selectSpeakerByName}
+                action={
+                  <Button
+                    type="button"
+                    aria-label={t1("speaker_selection.open")}
+                    title={t1("speaker_selection.open")}
+                    class="size-8 shrink-0 flex items-center justify-center rounded-md b b-slate-2 bg-transparent outline-none hover:(b-primary-5 bg-primary-1) focus-visible:(ring-2 ring-primary-3) dark:(b-slate-6 hover:bg-slate-7)"
+                    onClick={() => setSpeakerSelectionOpen(true)}
+                  >
+                    <div class="i-lucide:layout-grid size-4" />
+                  </Button>
+                }
               />
               <OptionSelector
                 name={t1("preset.style")}
@@ -567,6 +580,17 @@ function Sidebar() {
           </Accordion.Content>
         </Accordion.Item>
       </Accordion>
+
+      <SpeakerSelectionDialog
+        open={speakerSelectionOpen()}
+        onOpenChange={setSpeakerSelectionOpen}
+        speakers={metas}
+        selectedSpeakerUuid={curMeta()?.speaker_uuid ?? null}
+        onSelect={(speaker) => {
+          setStyleId(speaker.styles[0].id);
+          setSpeakerSelectionOpen(false);
+        }}
+      />
 
       <div class="flex flex-row items-center gap-1">
         <DropdownMenu open={actionMenuOpen()} onOpenChange={setActionMenuOpen}>
@@ -647,6 +671,7 @@ function OptionSelector(props: {
   options: string[];
   value: string;
   onChange: (v: string) => void;
+  action?: JSX.Element;
 }) {
   return (
     <Select
@@ -670,16 +695,21 @@ function OptionSelector(props: {
       <Select.Label class="text-sm select-none cursor-default">
         {props.name}
       </Select.Label>
-      <Select.Trigger
-        class="flex flex-row items-center justify-between px2 w-full bg-white dark:bg-slate-8
-                        h-8 bg-transparent border border-slate-2 rounded-md
-                        hover:(bg-slate-1 dark:bg-slate-7) dark:border-slate-6"
-      >
-        <Select.Value<string>>{(state) => state.selectedOption()}</Select.Value>
-        <Select.Icon>
-          <div class="size-4 i-lucide:chevrons-up-down" />
-        </Select.Icon>
-      </Select.Trigger>
+      <div class="flex w-full items-center gap1">
+        <Select.Trigger
+          class="flex flex-1 min-w-0 flex-row items-center justify-between px2 bg-white dark:bg-slate-8
+                          h-8 bg-transparent border border-slate-2 rounded-md
+                          hover:(bg-slate-1 dark:bg-slate-7) dark:border-slate-6"
+        >
+          <Select.Value<string>>
+            {(state) => state.selectedOption()}
+          </Select.Value>
+          <Select.Icon>
+            <div class="size-4 i-lucide:chevrons-up-down" />
+          </Select.Icon>
+        </Select.Trigger>
+        {props.action}
+      </div>
       <Select.Portal>
         <Select.Content class="bg-white dark:bg-slate-8 w-full rounded-lg border border-slate-2 dark:border-slate-6 overflow-y-auto max-h-[50vh]">
           <Select.Listbox class="bg-white dark:bg-slate-8 flex flex-col p1 overflow-y-hidden" />

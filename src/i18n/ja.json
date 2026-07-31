@@ -104,6 +104,11 @@
     "no_preset_selected": "プリセットが指定されていません",
     "get_started": "始めるには、新しいプリセットを作成してください"
   },
+  "speaker_selection": {
+    "title": "話者を選択",
+    "open": "話者一覧を開く",
+    "close": "話者選択を閉じる"
+  },
   "preset_manager": {
     "title": "プリセット管理",
     "close": "プリセット管理を閉じる",

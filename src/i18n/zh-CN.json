@@ -104,6 +104,11 @@
     "no_preset_selected": "未选择预设",
     "get_started": "新建预设以开始使用"
   },
+  "speaker_selection": {
+    "title": "选择说话人",
+    "open": "浏览说话人",
+    "close": "关闭说话人选择"
+  },
   "preset_manager": {
     "title": "预设管理",
     "close": "关闭预设管理器",

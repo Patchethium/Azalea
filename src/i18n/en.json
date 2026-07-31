@@ -104,6 +104,11 @@
     "no_preset_selected": "No Preset Selected",
     "get_started": "Create a new preset to get started"
   },
+  "speaker_selection": {
+    "title": "Select Speaker",
+    "open": "Browse speakers",
+    "close": "Close speaker selection"
+  },
   "preset_manager": {
     "title": "Preset Manager",
     "close": "Close preset manager",
