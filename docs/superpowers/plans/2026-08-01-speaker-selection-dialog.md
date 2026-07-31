@@ -562,3 +562,139 @@ git log -1 --oneline
 ```
 
 Expected: the worktree is clean and the latest commit is `feat: add speaker selection dialog`.
+
+---
+
+### Task 4: Normalize Global Speaker Order by Minimum Style ID
+
+**Files:**
+
+- Modify: `src/contexts/providers.test.tsx`
+- Modify: `src/contexts/meta.ts`
+- Modify: `docs/superpowers/specs/2026-08-01-speaker-selection-dialog-design.md`
+- Modify: `docs/superpowers/plans/2026-08-01-speaker-selection-dialog.md`
+
+**Interfaces:**
+
+- Consumes: `CharacterMeta.styles`, where every speaker is guaranteed to have at least one globally unique numeric style ID.
+- Produces: `MetaProvider.metas` with duplicate UUIDs combined, each speaker's styles sorted by ascending ID, and speakers sorted by their minimum style ID.
+
+- [ ] **Step 1: Strengthen the provider normalization test**
+
+Replace the current `MetaProvider` test fixture with two speakers supplied in reverse minimum-style-ID order. Keep the second speaker's styles unsorted and include a duplicate entry for the first speaker:
+
+```tsx
+it("combines duplicate speakers and sorts speakers and styles by ID", () => {
+  let store!: MetaStore;
+  const Probe: Component = () => {
+    store = useMetaStore()!;
+    return null;
+  };
+  render(() => (
+    <MultiProvider values={[[MetaProvider, []]]}>
+      <Probe />
+    </MultiProvider>
+  ));
+
+  const largerMinimum = {
+    ...metas[0],
+    name: "Larger minimum",
+    speaker_uuid: "speaker-larger",
+    styles: [
+      { id: 6, name: "Six", order: 2, type: "talk" as const },
+      { id: 4, name: "Four", order: 0, type: "talk" as const },
+    ],
+  };
+  const smallerMinimum = {
+    ...metas[0],
+    name: "Smaller minimum",
+    speaker_uuid: "speaker-smaller",
+    styles: [
+      { id: 10, name: "Ten", order: 1, type: "talk" as const },
+      { id: 2, name: "Two", order: 0, type: "talk" as const },
+    ],
+  };
+  const largerMinimumDuplicate = {
+    ...largerMinimum,
+    styles: [{ id: 5, name: "Five", order: 1, type: "talk" as const }],
+  };
+
+  expect(
+    store.setMetas([
+      largerMinimum,
+      smallerMinimum,
+      largerMinimumDuplicate,
+    ]),
+  ).toBeUndefined();
+  expect(store.metas.map((speaker) => speaker.name)).toEqual([
+    "Smaller minimum",
+    "Larger minimum",
+  ]);
+  expect(store.availableStyleIds()).toEqual([2, 10, 4, 5, 6]);
+  expect(store.setMetas(metas)).toEqual(
+    new Error("Metas are read-only and we already have some"),
+  );
+});
+```
+
+This test catches insertion-order rendering, sorting speakers before their styles, failure to combine duplicate UUIDs, and loss of the provider's read-only contract.
+
+- [ ] **Step 2: Run the provider test and verify RED**
+
+Run:
+
+```sh
+pnpm exec vitest run ./src/contexts/providers.test.tsx --exclude '.worktrees/**'
+```
+
+Expected: FAIL because the current provider leaves `Larger minimum` before `Smaller minimum`.
+
+- [ ] **Step 3: Sort combined speakers after sorting their styles**
+
+In `src/contexts/meta.ts`, retain the existing per-speaker style normalization, then sort the cloned combined collection:
+
+```ts
+combinedMetas.forEach((meta) => {
+  meta.styles.sort((a, b) => (a.id < b.id ? -1 : 1));
+});
+combinedMetas.sort((a, b) => a.styles[0].id - b.styles[0].id);
+_setMetas(combinedMetas);
+```
+
+Do not sort `newMetas` directly and do not add a second dialog-local sort.
+
+- [ ] **Step 4: Verify GREEN and related speaker behavior**
+
+Run:
+
+```sh
+pnpm exec vitest run ./src/contexts/providers.test.tsx ./src/layout/Sidebar.test.tsx --exclude '.worktrees/**'
+```
+
+Expected: both provider normalization and dialog behavior PASS.
+
+- [ ] **Step 5: Run fresh complete frontend verification**
+
+Run:
+
+```sh
+pnpm check
+pnpm build
+pnpm exec vitest run --exclude '.worktrees/**'
+```
+
+Expected: Biome, the Vite production build, and every test in the current checkout PASS.
+
+- [ ] **Step 6: Review and create one follow-up commit**
+
+Run:
+
+```sh
+git status --short
+git diff --check
+git diff -- src/binding.ts src-tauri
+git add .
+git commit -m "fix: sort speakers by minimum style id"
+```
+
+Expected: only provider normalization, its test, and the approved design/plan update are included; no Rust or generated-binding changes exist.

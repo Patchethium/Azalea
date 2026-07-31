@@ -28,6 +28,12 @@ The component uses Kobalte `Dialog` and the existing `AppDialogContent` shell. I
 
 `Sidebar` owns the dialog's open signal, passes the metadata and current speaker UUID, and handles a selected speaker. The speaker selector and its new button are arranged in one row, while the selector's existing label remains above that row. The generic `OptionSelector` may gain an optional adjacent-action slot or a small speaker-specific wrapper, whichever preserves the style selector without duplicated select markup.
 
+## Metadata Ordering
+
+`MetaProvider` normalizes ordering globally after it combines metadata entries with the same `speaker_uuid`. It first sorts each speaker's styles by ascending numeric style ID, then sorts the combined speaker list by each speaker's first style ID. Because every speaker has at least one style, the first style ID is also that speaker's minimum style ID.
+
+The provider continues cloning incoming metadata before normalization, so it does not mutate the caller's collection. All consumers, including the existing speaker dropdown and the new dialog grid, receive the same deterministic speaker order. The dialog does not perform its own additional sorting.
+
 ## Data Flow
 
 1. The user opens the dialog from the button beside the speaker selector.
@@ -56,8 +62,10 @@ Add behavior-focused coverage to `src/layout/Sidebar.test.tsx` using the existin
 - The dialog closes after selection and the Accordion controls display the new speaker and style.
 - Dismissing the dialog without selecting leaves the preset unchanged.
 
+Extend the `MetaProvider` test in `src/contexts/providers.test.tsx` with speakers supplied in reverse minimum-style-ID order. Assert that duplicate speakers are still combined, each speaker's styles remain sorted, and the final speakers are ordered by their minimum style IDs. This regression test must fail against insertion-order behavior before the provider implementation changes.
+
 The translation synchronization test must continue to pass. This is frontend-only work: it does not change Tauri commands or shared Rust types, so Rust tests and TypeScript binding regeneration are not required.
 
 ## Scope
 
-This feature does not add speaker search, filtering, portraits, style selection inside the dialog, metadata changes, backend commands, or project schema changes.
+This feature does not add speaker search, filtering, portraits, style selection inside the dialog, backend metadata changes, backend commands, or project schema changes.

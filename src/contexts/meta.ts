@@ -29,6 +29,7 @@ const [MetaProvider, useMetaStore] = createContextProvider(() => {
       combinedMetas.forEach((meta) => {
         meta.styles.sort((a, b) => (a.id < b.id ? -1 : 1));
       });
+      combinedMetas.sort((a, b) => a.styles[0].id - b.styles[0].id);
       _setMetas(combinedMetas);
     } else {
       return new Error("Metas are read-only and we already have some");

@@ -30,7 +30,7 @@ type TextStore = NonNullable<ReturnType<typeof useTextStore>>;
 type UiStore = NonNullable<ReturnType<typeof useUIStore>>;
 
 describe("MetaProvider", () => {
-  it("combines duplicate speakers, sorts their styles, and stays read-only", () => {
+  it("combines duplicate speakers and sorts speakers and styles by ID", () => {
     let store!: MetaStore;
     const Probe: Component = () => {
       store = useMetaStore()!;
@@ -42,13 +42,37 @@ describe("MetaProvider", () => {
       </MultiProvider>
     ));
 
-    const duplicate = {
+    const largerMinimum = {
       ...metas[0],
-      styles: [{ id: 0, name: "Whisper", order: 2, type: "talk" as const }],
+      name: "Larger minimum",
+      speaker_uuid: "speaker-larger",
+      styles: [
+        { id: 6, name: "Six", order: 2, type: "talk" as const },
+        { id: 4, name: "Four", order: 0, type: "talk" as const },
+      ],
     };
-    expect(store.setMetas([...metas, duplicate])).toBeUndefined();
-    expect(store.metas).toHaveLength(1);
-    expect(store.availableStyleIds()).toEqual([0, 1, 2]);
+    const smallerMinimum = {
+      ...metas[0],
+      name: "Smaller minimum",
+      speaker_uuid: "speaker-smaller",
+      styles: [
+        { id: 10, name: "Ten", order: 1, type: "talk" as const },
+        { id: 2, name: "Two", order: 0, type: "talk" as const },
+      ],
+    };
+    const largerMinimumDuplicate = {
+      ...largerMinimum,
+      styles: [{ id: 5, name: "Five", order: 1, type: "talk" as const }],
+    };
+
+    expect(
+      store.setMetas([largerMinimum, smallerMinimum, largerMinimumDuplicate]),
+    ).toBeUndefined();
+    expect(store.metas.map((speaker) => speaker.name)).toEqual([
+      "Smaller minimum",
+      "Larger minimum",
+    ]);
+    expect(store.availableStyleIds()).toEqual([2, 10, 4, 5, 6]);
     expect(store.setMetas(metas)).toEqual(
       new Error("Metas are read-only and we already have some"),
     );
