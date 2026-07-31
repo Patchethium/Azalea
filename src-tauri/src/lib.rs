@@ -37,6 +37,10 @@ fn specta_builder() -> Builder<tauri::Wry> {
   Builder::<tauri::Wry>::new()
     .commands(collect_commands![
       clear_caches,
+      get_cached_speaker_icons,
+      download_speaker_icons,
+      get_assets_size,
+      clear_assets,
       pick_core,
       init_config,
       get_config,

@@ -30,6 +30,10 @@ static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
 #[cfg(feature = "e2e")]
 static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| std::env::temp_dir().join("azalea-e2e"));
 
+pub(crate) fn assets_dir() -> PathBuf {
+  CONFIG_DIR.join("assets")
+}
+
 /// This struct serves the purpose of serializing/deserializing it to/from a file.
 /// It also saves a in-memory copy of the config.
 pub struct ConfigManager {
