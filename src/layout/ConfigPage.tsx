@@ -18,6 +18,7 @@ import {
 } from "solid-js";
 import { commands, Locale, ThemeMode } from "../binding";
 import { AppDialogContent } from "../components/AppDialogContent";
+import { IconButton } from "../components/IconButton";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { useMetaStore } from "../contexts/meta";
@@ -497,9 +498,11 @@ function ConfigItem(props: ConfigItemProps) {
       )}
       {props.label}
       {props.experimental && (
-        <div
-          class="i-lucide:flask-conical ml-1 size-5 text-slate-7 hover:bg-primary-5"
-          title={t1("config.experimental")}
+        <IconButton
+          icon="i-lucide:flask-conical"
+          label={t1("config.experimental")}
+          size="sm"
+          class="ml-1"
         />
       )}
       <div class="flex-1" />

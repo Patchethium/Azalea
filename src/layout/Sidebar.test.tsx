@@ -222,6 +222,34 @@ describe("Sidebar speaker selection", () => {
       </main>
     ));
 
+    await screen.findByRole("button", { name: "Create preset" });
+    expect(
+      screen.getByRole("button", { name: "Move preset up" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Move preset down" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Manage presets" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Delete preset" }),
+    ).toBeInTheDocument();
+    const increaseStartSilence = screen.getByRole("button", {
+      name: "Increase Start Sli.",
+    });
+    expect(
+      screen.getByRole("button", { name: "Decrease Start Sli." }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Increase End Sli." }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Decrease End Sli." }),
+    ).toBeInTheDocument();
+    await user.click(increaseStartSilence);
+    expect(text.projectPresetStore[0].start_slience).toBe(200);
+
     const browseSpeakers = await screen.findByRole("button", {
       name: "Browse speakers",
     });

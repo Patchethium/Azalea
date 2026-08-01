@@ -150,18 +150,30 @@ describe("TextBlock", () => {
     });
     const { getTextStore } = renderBlock(false);
 
-    const buttons = await screen.findAllByRole("button");
-    expect(buttons).toHaveLength(5);
-    fireEvent.click(buttons[0]);
+    const addButton = await screen.findByRole("button", {
+      name: "Add text cell below",
+    });
+    expect(
+      screen.getByRole("button", { name: "Save audio" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Move text cell up" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Move text cell down" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Delete text cell" }),
+    ).toBeInTheDocument();
+    fireEvent.click(addButton);
     expect(getTextStore().textStore).toHaveLength(2);
 
     fireEvent.focus(screen.getByLabelText("Text to synthesize"));
-    fireEvent.click(screen.getAllByRole("button")[4]);
+    fireEvent.click(screen.getByRole("button", { name: "Delete text cell" }));
     expect(getTextStore().textStore).toHaveLength(1);
     expect(getTextStore().textStore[0].text).toBe("");
 
-    const remainingButtons = screen.getAllByRole("button");
-    fireEvent.click(remainingButtons[4]);
+    fireEvent.click(screen.getByRole("button", { name: "Delete text cell" }));
     expect(getTextStore().textStore).toHaveLength(1);
     expect(getTextStore().textStore[0]).toMatchObject({ text: "" });
   });
@@ -238,9 +250,11 @@ describe("TextBlock", () => {
     vi.spyOn(commands, "parentPath").mockResolvedValue("/exports");
 
     const { getConfigStore } = renderBlock(false);
-    const buttons = await screen.findAllByRole("button");
-    await waitFor(() => expect(buttons[1]).toBeEnabled());
-    fireEvent.click(buttons[1]);
+    const saveButton = await screen.findByRole("button", {
+      name: "Save audio",
+    });
+    await waitFor(() => expect(saveButton).toBeEnabled());
+    fireEvent.click(saveButton);
 
     await waitFor(() => expect(saveAudio).toHaveBeenCalledOnce());
     expect(saveAudio.mock.calls[0]).toMatchObject([

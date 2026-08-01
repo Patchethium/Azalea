@@ -144,6 +144,34 @@ const renderPanel = (
 };
 
 describe("BottomPanel playback", () => {
+  it("labels and navigates between adjacent text cells", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const { getUiStore } = renderPanel();
+
+    const previous = await screen.findByRole("button", {
+      name: "Select previous text cell",
+    });
+    const next = screen.getByRole("button", {
+      name: "Select next text cell",
+    });
+    expect(previous).toBeDisabled();
+    expect(next).toBeEnabled();
+
+    fireEvent.click(next);
+    await waitFor(() =>
+      expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(1),
+    );
+    expect(previous).toBeEnabled();
+    expect(next).toBeDisabled();
+
+    fireEvent.click(previous);
+    await waitFor(() =>
+      expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(0),
+    );
+  });
+
   it("plays, stops, reacts to completion, and builds a sequence from valid blocks", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,

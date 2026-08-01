@@ -1,4 +1,3 @@
-import { Button } from "@kobalte/core/button";
 import { Slider } from "@kobalte/core/slider";
 import { Tabs } from "@kobalte/core/tabs";
 import { TextField } from "@kobalte/core/text-field";
@@ -38,6 +37,7 @@ import {
   resolveShortcut,
 } from "../shortcuts";
 import { getModifiedQuery, useSideEffect } from "../utils";
+import { IconButton } from "./IconButton";
 
 type DraggingMode = "consonant" | "vowel" | "pause";
 type WaveformSynthesisNotice = {
@@ -295,45 +295,32 @@ function ControlBar(props: {
   return (
     <div class="w-full h-8 p2 flex m-l-auto flex-row items-center justify-center gap-1 b-b b-slate-3 dark:b-slate-6 select-none">
       <div class="flex-1" />
-      <Button
-        class="group h-5 w-5 bg-transparent rounded-md ui-disabled:(cursor-not-allowed opacity-50)"
+      <IconButton
+        icon="i-lucide:skip-back"
+        label={t1("bottom.previous")}
+        size="sm"
         onClick={focusPrev}
         disabled={!prevExists()}
-      >
-        <div class="i-lucide:skip-back size-full group-hover:bg-primary-5 group-active:bg-primary-6" />
-      </Button>
-      <Button
-        class="group h-6 w-6 bg-transparent rounded-md ui-disabled:(cursor-not-allowed opacity-50)"
+      />
+      <IconButton
+        icon={isPlaying() ? "i-lucide:square" : "i-lucide:play"}
+        label={t1(isPlaying() ? "bottom.stop" : "bottom.play")}
         onClick={() => (isPlaying() ? stop() : speak())}
         disabled={!isPlaying() && !queryExists()}
-        title={t1(isPlaying() ? "bottom.stop" : "bottom.play")}
-        aria-label={t1(isPlaying() ? "bottom.stop" : "bottom.play")}
-      >
-        <Show
-          when={isPlaying()}
-          fallback={
-            <div class="i-lucide:play size-full group-hover:bg-primary-5 group-active:bg-primary-6" />
-          }
-        >
-          <div class="i-lucide:square size-full group-hover:bg-primary-5 group-active:bg-primary-6" />
-        </Show>
-      </Button>
-      <Button
-        class="group h-6 w-6 bg-transparent rounded-md ui-disabled:(cursor-not-allowed opacity-50)"
+      />
+      <IconButton
+        icon="i-lucide:list-video"
+        label={t1("bottom.play_all_from_selection")}
         onClick={speakAllFromSelection}
         disabled={playableFromSelection().length === 0}
-        title={t1("bottom.play_all_from_selection")}
-        aria-label={t1("bottom.play_all_from_selection")}
-      >
-        <div class="i-lucide:list-video size-full group-hover:bg-primary-5 group-active:bg-primary-6" />
-      </Button>
-      <Button
-        class="group h-5 w-5 bg-transparent rounded-md ui-disabled:(cursor-not-allowed opacity-50)"
+      />
+      <IconButton
+        icon="i-lucide:skip-forward"
+        label={t1("bottom.next")}
+        size="sm"
         onClick={focusNext}
         disabled={!nextExists()}
-      >
-        <div class="i-lucide:skip-forward size-full group-hover:bg-primary-5 group-active:bg-primary-6" />
-      </Button>
+      />
       <div class="flex-1" />
     </div>
   );

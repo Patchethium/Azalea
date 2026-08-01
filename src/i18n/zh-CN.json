@@ -14,6 +14,8 @@
     "no_block": "未选择文本单元格",
     "accent": "重音",
     "tuning": "调音",
+    "previous": "选择上一个文本单元格",
+    "next": "选择下一个文本单元格",
     "play": "播放选中的单元格",
     "play_all_from_selection": "播放选中的单元格及下方所有单元格",
     "stop": "停止播放"
@@ -43,6 +45,13 @@
   },
   "text_block": {
     "input_label": "待合成文本",
+    "controls": {
+      "add_below": "在下方添加文本单元格",
+      "save_audio": "保存音频",
+      "move_up": "上移文本单元格",
+      "move_down": "下移文本单元格",
+      "delete": "删除文本单元格"
+    },
     "empty_project": {
       "title": "此项目中没有文本单元格",
       "description": "创建一个文本单元格即可开始输入。",
@@ -98,6 +107,15 @@
   "preset": {
     "title": "预设",
     "new_preset": "新建预设",
+    "controls": {
+      "create": "创建预设",
+      "move_up": "上移预设",
+      "move_down": "下移预设",
+      "manage": "管理预设",
+      "delete": "删除预设",
+      "increase": "增加{{ label }}",
+      "decrease": "减少{{ label }}"
+    },
     "name": "名称",
     "speaker": "说话人",
     "style": "风格",

@@ -14,6 +14,8 @@
     "no_block": "No text cell selected",
     "accent": "Accent",
     "tuning": "Tuning",
+    "previous": "Select previous text cell",
+    "next": "Select next text cell",
     "play": "Play selected cell",
     "play_all_from_selection": "Play selected cell and all cells below",
     "stop": "Stop playback"
@@ -43,6 +45,13 @@
   },
   "text_block": {
     "input_label": "Text to synthesize",
+    "controls": {
+      "add_below": "Add text cell below",
+      "save_audio": "Save audio",
+      "move_up": "Move text cell up",
+      "move_down": "Move text cell down",
+      "delete": "Delete text cell"
+    },
     "empty_project": {
       "title": "This project has no text cells",
       "description": "Create a text cell to start writing.",
@@ -98,6 +107,15 @@
   "preset": {
     "title": "Preset",
     "new_preset": "New Preset",
+    "controls": {
+      "create": "Create preset",
+      "move_up": "Move preset up",
+      "move_down": "Move preset down",
+      "manage": "Manage presets",
+      "delete": "Delete preset",
+      "increase": "Increase {{ label }}",
+      "decrease": "Decrease {{ label }}"
+    },
     "name": "Name",
     "speaker": "Speaker",
     "style": "Style",

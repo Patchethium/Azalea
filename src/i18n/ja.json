@@ -14,6 +14,8 @@
     "no_block": "テキストセルが選択されていません",
     "accent": "アクセント",
     "tuning": "調整",
+    "previous": "前のテキストセルを選択",
+    "next": "次のテキストセルを選択",
     "play": "選択したセルを再生",
     "play_all_from_selection": "選択したセル以降をすべて再生",
     "stop": "再生を停止"
@@ -43,6 +45,13 @@
   },
   "text_block": {
     "input_label": "読み上げるテキスト",
+    "controls": {
+      "add_below": "下にテキストセルを追加",
+      "save_audio": "音声を保存",
+      "move_up": "テキストセルを上へ移動",
+      "move_down": "テキストセルを下へ移動",
+      "delete": "テキストセルを削除"
+    },
     "empty_project": {
       "title": "このプロジェクトにはテキストセルがありません",
       "description": "最初のテキストセルを作成して入力を始めましょう。",
@@ -98,6 +107,15 @@
   "preset": {
     "title": "プリセット",
     "new_preset": "新しいプリセット",
+    "controls": {
+      "create": "プリセットを作成",
+      "move_up": "プリセットを上へ移動",
+      "move_down": "プリセットを下へ移動",
+      "manage": "プリセットを管理",
+      "delete": "プリセットを削除",
+      "increase": "{{ label }}を増やす",
+      "decrease": "{{ label }}を減らす"
+    },
     "name": "プリセット名",
     "speaker": "話者",
     "style": "スタイル",

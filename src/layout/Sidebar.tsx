@@ -1,5 +1,4 @@
 import { Accordion } from "@kobalte/core/accordion";
-import { Button } from "@kobalte/core/button";
 import { Checkbox } from "@kobalte/core/checkbox";
 import { DropdownMenu } from "@kobalte/core/dropdown-menu";
 import { NumberField } from "@kobalte/core/number-field";
@@ -27,6 +26,7 @@ import {
 import { produce } from "solid-js/store";
 import { commands, Preset, StyleId } from "../binding";
 import { AboutDialog } from "../components/AboutDialog";
+import { IconButton } from "../components/IconButton";
 import { PresetManagerDialog } from "../components/PresetManagerDialog";
 import { ShortcutReferenceDialog } from "../components/ShortcutReferenceDialog";
 import { SpeakerSelectionDialog } from "../components/SpeakerSelectionDialog";
@@ -409,35 +409,38 @@ function Sidebar() {
     <div class="size-full bg-transparent flex flex-col gap-1 pl2 pr0 overflow-y-hidden">
       {/* Controls */}
       <div class="w-auto flex items-center rounded-md bg-white dark:bg-slate-8 mt-2 mx-1 p1 shadow-md z-10">
-        <Button
-          class="size-6 i-lucide:plus hover:bg-primary-5 active:bg-primary-6"
+        <IconButton
+          icon="i-lucide:plus"
+          label={t1("preset.controls.create")}
           onClick={createPreset}
         />
-        <Button
-          class="size-6 i-lucide:chevron-up hover:bg-primary-5 active:bg-primary-6 ui-disabled:(cursor-not-allowed opacity-50)"
+        <IconButton
+          icon="i-lucide:chevron-up"
+          label={t1("preset.controls.move_up")}
           disabled={
             currentText()?.preset_id == null || currentText()?.preset_id === 0
           }
           onClick={() => handleMovePresetUp(currentText()?.preset_id ?? 0)}
-          title={t1("preset_manager.title")}
         />
-        <Button
-          class="size-6 i-lucide:chevron-down hover:bg-primary-5 active:bg-primary-6 ui-disabled:(cursor-not-allowed opacity-50)"
+        <IconButton
+          icon="i-lucide:chevron-down"
+          label={t1("preset.controls.move_down")}
           disabled={
             currentText()?.preset_id == null ||
             currentText()?.preset_id === projectPresetStore.length - 1
           }
           onClick={() => handleMovePresetDown(currentText()?.preset_id ?? 0)}
-          title={t1("preset_manager.title")}
         />
         <div class="flex-1" />
-        <Button
-          class="size-6 i-lucide:library hover:bg-primary-5 active:bg-primary-6"
+        <IconButton
+          icon="i-lucide:library"
+          label={t1("preset.controls.manage")}
           onClick={() => setPresetManagerOpen(true)}
-          title={t1("preset_manager.title")}
         />
-        <Button
-          class="size-6 i-lucide:trash2 hover:bg-red-5 active:bg-red-6 ui-disabled:(cursor-not-allowed opacity-50)"
+        <IconButton
+          icon="i-lucide:trash2"
+          label={t1("preset.controls.delete")}
+          tone="danger"
           disabled={currentText()?.preset_id == null}
           onClick={removePreset}
         />
@@ -513,15 +516,14 @@ function Sidebar() {
                 value={curMeta()?.name ?? ""}
                 onChange={selectSpeakerByName}
                 action={
-                  <Button
-                    type="button"
-                    aria-label={t1("speaker_selection.open")}
-                    title={t1("speaker_selection.open")}
-                    class="size-8 shrink-0 flex items-center justify-center rounded-md b b-slate-2 bg-transparent outline-none hover:(b-primary-5 bg-primary-1) focus-visible:(ring-2 ring-primary-3) dark:(b-slate-6 hover:bg-slate-7)"
+                  <IconButton
+                    icon="i-lucide:layout-grid"
+                    iconSize="sm"
+                    label={t1("speaker_selection.open")}
+                    size="lg"
+                    class="b b-slate-2 dark:b-slate-6"
                     onClick={() => setSpeakerSelectionOpen(true)}
-                  >
-                    <div class="i-lucide:layout-grid size-4" />
-                  </Button>
+                  />
                 }
               />
               <OptionSelector
@@ -778,6 +780,8 @@ function PauseNumField(props: {
   value?: number;
   setValue: (v: number) => void;
 }) {
+  const { t2 } = usei18n()!;
+
   return (
     <NumberField
       minValue={0}
@@ -795,17 +799,17 @@ function PauseNumField(props: {
         <NumberField.Input class="h-8 w-full outline-none rounded-lg b b-slate-2 dark:(b-slate-6 bg-slate-7) focus:b-primary-3 px-1" />
         <div class="flex flex-col">
           <NumberField.IncrementTrigger
-            aria-label="Increment"
-            class="size-4 bg-transparent group"
-          >
-            <div class="i-lucide:chevron-up size-full group-hover:bg-primary-5 group-active:bg-primary-7" />
-          </NumberField.IncrementTrigger>
+            as={IconButton}
+            icon="i-lucide:chevron-up"
+            label={t2("preset.controls.increase", { label: props.label })}
+            size="xs"
+          />
           <NumberField.DecrementTrigger
-            aria-label="Decrement"
-            class="size-4 bg-transparent group"
-          >
-            <div class="i-lucide:chevron-down size-full group-hover:bg-primary-5 group-active:bg-primary-7" />
-          </NumberField.DecrementTrigger>
+            as={IconButton}
+            icon="i-lucide:chevron-down"
+            label={t2("preset.controls.decrease", { label: props.label })}
+            size="xs"
+          />
         </div>
       </div>
     </NumberField>

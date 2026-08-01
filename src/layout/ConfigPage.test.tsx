@@ -51,6 +51,9 @@ describe("ConfigPage", () => {
     expect(
       await screen.findByRole("dialog", { name: "Config" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: "Experimental Features" }),
+    ).toHaveLength(2);
     const buffering = screen.getByRole("switch", {
       name: "Background Buffering for Audio Generation",
     });

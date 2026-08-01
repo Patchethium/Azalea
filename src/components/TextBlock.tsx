@@ -1,4 +1,3 @@
-import { Button } from "@kobalte/core/button";
 import { debounce, type Scheduled } from "@solid-primitives/scheduled";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import _ from "lodash";
@@ -11,7 +10,6 @@ import {
   on,
   onCleanup,
   onMount,
-  ParentComponent,
   Show,
   splitProps,
   untrack,
@@ -35,6 +33,7 @@ import {
 } from "../contexts/text";
 import { useUIStore } from "../contexts/ui";
 import { getModifiedQuery } from "../utils";
+import { IconButton } from "./IconButton";
 
 let synthesisGenerationSequence = 0;
 
@@ -111,22 +110,6 @@ function AutogrowInput(props: ComponentProps) {
     </div>
   );
 }
-
-const EditButton: ParentComponent<{
-  edit: () => void;
-  disable?: boolean;
-}> = (props) => {
-  const disabled = createMemo(() => props.disable ?? false);
-  return (
-    <Button
-      class="group h-6 w-6 bg-transparent rounded-md ui-disabled:(cursor-not-allowed)"
-      disabled={disabled()}
-      onClick={props.edit}
-    >
-      {props.children}
-    </Button>
-  );
-};
 
 function TextBlock(props: { index: number }) {
   const {
@@ -587,24 +570,35 @@ function TextBlock(props: { index: number }) {
                 "opacity-50": hovered() && !selected() && !toolbarHovered(),
               }}
             >
-              <EditButton edit={addTextBelow}>
-                <div class="i-lucide:plus w-full h-full group-hover:bg-primary-5 group-active:bg-primary-6" />
-              </EditButton>
-              <EditButton edit={saveAudio} disable={!saveable()}>
-                <div class="i-lucide:save w-full h-full group-hover:bg-primary-5 group-active:bg-primary-6" />
-              </EditButton>
-              <EditButton edit={moveUp} disable={props.index === 0}>
-                <div class="i-lucide:chevron-up w-full h-full group-hover:bg-primary-5 group-active:bg-primary-6" />
-              </EditButton>
-              <EditButton
-                edit={moveDown}
-                disable={props.index === textStore.length - 1}
-              >
-                <div class="i-lucide:chevron-down w-full h-full group-hover:bg-primary-5 group-active:bg-primary-6" />
-              </EditButton>
-              <EditButton edit={remove}>
-                <div class="i-lucide:trash2 w-full h-full group-hover:bg-red-5 group-active:bg-red-6" />
-              </EditButton>
+              <IconButton
+                icon="i-lucide:plus"
+                label={t1("text_block.controls.add_below")}
+                onClick={addTextBelow}
+              />
+              <IconButton
+                icon="i-lucide:save"
+                label={t1("text_block.controls.save_audio")}
+                disabled={!saveable()}
+                onClick={saveAudio}
+              />
+              <IconButton
+                icon="i-lucide:chevron-up"
+                label={t1("text_block.controls.move_up")}
+                disabled={props.index === 0}
+                onClick={moveUp}
+              />
+              <IconButton
+                icon="i-lucide:chevron-down"
+                label={t1("text_block.controls.move_down")}
+                disabled={props.index === textStore.length - 1}
+                onClick={moveDown}
+              />
+              <IconButton
+                icon="i-lucide:trash2"
+                label={t1("text_block.controls.delete")}
+                tone="danger"
+                onClick={remove}
+              />
             </div>
           </Show>
         </div>
