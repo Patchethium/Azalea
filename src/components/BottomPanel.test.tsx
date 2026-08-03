@@ -370,6 +370,11 @@ describe("BottomPanel playback", () => {
 
     fireEvent.click(await screen.findByText("コ"));
     const editor = await screen.findByRole("textbox");
+    await waitFor(() => {
+      expect(editor).toHaveFocus();
+      expect(editor.selectionStart).toBe(0);
+      expect(editor.selectionEnd).toBe(editor.value.length);
+    });
     fireEvent.input(editor, { target: { value: "サ" } });
     fireEvent.click(editor.parentElement!.parentElement!);
 
@@ -380,6 +385,83 @@ describe("BottomPanel playback", () => {
       ).toBe("サ"),
     );
     expect(getTextStore().textStore[0].query_is_modified).toBe(true);
+  });
+
+  it("does not append the following phrase when editing phonemes", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const firstPhrase = structuredClone(audioQuery().accent_phrases[0]);
+    const secondPhrase = structuredClone(firstPhrase);
+    secondPhrase.moras[0].text = "エ";
+    const replaceAccent = vi
+      .spyOn(commands, "accentPhrases")
+      .mockImplementation(async (text) => ({
+        status: "ok",
+        data: [
+          {
+            ...structuredClone(firstPhrase),
+            moras: Array.from(text, (character) => ({
+              ...firstPhrase.moras[0],
+              text: character,
+            })),
+          },
+        ],
+      }));
+    const { getTextStore } = renderPanel();
+
+    await screen.findByText("コ");
+    getTextStore().setTextStore(0, "query", "accent_phrases", [
+      firstPhrase,
+      secondPhrase,
+    ]);
+    fireEvent.click(await screen.findByText("コ"));
+    const editor = await screen.findByRole("textbox");
+    fireEvent.input(editor, { target: { value: "サ" } });
+    fireEvent.click(editor.parentElement!.parentElement!);
+
+    await waitFor(() => expect(replaceAccent).toHaveBeenCalledWith("サ", 1));
+    await waitFor(() =>
+      expect(
+        getTextStore().textStore[0].query?.accent_phrases.map((phrase) =>
+          phrase.moras.map((mora) => mora.text).join(""),
+        ),
+      ).toEqual(["サ", "エ"]),
+    );
+  });
+
+  it("shows normalized mora text after a mixed-kana edit", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const replacement = structuredClone(audioQuery().accent_phrases[0]);
+    replacement.moras = Array.from("コンニチワ", (character) => ({
+      ...replacement.moras[0],
+      text: character,
+    }));
+    const replaceAccent = vi
+      .spyOn(commands, "accentPhrases")
+      .mockResolvedValue({ status: "ok", data: [replacement] });
+    const { getTextStore } = renderPanel();
+
+    fireEvent.click(await screen.findByText("コ"));
+    const editor = await screen.findByRole("textbox");
+    fireEvent.input(editor, { target: { value: "コンニちは" } });
+    fireEvent.click(editor.parentElement!.parentElement!);
+
+    await waitFor(() =>
+      expect(replaceAccent).toHaveBeenCalledWith("コンニちは", 1),
+    );
+    await waitFor(() =>
+      expect(
+        getTextStore()
+          .textStore[0].query?.accent_phrases[0].moras.map((mora) => mora.text)
+          .join(""),
+      ).toBe("コンニチワ"),
+    );
+
+    fireEvent.click(screen.getByText("コ"));
+    expect(await screen.findByRole("textbox")).toHaveValue("コンニチワ");
   });
 
   it("edits pitch and duration on the tuning timeline", async () => {

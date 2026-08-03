@@ -1100,26 +1100,26 @@ function PhonemePanel() {
     ) {
       return;
     }
-    const text = [];
-    for (let i = 0; i < query.accent_phrases.length; i++) {
-      if (i !== apIndex) {
-        text.push(query.accent_phrases[i].moras.map((m) => m.text).join(""));
-      } else {
-        text.push(newText);
-      }
-    }
-    const combinedText = text.join("");
-    const newAps = await commands.accentPhrases(combinedText, preset.style_id);
-    if (newAps.status === "ok" && textStore[textIndex] === sourceBlock) {
-      setTextStore(
-        textIndex,
-        "query",
-        "accent_phrases",
-        apIndex,
-        newAps.data[apIndex],
-      );
-      markQueryModified(textIndex);
-    }
+    const sourcePhrase = query.accent_phrases[apIndex];
+    if (sourcePhrase === undefined) return;
+    const newAps = await commands.accentPhrases(newText, preset.style_id);
+    if (newAps.status !== "ok" || newAps.data.length === 0) return;
+
+    const replacementPhrases = newAps.data.map((phrase) => ({ ...phrase }));
+    const finalReplacement = replacementPhrases.at(-1)!;
+    finalReplacement.pause_mora = sourcePhrase.pause_mora;
+    finalReplacement.is_interrogative = sourcePhrase.is_interrogative;
+
+    if (textStore[textIndex] !== sourceBlock) return;
+    setTextStore(
+      textIndex,
+      "query",
+      "accent_phrases",
+      produce((draft) => {
+        draft.splice(apIndex, 1, ...replacementPhrases);
+      }),
+    );
+    markQueryModified(textIndex);
   };
 
   // TODO: don't repeat yourself with TuningPanel
@@ -1198,15 +1198,28 @@ function AccentPhraseItem(props: {
   );
 
   const [draftText, setDraftText] = createSignal(apText());
+  let inputRef: HTMLInputElement | undefined;
+
+  createEffect(
+    on(apText, (text) => {
+      if (!editMode()) setDraftText(text);
+    }),
+  );
 
   createEffect(
     on(editMode, (mode) => {
-      if (!mode) {
-        const draft = draftText();
-        const current = apText();
-        if (draft !== current) {
-          props.onEdit(draft);
-        }
+      if (mode) {
+        queueMicrotask(() => {
+          if (!editMode()) return;
+          inputRef?.focus();
+          inputRef?.select();
+        });
+        return;
+      }
+      const draft = draftText();
+      const current = apText();
+      if (draft !== current) {
+        props.onEdit(draft);
       }
     }),
   );
@@ -1259,7 +1272,10 @@ function AccentPhraseItem(props: {
                   }}
                   onMouseEnter={() => setPhonemeHovered(true)}
                   onMouseLeave={() => setPhonemeHovered(false)}
-                  onClick={() => setEditMode(true)}
+                  onClick={() => {
+                    setDraftText(apText());
+                    setEditMode(true);
+                  }}
                 >
                   {mora.text}
                 </div>
@@ -1325,9 +1341,7 @@ function AccentPhraseItem(props: {
         <Show when={editMode()}>
           <div
             class="absolute top-0 left-0 size-full z-20 flex items-center justify-center rounded-lg backdrop-blur-sm px2"
-            onClick={() => {
-              setEditMode(false);
-            }}
+            onClick={() => setEditMode(false)}
           >
             <TextField
               class="w-full"
@@ -1335,9 +1349,19 @@ function AccentPhraseItem(props: {
               onChange={(v: string) => {
                 setDraftText(v);
               }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  setEditMode(false);
+                }
+              }}
               onClick={(e) => e.stopPropagation()}
             >
-              <TextField.Input class="p1 px2 w-full b b-slate-2 dark:(b-slate-6 bg-slate-7) rounded-md outline-none focus:b-primary-5" />
+              <TextField.Input
+                ref={(element) => {
+                  inputRef = element;
+                }}
+                class="p1 px2 w-full b b-slate-2 dark:(b-slate-6 bg-slate-7) rounded-md outline-none focus:b-primary-5"
+              />
             </TextField>
           </div>
         </Show>

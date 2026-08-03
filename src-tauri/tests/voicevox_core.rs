@@ -174,6 +174,25 @@ fn real_core_produces_valid_queries_and_interrogative_phrases() {
 }
 
 #[test]
+fn real_core_normalizes_mixed_kana_pronunciations() {
+  let core = test_core();
+  let style_id = first_talk_style_id(&core);
+
+  for (input, expected) in [("こんじつ", "コンジツ"), ("コンニちは", "コンニチワ")]
+  {
+    let phrases = core
+      .accent_phrases(input, style_id)
+      .expect("accent phrase generation failed");
+    let pronunciation = phrases
+      .iter()
+      .flat_map(|phrase| &phrase.moras)
+      .map(|mora| mora.text.as_str())
+      .collect::<String>();
+    assert_eq!(pronunciation, expected, "unexpected reading for {input}");
+  }
+}
+
+#[test]
 fn real_core_mora_replacements_only_update_requested_values() {
   let core = test_core();
   let style_id = first_talk_style_id(&core);
