@@ -31,6 +31,9 @@ const dialogs = vi.hoisted(() => ({
 }));
 
 vi.mock("@tauri-apps/plugin-dialog", () => dialogs);
+vi.mock("../components/Tooltip", () => ({
+  Tooltip: (props: { children: unknown }) => props.children,
+}));
 
 describe("Sidebar project lifecycle", () => {
   it("saves the live project, loads replacement data, and autosaves edits", async () => {
