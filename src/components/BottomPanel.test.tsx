@@ -12,6 +12,7 @@ import { SpectrogramProvider } from "../contexts/spectrogram";
 import { SystemProvider } from "../contexts/system";
 import { TextProvider, useTextStore } from "../contexts/text";
 import { UIProvider, useUIStore } from "../contexts/ui";
+import Sidebar from "../layout/Sidebar";
 import {
   audioQuery,
   config,
@@ -81,6 +82,7 @@ describe("SpectrogramCanvas", () => {
 
 const renderPanel = (
   configOverrides: Partial<ReturnType<typeof config>["ui_config"]> = {},
+  withSidebar = false,
 ) => {
   let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
   let text!: NonNullable<ReturnType<typeof useTextStore>>;
@@ -116,6 +118,7 @@ const renderPanel = (
     });
     return (
       <main>
+        {withSidebar && <Sidebar />}
         <BottomPanel />
       </main>
     );
@@ -248,7 +251,7 @@ describe("BottomPanel playback", () => {
     editor.remove();
   });
 
-  it("blocks playback shortcuts in forms, dialogs, repeats, and IME composition", async () => {
+  it("blocks playback in text fields, overlays, repeats, and IME composition", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
@@ -279,6 +282,12 @@ describe("BottomPanel playback", () => {
     document.body.append(dialog);
     fireEvent.keyDown(window, { key: " " });
     dialog.remove();
+
+    const menu = document.createElement("div");
+    menu.setAttribute("role", "menu");
+    document.body.append(menu);
+    fireEvent.keyDown(window, { key: " " });
+    menu.remove();
 
     fireEvent.keyDown(window, {
       key: " ",
@@ -337,6 +346,64 @@ describe("BottomPanel playback", () => {
     expect(fireEvent.keyDown(window, { key: " ", ctrlKey: true })).toBe(true);
     expect(play).toHaveBeenCalledOnce();
     expect(stop).toHaveBeenCalledOnce();
+  });
+
+  it("plays after tabs and sidebar controls retain focus unless a menu is open", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const play = vi
+      .spyOn(commands, "playAudio")
+      .mockResolvedValue({ status: "ok", data: null });
+    renderPanel({}, true);
+    await screen.findByRole("button", { name: "Create preset" });
+
+    const playFrom = async (control: HTMLElement, expectedCalls: number) => {
+      control.focus();
+      expect(fireEvent.keyDown(control, { key: " " })).toBe(false);
+      await waitFor(() => expect(play).toHaveBeenCalledTimes(expectedCalls));
+      await emit("audio-playback-finished");
+    };
+
+    const tuningTab = screen.getByRole("tab", { name: "Tuning" });
+    fireEvent.click(tuningTab);
+    await playFrom(tuningTab, 1);
+
+    const accentTab = screen.getByRole("tab", { name: "Accent" });
+    fireEvent.click(accentTab);
+    await playFrom(accentTab, 2);
+
+    const presetToggle = screen.getByRole("button", { name: "Preset" });
+    fireEvent.click(presetToggle);
+    const presetExpanded = presetToggle.getAttribute("aria-expanded");
+    await playFrom(presetToggle, 3);
+    expect(presetToggle).toHaveAttribute("aria-expanded", presetExpanded);
+
+    fireEvent.click(presetToggle);
+    const speakerSelect = await screen.findByRole("button", {
+      name: "Speaker Speaker",
+    });
+    await playFrom(speakerSelect, 4);
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+
+    const createPreset = screen.getByRole("button", {
+      name: "Create preset",
+    });
+    fireEvent.click(createPreset);
+    await playFrom(createPreset, 5);
+
+    const menuTrigger = screen.getByRole("button", {
+      name: "Project actions",
+    });
+    fireEvent.keyDown(menuTrigger, { key: "Enter" });
+    const menu = await screen.findByRole("menu");
+    expect(fireEvent.keyDown(window, { key: " " })).toBe(true);
+    expect(play).toHaveBeenCalledTimes(5);
+
+    fireEvent.keyDown(menu, { key: "Escape" });
+    await waitFor(() => expect(menu).toHaveAttribute("data-closed"));
+    await playFrom(menuTrigger, 6);
+    expect(menu).toHaveAttribute("data-closed");
   });
 
   it("honors a configured playback-toggle shortcut", async () => {
@@ -728,6 +795,7 @@ describe("BottomPanel playback", () => {
       play.mock.calls[1][0].accent_phrases[0].moras[0].consonant_length,
     ).toBeCloseTo(0.18);
 
+    await emit("audio-playback-finished");
     const zoom = screen
       .getAllByRole("slider")
       .find(
@@ -735,8 +803,8 @@ describe("BottomPanel playback", () => {
       );
     expect(zoom).toBeDefined();
     zoom!.focus();
-    expect(fireEvent.keyDown(zoom!, { key: " " })).toBe(true);
-    expect(play).toHaveBeenCalledTimes(2);
+    expect(fireEvent.keyDown(zoom!, { key: " " })).toBe(false);
+    await waitFor(() => expect(play).toHaveBeenCalledTimes(3));
     expect(stop).not.toHaveBeenCalled();
   });
 });

@@ -254,12 +254,15 @@ function ControlBar(props: {
       if (togglePlaybackShortcut) {
         if (!isPlaying() && !canPlay()) return;
         event.preventDefault();
+        event.stopPropagation();
         void togglePlayback();
       } else if (playbackShortcutAllowed && playAndStay) {
         event.preventDefault();
+        event.stopPropagation();
         void speak();
       } else if (playbackShortcutAllowed && playAndAdvance) {
         event.preventDefault();
+        event.stopPropagation();
         void speak().then((startedBlockId) => {
           if (!disposed && startedBlockId !== null) {
             focusNext(startedBlockId, true);
@@ -267,8 +270,8 @@ function ControlBar(props: {
         });
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    onCleanup(() => window.removeEventListener("keydown", handleKeyDown));
+    window.addEventListener("keydown", handleKeyDown, true);
+    onCleanup(() => window.removeEventListener("keydown", handleKeyDown, true));
   });
 
   const playableFromSelection = createMemo(() =>
@@ -839,7 +842,6 @@ function TuningItems(props: {
   const totalPixels = (): number => (consonantPixels() ?? 0) + vowelPixels();
   return (
     <div
-      data-playback-toggle="allow"
       class="flex flex-none flex-col b-dashed b-r b-slate-3 dark:b-slate-6 h-100% select-none relative z-1"
       style={{
         width: `${totalPixels()}px`,

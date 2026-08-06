@@ -159,33 +159,22 @@ export const formatShortcut = (
   return keys;
 };
 
-const nonEditorControlSelector = [
+const formTextEntrySelector = [
   "input",
   "textarea",
   "select",
-  "option",
-  "button",
-  "a[href]",
-  "summary",
-  '[role="button"]',
-  '[role="checkbox"]',
-  '[role="combobox"]',
-  '[role="link"]',
-  '[role="listbox"]',
-  '[role="menu"]',
-  '[role="menuitem"]',
-  '[role="option"]',
-  '[role="radio"]',
-  '[role="slider"]',
-  '[role="spinbutton"]',
-  '[role="switch"]',
-  '[role="tab"]',
   '[role="textbox"]',
 ].join(",");
 
 const textEditorSelector = '[contenteditable]:not([contenteditable="false"])';
-const openDialogSelector = '[role="dialog"]:not([data-closed]), dialog[open]';
-const playbackToggleSurfaceSelector = '[data-playback-toggle="allow"]';
+const playbackBlockingSurfaceSelector = [
+  '[role="dialog"]:not(dialog)',
+  '[role="alertdialog"]',
+  "dialog[open]",
+  '[role="menu"]',
+  '[role="listbox"]',
+].join(",");
+const closedSurfaceSelector = '[data-closed], [aria-hidden="true"], [hidden]';
 
 const shortcutTarget = (event: KeyboardEvent) => {
   if (event.target instanceof Element) return event.target;
@@ -197,21 +186,21 @@ const shortcutTarget = (event: KeyboardEvent) => {
 export const isApplicationShortcutAllowed = (event: KeyboardEvent) =>
   !event.defaultPrevented && !event.repeat && !event.isComposing;
 
-const isPlaybackContextAllowed = (event: KeyboardEvent) =>
-  !(
-    !isApplicationShortcutAllowed(event) ||
-    document.querySelector(openDialogSelector) !== null
+const hasOpenPlaybackBlockingSurface = () =>
+  Array.from(document.querySelectorAll(playbackBlockingSurfaceSelector)).some(
+    (surface) => surface.closest(closedSurfaceSelector) === null,
   );
+
+const isPlaybackContextAllowed = (event: KeyboardEvent) =>
+  isApplicationShortcutAllowed(event) && !hasOpenPlaybackBlockingSurface();
 
 export const isPlaybackShortcutAllowed = (event: KeyboardEvent) => {
   if (!isPlaybackContextAllowed(event)) return false;
 
   const target = shortcutTarget(event);
   if (target === null) return true;
-  if (target.closest(textEditorSelector)) {
-    return true;
-  }
-  return target.closest(nonEditorControlSelector) === null;
+  if (target.closest(textEditorSelector) !== null) return true;
+  return target.closest(formTextEntrySelector) === null;
 };
 
 export const isPlaybackToggleAllowed = (event: KeyboardEvent) => {
@@ -219,12 +208,5 @@ export const isPlaybackToggleAllowed = (event: KeyboardEvent) => {
   const target = shortcutTarget(event);
   if (target === null) return true;
   if (target.closest(textEditorSelector) !== null) return false;
-  const slider = target.closest('[role="slider"]');
-  if (
-    slider !== null &&
-    slider.closest(playbackToggleSurfaceSelector) !== null
-  ) {
-    return true;
-  }
-  return target.closest(nonEditorControlSelector) === null;
+  return target.closest(formTextEntrySelector) === null;
 };

@@ -160,25 +160,20 @@ describe("focus safety", () => {
     expect(isApplicationShortcutAllowed(keyboardEvent("s"))).toBe(true);
   });
 
-  it("blocks playback in dialogs and non-editor controls", () => {
-    const dialog = document.createElement("div");
-    dialog.setAttribute("role", "dialog");
-    document.body.append(dialog);
-    expect(isPlaybackShortcutAllowed(keyboardEvent("s"))).toBe(false);
-    expect(isPlaybackToggleAllowed(keyboardEvent(" "))).toBe(false);
-    expect(isApplicationShortcutAllowed(keyboardEvent("s"))).toBe(true);
-    dialog.remove();
+  it("protects text entry while allowing modifier playback in content editors", () => {
+    for (const target of [
+      document.createElement("input"),
+      document.createElement("textarea"),
+      document.createElement("select"),
+    ]) {
+      document.body.append(target);
+      const event = keyboardEvent(" ");
+      Object.defineProperty(event, "target", { value: target });
+      expect(isPlaybackShortcutAllowed(event)).toBe(false);
+      expect(isPlaybackToggleAllowed(event)).toBe(false);
+      target.remove();
+    }
 
-    const input = document.createElement("input");
-    document.body.append(input);
-    const inputEvent = keyboardEvent("s");
-    Object.defineProperty(inputEvent, "target", { value: input });
-    expect(isPlaybackShortcutAllowed(inputEvent)).toBe(false);
-    expect(isPlaybackToggleAllowed(inputEvent)).toBe(false);
-    expect(isApplicationShortcutAllowed(inputEvent)).toBe(true);
-  });
-
-  it("allows playback shortcuts in editors and plain content", () => {
     const editor = document.createElement("div");
     editor.setAttribute("contenteditable", "true");
     const editorEvent = keyboardEvent("s");
@@ -190,33 +185,55 @@ describe("focus safety", () => {
     expect(isPlaybackToggleAllowed(keyboardEvent(" "))).toBe(true);
   });
 
-  it("allows playback toggling only on explicitly marked sliders", () => {
-    const surface = document.createElement("div");
-    const slider = document.createElement("span");
-    slider.setAttribute("role", "slider");
-    surface.append(slider);
-    document.body.append(surface);
-    const sliderEvent = keyboardEvent(" ");
-    Object.defineProperty(sliderEvent, "target", { value: slider });
+  it("allows playback from ordinary controls regardless of retained focus", () => {
+    const controls = [
+      document.createElement("button"),
+      document.createElement("button"),
+      document.createElement("span"),
+    ];
+    controls[0].setAttribute("aria-expanded", "true");
+    controls[1].setAttribute("role", "tab");
+    controls[2].setAttribute("role", "slider");
+    for (const control of controls) {
+      document.body.append(control);
+      const event = keyboardEvent(" ");
+      Object.defineProperty(event, "target", { value: control });
+      expect(isPlaybackShortcutAllowed(event)).toBe(true);
+      expect(isPlaybackToggleAllowed(event)).toBe(true);
+      control.remove();
+    }
 
-    expect(isPlaybackToggleAllowed(sliderEvent)).toBe(false);
-    surface.setAttribute("data-playback-toggle", "allow");
-    expect(isPlaybackToggleAllowed(sliderEvent)).toBe(true);
-    expect(isPlaybackShortcutAllowed(sliderEvent)).toBe(false);
-
-    const input = document.createElement("input");
-    surface.append(input);
-    const inputEvent = keyboardEvent(" ");
-    Object.defineProperty(inputEvent, "target", { value: input });
-    expect(isPlaybackToggleAllowed(inputEvent)).toBe(false);
+    const tooltip = document.createElement("div");
+    tooltip.setAttribute("role", "tooltip");
+    document.body.append(tooltip);
+    expect(isPlaybackToggleAllowed(keyboardEvent(" "))).toBe(true);
   });
 
-  it("ignores closed dialogs when evaluating playback shortcuts", () => {
-    const dialog = document.createElement("div");
-    dialog.setAttribute("role", "dialog");
-    dialog.setAttribute("data-closed", "");
+  it("blocks playback while a dialog or menu-like popup is open", () => {
+    for (const role of ["dialog", "alertdialog", "menu", "listbox"]) {
+      const surface = document.createElement("div");
+      surface.setAttribute("role", role);
+      document.body.append(surface);
+      expect(isPlaybackShortcutAllowed(keyboardEvent(" "))).toBe(false);
+      expect(isPlaybackToggleAllowed(keyboardEvent(" "))).toBe(false);
+      surface.remove();
+    }
+
+    const dialog = document.createElement("dialog");
+    dialog.setAttribute("open", "");
     document.body.append(dialog);
+    expect(isPlaybackToggleAllowed(keyboardEvent(" "))).toBe(false);
+  });
+
+  it("ignores closed popup surfaces and their descendants", () => {
+    const closedSurface = document.createElement("div");
+    closedSurface.setAttribute("data-closed", "");
+    const menu = document.createElement("div");
+    menu.setAttribute("role", "menu");
+    closedSurface.append(menu);
+    document.body.append(closedSurface);
 
     expect(isPlaybackShortcutAllowed(keyboardEvent(" "))).toBe(true);
+    expect(isPlaybackToggleAllowed(keyboardEvent(" "))).toBe(true);
   });
 });

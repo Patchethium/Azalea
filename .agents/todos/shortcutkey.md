@@ -24,8 +24,10 @@ Implementation rules:
 - Use `Cmd` on macOS and `Ctrl` on Windows/Linux.
 - Ignore auto-repeat so holding a key cannot queue duplicate work.
 - Preserve ordinary text input for all other keys.
-- Do not run playback shortcuts while a dialog or non-editor form control has
-  focus; saving remains available throughout the application.
+- Keep playback shortcuts active after ordinary controls such as tabs,
+  accordions, sliders, and icon buttons retain focus.
+- Do not run playback shortcuts while a dialog, menu, or listbox is open;
+  saving remains available throughout the application.
 - Do not handle bare `Space` while text is being edited; it must continue to
   insert a normal space. Modifier-based playback shortcuts remain available in
   the selected text editor.
@@ -36,6 +38,8 @@ Acceptance criteria:
 
 - The shortcuts work while the selected text cell is being edited.
 - Bare `Space` plays or stops from the non-text editor surface.
+- Bare `Space` continues to work after interacting with ordinary controls, but
+  not while a dialog or menu-like popup is open.
 - Play shortcuts do nothing when the selected cell has no usable query/preset.
 - `Shift + Enter` advances only after playback starts successfully and creates
   a new empty cell below when the selected cell is the final cell.
