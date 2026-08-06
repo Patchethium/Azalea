@@ -122,6 +122,14 @@ describe("ShortcutReferenceDialog", () => {
     const saveShortcut = await screen.findByRole("button", {
       name: "Save project: Ctrl + S",
     });
+    expect(
+      screen.getByRole("button", {
+        name: "Play or stop selected cell: Space",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Stop playback:/ }),
+    ).not.toBeInTheDocument();
     fireEvent.click(saveShortcut);
     fireEvent.keyDown(saveShortcut, {
       key: "S",
@@ -153,6 +161,12 @@ describe("ShortcutReferenceDialog", () => {
         primary: true,
         shift: false,
       }),
+    );
+    expect(appConfig.config.ui_config.shortcuts?.toggle_playback).toMatchObject(
+      {
+        key: "Space",
+        primary: false,
+      },
     );
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });

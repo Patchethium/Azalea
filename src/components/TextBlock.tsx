@@ -26,7 +26,6 @@ import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { useMetaStore } from "../contexts/meta";
 import {
-  createTextBlock,
   findPresetStyle,
   type TextBlockProps,
   useTextStore,
@@ -117,6 +116,7 @@ function TextBlock(props: { index: number }) {
     setTextStore,
     projectPresetStore,
     selectedTextBlockIndex,
+    insertTextBlockBelow,
   } = useTextStore()!;
   const { metas } = useMetaStore()!;
   const { setUIStore } = useUIStore()!;
@@ -228,15 +228,7 @@ function TextBlock(props: { index: number }) {
 
   // the toobar actions
   const addTextBelow = () => {
-    const nextBlocks = textStore.map((block) => _.cloneDeep(unwrap(block)));
-    nextBlocks.splice(
-      props.index + 1,
-      0,
-      createTextBlock(currentText().preset_id),
-    );
-    setTextStore(nextBlocks);
-    // focus on the new text block
-    setUIStore("selectedTextBlockIndex", props.index + 1);
+    insertTextBlockBelow(props.index);
   };
 
   const saveable = createMemo(() => {

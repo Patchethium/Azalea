@@ -128,6 +128,27 @@ describe("Sidebar project lifecycle", () => {
       (firstSave.args.project as { blocks: unknown[] }).blocks[0],
     ).toHaveProperty("id", "current-block");
 
+    const input = document.createElement("input");
+    document.body.append(input);
+    fireEvent.keyDown(input, { key: "S", ctrlKey: true });
+    await waitFor(() =>
+      expect(
+        invocations.filter(({ cmd }) => cmd === "save_project"),
+      ).toHaveLength(2),
+    );
+
+    const dialog = document.createElement("div");
+    dialog.setAttribute("role", "dialog");
+    document.body.append(dialog);
+    fireEvent.keyDown(window, { key: "S", ctrlKey: true });
+    await waitFor(() =>
+      expect(
+        invocations.filter(({ cmd }) => cmd === "save_project"),
+      ).toHaveLength(3),
+    );
+    dialog.remove();
+    input.remove();
+
     await user.click(
       await screen.findByRole("button", { name: "Project actions" }),
     );
@@ -138,13 +159,16 @@ describe("Sidebar project lifecycle", () => {
     expect(text.projectPresetStore[0].name).toBe("Loaded preset");
     expect(text.projectPath()).toBe("/tmp/loaded.azp");
 
+    const savesBeforeAutosave = invocations.filter(
+      ({ cmd }) => cmd === "save_project",
+    ).length;
     appConfig.setConfig("ui_config", "auto_save", true);
     text.setTextStore(0, "text", "Autosaved edit");
     await waitFor(
       () =>
         expect(
           invocations.filter(({ cmd }) => cmd === "save_project").length,
-        ).toBeGreaterThan(1),
+        ).toBeGreaterThan(savesBeforeAutosave),
       { timeout: 2_000 },
     );
     const lastSave = invocations

@@ -220,7 +220,35 @@ describe("BottomPanel playback", () => {
     ).toBeInTheDocument();
   });
 
-  it("honors play-and-advance and stop keyboard shortcuts", async () => {
+  it("honors play-and-advance shortcuts while editing text", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const play = vi
+      .spyOn(commands, "playAudio")
+      .mockResolvedValue({ status: "ok", data: null });
+    const { getUiStore } = renderPanel();
+    await screen.findByRole("button", { name: "Play selected cell" });
+
+    const editor = document.createElement("div");
+    editor.setAttribute("contenteditable", "plaintext-only");
+    document.body.append(editor);
+
+    fireEvent.keyDown(editor, { key: "Enter", ctrlKey: true });
+    await waitFor(() => expect(play).toHaveBeenCalledOnce());
+    expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(0);
+
+    await emit("audio-playback-finished");
+    fireEvent.keyDown(editor, { key: "Enter", shiftKey: true });
+    await waitFor(() => expect(play).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(1),
+    );
+
+    editor.remove();
+  });
+
+  it("blocks playback shortcuts in forms, dialogs, repeats, and IME composition", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
@@ -230,17 +258,203 @@ describe("BottomPanel playback", () => {
     const stop = vi
       .spyOn(commands, "stopAudio")
       .mockResolvedValue({ status: "ok", data: null });
-    const { getUiStore } = renderPanel();
+    renderPanel();
+    await screen.findByRole("button", { name: "Play selected cell" });
+
+    const input = document.createElement("input");
+    document.body.append(input);
+    fireEvent.keyDown(input, { key: "Enter", ctrlKey: true });
+    fireEvent.keyDown(input, { key: "Enter", shiftKey: true });
+    fireEvent.keyDown(input, { key: " " });
+
+    const editor = document.createElement("div");
+    editor.setAttribute("contenteditable", "plaintext-only");
+    const editorChild = document.createElement("span");
+    editor.append(editorChild);
+    document.body.append(editor);
+    expect(fireEvent.keyDown(editorChild, { key: " " })).toBe(true);
+
+    const dialog = document.createElement("div");
+    dialog.setAttribute("role", "dialog");
+    document.body.append(dialog);
+    fireEvent.keyDown(window, { key: " " });
+    dialog.remove();
+
+    fireEvent.keyDown(window, {
+      key: " ",
+      repeat: true,
+    });
+    fireEvent.keyDown(window, {
+      key: " ",
+      isComposing: true,
+    });
+    await Promise.resolve();
+
+    expect(play).not.toHaveBeenCalled();
+    expect(stop).not.toHaveBeenCalled();
+    input.remove();
+    editor.remove();
+  });
+
+  it("toggles playback with bare Space and ignores Ctrl+Space", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    let resolvePlayback!: (
+      result: Awaited<ReturnType<typeof commands.playAudio>>,
+    ) => void;
+    const pendingPlayback = new Promise<
+      Awaited<ReturnType<typeof commands.playAudio>>
+    >((resolve) => {
+      resolvePlayback = resolve;
+    });
+    const play = vi
+      .spyOn(commands, "playAudio")
+      .mockReturnValue(pendingPlayback);
+    const stop = vi
+      .spyOn(commands, "stopAudio")
+      .mockResolvedValue({ status: "ok", data: null });
+    renderPanel();
+    await screen.findByRole("button", { name: "Play selected cell" });
+
+    fireEvent.keyDown(window, { key: " " });
+    fireEvent.keyDown(window, { key: " " });
+    await waitFor(() => expect(play).toHaveBeenCalledOnce());
+    expect(stop).not.toHaveBeenCalled();
+
+    resolvePlayback({ status: "ok", data: null });
+    await pendingPlayback;
+    expect(
+      await screen.findByRole("button", { name: "Stop playback" }),
+    ).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: " " });
+    await waitFor(() => expect(stop).toHaveBeenCalledOnce());
+    expect(
+      screen.getByRole("button", { name: "Play selected cell" }),
+    ).toBeInTheDocument();
+
+    expect(fireEvent.keyDown(window, { key: " ", ctrlKey: true })).toBe(true);
+    expect(play).toHaveBeenCalledOnce();
+    expect(stop).toHaveBeenCalledOnce();
+  });
+
+  it("honors a configured playback-toggle shortcut", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const play = vi
+      .spyOn(commands, "playAudio")
+      .mockResolvedValue({ status: "ok", data: null });
+    renderPanel({
+      shortcuts: {
+        toggle_playback: { key: "P", alt: true },
+      },
+    });
+    await screen.findByRole("button", { name: "Play selected cell" });
+
+    expect(fireEvent.keyDown(window, { key: " " })).toBe(true);
+    expect(play).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(window, { key: "P", altKey: true });
+    await waitFor(() => expect(play).toHaveBeenCalledOnce());
+  });
+
+  it("advances only after playable audio starts and creates after the final cell", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const play = vi
+      .spyOn(commands, "playAudio")
+      .mockResolvedValueOnce({ status: "error", error: "playback failed" })
+      .mockResolvedValue({ status: "ok", data: null });
+    const { getTextStore, getUiStore } = renderPanel();
     await screen.findByRole("button", { name: "Play selected cell" });
 
     fireEvent.keyDown(window, { key: "Enter", shiftKey: true });
     await waitFor(() => expect(play).toHaveBeenCalledOnce());
-    await waitFor(() =>
-      expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(1),
-    );
+    expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(0);
 
-    fireEvent.keyDown(window, { key: " ", ctrlKey: true });
-    await waitFor(() => expect(stop).toHaveBeenCalledOnce());
+    getTextStore().setTextStore(0, "query", null);
+    fireEvent.keyDown(window, { key: "Enter", shiftKey: true });
+    expect(play).toHaveBeenCalledOnce();
+    expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(0);
+    expect(getTextStore().textStore).toHaveLength(2);
+
+    getTextStore().setTextStore(0, "query", audioQuery());
+    getTextStore().setProjectPresetStore([]);
+    fireEvent.keyDown(window, { key: " " });
+    expect(play).toHaveBeenCalledOnce();
+
+    getTextStore().setProjectPresetStore([preset()]);
+    getUiStore().setUIStore("selectedTextBlockIndex", 1);
+    fireEvent.keyDown(window, { key: "Enter", shiftKey: true });
+    await waitFor(() => expect(play).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(getTextStore().textStore).toHaveLength(3));
+    expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(2);
+    expect(getTextStore().textStore[2]).toMatchObject({
+      text: "",
+      preset_id: 0,
+      query: null,
+      query_is_modified: false,
+    });
+    expect(getTextStore().textStore[2].id).not.toBe("first-block");
+    expect(getTextStore().textStore[2].id).not.toBe("second-block");
+  });
+
+  it("does not create or move after selection changes during playback startup", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    let resolvePlayback!: (
+      result: Awaited<ReturnType<typeof commands.playAudio>>,
+    ) => void;
+    const pendingPlayback = new Promise<
+      Awaited<ReturnType<typeof commands.playAudio>>
+    >((resolve) => {
+      resolvePlayback = resolve;
+    });
+    const play = vi
+      .spyOn(commands, "playAudio")
+      .mockReturnValue(pendingPlayback);
+    const { getTextStore, getUiStore } = renderPanel();
+    await screen.findByRole("button", { name: "Play selected cell" });
+    getTextStore().replaceTextBlocks([
+      {
+        id: "first-block",
+        text: "first",
+        query: audioQuery(),
+        query_is_modified: false,
+        preset_id: 0,
+      },
+      {
+        id: "second-block",
+        text: "second",
+        query: audioQuery({ speedScale: 1.1 }),
+        query_is_modified: false,
+        preset_id: 0,
+      },
+      {
+        id: "third-block",
+        text: "third",
+        query: audioQuery({ speedScale: 1.2 }),
+        query_is_modified: false,
+        preset_id: 0,
+      },
+    ]);
+
+    getUiStore().setUIStore("selectedTextBlockIndex", 2);
+    fireEvent.keyDown(window, { key: "Enter", shiftKey: true });
+    await waitFor(() => expect(play).toHaveBeenCalledOnce());
+    expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(2);
+
+    getUiStore().setUIStore("selectedTextBlockIndex", 1);
+    resolvePlayback({ status: "ok", data: null });
+    await pendingPlayback;
+    await Promise.resolve();
+    expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(1);
+    expect(getTextStore().textStore).toHaveLength(3);
   });
 
   it("refreshes after playback without buffering, preserves stale previews, and clears when disabled", async () => {
@@ -464,27 +678,27 @@ describe("BottomPanel playback", () => {
     expect(await screen.findByRole("textbox")).toHaveValue("コンニチワ");
   });
 
-  it("edits pitch and duration on the tuning timeline", async () => {
+  it("edits pitch and duration and plays while the pitch slider stays focused", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
+    const play = vi
+      .spyOn(commands, "playAudio")
+      .mockResolvedValue({ status: "ok", data: null });
+    const stop = vi
+      .spyOn(commands, "stopAudio")
+      .mockResolvedValue({ status: "ok", data: null });
     const { getTextStore } = renderPanel({ spectrogram_preview: false });
 
     fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
     const consonant = await screen.findByText("k");
     const timeline = consonant.parentElement!.parentElement!.parentElement!;
-    fireEvent.mouseDown(consonant, { clientX: 100 });
-    fireEvent.mouseMove(timeline, { clientX: 136 });
-    fireEvent.mouseUp(timeline, { clientX: 136 });
-    expect(
-      getTextStore().textStore[0].query?.accent_phrases[0].moras[0]
-        .consonant_length,
-    ).toBeCloseTo(0.18);
 
     const pitch = screen
       .getAllByRole("slider")
       .find((slider) => slider.getAttribute("aria-orientation") === "vertical");
     expect(pitch).toBeDefined();
+    pitch!.focus();
     fireEvent.keyDown(pitch!, { key: "ArrowUp" });
     await waitFor(() =>
       expect(
@@ -492,5 +706,37 @@ describe("BottomPanel playback", () => {
       ).toBeCloseTo(5.41),
     );
     expect(getTextStore().textStore[0].query_is_modified).toBe(true);
+
+    fireEvent.keyDown(pitch!, { key: " " });
+    await waitFor(() => expect(play).toHaveBeenCalledOnce());
+    expect(play.mock.calls[0][0].accent_phrases[0].moras[0].pitch).toBeCloseTo(
+      5.41,
+    );
+
+    await emit("audio-playback-finished");
+    fireEvent.mouseDown(consonant, { clientX: 100 });
+    fireEvent.mouseMove(timeline, { clientX: 136 });
+    fireEvent.mouseUp(timeline, { clientX: 136 });
+    expect(
+      getTextStore().textStore[0].query?.accent_phrases[0].moras[0]
+        .consonant_length,
+    ).toBeCloseTo(0.18);
+    expect(pitch).toHaveFocus();
+    fireEvent.keyDown(pitch!, { key: " " });
+    await waitFor(() => expect(play).toHaveBeenCalledTimes(2));
+    expect(
+      play.mock.calls[1][0].accent_phrases[0].moras[0].consonant_length,
+    ).toBeCloseTo(0.18);
+
+    const zoom = screen
+      .getAllByRole("slider")
+      .find(
+        (slider) => slider.getAttribute("aria-orientation") === "horizontal",
+      );
+    expect(zoom).toBeDefined();
+    zoom!.focus();
+    expect(fireEvent.keyDown(zoom!, { key: " " })).toBe(true);
+    expect(play).toHaveBeenCalledTimes(2);
+    expect(stop).not.toHaveBeenCalled();
   });
 });

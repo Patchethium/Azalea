@@ -164,21 +164,21 @@ impl KeyboardShortcut {
 pub struct KeyboardShortcuts {
   #[serde(default = "save_project_shortcut_default")]
   pub save_project: KeyboardShortcut,
+  #[serde(default = "toggle_playback_shortcut_default")]
+  pub toggle_playback: KeyboardShortcut,
   #[serde(default = "play_current_shortcut_default")]
   pub play_current: KeyboardShortcut,
   #[serde(default = "play_next_shortcut_default")]
   pub play_next: KeyboardShortcut,
-  #[serde(default = "stop_playback_shortcut_default")]
-  pub stop_playback: KeyboardShortcut,
 }
 
 impl Default for KeyboardShortcuts {
   fn default() -> Self {
     Self {
       save_project: save_project_shortcut_default(),
+      toggle_playback: toggle_playback_shortcut_default(),
       play_current: play_current_shortcut_default(),
       play_next: play_next_shortcut_default(),
-      stop_playback: stop_playback_shortcut_default(),
     }
   }
 }
@@ -187,16 +187,16 @@ fn save_project_shortcut_default() -> KeyboardShortcut {
   KeyboardShortcut::new("S", true, false)
 }
 
+fn toggle_playback_shortcut_default() -> KeyboardShortcut {
+  KeyboardShortcut::new("Space", false, false)
+}
+
 fn play_current_shortcut_default() -> KeyboardShortcut {
   KeyboardShortcut::new("Enter", true, false)
 }
 
 fn play_next_shortcut_default() -> KeyboardShortcut {
   KeyboardShortcut::new("Enter", false, true)
-}
-
-fn stop_playback_shortcut_default() -> KeyboardShortcut {
-  KeyboardShortcut::new("Space", true, false)
 }
 
 #[derive(Clone, Deserialize, Serialize, Type)]
@@ -261,6 +261,10 @@ mod tests {
     let config: UIConfig = serde_json::from_str("{}").unwrap();
     assert_eq!(config.synthesis_delay_ms, 600);
     assert_eq!(
+      config.shortcuts.toggle_playback,
+      KeyboardShortcut::new("Space", false, false)
+    );
+    assert_eq!(
       config.shortcuts.play_next,
       KeyboardShortcut::new("Enter", false, true)
     );
@@ -268,8 +272,10 @@ mod tests {
 
   #[test]
   fn missing_shortcut_action_uses_default() {
-    let config: UIConfig =
-      serde_json::from_str(r#"{"shortcuts":{"save_project":{"key":"P","alt":true}}}"#).unwrap();
+    let config: UIConfig = serde_json::from_str(
+      r#"{"shortcuts":{"save_project":{"key":"P","alt":true},"stop_playback":{"key":"Space","primary":true}}}"#,
+    )
+    .unwrap();
     assert_eq!(
       config.shortcuts.save_project,
       KeyboardShortcut {
@@ -281,9 +287,11 @@ mod tests {
       }
     );
     assert_eq!(
-      config.shortcuts.stop_playback,
-      KeyboardShortcut::new("Space", true, false)
+      config.shortcuts.toggle_playback,
+      KeyboardShortcut::new("Space", false, false)
     );
+    let serialized = serde_json::to_value(config).unwrap();
+    assert!(serialized["shortcuts"].get("stop_playback").is_none());
   }
 
   #[test]
@@ -308,6 +316,10 @@ mod tests {
           "secondary": true,
           "shift": true,
           "alt": true
+        },
+        "toggle_playback": {
+          "key": "P",
+          "alt": true
         }
       }
     }"#;
@@ -318,6 +330,10 @@ mod tests {
     assert_eq!(
       restored.shortcuts.save_project,
       config.shortcuts.save_project
+    );
+    assert_eq!(
+      restored.shortcuts.toggle_playback,
+      config.shortcuts.toggle_playback
     );
   }
 }

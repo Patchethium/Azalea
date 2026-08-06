@@ -167,6 +167,14 @@ describe("TextBlock", () => {
     ).toBeInTheDocument();
     fireEvent.click(addButton);
     expect(getTextStore().textStore).toHaveLength(2);
+    expect(getTextStore().textStore[0].id).toBe("text-block");
+    expect(getTextStore().textStore[1]).toMatchObject({
+      text: "",
+      preset_id: 0,
+      query: null,
+      query_is_modified: false,
+    });
+    expect(getTextStore().textStore[1].id).not.toBe("text-block");
 
     fireEvent.focus(screen.getByLabelText("Text to synthesize"));
     fireEvent.click(screen.getByRole("button", { name: "Delete text cell" }));

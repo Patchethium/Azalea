@@ -6,9 +6,9 @@ import {
 
 export const shortcutActions = [
   "save_project",
+  "toggle_playback",
   "play_current",
   "play_next",
-  "stop_playback",
 ] as const;
 
 export type ShortcutAction = (typeof shortcutActions)[number];
@@ -32,6 +32,13 @@ export const defaultKeyboardShortcuts: Record<
     shift: false,
     alt: false,
   },
+  toggle_playback: {
+    key: "Space",
+    primary: false,
+    secondary: false,
+    shift: false,
+    alt: false,
+  },
   play_current: {
     key: "Enter",
     primary: true,
@@ -44,13 +51,6 @@ export const defaultKeyboardShortcuts: Record<
     primary: false,
     secondary: false,
     shift: true,
-    alt: false,
-  },
-  stop_playback: {
-    key: "Space",
-    primary: true,
-    secondary: false,
-    shift: false,
     alt: false,
   },
 };
@@ -163,29 +163,66 @@ const nonEditorControlSelector = [
   "input",
   "textarea",
   "select",
+  "option",
   "button",
+  "a[href]",
+  "summary",
   '[role="button"]',
+  '[role="checkbox"]',
   '[role="combobox"]',
+  '[role="link"]',
   '[role="listbox"]',
   '[role="menu"]',
+  '[role="menuitem"]',
+  '[role="option"]',
+  '[role="radio"]',
   '[role="slider"]',
+  '[role="spinbutton"]',
+  '[role="switch"]',
+  '[role="tab"]',
+  '[role="textbox"]',
 ].join(",");
 
-export const isShortcutAllowed = (event: KeyboardEvent) => {
-  if (
-    event.defaultPrevented ||
-    event.repeat ||
-    document.querySelector('[role="dialog"]') !== null
-  ) {
-    return false;
-  }
+const textEditorSelector = '[contenteditable]:not([contenteditable="false"])';
+const openDialogSelector = '[role="dialog"]:not([data-closed]), dialog[open]';
+const playbackToggleSurfaceSelector = '[data-playback-toggle="allow"]';
 
-  const target = event.target;
-  if (!(target instanceof Element)) return true;
+const shortcutTarget = (event: KeyboardEvent) => {
+  if (event.target instanceof Element) return event.target;
+  return document.activeElement instanceof Element
+    ? document.activeElement
+    : null;
+};
+
+export const isApplicationShortcutAllowed = (event: KeyboardEvent) =>
+  !event.defaultPrevented && !event.repeat && !event.isComposing;
+
+const isPlaybackContextAllowed = (event: KeyboardEvent) =>
+  !(
+    !isApplicationShortcutAllowed(event) ||
+    document.querySelector(openDialogSelector) !== null
+  );
+
+export const isPlaybackShortcutAllowed = (event: KeyboardEvent) => {
+  if (!isPlaybackContextAllowed(event)) return false;
+
+  const target = shortcutTarget(event);
+  if (target === null) return true;
+  if (target.closest(textEditorSelector)) {
+    return true;
+  }
+  return target.closest(nonEditorControlSelector) === null;
+};
+
+export const isPlaybackToggleAllowed = (event: KeyboardEvent) => {
+  if (!isPlaybackContextAllowed(event)) return false;
+  const target = shortcutTarget(event);
+  if (target === null) return true;
+  if (target.closest(textEditorSelector) !== null) return false;
+  const slider = target.closest('[role="slider"]');
   if (
-    target.closest(
-      '[contenteditable="true"], [contenteditable="plaintext-only"]',
-    )
+    slider !== null &&
+    slider.closest(playbackToggleSurfaceSelector) !== null
   ) {
     return true;
   }

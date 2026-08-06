@@ -31,9 +31,9 @@
     "reset": "Restore default shortcut",
     "reset_all": "Restore all defaults",
     "save_project": "Save project",
+    "toggle_playback": "Play or stop selected cell",
     "play_current": "Play selected cell",
-    "play_next": "Play selected cell and advance",
-    "stop_playback": "Stop playback"
+    "play_next": "Play selected cell and advance"
   },
   "about": {
     "title": "About Azalea",

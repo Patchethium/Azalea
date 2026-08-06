@@ -1,6 +1,6 @@
 import { createContextProvider } from "@solid-primitives/context";
 import { batch, createEffect, createSignal } from "solid-js";
-import { createStore } from "solid-js/store";
+import { createStore, produce } from "solid-js/store";
 import {
   CharacterMeta,
   Preset,
@@ -107,6 +107,21 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
 
   const [projectPath, setProjectPath] = createSignal<string | null>(null);
 
+  const insertTextBlockBelow = (index: number) => {
+    const sourceIndex = clampTextBlockIndex(index, textStore.length);
+    const nextIndex = textStore.length === 0 ? 0 : sourceIndex + 1;
+    const presetId = textStore[sourceIndex]?.preset_id ?? null;
+    batch(() => {
+      setTextStore(
+        produce((blocks) => {
+          blocks.splice(nextIndex, 0, createTextBlock(presetId));
+        }),
+      );
+      setUIStore("selectedTextBlockIndex", nextIndex);
+    });
+    return nextIndex;
+  };
+
   createEffect(() => {
     setProject({
       blocks: textStore.map((block) => ({ ...block })),
@@ -194,6 +209,7 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     setProject,
     projectPath,
     setProjectPath,
+    insertTextBlockBelow,
     selectedTextBlock,
     selectedTextBlockIndex,
     createFirstTextBlock,

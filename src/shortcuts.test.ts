@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   defaultKeyboardShortcuts,
   formatShortcut,
-  isShortcutAllowed,
+  isApplicationShortcutAllowed,
+  isPlaybackShortcutAllowed,
+  isPlaybackToggleAllowed,
   matchesShortcut,
   normalizeShortcutKey,
   resolveShortcut,
@@ -35,6 +37,13 @@ describe("shortcut normalization and display", () => {
     expect(resolveShortcut(undefined, "save_project")).toBe(
       defaultKeyboardShortcuts.save_project,
     );
+    expect(resolveShortcut(undefined, "toggle_playback")).toEqual({
+      key: "Space",
+      primary: false,
+      secondary: false,
+      shift: false,
+      alt: false,
+    });
     expect(
       resolveShortcut(
         { save_project: { key: "s", alt: true } },
@@ -112,6 +121,21 @@ describe("keyboard matching", () => {
         "Linux",
       ),
     ).toBe(false);
+
+    expect(
+      matchesShortcut(
+        keyboardEvent(" "),
+        defaultKeyboardShortcuts.toggle_playback,
+        "Linux",
+      ),
+    ).toBe(true);
+    expect(
+      matchesShortcut(
+        keyboardEvent(" ", { ctrlKey: true }),
+        defaultKeyboardShortcuts.toggle_playback,
+        "Linux",
+      ),
+    ).toBe(false);
     expect(
       matchesShortcut(
         keyboardEvent("Enter", { shiftKey: true, repeat: true }),
@@ -123,32 +147,76 @@ describe("keyboard matching", () => {
 });
 
 describe("focus safety", () => {
-  it("blocks handled or repeated events and all shortcuts while a dialog exists", () => {
+  it("blocks handled, repeated, and composing application shortcuts", () => {
     const handled = keyboardEvent("s");
     handled.preventDefault();
-    expect(isShortcutAllowed(handled)).toBe(false);
-    expect(isShortcutAllowed(keyboardEvent("s", { repeat: true }))).toBe(false);
+    expect(isApplicationShortcutAllowed(handled)).toBe(false);
+    expect(
+      isApplicationShortcutAllowed(keyboardEvent("s", { repeat: true })),
+    ).toBe(false);
+    expect(
+      isApplicationShortcutAllowed(keyboardEvent("s", { isComposing: true })),
+    ).toBe(false);
+    expect(isApplicationShortcutAllowed(keyboardEvent("s"))).toBe(true);
+  });
 
+  it("blocks playback in dialogs and non-editor controls", () => {
     const dialog = document.createElement("div");
     dialog.setAttribute("role", "dialog");
     document.body.append(dialog);
-    expect(isShortcutAllowed(keyboardEvent("s"))).toBe(false);
-  });
+    expect(isPlaybackShortcutAllowed(keyboardEvent("s"))).toBe(false);
+    expect(isPlaybackToggleAllowed(keyboardEvent(" "))).toBe(false);
+    expect(isApplicationShortcutAllowed(keyboardEvent("s"))).toBe(true);
+    dialog.remove();
 
-  it("allows editors and plain content while excluding form controls", () => {
     const input = document.createElement("input");
     document.body.append(input);
-    input.dispatchEvent(keyboardEvent("s"));
     const inputEvent = keyboardEvent("s");
     Object.defineProperty(inputEvent, "target", { value: input });
-    expect(isShortcutAllowed(inputEvent)).toBe(false);
+    expect(isPlaybackShortcutAllowed(inputEvent)).toBe(false);
+    expect(isPlaybackToggleAllowed(inputEvent)).toBe(false);
+    expect(isApplicationShortcutAllowed(inputEvent)).toBe(true);
+  });
 
+  it("allows playback shortcuts in editors and plain content", () => {
     const editor = document.createElement("div");
     editor.setAttribute("contenteditable", "true");
     const editorEvent = keyboardEvent("s");
     Object.defineProperty(editorEvent, "target", { value: editor });
-    expect(isShortcutAllowed(editorEvent)).toBe(true);
+    expect(isPlaybackShortcutAllowed(editorEvent)).toBe(true);
+    expect(isPlaybackToggleAllowed(editorEvent)).toBe(false);
 
-    expect(isShortcutAllowed(keyboardEvent("s"))).toBe(true);
+    expect(isPlaybackShortcutAllowed(keyboardEvent("s"))).toBe(true);
+    expect(isPlaybackToggleAllowed(keyboardEvent(" "))).toBe(true);
+  });
+
+  it("allows playback toggling only on explicitly marked sliders", () => {
+    const surface = document.createElement("div");
+    const slider = document.createElement("span");
+    slider.setAttribute("role", "slider");
+    surface.append(slider);
+    document.body.append(surface);
+    const sliderEvent = keyboardEvent(" ");
+    Object.defineProperty(sliderEvent, "target", { value: slider });
+
+    expect(isPlaybackToggleAllowed(sliderEvent)).toBe(false);
+    surface.setAttribute("data-playback-toggle", "allow");
+    expect(isPlaybackToggleAllowed(sliderEvent)).toBe(true);
+    expect(isPlaybackShortcutAllowed(sliderEvent)).toBe(false);
+
+    const input = document.createElement("input");
+    surface.append(input);
+    const inputEvent = keyboardEvent(" ");
+    Object.defineProperty(inputEvent, "target", { value: input });
+    expect(isPlaybackToggleAllowed(inputEvent)).toBe(false);
+  });
+
+  it("ignores closed dialogs when evaluating playback shortcuts", () => {
+    const dialog = document.createElement("div");
+    dialog.setAttribute("role", "dialog");
+    dialog.setAttribute("data-closed", "");
+    document.body.append(dialog);
+
+    expect(isPlaybackShortcutAllowed(keyboardEvent(" "))).toBe(true);
   });
 });

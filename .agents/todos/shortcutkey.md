@@ -8,15 +8,16 @@ browser/OS conventions.
 
 ### Step 1: essential application shortcuts (complete)
 
-Keep the first step deliberately small and limited to modifier-based workflow
-shortcuts. Do not introduce unmodified single-letter shortcuts.
+Keep the first step deliberately small. Use modifier-based workflow shortcuts
+plus the conventional unmodified playback transport key. Do not introduce
+unmodified single-letter shortcuts.
 
 | Shortcut           | Action                                        |
 | ------------------ | --------------------------------------------- |
 | `Ctrl/Cmd + S`     | Save the current project                      |
+| `Space`            | Play or stop the selected cell                |
 | `Ctrl/Cmd + Enter` | Generate/play the selected cell and stay      |
-| `Shift + Enter`    | Generate/play the selected cell, then advance |
-| `Ctrl/Cmd + Space` | Stop playback                                 |
+| `Shift + Enter`    | Generate/play, then select or create the next cell |
 
 Implementation rules:
 
@@ -25,16 +26,20 @@ Implementation rules:
 - Preserve ordinary text input for all other keys.
 - Do not run playback shortcuts while a dialog or non-editor form control has
   focus; saving remains available throughout the application.
+- Do not handle bare `Space` while text is being edited; it must continue to
+  insert a normal space. Modifier-based playback shortcuts remain available in
+  the selected text editor.
 - Reuse the same actions as the visible controls rather than duplicating their
   behavior.
 
 Acceptance criteria:
 
 - The shortcuts work while the selected text cell is being edited.
+- Bare `Space` plays or stops from the non-text editor surface.
 - Play shortcuts do nothing when the selected cell has no usable query/preset.
-- `Shift + Enter` advances only after playback starts successfully and remains
-  on the final cell when there is no next cell.
-- Stop is harmless when nothing is playing.
+- `Shift + Enter` advances only after playback starts successfully and creates
+  a new empty cell below when the selected cell is the final cell.
+- Bare `Space` stops active playback and starts the selected cell while idle.
 - Frontend checks and Rust tests pass.
 
 ### Step 2: focus-safe cell operations
@@ -69,7 +74,7 @@ be reviewed for platform and accessibility conflicts before implementation.
 | ------------------------- | ------------------------------------------------------ | ------- |
 | `Enter`                   | Edit selected cell                                     | Command |
 | `Esc`                     | Exit text editing / enter command mode                 | Edit    |
-| `Shift + Enter`           | Generate/play current cell, then select next cell      | Both    |
+| `Shift + Enter`           | Generate/play, then select or create the next cell     | Both    |
 | `Ctrl/Cmd + Enter`        | Generate/play current cell and stay on it              | Both    |
 | `Alt/Option + Enter`      | Generate/play current cell and insert a new cell below | Both    |
 | `A`                       | Insert cell above                                      | Command |
@@ -114,9 +119,8 @@ These can make the editor feel purpose-built rather than merely notebook-like.
 
 | Shortcut                  | Suggested action                               |
 | ------------------------- | ---------------------------------------------- |
-| `Space`                   | Play or pause selected cell in command mode    |
+| `Space`                   | Play or stop selected cell outside text editing |
 | `Shift + Space`           | Play from selected cell onward                 |
-| `Ctrl/Cmd + Space`        | Stop playback                                  |
 | `R`                       | Regenerate audio for selected cell             |
 | `Shift + R`               | Regenerate all selected cells                  |
 | `P`                       | Preview selected cell without saving output    |

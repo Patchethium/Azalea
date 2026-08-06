@@ -37,7 +37,7 @@ import { useSystemStore } from "../contexts/system";
 import { findPresetStyle, useTextStore } from "../contexts/text";
 import { PageType, useUIStore } from "../contexts/ui";
 import {
-  isShortcutAllowed,
+  isApplicationShortcutAllowed,
   matchesShortcut,
   resolveShortcut,
 } from "../shortcuts";
@@ -304,7 +304,7 @@ function Sidebar() {
   onMount(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
-        !isShortcutAllowed(event) ||
+        !isApplicationShortcutAllowed(event) ||
         !matchesShortcut(
           event,
           resolveShortcut(config.ui_config.shortcuts, "save_project"),

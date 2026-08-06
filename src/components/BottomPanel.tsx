@@ -32,7 +32,8 @@ import { useSystemStore } from "../contexts/system";
 import { findPresetStyle, useTextStore } from "../contexts/text";
 import { type BottomPanelType, useUIStore } from "../contexts/ui";
 import {
-  isShortcutAllowed,
+  isPlaybackShortcutAllowed,
+  isPlaybackToggleAllowed,
   matchesShortcut,
   resolveShortcut,
 } from "../shortcuts";
@@ -112,12 +113,14 @@ function ControlBar(props: {
     projectPresetStore,
     selectedTextBlock,
     selectedTextBlockIndex,
+    insertTextBlockBelow,
   } = useTextStore()!;
   const { metas } = useMetaStore()!;
   const { setUIStore } = useUIStore()!;
   const { config } = useConfigStore()!;
   const { systemStore } = useSystemStore()!;
   const [isPlaying, setIsPlaying] = createSignal(false);
+  let playRequestPending = false;
 
   const currentText = selectedTextBlock;
   const queryExists = () => {
@@ -136,10 +139,18 @@ function ControlBar(props: {
       selectedTextBlockIndex() < textStore.length - 1 && textStore.length > 1,
   );
 
-  const focusNext = () => {
+  const focusNext = (expectedBlockId?: string, createIfMissing = false) => {
     const index = selectedTextBlockIndex();
+    if (
+      expectedBlockId !== undefined &&
+      textStore[index]?.id !== expectedBlockId
+    ) {
+      return;
+    }
     if (index < textStore.length - 1) {
       setUIStore("selectedTextBlockIndex", index + 1);
+    } else if (createIfMissing) {
+      insertTextBlockBelow(index);
     }
   };
 
@@ -161,28 +172,35 @@ function ControlBar(props: {
       : null;
   });
 
+  const canPlay = () => queryExists() && currentPreset() !== null;
+
   const speak = async () => {
     const block = currentText();
     const _currentPreset = unwrap(currentPreset());
-    if (block === null || _currentPreset == null || !queryExists())
-      return false;
-    if (isPlaying()) await stop();
-    const audioQuery = getModifiedQuery(unwrap(block.query!), _currentPreset);
-    const result = await commands.playAudio(
-      audioQuery,
-      _currentPreset.style_id,
-    );
-    if (result.status === "ok") {
-      setIsPlaying(true);
-      props.onWaveformSynthesized({
-        blockId: block.id,
+    if (block === null || _currentPreset == null || !queryExists()) return null;
+    if (playRequestPending) return null;
+    playRequestPending = true;
+    try {
+      if (isPlaying()) await stop();
+      const audioQuery = getModifiedQuery(unwrap(block.query!), _currentPreset);
+      const result = await commands.playAudio(
         audioQuery,
-        speakerId: _currentPreset.style_id,
-      });
-      return true;
-    } else {
-      console.error("Failed to play audio:", result.error);
-      return false;
+        _currentPreset.style_id,
+      );
+      if (result.status === "ok") {
+        setIsPlaying(true);
+        props.onWaveformSynthesized({
+          blockId: block.id,
+          audioQuery,
+          speakerId: _currentPreset.style_id,
+        });
+        return block.id;
+      } else {
+        console.error("Failed to play audio:", result.error);
+        return null;
+      }
+    } finally {
+      playRequestPending = false;
     }
   };
 
@@ -194,6 +212,8 @@ function ControlBar(props: {
       setIsPlaying(false);
     }
   };
+
+  const togglePlayback = () => (isPlaying() ? stop() : speak());
 
   onMount(() => {
     let disposed = false;
@@ -210,9 +230,17 @@ function ControlBar(props: {
     });
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (!isShortcutAllowed(event)) return;
-
+      const playbackShortcutAllowed = isPlaybackShortcutAllowed(event);
+      const playbackToggleAllowed = isPlaybackToggleAllowed(event);
+      if (!playbackShortcutAllowed && !playbackToggleAllowed) return;
       const shortcuts = config.ui_config.shortcuts;
+      const togglePlaybackShortcut =
+        playbackToggleAllowed &&
+        matchesShortcut(
+          event,
+          resolveShortcut(shortcuts, "toggle_playback"),
+          systemStore.os,
+        );
       const playAndStay = matchesShortcut(
         event,
         resolveShortcut(shortcuts, "play_current"),
@@ -223,23 +251,20 @@ function ControlBar(props: {
         resolveShortcut(shortcuts, "play_next"),
         systemStore.os,
       );
-      const stopPlayback = matchesShortcut(
-        event,
-        resolveShortcut(shortcuts, "stop_playback"),
-        systemStore.os,
-      );
-
-      if (playAndStay) {
+      if (togglePlaybackShortcut) {
+        if (!isPlaying() && !canPlay()) return;
+        event.preventDefault();
+        void togglePlayback();
+      } else if (playbackShortcutAllowed && playAndStay) {
         event.preventDefault();
         void speak();
-      } else if (playAndAdvance) {
+      } else if (playbackShortcutAllowed && playAndAdvance) {
         event.preventDefault();
-        void speak().then((started) => {
-          if (started) focusNext();
+        void speak().then((startedBlockId) => {
+          if (!disposed && startedBlockId !== null) {
+            focusNext(startedBlockId, true);
+          }
         });
-      } else if (stopPlayback) {
-        event.preventDefault();
-        void stop();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -305,8 +330,8 @@ function ControlBar(props: {
       <IconButton
         icon={isPlaying() ? "i-lucide:square" : "i-lucide:play"}
         label={t1(isPlaying() ? "bottom.stop" : "bottom.play")}
-        onClick={() => (isPlaying() ? stop() : speak())}
-        disabled={!isPlaying() && !queryExists()}
+        onClick={togglePlayback}
+        disabled={!isPlaying() && !canPlay()}
       />
       <IconButton
         icon="i-lucide:list-video"
@@ -318,7 +343,7 @@ function ControlBar(props: {
         icon="i-lucide:skip-forward"
         label={t1("bottom.next")}
         size="sm"
-        onClick={focusNext}
+        onClick={() => focusNext()}
         disabled={!nextExists()}
       />
       <div class="flex-1" />
@@ -814,6 +839,7 @@ function TuningItems(props: {
   const totalPixels = (): number => (consonantPixels() ?? 0) + vowelPixels();
   return (
     <div
+      data-playback-toggle="allow"
       class="flex flex-none flex-col b-dashed b-r b-slate-3 dark:b-slate-6 h-100% select-none relative z-1"
       style={{
         width: `${totalPixels()}px`,

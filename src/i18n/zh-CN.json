@@ -31,9 +31,9 @@
     "reset": "恢复默认快捷键",
     "reset_all": "全部恢复默认",
     "save_project": "保存项目",
+    "toggle_playback": "播放或停止选中的单元格",
     "play_current": "播放选中的单元格",
-    "play_next": "播放选中的单元格并移至下一个",
-    "stop_playback": "停止播放"
+    "play_next": "播放选中的单元格并移至下一个"
   },
   "about": {
     "title": "关于 Azalea",
