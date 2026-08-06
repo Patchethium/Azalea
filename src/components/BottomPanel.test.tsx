@@ -223,6 +223,55 @@ describe("BottomPanel playback", () => {
     ).toBeInTheDocument();
   });
 
+  it("focuses each playable text cell as play-all advances", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    vi.spyOn(commands, "playAudioSequence").mockResolvedValue({
+      status: "ok",
+      data: null,
+    });
+    const { getTextStore, getUiStore } = renderPanel();
+    await screen.findByRole("button", { name: "Play selected cell" });
+    getTextStore().replaceTextBlocks([
+      getTextStore().textStore[0],
+      {
+        ...getTextStore().textStore[1],
+        query: null,
+      },
+      {
+        id: "third-block",
+        text: "third",
+        query: audioQuery({ speedScale: 1.2 }),
+        query_is_modified: false,
+        preset_id: 0,
+      },
+    ]);
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Play selected cell and all cells below",
+      }),
+    );
+    await waitFor(() =>
+      expect(commands.playAudioSequence).toHaveBeenCalledOnce(),
+    );
+    expect(vi.mocked(commands.playAudioSequence).mock.calls[0][0]).toHaveLength(
+      2,
+    );
+    expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(0);
+
+    await emit("audio-sequence-item-started", 1);
+    expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(2);
+
+    await emit("audio-sequence-item-started", 0);
+    expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(2);
+
+    await emit("audio-playback-finished");
+    await emit("audio-sequence-item-started", 0);
+    expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(2);
+  });
+
   it("honors play-and-advance shortcuts while editing text", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,

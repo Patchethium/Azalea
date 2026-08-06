@@ -79,7 +79,21 @@ function AutogrowInput(props: ComponentProps) {
   );
 
   createEffect(() => {
-    if (local.focused) inputRef?.focus();
+    if (
+      local.focused &&
+      inputRef !== undefined &&
+      inputRef.ownerDocument.activeElement !== inputRef
+    ) {
+      inputRef.focus();
+      const selection = inputRef.ownerDocument.getSelection();
+      if (selection !== null) {
+        const range = inputRef.ownerDocument.createRange();
+        range.selectNodeContents(inputRef);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
   });
 
   const handleInput = () => {

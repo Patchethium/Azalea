@@ -46,6 +46,10 @@ type WaveformSynthesisNotice = {
   audioQuery: AudioQuery;
   speakerId: number;
 };
+type PlaybackSequence = {
+  items: WaveformSynthesisNotice[];
+  lastStartedIndex: number | null;
+};
 
 function BottomPanel() {
   const { t1 } = usei18n()!;
@@ -122,6 +126,7 @@ function ControlBar(props: {
   const [isPlaying, setIsPlaying] = createSignal(false);
   let playRequestPending = false;
   let playbackShortcutFocus: HTMLElement | null = null;
+  let activePlaybackSequence: PlaybackSequence | null = null;
 
   const clearPlaybackShortcutFocus = () => {
     playbackShortcutFocus?.removeAttribute("data-playback-shortcut-focus");
@@ -188,6 +193,29 @@ function ControlBar(props: {
 
   const canPlay = () => queryExists() && currentPreset() !== null;
 
+  const focusSequenceItem = (itemIndex: number) => {
+    const sequence = activePlaybackSequence;
+    if (
+      sequence === null ||
+      !Number.isInteger(itemIndex) ||
+      itemIndex < 0 ||
+      itemIndex >= sequence.items.length ||
+      (sequence.lastStartedIndex !== null &&
+        itemIndex <= sequence.lastStartedIndex)
+    ) {
+      return;
+    }
+    sequence.lastStartedIndex = itemIndex;
+    const item = sequence.items[itemIndex];
+    const blockIndex = textStore.findIndex(
+      (block) => block.id === item.blockId,
+    );
+    if (blockIndex !== -1) {
+      setUIStore("selectedTextBlockIndex", blockIndex);
+      props.onWaveformSynthesized(item);
+    }
+  };
+
   const speak = async () => {
     const block = currentText();
     const _currentPreset = unwrap(currentPreset());
@@ -196,6 +224,7 @@ function ControlBar(props: {
     playRequestPending = true;
     try {
       if (isPlaying()) await stop();
+      activePlaybackSequence = null;
       const audioQuery = getModifiedQuery(unwrap(block.query!), _currentPreset);
       const result = await commands.playAudio(
         audioQuery,
@@ -219,6 +248,7 @@ function ControlBar(props: {
   };
 
   const stop = async () => {
+    activePlaybackSequence = null;
     const result = await commands.stopAudio();
     if (result.status === "error") {
       console.error("Failed to stop audio:", result.error);
@@ -232,15 +262,25 @@ function ControlBar(props: {
   onMount(() => {
     let disposed = false;
     let unlistenPlaybackFinished: (() => void) | undefined;
-    void listen("audio-playback-finished", () => setIsPlaying(false)).then(
-      (unlisten) => {
-        if (disposed) unlisten();
-        else unlistenPlaybackFinished = unlisten;
-      },
-    );
+    let unlistenSequenceItemStarted: (() => void) | undefined;
+    void listen("audio-playback-finished", () => {
+      activePlaybackSequence = null;
+      setIsPlaying(false);
+    }).then((unlisten) => {
+      if (disposed) unlisten();
+      else unlistenPlaybackFinished = unlisten;
+    });
+    void listen<number>("audio-sequence-item-started", ({ payload }) => {
+      focusSequenceItem(payload);
+    }).then((unlisten) => {
+      if (disposed) unlisten();
+      else unlistenSequenceItemStarted = unlisten;
+    });
     onCleanup(() => {
       disposed = true;
       unlistenPlaybackFinished?.();
+      unlistenSequenceItemStarted?.();
+      activePlaybackSequence = null;
     });
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -325,25 +365,36 @@ function ControlBar(props: {
   );
 
   const speakAllFromSelection = async () => {
-    if (isPlaying()) await stop();
-    const playable = playableFromSelection();
-    const result = await commands.playAudioSequence(
-      playable.map((item) => ({
-        audio_query: item.audioQuery,
-        speaker_id: item.speakerId,
-      })),
-    );
-    if (result.status === "error") {
-      console.error("Failed to play audio sequence:", result.error);
-    } else {
-      setIsPlaying(true);
-      const selectedBlock = currentText();
-      const selectedItem = playable.find(
-        (item) => item.blockId === selectedBlock?.id,
+    if (playRequestPending) return;
+    playRequestPending = true;
+    try {
+      if (isPlaying()) await stop();
+      const playable = playableFromSelection();
+      if (playable.length === 0) return;
+      const sequence: PlaybackSequence = {
+        items: playable,
+        lastStartedIndex: null,
+      };
+      activePlaybackSequence = sequence;
+      const result = await commands.playAudioSequence(
+        playable.map((item) => ({
+          audio_query: item.audioQuery,
+          speaker_id: item.speakerId,
+        })),
       );
-      if (selectedItem !== undefined) {
-        props.onWaveformSynthesized(selectedItem);
+      if (result.status === "error") {
+        if (activePlaybackSequence === sequence) {
+          activePlaybackSequence = null;
+        }
+        console.error("Failed to play audio sequence:", result.error);
+      } else if (activePlaybackSequence === sequence) {
+        setIsPlaying(true);
+        if (sequence.lastStartedIndex === null) {
+          focusSequenceItem(0);
+        }
       }
+    } finally {
+      playRequestPending = false;
     }
   };
 

@@ -2,7 +2,7 @@ import { MultiProvider } from "@solid-primitives/context";
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
-import { batch, type Component, onMount } from "solid-js";
+import { batch, type Component, For, onMount } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
 import { commands, events } from "../binding";
 import { ConfigProvider, useConfigStore } from "../contexts/config";
@@ -10,7 +10,7 @@ import { i18nProvider } from "../contexts/i18n";
 import { MetaProvider, useMetaStore } from "../contexts/meta";
 import { SpectrogramProvider } from "../contexts/spectrogram";
 import { TextProvider, useTextStore } from "../contexts/text";
-import { UIProvider } from "../contexts/ui";
+import { UIProvider, useUIStore } from "../contexts/ui";
 import { audioQuery, config, metas, preset } from "../test/fixtures";
 import TextBlock from "./TextBlock";
 
@@ -37,14 +37,21 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 
 type TextStore = NonNullable<ReturnType<typeof useTextStore>>;
 type ConfigStore = NonNullable<ReturnType<typeof useConfigStore>>;
+type UIStore = NonNullable<ReturnType<typeof useUIStore>>;
 
-const renderBlock = (bufferRender: boolean, queryIsModified = false) => {
+const renderBlock = (
+  bufferRender: boolean,
+  queryIsModified = false,
+  renderAllBlocks = false,
+) => {
   let text!: TextStore;
   let appConfig!: ConfigStore;
+  let ui!: UIStore;
   const Harness: Component = () => {
     const meta = useMetaStore()!;
     appConfig = useConfigStore()!;
     text = useTextStore()!;
+    ui = useUIStore()!;
     onMount(() => {
       batch(() => {
         meta.setMetas(metas);
@@ -55,18 +62,35 @@ const renderBlock = (bufferRender: boolean, queryIsModified = false) => {
           }),
         );
         text.setProjectPresetStore([preset()]);
-        text.replaceTextBlocks([
-          {
-            id: "text-block",
-            text: "hello",
-            query: audioQuery(),
-            query_is_modified: queryIsModified,
-            preset_id: 0,
-          },
-        ]);
+        text.replaceTextBlocks(
+          [
+            {
+              id: "text-block",
+              text: "hello",
+              query: audioQuery(),
+              query_is_modified: queryIsModified,
+              preset_id: 0,
+            },
+            renderAllBlocks
+              ? {
+                  id: "second-text-block",
+                  text: "second",
+                  query: audioQuery(),
+                  query_is_modified: false,
+                  preset_id: 0,
+                }
+              : null,
+          ].filter((block) => block !== null),
+        );
       });
     });
-    return <TextBlock index={0} />;
+    return renderAllBlocks ? (
+      <For each={text.textStore}>
+        {(_, index) => <TextBlock index={index()} />}
+      </For>
+    ) : (
+      <TextBlock index={0} />
+    );
   };
 
   const result = render(() => (
@@ -87,10 +111,33 @@ const renderBlock = (bufferRender: boolean, queryIsModified = false) => {
     ...result,
     getTextStore: () => text,
     getConfigStore: () => appConfig,
+    getUiStore: () => ui,
   };
 };
 
 describe("TextBlock", () => {
+  it("places the caret at the end when another cell is focused programmatically", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    vi.spyOn(commands, "audioQuery").mockResolvedValue({
+      status: "ok",
+      data: audioQuery(),
+    });
+    const { getUiStore } = renderBlock(false, false, true);
+    const editors = await screen.findAllByLabelText("Text to synthesize");
+
+    getUiStore().setUIStore("selectedTextBlockIndex", 1);
+
+    await waitFor(() => expect(editors[1]).toHaveFocus());
+    const selection = editors[1].ownerDocument.getSelection();
+    expect(selection?.rangeCount).toBe(1);
+    const caret = selection!.getRangeAt(0);
+    const textEnd = editors[1].ownerDocument.createRange();
+    textEnd.selectNodeContents(editors[1]);
+    textEnd.collapse(false);
+    expect(caret.collapsed).toBe(true);
+    expect(caret.compareBoundaryPoints(Range.START_TO_START, textEnd)).toBe(0);
+  });
+
   it("refreshes queries after editing and reflects buffered synthesis state", async () => {
     mockIPC(() => null, { shouldMockEvents: true });
     const query = vi

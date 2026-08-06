@@ -550,12 +550,21 @@ pub async fn play_audio_sequence(
   for item in items {
     wavs.push(synthesize_cached(&app, &state, item.audio_query, item.speaker_id, None).await?);
   }
+  let item_started_app = app.clone();
   let playback_app = app.clone();
-  let audio_player = AudioPlayer::play_many(wavs, move || {
-    if let Err(error) = playback_app.emit("audio-playback-finished", ()) {
-      eprintln!("Failed to emit playback completion: {error}");
-    }
-  })
+  let audio_player = AudioPlayer::play_many(
+    wavs,
+    move |index| {
+      if let Err(error) = item_started_app.emit("audio-sequence-item-started", index) {
+        eprintln!("Failed to emit audio sequence progress: {error}");
+      }
+    },
+    move || {
+      if let Err(error) = playback_app.emit("audio-playback-finished", ()) {
+        eprintln!("Failed to emit playback completion: {error}");
+      }
+    },
+  )
   .await?;
   state
     .audio_player
