@@ -121,6 +121,20 @@ function ControlBar(props: {
   const { systemStore } = useSystemStore()!;
   const [isPlaying, setIsPlaying] = createSignal(false);
   let playRequestPending = false;
+  let playbackShortcutFocus: HTMLElement | null = null;
+
+  const clearPlaybackShortcutFocus = () => {
+    playbackShortcutFocus?.removeAttribute("data-playback-shortcut-focus");
+    playbackShortcutFocus = null;
+  };
+
+  const suppressPlaybackShortcutFocus = () => {
+    clearPlaybackShortcutFocus();
+    const focused = document.activeElement;
+    if (!(focused instanceof HTMLElement) || focused === document.body) return;
+    focused.setAttribute("data-playback-shortcut-focus", "");
+    playbackShortcutFocus = focused;
+  };
 
   const currentText = selectedTextBlock;
   const queryExists = () => {
@@ -255,12 +269,15 @@ function ControlBar(props: {
         if (!isPlaying() && !canPlay()) return;
         event.preventDefault();
         event.stopPropagation();
+        suppressPlaybackShortcutFocus();
         void togglePlayback();
       } else if (playbackShortcutAllowed && playAndStay) {
+        clearPlaybackShortcutFocus();
         event.preventDefault();
         event.stopPropagation();
         void speak();
       } else if (playbackShortcutAllowed && playAndAdvance) {
+        clearPlaybackShortcutFocus();
         event.preventDefault();
         event.stopPropagation();
         void speak().then((startedBlockId) => {
@@ -268,10 +285,20 @@ function ControlBar(props: {
             focusNext(startedBlockId, true);
           }
         });
+      } else {
+        clearPlaybackShortcutFocus();
       }
     };
+    const handleFocusOut = (event: FocusEvent) => {
+      if (event.target === playbackShortcutFocus) clearPlaybackShortcutFocus();
+    };
     window.addEventListener("keydown", handleKeyDown, true);
-    onCleanup(() => window.removeEventListener("keydown", handleKeyDown, true));
+    window.addEventListener("focusout", handleFocusOut, true);
+    onCleanup(() => {
+      window.removeEventListener("keydown", handleKeyDown, true);
+      window.removeEventListener("focusout", handleFocusOut, true);
+      clearPlaybackShortcutFocus();
+    });
   });
 
   const playableFromSelection = createMemo(() =>

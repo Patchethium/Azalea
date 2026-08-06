@@ -362,6 +362,7 @@ describe("BottomPanel playback", () => {
       control.focus();
       expect(fireEvent.keyDown(control, { key: " " })).toBe(false);
       await waitFor(() => expect(play).toHaveBeenCalledTimes(expectedCalls));
+      expect(control).toHaveAttribute("data-playback-shortcut-focus");
       await emit("audio-playback-finished");
     };
 
@@ -372,6 +373,7 @@ describe("BottomPanel playback", () => {
     const accentTab = screen.getByRole("tab", { name: "Accent" });
     fireEvent.click(accentTab);
     await playFrom(accentTab, 2);
+    expect(tuningTab).not.toHaveAttribute("data-playback-shortcut-focus");
 
     const presetToggle = screen.getByRole("button", { name: "Preset" });
     fireEvent.click(presetToggle);
@@ -397,6 +399,7 @@ describe("BottomPanel playback", () => {
     });
     fireEvent.keyDown(menuTrigger, { key: "Enter" });
     const menu = await screen.findByRole("menu");
+    expect(menuTrigger).not.toHaveAttribute("data-playback-shortcut-focus");
     expect(fireEvent.keyDown(window, { key: " " })).toBe(true);
     expect(play).toHaveBeenCalledTimes(5);
 
@@ -404,6 +407,8 @@ describe("BottomPanel playback", () => {
     await waitFor(() => expect(menu).toHaveAttribute("data-closed"));
     await playFrom(menuTrigger, 6);
     expect(menu).toHaveAttribute("data-closed");
+    fireEvent.keyDown(menuTrigger, { key: "A" });
+    expect(menuTrigger).not.toHaveAttribute("data-playback-shortcut-focus");
   });
 
   it("honors a configured playback-toggle shortcut", async () => {

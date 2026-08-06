@@ -18,3 +18,8 @@ html {
 :global(html.dark) {
   color-scheme: dark;
 }
+
+:global([data-playback-shortcut-focus]) {
+  --un-ring-width: 0px !important;
+  outline: none !important;
+}
