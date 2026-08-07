@@ -354,7 +354,7 @@ describe("BottomPanel playback", () => {
     editor.remove();
   });
 
-  it("toggles playback with bare Space and ignores Ctrl+Space", async () => {
+  it("shows loading while playback starts and toggles with bare Space", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
@@ -379,6 +379,12 @@ describe("BottomPanel playback", () => {
     fireEvent.keyDown(window, { key: " " });
     await waitFor(() => expect(play).toHaveBeenCalledOnce());
     expect(stop).not.toHaveBeenCalled();
+    const loadingButton = screen.getByRole("button", { name: "Loading" });
+    expect(loadingButton).toHaveAttribute("aria-busy", "true");
+    expect(loadingButton.firstElementChild).toHaveClass(
+      "i-lucide:loader-circle",
+      "animate-spin",
+    );
 
     resolvePlayback({ status: "ok", data: null });
     await pendingPlayback;

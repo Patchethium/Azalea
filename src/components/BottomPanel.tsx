@@ -124,7 +124,7 @@ function ControlBar(props: {
   const { config } = useConfigStore()!;
   const { systemStore } = useSystemStore()!;
   const [isPlaying, setIsPlaying] = createSignal(false);
-  let playRequestPending = false;
+  const [playRequestPending, setPlayRequestPending] = createSignal(false);
   let playbackShortcutFocus: HTMLElement | null = null;
   let activePlaybackSequence: PlaybackSequence | null = null;
 
@@ -220,8 +220,8 @@ function ControlBar(props: {
     const block = currentText();
     const _currentPreset = unwrap(currentPreset());
     if (block === null || _currentPreset == null || !queryExists()) return null;
-    if (playRequestPending) return null;
-    playRequestPending = true;
+    if (playRequestPending()) return null;
+    setPlayRequestPending(true);
     try {
       if (isPlaying()) await stop();
       activePlaybackSequence = null;
@@ -243,7 +243,7 @@ function ControlBar(props: {
         return null;
       }
     } finally {
-      playRequestPending = false;
+      setPlayRequestPending(false);
     }
   };
 
@@ -365,8 +365,8 @@ function ControlBar(props: {
   );
 
   const speakAllFromSelection = async () => {
-    if (playRequestPending) return;
-    playRequestPending = true;
+    if (playRequestPending()) return;
+    setPlayRequestPending(true);
     try {
       if (isPlaying()) await stop();
       const playable = playableFromSelection();
@@ -394,7 +394,7 @@ function ControlBar(props: {
         }
       }
     } finally {
-      playRequestPending = false;
+      setPlayRequestPending(false);
     }
   };
 
@@ -409,10 +409,21 @@ function ControlBar(props: {
         disabled={!prevExists()}
       />
       <IconButton
-        icon={isPlaying() ? "i-lucide:square" : "i-lucide:play"}
-        label={t1(isPlaying() ? "bottom.stop" : "bottom.play")}
+        icon={
+          playRequestPending()
+            ? "i-lucide:loader-circle animate-spin"
+            : isPlaying()
+              ? "i-lucide:square"
+              : "i-lucide:play"
+        }
+        label={
+          playRequestPending()
+            ? t1("loading")
+            : t1(isPlaying() ? "bottom.stop" : "bottom.play")
+        }
+        aria-busy={playRequestPending()}
         onClick={togglePlayback}
-        disabled={!isPlaying() && !canPlay()}
+        disabled={playRequestPending() || (!isPlaying() && !canPlay())}
       />
       <IconButton
         icon="i-lucide:list-video"
