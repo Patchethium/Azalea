@@ -54,8 +54,8 @@ const deferred = <T,>() => {
   return { promise, resolve };
 };
 
-const renderDialog = () => {
-  const [open, setOpen] = createSignal(true);
+const renderDialog = (initialOpen = true) => {
+  const [open, setOpen] = createSignal(initialOpen);
   const result = render(() => (
     <MultiProvider
       values={[
@@ -263,39 +263,33 @@ describe("SpeakerSelectionDialog persistent icons", () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:speaker-icon-2");
   });
 
-  it("does not let a stale cache read replace a newer open", async () => {
-    const staleRead =
+  it("preloads cached icons before the dialog opens", async () => {
+    const cachedIcons =
       deferred<Awaited<ReturnType<typeof commands.getCachedSpeakerIcons>>>();
-    vi.mocked(commands.getCachedSpeakerIcons)
-      .mockReturnValueOnce(staleRead.promise)
-      .mockResolvedValueOnce({
-        status: "ok",
-        data: [iconResult("uuid-one", null), iconResult("uuid-two", null)],
-      });
-    const { setOpen } = renderDialog();
+    vi.mocked(commands.getCachedSpeakerIcons).mockReturnValueOnce(
+      cachedIcons.promise,
+    );
+    const { setOpen } = renderDialog(false);
 
     await waitFor(() =>
       expect(commands.getCachedSpeakerIcons).toHaveBeenCalledOnce(),
     );
-    setOpen(false);
-    await waitFor(() =>
-      expect(
-        screen.getByRole("dialog", { name: "Select Speaker" }),
-      ).toHaveAttribute("data-closed"),
-    );
-    setOpen(true);
-    expect(
-      await screen.findByRole("button", { name: "Download speaker icons" }),
-    ).toBeEnabled();
-
-    staleRead.resolve({
+    cachedIcons.resolve({
       status: "ok",
       data: [
-        iconResult("uuid-one", iconData("stale-first")),
-        iconResult("uuid-two", iconData("stale-second")),
+        iconResult("uuid-one", iconData("first")),
+        iconResult("uuid-two", iconData("second")),
       ],
     });
-    await Promise.resolve();
-    expect(document.querySelectorAll("img")).toHaveLength(0);
+    await waitFor(() => expect(URL.createObjectURL).toHaveBeenCalledTimes(2));
+
+    setOpen(true);
+    expect(
+      await screen.findByRole("button", { name: "Engine Alias" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByRole("button", { name: "Engine Alias" }).querySelector("img"),
+    ).toHaveAttribute("src", "blob:speaker-icon-1");
+    expect(commands.getCachedSpeakerIcons).toHaveBeenCalledOnce();
   });
 });

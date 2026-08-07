@@ -73,7 +73,7 @@ export function SpeakerSelectionDialog(props: SpeakerSelectionDialogProps) {
   );
 
   const requestIsCurrent = (revision: number) =>
-    !disposed && props.open && revision === requestRevision;
+    !disposed && revision === requestRevision;
 
   const loadCachedIcons = async (requests: SpeakerIconRequest[]) => {
     const revision = ++requestRevision;
@@ -140,12 +140,6 @@ export function SpeakerSelectionDialog(props: SpeakerSelectionDialogProps) {
   };
 
   createEffect(() => {
-    if (!props.open) {
-      requestRevision += 1;
-      setIconStatus("idle");
-      return;
-    }
-
     const currentRequests = requests();
     if (speakerIconsAreHydrated(currentRequests)) {
       if (iconStatus() === "loading-cache") setIconStatus("idle");
