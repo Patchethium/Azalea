@@ -426,19 +426,20 @@ function ControlBar(props: {
         disabled={playRequestPending() || (!isPlaying() && !canPlay())}
       />
       <IconButton
-        icon="i-lucide:list-video"
-        label={t1("bottom.play_all_from_selection")}
-        onClick={speakAllFromSelection}
-        disabled={playableFromSelection().length === 0}
-      />
-      <IconButton
         icon="i-lucide:skip-forward"
         label={t1("bottom.next")}
         size="sm"
         onClick={() => focusNext()}
         disabled={!nextExists()}
       />
-      <div class="flex-1" />
+      <div class="flex flex-1 justify-end">
+        <IconButton
+          icon="i-lucide:list-video"
+          label={t1("bottom.play_all_from_selection")}
+          onClick={speakAllFromSelection}
+          disabled={playableFromSelection().length === 0}
+        />
+      </div>
     </div>
   );
 }
