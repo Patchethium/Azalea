@@ -1,3 +1,4 @@
+import Resizable from "@corvu/resizable";
 import { Accordion } from "@kobalte/core/accordion";
 import { Checkbox } from "@kobalte/core/checkbox";
 import { DropdownMenu } from "@kobalte/core/dropdown-menu";
@@ -42,6 +43,8 @@ import {
   resolveShortcut,
 } from "../shortcuts";
 import style from "./sidebar.module.css";
+
+const PRESET_PANEL_COLLAPSE_THRESHOLD = 0.2;
 
 interface PresetCardProps extends JSX.HTMLAttributes<HTMLDivElement> {
   preset_idx: number;
@@ -139,10 +142,92 @@ function Sidebar() {
     }
   };
 
+  const [collapsedPresetPanelSize, setCollapsedPresetPanelSize] =
+    createSignal(0.05);
   const [expanded, setExpanded] = createSignal(["preset"]);
+  const [presetPanelSize, setPresetPanelSize] = createSignal(0.55);
+  const [presetPanelMaxSize, setPresetPanelMaxSize] = createSignal(1);
+  const [presetPanelSizes, setPresetPanelSizes] = createSignal([0.45, 0.55]);
+  const [resizingPresetPanel, setResizingPresetPanel] = createSignal(false);
   const [presetManagerOpen, setPresetManagerOpen] = createSignal(false);
   const [speakerSelectionOpen, setSpeakerSelectionOpen] = createSignal(false);
   const [aboutOpen, setAboutOpen] = createSignal(false);
+  let presetSplitter!: HTMLDivElement;
+  let presetResizeHandle!: HTMLButtonElement;
+  let presetResizeHandleHeight = 0;
+  let presetPanelHeader!: HTMLElement;
+  let presetPanelContent!: HTMLDivElement;
+  let presetPanelObserver: ResizeObserver | undefined;
+  let updatePresetPanelBounds = () => {};
+
+  onMount(() => {
+    updatePresetPanelBounds = () => {
+      const rootHeight = presetSplitter.offsetHeight;
+      const headerHeight = presetPanelHeader.offsetHeight + 2;
+      const contentHeight = presetPanelContent.scrollHeight + 1;
+      if (rootHeight === 0 || headerHeight === 2 || contentHeight === 1) return;
+
+      presetResizeHandleHeight = Math.max(
+        presetResizeHandleHeight,
+        presetResizeHandle.offsetHeight,
+      );
+      const collapsedSize = headerHeight / rootHeight;
+      const availableHeight = Math.max(
+        rootHeight - presetResizeHandleHeight,
+        1,
+      );
+      const maxSize = Math.min(
+        (headerHeight + contentHeight) / availableHeight,
+        1,
+      );
+      const size =
+        expanded().length > 0
+          ? Math.min(presetPanelSizes()[1], maxSize)
+          : collapsedSize;
+      batch(() => {
+        setCollapsedPresetPanelSize(collapsedSize);
+        setPresetPanelMaxSize(maxSize);
+        setPresetPanelSize(Math.min(presetPanelSize(), maxSize));
+        setPresetPanelSizes([1 - size, size]);
+      });
+    };
+    presetPanelObserver = new ResizeObserver(updatePresetPanelBounds);
+    presetPanelObserver.observe(presetSplitter);
+    presetPanelObserver.observe(presetPanelContent);
+    queueMicrotask(updatePresetPanelBounds);
+    onCleanup(() => presetPanelObserver?.disconnect());
+  });
+
+  const collapsePresetPanel = () => {
+    setResizingPresetPanel(false);
+    const size = collapsedPresetPanelSize();
+    batch(() => {
+      setExpanded([]);
+      setPresetPanelSizes([1 - size, size]);
+    });
+  };
+
+  const finishPresetPanelResize = () => {
+    if (!resizingPresetPanel()) return;
+    setResizingPresetPanel(false);
+    if (expanded().length > 0) {
+      setPresetPanelSize(presetPanelSizes()[1]);
+    }
+  };
+
+  const PresetSplitter = (props: JSX.HTMLAttributes<HTMLDivElement>) => {
+    const context = Resizable.useContext();
+    createEffect(() => {
+      if (
+        expanded().length > 0 &&
+        presetPanelMaxSize() > PRESET_PANEL_COLLAPSE_THRESHOLD &&
+        context.sizes()[1] <= PRESET_PANEL_COLLAPSE_THRESHOLD
+      ) {
+        collapsePresetPanel();
+      }
+    });
+    return <div {...props} />;
+  };
 
   const currentText = selectedTextBlock;
 
@@ -445,143 +530,223 @@ function Sidebar() {
           onClick={removePreset}
         />
       </div>
-      <div class="size-full flex flex-col overflow-hidden">
-        <div class="size-full gap-1 overflow-auto pl-0 pr-2 pt-1">
-          <For each={projectPresetStore}>
-            {(_, i) => (
-              <PresetCard
-                preset_idx={i()}
-                selected={i() === currentText()?.preset_id}
-                onClick={() => {
-                  setTextPresetIdx(i());
-                }}
-              />
-            )}
-          </For>
-        </div>
-
-        <PresetManagerDialog
-          open={presetManagerOpen()}
-          onOpenChange={setPresetManagerOpen}
-        />
-      </div>
-
-      <Accordion
-        collapsible
-        multiple
-        defaultValue={["preset"]}
-        value={expanded()}
-        onChange={setExpanded}
+      <Resizable
+        as={PresetSplitter}
+        ref={presetSplitter}
+        orientation="vertical"
+        sizes={presetPanelSizes()}
+        onSizesChange={(sizes) => {
+          if (sizes.length !== 2) return;
+          const size = Math.min(sizes[1], presetPanelMaxSize());
+          if (Math.abs(presetPanelSizes()[1] - size) > 0.000001) {
+            setPresetPanelSizes([1 - size, size]);
+          }
+          if (
+            !resizingPresetPanel() &&
+            expanded().length > 0 &&
+            size > PRESET_PANEL_COLLAPSE_THRESHOLD
+          ) {
+            setPresetPanelSize(size);
+          }
+        }}
+        class={`${style.preset_splitter} size-full min-h-0`}
       >
-        <Accordion.Item
-          value="preset"
-          class="transition-all rounded-md bg-white dark:bg-slate-8 border border-slate-2 dark:border-slate-6 bg-transparent shadow-sm"
+        <Resizable.Panel
+          class={`${style.preset_panel} min-h-0 overflow-hidden`}
+          minSize={0.1}
         >
-          <Accordion.Header>
-            <Accordion.Trigger
-              class={`w-full flex select-none justify-between bg-transparent items-center hover:bg-white dark:hover:bg-slate-7 p1 px2 rounded-md ${style.trigger}`}
-            >
-              {t1("preset.title")}
-              <div class={`i-lucide:chevron-down size-5 ${style.icon}`} />
-            </Accordion.Trigger>
-          </Accordion.Header>
-          <Accordion.Content
-            class={`${style.accordion_content} b-t b-slate-2 dark:b-slate-6 py0 px2 flex flex-col`}
-          >
-            <Show
-              when={currentPreset()}
-              fallback={
-                <div class="text-sm text-slate-5 p1 select-none cursor-default">
-                  {projectPresetStore?.length
-                    ? t1("preset.no_preset_selected")
-                    : t1("preset.get_started")}
-                </div>
-              }
-            >
-              <div class="w-full h-1" />
-              <span class="text-sm select-none cursor-default">
-                {t1("preset.name")}
-              </span>
-              <TextField
-                class="w-full"
-                value={currentPreset()?.name}
-                onChange={setPresetName}
-              >
-                <TextField.Input class="p1 px2 w-full b b-slate-2 dark:(b-slate-6 bg-slate-7) rounded-md outline-none focus:b-primary-5" />
-              </TextField>
-              {/* TODO: Don't repeat yourself */}
-              <OptionSelector
-                name={t1("preset.speaker")}
-                options={availableSpeakerNames()}
-                value={curMeta()?.name ?? ""}
-                onChange={selectSpeakerByName}
-                action={
-                  <IconButton
-                    icon="i-lucide:layout-grid"
-                    iconSize="sm"
-                    label={t1("speaker_selection.open")}
-                    size="lg"
-                    class="b b-slate-2 dark:b-slate-6"
-                    onClick={() => setSpeakerSelectionOpen(true)}
+          <div class="size-full flex flex-col overflow-hidden">
+            <div class="size-full gap-1 overflow-auto pl-0 pr-2 pt-1">
+              <For each={projectPresetStore}>
+                {(_, i) => (
+                  <PresetCard
+                    preset_idx={i()}
+                    selected={i() === currentText()?.preset_id}
+                    onClick={() => {
+                      setTextPresetIdx(i());
+                    }}
                   />
-                }
-              />
-              <OptionSelector
-                name={t1("preset.style")}
-                options={availableStyleNames()}
-                value={curStyle()?.name ?? ""}
-                onChange={setStyleByName}
-              />
-              <PresetSlider
-                name={t1("preset.speed")}
-                min={50}
-                max={200}
-                step={1}
-                appendix="%"
-                value={speed()!}
-                setValue={setSpeed}
-              />
-              <PresetSlider
-                name={t1("preset.pitch")}
-                min={-0.5}
-                max={0.5}
-                step={0.01}
-                value={pitch()!}
-                setValue={setPitch}
-              />
-              <PresetSlider
-                name={t1("preset.intonation")}
-                min={0.0}
-                max={2.0}
-                step={0.01}
-                value={intonation()!}
-                setValue={setIntonation}
-              />
-              <PresetSlider
-                name={t1("preset.volume")}
-                min={0.0}
-                max={2.0}
-                step={0.01}
-                value={volume()!}
-                setValue={setVolume}
-              />
-              <div class="flex flex-row gap2">
-                <PauseNumField
-                  label={t1("preset.start_sli")}
-                  value={startSli()}
-                  setValue={setStartSli}
-                />
-                <PauseNumField
-                  label={t1("preset.end_sli")}
-                  value={endSli()}
-                  setValue={setEndSli}
-                />
-              </div>
-              <div class="h-2 w-full" />
-            </Show>
-          </Accordion.Content>
-        </Accordion.Item>
-      </Accordion>
+                )}
+              </For>
+            </div>
+
+            <PresetManagerDialog
+              open={presetManagerOpen()}
+              onOpenChange={setPresetManagerOpen}
+            />
+          </div>
+        </Resizable.Panel>
+        <Resizable.Handle
+          ref={presetResizeHandle}
+          onHandleDragStart={() => {
+            setResizingPresetPanel(true);
+          }}
+          onHandleDragEnd={finishPresetPanelResize}
+          onKeyDown={(event) => {
+            if (["ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) {
+              setResizingPresetPanel(true);
+            }
+          }}
+          onKeyUp={finishPresetPanelResize}
+          aria-label={t1("preset.title")}
+          disabled={expanded().length === 0}
+          data-collapsed={expanded().length === 0 ? "" : undefined}
+          data-resizing={resizingPresetPanel() ? "" : undefined}
+          data-preset-editor-resize-handle
+          class={`${style.resize_handle} group basis-2 px-[2px] bg-transparent flex items-center justify-center`}
+        >
+          <div class="w-full h-[1px] rounded transition-colors bg-transparent group-hover:bg-primary-5 group-active:bg-primary-5" />
+        </Resizable.Handle>
+        <Resizable.Panel
+          class={`${style.preset_panel} min-h-[30px] overflow-hidden`}
+          minSize={PRESET_PANEL_COLLAPSE_THRESHOLD}
+        >
+          <Accordion
+            collapsible
+            multiple
+            defaultValue={["preset"]}
+            value={expanded()}
+            onChange={(value) => {
+              if (value.length === 0) {
+                collapsePresetPanel();
+                return;
+              }
+              const size = Math.min(presetPanelSize(), presetPanelMaxSize());
+              batch(() => {
+                setExpanded(value);
+                setPresetPanelSizes([1 - size, size]);
+              });
+            }}
+            class="h-full"
+          >
+            <Accordion.Item
+              value="preset"
+              class="h-full min-h-0 flex flex-col transition-all rounded-md bg-white dark:bg-slate-8 border border-slate-2 dark:border-slate-6 bg-transparent shadow-sm"
+            >
+              <Accordion.Header
+                ref={presetPanelHeader}
+                data-preset-editor-header
+                class="shrink-0"
+              >
+                <Accordion.Trigger
+                  class={`w-full flex select-none justify-between bg-transparent items-center hover:bg-white dark:hover:bg-slate-7 p1 px2 rounded-md ${style.trigger}`}
+                >
+                  {t1("preset.title")}
+                  <div class={`i-lucide:chevron-down size-5 ${style.icon}`} />
+                </Accordion.Trigger>
+              </Accordion.Header>
+              <Accordion.Content
+                class={`${style.accordion_content} min-h-0 flex-1 b-t b-slate-2 dark:b-slate-6 py0 px2 flex flex-col`}
+              >
+                <div
+                  ref={(element) => {
+                    if (presetPanelContent) {
+                      presetPanelObserver?.unobserve(presetPanelContent);
+                    }
+                    presetPanelContent = element;
+                    presetPanelObserver?.observe(element);
+                    queueMicrotask(updatePresetPanelBounds);
+                  }}
+                  data-preset-editor-content
+                  class="flex flex-col"
+                >
+                  <Show
+                    when={currentPreset()}
+                    fallback={
+                      <div class="text-sm text-slate-5 p1 select-none cursor-default">
+                        {projectPresetStore?.length
+                          ? t1("preset.no_preset_selected")
+                          : t1("preset.get_started")}
+                      </div>
+                    }
+                  >
+                    <div class="w-full h-1" />
+                    <span class="text-sm select-none cursor-default">
+                      {t1("preset.name")}
+                    </span>
+                    <TextField
+                      class="w-full"
+                      value={currentPreset()?.name}
+                      onChange={setPresetName}
+                    >
+                      <TextField.Input class="p1 px2 w-full b b-slate-2 dark:(b-slate-6 bg-slate-7) rounded-md outline-none focus:b-primary-5" />
+                    </TextField>
+                    {/* TODO: Don't repeat yourself */}
+                    <OptionSelector
+                      name={t1("preset.speaker")}
+                      options={availableSpeakerNames()}
+                      value={curMeta()?.name ?? ""}
+                      onChange={selectSpeakerByName}
+                      action={
+                        <IconButton
+                          icon="i-lucide:layout-grid"
+                          iconSize="sm"
+                          label={t1("speaker_selection.open")}
+                          size="lg"
+                          class="b b-slate-2 dark:b-slate-6"
+                          onClick={() => setSpeakerSelectionOpen(true)}
+                        />
+                      }
+                    />
+                    <OptionSelector
+                      name={t1("preset.style")}
+                      options={availableStyleNames()}
+                      value={curStyle()?.name ?? ""}
+                      onChange={setStyleByName}
+                    />
+                    <PresetSlider
+                      name={t1("preset.speed")}
+                      min={50}
+                      max={200}
+                      step={1}
+                      appendix="%"
+                      value={speed()!}
+                      setValue={setSpeed}
+                    />
+                    <PresetSlider
+                      name={t1("preset.pitch")}
+                      min={-0.5}
+                      max={0.5}
+                      step={0.01}
+                      value={pitch()!}
+                      setValue={setPitch}
+                    />
+                    <PresetSlider
+                      name={t1("preset.intonation")}
+                      min={0.0}
+                      max={2.0}
+                      step={0.01}
+                      value={intonation()!}
+                      setValue={setIntonation}
+                    />
+                    <PresetSlider
+                      name={t1("preset.volume")}
+                      min={0.0}
+                      max={2.0}
+                      step={0.01}
+                      value={volume()!}
+                      setValue={setVolume}
+                    />
+                    <div class="flex flex-row gap2">
+                      <PauseNumField
+                        label={t1("preset.start_sli")}
+                        value={startSli()}
+                        setValue={setStartSli}
+                      />
+                      <PauseNumField
+                        label={t1("preset.end_sli")}
+                        value={endSli()}
+                        setValue={setEndSli}
+                      />
+                    </div>
+                    <div class="h-2 w-full" />
+                  </Show>
+                </div>
+              </Accordion.Content>
+            </Accordion.Item>
+          </Accordion>
+        </Resizable.Panel>
+      </Resizable>
 
       <SpeakerSelectionDialog
         open={speakerSelectionOpen()}

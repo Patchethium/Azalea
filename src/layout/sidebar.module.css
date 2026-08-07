@@ -7,6 +7,24 @@
 
 .accordion_content[data-expanded] {
   animation: slideDown 300ms cubic-bezier(0.87, 0, 0.13, 1);
+  overflow-y: auto;
+}
+
+.preset_panel {
+  transition: flex-basis 300ms cubic-bezier(0.87, 0, 0.13, 1);
+}
+
+.resize_handle {
+  transition: flex-basis 300ms cubic-bezier(0.87, 0, 0.13, 1);
+}
+
+.resize_handle[data-collapsed] {
+  flex-basis: 0;
+  overflow: hidden;
+}
+
+.preset_splitter:has(.resize_handle[data-resizing]) .preset_panel {
+  transition: none;
 }
 
 .icon {

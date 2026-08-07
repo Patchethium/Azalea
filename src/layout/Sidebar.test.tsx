@@ -198,10 +198,23 @@ describe("Sidebar project lifecycle", () => {
   });
 });
 
-describe("Sidebar speaker selection", () => {
-  it("leaves the preset unchanged until a speaker is selected", async () => {
+describe("Sidebar controls", () => {
+  it("resizes the preset editor and applies speaker changes after selection", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(
+      function () {
+        if (this.hasAttribute("data-corvu-resizable-root")) return 1_000;
+        if (this.hasAttribute("data-preset-editor-resize-handle")) return 8;
+        if (this.hasAttribute("data-preset-editor-header")) return 28;
+        return 0;
+      },
+    );
+    vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockImplementation(
+      function () {
+        return this.hasAttribute("data-preset-editor-content") ? 400 : 0;
+      },
+    );
     let text!: NonNullable<ReturnType<typeof useTextStore>>;
 
     const Harness: Component = () => {
@@ -250,6 +263,51 @@ describe("Sidebar speaker selection", () => {
     ));
 
     await screen.findByRole("button", { name: "Create preset" });
+    const resizeHandle = screen.getByRole("separator", { name: "Preset" });
+    const presetPanel = resizeHandle.nextElementSibling as HTMLElement;
+    const presetToggle = screen.getByRole("button", { name: "Preset" });
+    expect(resizeHandle).toHaveAttribute("aria-orientation", "vertical");
+    await waitFor(() =>
+      expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(43.45, 2),
+    );
+    expect((parseFloat(presetPanel.style.flexBasis) / 100) * 992).toBeCloseTo(
+      431,
+    );
+    fireEvent.keyDown(resizeHandle, { key: "ArrowDown" });
+    expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(33.45, 2);
+    fireEvent.keyDown(resizeHandle, { key: "ArrowUp" });
+    expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(43.45, 2);
+    fireEvent.keyDown(resizeHandle, { key: "ArrowUp" });
+    expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(43.45, 2);
+    await user.click(presetToggle);
+    await waitFor(() =>
+      expect(presetToggle).toHaveAttribute("aria-expanded", "false"),
+    );
+    expect(resizeHandle).toHaveAttribute("data-collapsed");
+    expect(resizeHandle).toBeDisabled();
+    expect(presetPanel.style.flexBasis).toBe("3%");
+    await user.click(presetToggle);
+    await waitFor(() =>
+      expect(presetToggle).toHaveAttribute("aria-expanded", "true"),
+    );
+    expect(resizeHandle).not.toHaveAttribute("data-collapsed");
+    expect(resizeHandle).not.toBeDisabled();
+    expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(43.45, 2);
+    fireEvent.keyDown(resizeHandle, { key: "ArrowDown" });
+    expect(resizeHandle).toHaveAttribute("data-resizing");
+    fireEvent.keyDown(resizeHandle, { key: "ArrowDown" });
+    fireEvent.keyDown(resizeHandle, { key: "ArrowDown" });
+    await waitFor(() =>
+      expect(presetToggle).toHaveAttribute("aria-expanded", "false"),
+    );
+    expect(resizeHandle).toBeDisabled();
+    expect(resizeHandle).not.toHaveAttribute("data-resizing");
+    expect(presetPanel.style.flexBasis).toBe("3%");
+    await user.click(presetToggle);
+    await waitFor(() =>
+      expect(presetToggle).toHaveAttribute("aria-expanded", "true"),
+    );
+    expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(43.45, 2);
     expect(
       screen.getByRole("button", { name: "Move preset up" }),
     ).toBeInTheDocument();
