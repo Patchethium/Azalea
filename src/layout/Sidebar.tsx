@@ -31,6 +31,7 @@ import { IconButton } from "../components/IconButton";
 import { PresetManagerDialog } from "../components/PresetManagerDialog";
 import { ShortcutReferenceDialog } from "../components/ShortcutReferenceDialog";
 import { SpeakerSelectionDialog } from "../components/SpeakerSelectionDialog";
+import { Tooltip } from "../components/Tooltip";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { useMetaStore } from "../contexts/meta";
@@ -863,18 +864,24 @@ function OptionSelector(props: {
         {props.name}
       </Select.Label>
       <div class="flex w-full items-center gap1">
-        <Select.Trigger
-          class="flex flex-1 min-w-0 flex-row items-center justify-between px2 bg-white dark:bg-slate-8
+        <Tooltip
+          content={props.value}
+          class="min-w-0 flex-1"
+          onlyWhenOverflowing
+        >
+          <Select.Trigger
+            class="flex w-full min-w-0 flex-row items-center justify-between px2 bg-white dark:bg-slate-8
                           h-8 bg-transparent border border-slate-2 rounded-md
                           hover:(bg-slate-1 dark:bg-slate-7) dark:border-slate-6"
-        >
-          <Select.Value<string>>
-            {(state) => state.selectedOption()}
-          </Select.Value>
-          <Select.Icon>
-            <div class="size-4 i-lucide:chevrons-up-down" />
-          </Select.Icon>
-        </Select.Trigger>
+          >
+            <Select.Value<string> class="min-w-0 truncate">
+              {(state) => state.selectedOption()}
+            </Select.Value>
+            <Select.Icon class="shrink-0">
+              <div class="size-4 i-lucide:chevrons-up-down" />
+            </Select.Icon>
+          </Select.Trigger>
+        </Tooltip>
         {props.action}
       </div>
       <Select.Portal>

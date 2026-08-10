@@ -16,6 +16,7 @@ import {
 import { usei18n } from "../contexts/i18n";
 import { useMetaStore } from "../contexts/meta";
 import { AppDialogContent } from "./AppDialogContent";
+import { Tooltip } from "./Tooltip";
 
 type IconStatus = "idle" | "loading-cache" | "downloading" | "error";
 
@@ -223,44 +224,52 @@ export function SpeakerSelectionDialog(props: SpeakerSelectionDialogProps) {
               const selected = () =>
                 speaker.speaker_uuid === props.selectedSpeakerUuid;
               return (
-                <Button
-                  type="button"
-                  aria-pressed={selected()}
-                  onClick={() => props.onSelect(speaker)}
-                  class="relative min-h-24 flex flex-col items-center justify-center gap2 rounded-xl b b-slate-2 bg-slate-1/70 p3 text-center outline-none transition-colors hover:(b-primary-5 bg-primary-1) focus-visible:(ring-2 ring-primary-3) dark:(b-slate-6 bg-slate-7/50) dark:hover:(b-primary-5 bg-slate-7)"
-                  classList={{
-                    "!b-primary-5 bg-primary-1 dark:bg-slate-7": selected(),
-                  }}
+                <Tooltip
+                  content={speaker.name}
+                  class="min-w-0 w-full"
+                  onlyWhenOverflowing
                 >
-                  <div class="size-16 flex items-center justify-center">
-                    <Show
-                      when={
-                        iconRequest === undefined
-                          ? undefined
-                          : speakerIconUrl(iconRequest)
-                      }
-                      fallback={
-                        <div class="i-lucide:mic-2 size-7 text-primary-5" />
-                      }
-                    >
-                      {(iconUrl) => (
-                        <img
-                          src={iconUrl()}
-                          alt=""
-                          class="size-16 object-contain"
-                          onError={() => {
-                            if (iconRequest !== undefined)
-                              handleIconError(iconRequest);
-                          }}
-                        />
-                      )}
+                  <Button
+                    type="button"
+                    aria-pressed={selected()}
+                    onClick={() => props.onSelect(speaker)}
+                    class="relative min-h-24 min-w-0 w-full flex flex-col items-center justify-center gap2 rounded-xl b b-slate-2 bg-slate-1/70 p3 text-center outline-none transition-colors hover:(b-primary-5 bg-primary-1) focus-visible:(ring-2 ring-primary-3) dark:(b-slate-6 bg-slate-7/50) dark:hover:(b-primary-5 bg-slate-7)"
+                    classList={{
+                      "!b-primary-5 bg-primary-1 dark:bg-slate-7": selected(),
+                    }}
+                  >
+                    <div class="size-16 flex items-center justify-center">
+                      <Show
+                        when={
+                          iconRequest === undefined
+                            ? undefined
+                            : speakerIconUrl(iconRequest)
+                        }
+                        fallback={
+                          <div class="i-lucide:mic-2 size-7 text-primary-5" />
+                        }
+                      >
+                        {(iconUrl) => (
+                          <img
+                            src={iconUrl()}
+                            alt=""
+                            class="size-16 object-contain"
+                            onError={() => {
+                              if (iconRequest !== undefined)
+                                handleIconError(iconRequest);
+                            }}
+                          />
+                        )}
+                      </Show>
+                    </div>
+                    <span class="w-full truncate font-medium">
+                      {speaker.name}
+                    </span>
+                    <Show when={selected()}>
+                      <div class="absolute right2 top2 i-lucide:check size-4 text-primary-5" />
                     </Show>
-                  </div>
-                  <span class="font-medium">{speaker.name}</span>
-                  <Show when={selected()}>
-                    <div class="absolute right2 top2 i-lucide:check size-4 text-primary-5" />
-                  </Show>
-                </Button>
+                  </Button>
+                </Tooltip>
               );
             }}
           </For>
