@@ -156,7 +156,7 @@ function Sidebar() {
   let presetSplitter!: HTMLDivElement;
   let presetResizeHandle!: HTMLButtonElement;
   let presetResizeHandleHeight = 0;
-  let presetPanelHeader!: HTMLElement;
+  let presetPanelHeader!: HTMLHeadingElement;
   let presetPanelContent!: HTMLDivElement;
   let presetPanelObserver: ResizeObserver | undefined;
   let updatePresetPanelBounds = () => {};
