@@ -212,7 +212,7 @@ describe("Sidebar controls", () => {
     );
     vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockImplementation(
       function () {
-        return this.hasAttribute("data-preset-editor-content") ? 400 : 0;
+        return this.hasAttribute("data-preset-editor-content") ? 600 : 0;
       },
     );
     let text!: NonNullable<ReturnType<typeof useTextStore>>;
@@ -268,17 +268,17 @@ describe("Sidebar controls", () => {
     const presetToggle = screen.getByRole("button", { name: "Preset" });
     expect(resizeHandle).toHaveAttribute("aria-orientation", "vertical");
     await waitFor(() =>
-      expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(43.45, 2),
+      expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(63.61, 2),
     );
     expect((parseFloat(presetPanel.style.flexBasis) / 100) * 992).toBeCloseTo(
-      431,
+      631,
     );
     fireEvent.keyDown(resizeHandle, { key: "ArrowDown" });
-    expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(33.45, 2);
+    expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(53.61, 2);
     fireEvent.keyDown(resizeHandle, { key: "ArrowUp" });
-    expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(43.45, 2);
+    expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(63.61, 2);
     fireEvent.keyDown(resizeHandle, { key: "ArrowUp" });
-    expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(43.45, 2);
+    expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(63.61, 2);
     await user.click(presetToggle);
     await waitFor(() =>
       expect(presetToggle).toHaveAttribute("aria-expanded", "false"),
@@ -292,9 +292,11 @@ describe("Sidebar controls", () => {
     );
     expect(resizeHandle).not.toHaveAttribute("data-collapsed");
     expect(resizeHandle).not.toBeDisabled();
-    expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(43.45, 2);
+    expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(63.61, 2);
     fireEvent.keyDown(resizeHandle, { key: "ArrowDown" });
     expect(resizeHandle).toHaveAttribute("data-resizing");
+    fireEvent.keyDown(resizeHandle, { key: "ArrowDown" });
+    fireEvent.keyDown(resizeHandle, { key: "ArrowDown" });
     fireEvent.keyDown(resizeHandle, { key: "ArrowDown" });
     fireEvent.keyDown(resizeHandle, { key: "ArrowDown" });
     await waitFor(() =>
@@ -307,7 +309,7 @@ describe("Sidebar controls", () => {
     await waitFor(() =>
       expect(presetToggle).toHaveAttribute("aria-expanded", "true"),
     );
-    expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(43.45, 2);
+    expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(63.61, 2);
     expect(
       screen.getByRole("button", { name: "Move preset up" }),
     ).toBeInTheDocument();

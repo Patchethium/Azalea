@@ -71,7 +71,7 @@ function PresetCard(props: PresetCardProps) {
   return (
     <div class="p1 group" {...props}>
       <div
-        class="items-start rounded-r-md p1 pl2 group-hover:bg-slate-2 dark:group-hover:bg-slate-7 overflow-hidden bg-white dark:bg-slate-8 border-l-2 border-slate-1 dark:border-slate-7
+        class="items-start rounded-r-md p1 group-hover:bg-slate-2 dark:group-hover:bg-slate-7 overflow-hidden bg-white dark:bg-slate-8 border-l-2 border-slate-1 dark:border-slate-7
         cursor-default select-none w-full min-h-[fit-content] group-active:bg-white dark:group-active:bg-slate-8 flex flex-col"
         classList={{
           "shadow-md group-hover:bg-white dark:group-hover:bg-slate-8 !border-primary-5":
@@ -146,9 +146,9 @@ function Sidebar() {
   const [collapsedPresetPanelSize, setCollapsedPresetPanelSize] =
     createSignal(0.05);
   const [expanded, setExpanded] = createSignal(["preset"]);
-  const [presetPanelSize, setPresetPanelSize] = createSignal(0.55);
+  const [presetPanelSize, setPresetPanelSize] = createSignal(0.9);
   const [presetPanelMaxSize, setPresetPanelMaxSize] = createSignal(1);
-  const [presetPanelSizes, setPresetPanelSizes] = createSignal([0.45, 0.55]);
+  const [presetPanelSizes, setPresetPanelSizes] = createSignal([0.1, 0.9]);
   const [resizingPresetPanel, setResizingPresetPanel] = createSignal(false);
   const [presetManagerOpen, setPresetManagerOpen] = createSignal(false);
   const [speakerSelectionOpen, setSpeakerSelectionOpen] = createSignal(false);
@@ -492,7 +492,7 @@ function Sidebar() {
   };
 
   return (
-    <div class="size-full bg-transparent flex flex-col gap-1 pl2 pr0 overflow-y-hidden">
+    <div class="size-full bg-transparent flex flex-col gap-1 pl2 pr0">
       {/* Controls */}
       <div class="w-auto flex items-center rounded-md bg-white dark:bg-slate-8 mt-2 mx-1 p1 shadow-md z-10">
         <IconButton
