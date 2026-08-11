@@ -1,10 +1,10 @@
+import { events } from "@binding";
 import { MultiProvider } from "@solid-primitives/context";
 import { render, screen, waitFor } from "@solidjs/testing-library";
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import { describe, expect, it } from "vitest";
 import App from "./App";
-import { events } from "./binding";
 import { ConfigProvider } from "./contexts/config";
 import { i18nProvider } from "./contexts/i18n";
 import { MetaProvider } from "./contexts/meta";

@@ -1,6 +1,6 @@
+import { AudioQuery, SpectrogramPreview } from "@binding";
 import { createContextProvider } from "@solid-primitives/context";
 import { createSignal } from "solid-js";
-import { AudioQuery, SpectrogramPreview } from "../binding";
 
 type BlockSpectrogramCache = {
   previews: Map<string, SpectrogramPreview>;

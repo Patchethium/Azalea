@@ -4,7 +4,7 @@ import type {
   CharacterMeta,
   Preset,
   SpectrogramPreview,
-} from "../binding";
+} from "@binding";
 
 export const mora = {
   text: "コ",

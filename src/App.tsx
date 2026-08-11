@@ -1,4 +1,9 @@
+import { events } from "@binding";
 import Resizable from "@corvu/resizable";
+import ConfigPage from "@dialogs/config";
+import InitPage from "@layout/InitPage";
+import MainPage from "@layout/MainPage";
+import Sidebar from "@layout/sidebar";
 import { getCurrentWindow, Theme } from "@tauri-apps/api/window";
 import {
   createEffect,
@@ -9,16 +14,11 @@ import {
   untrack,
 } from "solid-js";
 import style from "./app.module.css";
-import { events } from "./binding";
 import { useConfigStore } from "./contexts/config";
 import { usei18n } from "./contexts/i18n";
 import { useMetaStore } from "./contexts/meta";
 import { useTextStore } from "./contexts/text";
 import { useUIStore } from "./contexts/ui";
-import ConfigPage from "./layout/ConfigPage";
-import InitPage from "./layout/InitPage";
-import MainPage from "./layout/MainPage";
-import Sidebar from "./layout/Sidebar";
 
 function App() {
   const {

@@ -1,8 +1,8 @@
+import TextBlock from "@components/textBlock";
 import Resizable from "@corvu/resizable";
 import { Button } from "@kobalte/core/button";
+import { BottomPanel } from "@layout/bottomPanel";
 import { For, Show } from "solid-js";
-import { BottomPanel } from "../components/BottomPanel";
-import TextBlock from "../components/TextBlock";
 import { useConfigStore } from "../contexts/config";
 import { usei18n } from "../contexts/i18n";
 import { useTextStore } from "../contexts/text";

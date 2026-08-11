@@ -1,6 +1,6 @@
+import { Locale } from "@binding";
 import { createContextProvider } from "@solid-primitives/context";
 import * as i18n from "@solid-primitives/i18n";
-import { Locale } from "../binding";
 import { getDict } from "../i18n";
 import { useConfigStore } from "./config";
 

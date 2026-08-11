@@ -1,13 +1,14 @@
 // The store that holds the available style metadata
-import { createContextProvider } from "@solid-primitives/context";
-import _ from "lodash";
-import { createSignal, onCleanup } from "solid-js";
-import { createStore } from "solid-js/store";
+
 import {
   CharacterMeta,
   type SpeakerIconRequest,
   type SpeakerIconResult,
-} from "../binding";
+} from "@binding";
+import { createContextProvider } from "@solid-primitives/context";
+import _ from "lodash";
+import { createSignal, onCleanup } from "solid-js";
+import { createStore } from "solid-js/store";
 
 function speakerIconKey(request: SpeakerIconRequest) {
   return JSON.stringify([request.speaker_uuid, request.style_id]);

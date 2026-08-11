@@ -1,13 +1,23 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import solid from "vite-plugin-solid";
 import UnoCss from "unocss/vite";
 
-// @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
   plugins: [UnoCss({}), solid()],
+  resolve: {
+    alias: {
+      "@binding": fileURLToPath(new URL("./src/binding.ts", import.meta.url)),
+      "@components": fileURLToPath(
+        new URL("./src/components", import.meta.url),
+      ),
+      "@dialogs": fileURLToPath(new URL("./src/dialogs", import.meta.url)),
+      "@layout": fileURLToPath(new URL("./src/layout", import.meta.url)),
+    },
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

@@ -1,9 +1,9 @@
 // The store holding the configuration
-import { createContextProvider } from "@solid-primitives/context";
 
+import { AzaleaConfig, commands, StyleId, ThemeMode } from "@binding";
+import { createContextProvider } from "@solid-primitives/context";
 import { createEffect, createResource, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
-import { AzaleaConfig, commands, StyleId, ThemeMode } from "../binding";
 import { useMetaStore } from "./meta";
 import { useUIStore } from "./ui";
 

@@ -1,9 +1,18 @@
+import { fileURLToPath } from "node:url";
 import solid from "vite-plugin-solid";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   plugins: [solid()],
   resolve: {
+    alias: {
+      "@binding": fileURLToPath(new URL("./src/binding.ts", import.meta.url)),
+      "@components": fileURLToPath(
+        new URL("./src/components", import.meta.url),
+      ),
+      "@dialogs": fileURLToPath(new URL("./src/dialogs", import.meta.url)),
+      "@layout": fileURLToPath(new URL("./src/layout", import.meta.url)),
+    },
     conditions: ["development", "browser"],
   },
   test: {
