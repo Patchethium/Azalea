@@ -56,13 +56,13 @@ Refresh behavior depends on `UIConfig.buffer_render`: with buffering enabled, de
 - `pnpm tauri build` creates a production desktop package.
 - `pnpm check` runs Biome linting and formatting checks on `src/`.
 - `pnpm test:run` runs the deterministic Vitest frontend suite once.
-- `pnpm test:coverage` runs the frontend suite with an optional V8 coverage
-  report; no coverage threshold is currently enforced.
+- `pnpm test:coverage` runs the frontend suite with a V8 coverage report and
+  enforces at least 90% statements, branches, functions, and lines.
 - `pnpm test:e2e` builds the E2E-only Tauri binary and runs the packaged
   WebdriverIO smoke test. A real application window opens locally.
-- `pnpm test:all` runs frontend checks, the frontend build, frontend tests, and
-  every Rust test, including the real VOICEVOX pipeline; it does not run the
-  packaged smoke test.
+- `pnpm test:all` runs frontend checks, the frontend build, coverage-gated
+  frontend tests, and every Rust test, including the real VOICEVOX pipeline;
+  it does not run the packaged smoke test.
 - `cd src-tauri && cargo test --locked -- --test-threads=1` runs
   every Rust unit and integration test in one command, including the real
   VOICEVOX pipeline.
@@ -110,9 +110,10 @@ test-only command behavior. Keep that behavior feature-gated so production
 builds continue to use the real VOICEVOX and audio boundaries. The local smoke
 test opens an application window; CI runs it under Xvfb.
 
-There is no coverage threshold yet. `pnpm test:coverage` is informational;
-future frontend and Rust coverage enforcement is tracked in
-`.agents/todos/roadmap.md`.
+Keep frontend statement, branch, function, and line coverage at or above 90%.
+`pnpm test:coverage` enforces these thresholds. Rust coverage is informational;
+`pnpm test:coverage:rust` does not enforce a threshold. Future Rust coverage
+enforcement is tracked in `.agents/todos/roadmap.md`.
 
 ## Commit & Pull Request Guidelines
 

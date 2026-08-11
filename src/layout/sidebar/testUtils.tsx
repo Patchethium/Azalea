@@ -1,4 +1,5 @@
 import Sidebar from "@layout/sidebar";
+import { useSidebar } from "@layout/sidebar/useSidebar";
 import { MultiProvider } from "@solid-primitives/context";
 import { render } from "@solidjs/testing-library";
 import { type Component, onMount } from "solid-js";
@@ -41,4 +42,39 @@ export function renderSidebar(setup: (stores: SidebarTestStores) => void) {
       </MultiProvider>
     </main>
   ));
+}
+
+export function renderSidebarHook(setup: (stores: SidebarTestStores) => void) {
+  let controls!: ReturnType<typeof useSidebar>;
+  const Harness: Component = () => {
+    controls = useSidebar();
+    const stores = {
+      config: useConfigStore()!,
+      meta: useMetaStore()!,
+      text: useTextStore()!,
+    };
+    onMount(() => setup(stores));
+    return (
+      <div ref={controls.setPresetSplitter}>
+        <button ref={controls.setPresetResizeHandle} type="button" />
+        <h2 ref={controls.setPresetPanelHeader}>Preset</h2>
+        <div ref={controls.setPresetPanelContent} />
+      </div>
+    );
+  };
+  const result = render(() => (
+    <MultiProvider
+      values={[
+        [MetaProvider, []],
+        [UIProvider, null],
+        [ConfigProvider, null],
+        [SystemProvider, null],
+        [i18nProvider, null],
+        [TextProvider, null],
+      ]}
+    >
+      <Harness />
+    </MultiProvider>
+  ));
+  return { ...result, getControls: () => controls };
 }

@@ -1,6 +1,8 @@
 import { AboutDialog } from "@dialogs/About";
+import { AppDialogContent } from "@dialogs/AppContent";
 import { PresetManagerDialog } from "@dialogs/PresetManager";
 import { ShortcutReferenceDialog } from "@dialogs/ShortcutReference";
+import { Dialog } from "@kobalte/core/dialog";
 import { MultiProvider } from "@solid-primitives/context";
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { mockIPC } from "@tauri-apps/api/mocks";
@@ -13,6 +15,17 @@ import { SystemProvider } from "../contexts/system";
 import { TextProvider, useTextStore } from "../contexts/text";
 import { UIProvider } from "../contexts/ui";
 import { config, preset } from "../test/fixtures";
+
+describe("AppDialogContent", () => {
+  it("renders without optional content or classes", () => {
+    render(() => (
+      <Dialog open>
+        <AppDialogContent title="Bare dialog" closeLabel="Close bare dialog" />
+      </Dialog>
+    ));
+    expect(screen.getByRole("dialog", { name: "Bare dialog" })).toBeVisible();
+  });
+});
 
 describe("AboutDialog", () => {
   it("shows the runtime application version", async () => {
@@ -110,6 +123,49 @@ describe("PresetManagerDialog", () => {
       "Project Only",
     ]);
   });
+
+  it("handles a missing system preset list", async () => {
+    let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
+    const Harness: Component = () => {
+      appConfig = useConfigStore()!;
+      const text = useTextStore()!;
+      onMount(() => {
+        appConfig.setConfig({ ...config(), system_presets: undefined });
+        text.setProjectPresetStore([preset({ name: "Project" })]);
+      });
+      return <PresetManagerDialog open onOpenChange={() => {}} />;
+    };
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [i18nProvider, null],
+          [TextProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+
+    const project = (await screen.findByText("Project")).parentElement!;
+    fireEvent.mouseEnter(project);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Copy to System" }),
+    );
+    expect(appConfig.config.system_presets).toHaveLength(1);
+    fireEvent.mouseLeave(project);
+
+    const system = screen.getAllByText("Project")[1].parentElement!;
+    fireEvent.mouseEnter(system);
+    const remove = await screen.findByRole("button", { name: "Delete" });
+    appConfig.setConfig("system_presets", undefined);
+    document.body.append(remove);
+    fireEvent.click(remove);
+    expect(appConfig.config.system_presets).toEqual([]);
+    remove.remove();
+  });
 });
 
 describe("ShortcutReferenceDialog", () => {
@@ -174,6 +230,43 @@ describe("ShortcutReferenceDialog", () => {
     );
     expect(appConfig.config.ui_config.shortcuts?.play_current).toBeUndefined();
 
+    fireEvent.keyDown(playShortcut, { key: "Escape" });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    fireEvent.keyDown(playShortcut, { key: "X" });
+    expect(appConfig.config.ui_config.shortcuts?.play_current).toBeUndefined();
+
+    const editedSaveShortcut = screen.getByRole("button", {
+      name: "Save project: Ctrl + Shift + S",
+    });
+    fireEvent.click(editedSaveShortcut);
+    fireEvent.keyDown(editedSaveShortcut, {
+      key: "Control",
+      ctrlKey: true,
+    });
+    expect(screen.getByText("Press keys… (Esc to cancel)")).toBeInTheDocument();
+    fireEvent.blur(editedSaveShortcut);
+    expect(
+      screen.queryByText("Press keys… (Esc to cancel)"),
+    ).not.toBeInTheDocument();
+
+    const resetSave = screen
+      .getAllByRole("button", { name: "Restore default shortcut" })
+      .find((button) => !button.hasAttribute("disabled"))!;
+    fireEvent.click(resetSave);
+    expect(appConfig.config.ui_config.shortcuts?.save_project).toMatchObject({
+      key: "S",
+      primary: true,
+      shift: false,
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save project: Ctrl + S" }),
+    );
+    fireEvent.keyDown(
+      screen.getByRole("button", { name: "Save project: Ctrl + S" }),
+      { key: "S", ctrlKey: true, shiftKey: true },
+    );
+
     fireEvent.click(
       screen.getByRole("button", { name: "Restore all defaults" }),
     );
@@ -191,5 +284,14 @@ describe("ShortcutReferenceDialog", () => {
       },
     );
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Close keyboard shortcuts" }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("dialog", { name: "Keyboard Shortcuts" }),
+      ).toHaveAttribute("data-closed"),
+    );
   });
 });

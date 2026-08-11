@@ -11,8 +11,8 @@ test. The complete Rust suite also validates the real VOICEVOX pipeline.
       coverage.
 - [x] Add shared DOM, canvas, Tauri IPC/event, provider, and VOICEVOX fixture
       helpers.
-- [x] Add `test`, `test:run`, `test:coverage`, `test:e2e`, and `test:all`
-      package scripts.
+- [x] Add `test`, `test:run`, `test:coverage`, `test:coverage:rust`, `test:e2e`,
+      and `test:all` package scripts.
 - [x] Add temporary-file support and Tauri's mock runtime to Rust tests.
 - [x] Keep frontend and Rust unit tests independent of `config_dev`, model
       assets, network access, GUI interaction, and audio hardware.
@@ -38,6 +38,8 @@ test. The complete Rust suite also validates the real VOICEVOX pipeline.
 
 ## Backend coverage
 
+- [x] Run the complete Rust suite under `cargo-llvm-cov` in CI without a
+      coverage threshold.
 - [x] Test configuration defaults, partial/invalid input, validation repair,
       and file round trips.
 - [x] Test project serialization, extension/create policy, malformed input,
@@ -83,6 +85,6 @@ test. The complete Rust suite also validates the real VOICEVOX pipeline.
       cancellation and spectrogram replacement.
 - [x] Tests consume generated command/event shapes from `src/binding.ts`; the
       generated file is never edited manually.
-- [x] `pnpm check`, `pnpm build`, `pnpm test:run`, `cargo fmt --check`, the
+- [x] `pnpm check`, `pnpm build`, `pnpm test:coverage`, `cargo fmt --check`, the
       complete one-line `cargo test`, and the packaged smoke test pass locally
       and are configured in CI.

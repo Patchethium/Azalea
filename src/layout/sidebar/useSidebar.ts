@@ -28,7 +28,7 @@ import {
 export const PRESET_PANEL_COLLAPSE_THRESHOLD = 0.2;
 
 export function useSidebar() {
-  const { metas } = useMetaStore()!;
+  const { availableStyleIds, metas } = useMetaStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
   const {
     setTextStore,
@@ -206,7 +206,7 @@ export function useSidebar() {
         volume: 1,
         start_slience: 200,
         end_slience: 200,
-        style_id: 0,
+        style_id: Math.min(...availableStyleIds()),
         speaker_uuid: null,
         style_name: null,
       }),

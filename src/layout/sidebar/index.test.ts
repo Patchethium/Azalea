@@ -1,5 +1,5 @@
-import type { CharacterMeta } from "@binding";
-import { renderSidebar } from "@layout/sidebar/testUtils";
+import { type CharacterMeta, commands } from "@binding";
+import { renderSidebar, renderSidebarHook } from "@layout/sidebar/testUtils";
 import { fireEvent, screen, waitFor } from "@solidjs/testing-library";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import userEvent from "@testing-library/user-event";
@@ -175,6 +175,156 @@ describe("Sidebar project lifecycle", () => {
 });
 
 describe("Sidebar controls", () => {
+  it("handles preset controller edge cases", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    dialogs.open.mockResolvedValue(null);
+    dialogs.save.mockResolvedValue(null);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const loadProject = vi.spyOn(commands, "loadProject");
+    const saveProject = vi.spyOn(commands, "saveProject").mockResolvedValue({
+      status: "error",
+      error: "save failed",
+    });
+    let text!: NonNullable<ReturnType<typeof useTextStore>>;
+    const { getControls } = renderSidebarHook(
+      ({ config: appConfig, meta, text: textStore }) => {
+        text = textStore;
+        batch(() => {
+          appConfig.setConfig(config());
+          meta.setMetas([...metas, secondSpeaker]);
+          text.setProjectPresetStore([
+            preset(),
+            preset({
+              name: "Second",
+              style_id: 10,
+              speaker_uuid: "speaker-2",
+            }),
+          ]);
+          text.replaceTextBlocks([
+            {
+              id: "first",
+              text: "First",
+              query: audioQuery(),
+              query_is_modified: true,
+              preset_id: 0,
+            },
+            {
+              id: "second",
+              text: "Second",
+              query: audioQuery(),
+              query_is_modified: true,
+              preset_id: 1,
+            },
+            {
+              id: "unassigned",
+              text: "Unassigned",
+              query: null,
+              query_is_modified: false,
+              preset_id: null,
+            },
+          ]);
+        });
+      },
+    );
+    await Promise.resolve();
+    const controls = getControls();
+
+    controls.setStyleId(999);
+    controls.selectSpeakerByName("Missing");
+    controls.setStyleByName("Missing");
+    controls.setStyleId(1);
+    expect(text.textStore[0].query_is_modified).toBe(true);
+    controls.setStyleByName("Happy");
+    expect(text.projectPresetStore[0]).toMatchObject({
+      style_id: 2,
+      speaker_uuid: "speaker-1",
+      style_name: "Happy",
+    });
+    expect(text.textStore[0].query_is_modified).toBe(false);
+
+    text.setTextStore(0, "query_is_modified", true);
+    controls.setTextPresetIdx(1);
+    expect(text.textStore[0]).toMatchObject({
+      preset_id: 1,
+      query_is_modified: false,
+    });
+    text.setTextStore(0, "query_is_modified", true);
+    controls.setTextPresetIdx(1);
+    expect(text.textStore[0].query_is_modified).toBe(true);
+
+    controls.setPresetName("Renamed");
+    controls.setPitch(0.2);
+    controls.setSpeed(125);
+    controls.setIntonation(1.2);
+    controls.setVolume(0.8);
+    controls.setStartSli(300);
+    controls.setEndSli(400);
+    expect(text.projectPresetStore[1]).toMatchObject({
+      name: "Renamed",
+      pitch: 0.2,
+      speed: 125,
+      intonation: 1.2,
+      volume: 0.8,
+      start_slience: 300,
+      end_slience: 400,
+    });
+
+    controls.movePreset(-1, 1);
+    controls.movePreset(1, 1);
+    controls.movePreset(1, -1);
+    expect(text.textStore.map((block) => block.preset_id)).toEqual([
+      0,
+      0,
+      null,
+    ]);
+
+    controls.createPreset();
+    expect(text.projectPresetStore).toHaveLength(3);
+    expect(text.textStore[0].preset_id).toBe(2);
+    controls.removePreset();
+    expect(text.projectPresetStore).toHaveLength(2);
+    expect(text.textStore[0].preset_id).toBe(1);
+
+    controls.finishPresetPanelResize();
+    controls.setResizingPresetPanel(true);
+    controls.setExpanded([]);
+    controls.finishPresetPanelResize();
+    controls.setResizingPresetPanel(true);
+    controls.setExpanded(["preset"]);
+    controls.setPresetPanelSizes([0.25, 0.75]);
+    controls.finishPresetPanelResize();
+    expect(controls.presetPanelSize()).toBe(0.75);
+    controls.collapsePresetPanel();
+    controls.setPresetPanelContent(document.createElement("div"));
+
+    text.setTextStore([]);
+    text.setProjectPresetStore([]);
+    controls.setStyleId(1);
+    controls.setPresetName("Ignored");
+    controls.setPitch(1);
+    controls.setTextPresetIdx(0);
+    controls.removePreset();
+    expect(controls.currentPreset()).toBeNull();
+    expect(controls.curMeta()).toBeUndefined();
+    expect(controls.curStyle()).toBeUndefined();
+    expect(controls.availableStyleNames()).toEqual([]);
+    controls.createPreset();
+    expect(text.projectPresetStore[0]).toMatchObject({
+      name: "New Preset",
+      speed: 100,
+      style_id: 1,
+    });
+
+    await controls.loadProject();
+    await controls.saveProject();
+    expect(loadProject).not.toHaveBeenCalled();
+    expect(saveProject).not.toHaveBeenCalled();
+
+    text.setProjectPath("/tmp/existing.azp");
+    await controls.saveProject();
+    expect(console.error).toHaveBeenCalledWith("save failed");
+  });
+
   it("resizes the preset editor and applies speaker changes after selection", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
@@ -339,5 +489,52 @@ describe("Sidebar controls", () => {
     expect(
       screen.getByRole("button", { name: "Style Normal" }),
     ).toHaveTextContent("Normal");
+
+    const name = screen.getByRole("textbox");
+    await user.clear(name);
+    await user.type(name, "Edited");
+    expect(text.projectPresetStore[0].name).toBe("Edited");
+
+    await user.click(screen.getByRole("button", { name: "Style Normal" }));
+    await user.click(await screen.findByRole("option", { name: "Happy" }));
+    expect(text.projectPresetStore[0]).toMatchObject({
+      style_id: 11,
+      style_name: "Happy",
+    });
+
+    await user.click(screen.getByRole("button", { name: "Create preset" }));
+    expect(text.projectPresetStore).toHaveLength(2);
+    expect(text.textStore[0].preset_id).toBe(1);
+    const moveUp = screen.getByRole("button", { name: "Move preset up" });
+    const moveDown = screen.getByRole("button", { name: "Move preset down" });
+    expect(moveUp).not.toBeDisabled();
+    expect(moveDown).toBeDisabled();
+    await user.click(moveUp);
+    expect(text.textStore[0].preset_id).toBe(0);
+    expect(moveUp).toBeDisabled();
+    expect(moveDown).not.toBeDisabled();
+    await user.click(moveDown);
+    expect(text.textStore[0].preset_id).toBe(1);
+
+    await user.click(screen.getByText("Edited"));
+    expect(text.textStore[0].preset_id).toBe(0);
+    await user.click(screen.getByRole("button", { name: "Manage presets" }));
+    expect(
+      await screen.findByRole("dialog", { name: "Preset Manager" }),
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Close preset manager" }),
+    );
+
+    const remove = screen.getByRole("button", { name: "Delete preset" });
+    await user.click(remove);
+    await user.click(remove);
+    expect(text.projectPresetStore).toHaveLength(0);
+    expect(
+      screen.getByText("Create a new preset to get started"),
+    ).toBeInTheDocument();
+    expect(remove).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Create preset" }));
+    expect(text.projectPresetStore).toHaveLength(1);
   });
 });

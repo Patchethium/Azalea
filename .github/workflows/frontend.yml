@@ -62,5 +62,5 @@ jobs:
       - name: Build frontend
         run: pnpm build
 
-      - name: Run frontend tests
-        run: pnpm test:run
+      - name: Run frontend tests with coverage
+        run: pnpm test:coverage

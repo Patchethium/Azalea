@@ -149,8 +149,12 @@ AZALEA_TEST_CORE_DIR=/path/to/voicevox \
 A missing or invalid environment override and a missing development core fail
 the suite instead of silently skipping the real-core test.
 
-`pnpm test:coverage` produces an optional frontend coverage report. The
-project does not currently enforce a coverage threshold.
+`pnpm test:coverage` produces a frontend coverage report and enforces at least
+90% statement, branch, function, and line coverage.
+
+Install [`cargo-llvm-cov`](https://github.com/taiki-e/cargo-llvm-cov), then run
+`pnpm test:coverage:rust` for an informational Rust coverage report. The Rust
+coverage suite runs every Rust test but does not enforce a threshold.
 
 ### Pitch Range
 

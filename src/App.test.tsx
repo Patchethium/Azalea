@@ -3,19 +3,24 @@ import { MultiProvider } from "@solid-primitives/context";
 import { render, screen, waitFor } from "@solidjs/testing-library";
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { ConfigProvider } from "./contexts/config";
 import { i18nProvider } from "./contexts/i18n";
 import { MetaProvider } from "./contexts/meta";
 import { SpectrogramProvider } from "./contexts/spectrogram";
 import { SystemProvider } from "./contexts/system";
-import { TextProvider } from "./contexts/text";
+import { TextProvider, useTextStore } from "./contexts/text";
 import { UIProvider } from "./contexts/ui";
-import { config } from "./test/fixtures";
+import { config, metas } from "./test/fixtures";
 
-const renderApp = () =>
-  render(() => (
+const renderApp = () => {
+  let text!: NonNullable<ReturnType<typeof useTextStore>>;
+  const Harness = () => {
+    text = useTextStore()!;
+    return <App />;
+  };
+  const result = render(() => (
     <MultiProvider
       values={[
         [MetaProvider, []],
@@ -27,9 +32,11 @@ const renderApp = () =>
         [TextProvider, null],
       ]}
     >
-      <App />
+      <Harness />
     </MultiProvider>
   ));
+  return { ...result, getTextStore: () => text };
+};
 
 describe("App initialization", () => {
   it("leaves loading for core selection and applies validated appearance settings", async () => {
@@ -69,16 +76,25 @@ describe("App initialization", () => {
     expect(
       document.documentElement.style.getPropertyValue("--primary-color"),
     ).toBe("#3b82f6");
+
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    screen.getByRole("button", { name: "Pick it" }).click();
+    await waitFor(() => expect(warn).toHaveBeenCalledOnce());
   });
 
   it("still completes initialization when the backend reports an error", async () => {
-    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
-      shouldMockEvents: true,
-    });
+    const calls: string[] = [];
+    mockIPC(
+      (cmd) => {
+        calls.push(cmd);
+        return cmd === "get_os" ? "Linux" : null;
+      },
+      { shouldMockEvents: true },
+    );
     mockWindows("main");
     renderApp();
     await events.initializationEvent.emit({
-      config: config(),
+      config: null,
       core_initialized: false,
       metas: null,
       range: [],
@@ -89,6 +105,10 @@ describe("App initialization", () => {
       await screen.findByRole("button", { name: "Pick it" }),
     ).toBeEnabled();
     expect(screen.queryByText("Loading")).not.toBeInTheDocument();
+
+    screen.getByRole("radio", { name: "I'll figure it out" }).click();
+    screen.getByRole("button", { name: "Okay" }).click();
+    expect(calls).toContain("quit");
   });
 
   it("initializes a selected core and opens the editor", async () => {
@@ -126,7 +146,7 @@ describe("App initialization", () => {
       { shouldMockEvents: true },
     );
     mockWindows("main");
-    renderApp();
+    const { getTextStore } = renderApp();
     await Promise.resolve();
     await events.initializationEvent.emit({
       config: config(),
@@ -147,9 +167,20 @@ describe("App initialization", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Accent" })).toBeInTheDocument();
+
+    getTextStore().setTextStore([]);
+    const create = await screen.findByRole("button", {
+      name: "Create text cell",
+    });
+    create.click();
+    expect(getTextStore().textStore).toHaveLength(1);
   });
 
   it("tracks system theme changes and removes the listener on cleanup", async () => {
+    vi.mocked(window.matchMedia).mockReturnValue({
+      ...window.matchMedia(""),
+      matches: true,
+    });
     mockIPC((cmd) => (cmd.includes("theme") ? "light" : null), {
       shouldMockEvents: true,
     });
@@ -158,7 +189,7 @@ describe("App initialization", () => {
     await events.initializationEvent.emit({
       config: config({ theme_mode: "System" }),
       core_initialized: false,
-      metas: null,
+      metas,
       range: [],
       error: null,
     });

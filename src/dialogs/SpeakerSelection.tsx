@@ -231,6 +231,7 @@ export function SpeakerSelectionDialog(props: SpeakerSelectionDialogProps) {
                 >
                   <Button
                     type="button"
+                    disabled={style === undefined}
                     aria-pressed={selected()}
                     onClick={() => props.onSelect(speaker)}
                     class="relative min-h-24 min-w-0 w-full flex flex-col items-center justify-center gap2 rounded-xl b b-slate-2 bg-slate-1/70 p3 text-center outline-none transition-colors hover:(b-primary-5 bg-primary-1) focus-visible:(ring-2 ring-primary-3) dark:(b-slate-6 bg-slate-7/50) dark:hover:(b-primary-5 bg-slate-7)"

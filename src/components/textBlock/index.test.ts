@@ -1,10 +1,12 @@
 import { commands, events } from "@binding";
+import { AutogrowInput } from "@components/textBlock/AutogrowInput";
 import { renderBlock } from "@components/textBlock/testUtils";
-import { fireEvent, screen, waitFor } from "@solidjs/testing-library";
+import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
+import { createComponent } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
-import { audioQuery } from "../../test/fixtures";
+import { audioQuery, preset } from "../../test/fixtures";
 
 vi.mock("@solid-primitives/scheduled", () => ({
   debounce: <Args extends unknown[]>(
@@ -28,6 +30,24 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 }));
 
 describe("TextBlock", () => {
+  it("normalizes blank editable input without requiring a selection", () => {
+    vi.spyOn(document, "getSelection").mockReturnValue(null);
+    const setText = vi.fn();
+    render(() =>
+      createComponent(AutogrowInput, {
+        text: "",
+        setText,
+        focused: true,
+        placeholder: "Placeholder",
+        "aria-label": "Direct editor",
+      }),
+    );
+    const editor = screen.getByLabelText("Direct editor");
+    editor.innerText = "\n";
+    fireEvent.input(editor);
+    expect(setText).toHaveBeenCalledWith("");
+  });
+
   it("places the caret at the end when another cell is focused programmatically", async () => {
     mockIPC(() => null, { shouldMockEvents: true });
     vi.spyOn(commands, "audioQuery").mockResolvedValue({
@@ -154,9 +174,11 @@ describe("TextBlock", () => {
     const synthesize = vi
       .spyOn(commands, "synthesize")
       .mockResolvedValue({ status: "ok", data: null });
-    const cancel = vi
-      .spyOn(commands, "cancelSynthesis")
-      .mockResolvedValue({ status: "ok", data: null });
+    const cancel = vi.spyOn(commands, "cancelSynthesis").mockResolvedValue({
+      status: "error",
+      error: "cancel failed",
+    });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     const { getConfigStore } = renderBlock(true);
     await waitFor(() => expect(synthesize).toHaveBeenCalledOnce());
@@ -193,6 +215,43 @@ describe("TextBlock", () => {
       await screen.findByRole("status", { name: "Failed" }),
     ).toBeInTheDocument();
 
+    for (const [state, label, icon] of [
+      ["Completed", "Completed", "i-lucide:check"],
+      ["Cancelled", "Cancelled", "i-lucide:circle-slash"],
+      ["Evicted", "No Longer Buffered", "i-lucide:archive-restore"],
+    ] as const) {
+      await events.synthesisJobEvent.emit({
+        blockId: request.blockId,
+        generationId: request.generationId,
+        hash: request.hash,
+        state,
+        error: null,
+      });
+      expect(
+        await screen.findByRole("status", { name: label }),
+      ).toContainElement(
+        document.querySelector(`.${icon.replace(":", "\\:")}`),
+      );
+    }
+
+    await events.synthesisJobEvent.emit({
+      blockId: "wrong-block",
+      generationId: request.generationId,
+      hash: request.hash,
+      state: "Running",
+      error: null,
+    });
+    await events.synthesisJobEvent.emit({
+      blockId: request.blockId,
+      generationId: request.generationId + 1,
+      hash: request.hash,
+      state: "Running",
+      error: null,
+    });
+    expect(
+      screen.getByRole("status", { name: "No Longer Buffered" }),
+    ).toBeInTheDocument();
+
     getConfigStore().setConfig("ui_config", "buffer_render", false);
     await waitFor(() =>
       expect(cancel).toHaveBeenCalledWith(
@@ -201,6 +260,104 @@ describe("TextBlock", () => {
       ),
     );
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(console.error).toHaveBeenCalledWith(
+      "Failed to cancel synthesis for block",
+      0,
+      ":",
+      "cancel failed",
+    );
+
+    await events.synthesisJobEvent.emit({
+      blockId: request.blockId,
+      generationId: request.generationId,
+      hash: request.hash,
+      state: "Running",
+      error: null,
+    });
+  });
+
+  it("reports queue failures", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(commands, "audioQuery").mockResolvedValue({
+      status: "ok",
+      data: audioQuery(),
+    });
+    const synthesize = vi.spyOn(commands, "synthesize").mockResolvedValue({
+      status: "error",
+      error: "queue failed",
+    });
+    renderBlock(true);
+
+    await waitFor(() => expect(synthesize).toHaveBeenCalledOnce());
+    expect(
+      await screen.findByRole("status", { name: "Failed" }),
+    ).toBeInTheDocument();
+    expect(console.error).toHaveBeenCalledWith(
+      "Failed to queue synthesis for block",
+      0,
+      ":",
+      "queue failed",
+    );
+  });
+
+  it("cancels a successful synthesis response that finishes after unmount", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    vi.spyOn(commands, "audioQuery").mockResolvedValue({
+      status: "ok",
+      data: audioQuery(),
+    });
+    type SynthesisResult = Awaited<ReturnType<typeof commands.synthesize>>;
+    let resolveSynthesis!: (result: SynthesisResult) => void;
+    const synthesize = vi.spyOn(commands, "synthesize").mockReturnValue(
+      new Promise((resolve) => {
+        resolveSynthesis = resolve;
+      }),
+    );
+    const cancel = vi
+      .spyOn(commands, "cancelSynthesis")
+      .mockResolvedValue({ status: "ok", data: null });
+    const { unmount } = renderBlock(true);
+
+    await waitFor(() => expect(synthesize).toHaveBeenCalledOnce());
+    unmount();
+    resolveSynthesis({ status: "ok", data: null });
+    await waitFor(() => expect(cancel).toHaveBeenCalled());
+  });
+
+  it("reports missing queries and unknown synthesis states", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    vi.spyOn(commands, "audioQuery").mockResolvedValue({
+      status: "ok",
+      data: audioQuery(),
+    });
+    const synthesize = vi
+      .spyOn(commands, "synthesize")
+      .mockResolvedValue({ status: "ok", data: null });
+    const { getTextStore, getConfigStore } = renderBlock(true);
+    await waitFor(() => expect(synthesize).toHaveBeenCalledOnce());
+
+    getTextStore().setTextStore(0, "query", null);
+    expect(
+      await screen.findByRole("status", { name: "No Query" }),
+    ).toBeInTheDocument();
+
+    getConfigStore().setConfig("ui_config", "synthesis_delay_ms", undefined);
+    getTextStore().setTextStore(0, "query", audioQuery({ speedScale: 1.1 }));
+    await waitFor(() => expect(synthesize).toHaveBeenCalledTimes(2), {
+      timeout: 1_500,
+    });
+    const request = synthesize.mock.calls[1][0];
+    await events.synthesisJobEvent.emit({
+      blockId: request.blockId,
+      generationId: request.generationId,
+      hash: request.hash,
+      state: "Unknown" as never,
+      error: null,
+    });
+    expect(
+      await screen.findByRole("status", { name: "No Query" }),
+    ).toContainElement(document.querySelector(".i-lucide\\:circle-dashed"));
   });
 
   it("normalizes audio export paths and remembers the export directory", async () => {
@@ -237,6 +394,90 @@ describe("TextBlock", () => {
         "/exports",
       ),
     );
+  });
+
+  it("handles export cancellation, existing extensions, and backend errors", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(commands, "audioQuery").mockResolvedValue({
+      status: "ok",
+      data: audioQuery(),
+    });
+    const joinPath = vi
+      .spyOn(commands, "joinPath")
+      .mockResolvedValue("/custom/hello");
+    vi.mocked(saveDialog)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce("/custom/rendered.wav");
+    const saveAudio = vi.spyOn(commands, "saveAudio").mockResolvedValue({
+      status: "error",
+      error: "export failed",
+    });
+    const { getConfigStore } = renderBlock(false);
+    const saveButton = await screen.findByRole("button", {
+      name: "Save audio",
+    });
+    await waitFor(() => expect(saveButton).toBeEnabled());
+
+    getConfigStore().setConfig("ui_config", "last_exported_dir", "/custom");
+    getConfigStore().setConfig("ui_config", "name_truncation_len", 4);
+    fireEvent.click(saveButton);
+    await waitFor(() => expect(saveDialog).toHaveBeenCalledOnce());
+    expect(saveAudio).not.toHaveBeenCalled();
+
+    getConfigStore().setConfig("ui_config", "name_truncation_len", 10);
+    fireEvent.click(saveButton);
+    await waitFor(() => expect(saveAudio).toHaveBeenCalledOnce());
+    expect(joinPath).toHaveBeenLastCalledWith("/custom", "hello");
+    expect(saveAudio).toHaveBeenCalledWith(
+      "/custom/rendered.wav",
+      expect.any(Object),
+      1,
+    );
+    expect(console.error).toHaveBeenCalledWith("export failed");
+  });
+
+  it("moves and removes cells while keeping selection on the same content", async () => {
+    mockIPC((cmd) => (cmd === "audio_query" ? audioQuery() : null), {
+      shouldMockEvents: true,
+    });
+    const { getTextStore, getUiStore } = renderBlock(false, false, true);
+    const editors = await screen.findAllByLabelText("Text to synthesize");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Move text cell down" }),
+    );
+    expect(getTextStore().textStore.map((block) => block.id)).toEqual([
+      "second-text-block",
+      "text-block",
+    ]);
+    expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(1);
+    fireEvent.click(screen.getByRole("button", { name: "Move text cell up" }));
+    expect(getTextStore().textStore.map((block) => block.id)).toEqual([
+      "text-block",
+      "second-text-block",
+    ]);
+
+    getUiStore().setUIStore("selectedTextBlockIndex", 1);
+    fireEvent.mouseEnter(
+      editors[0].parentElement!.parentElement!.parentElement!,
+    );
+    const deleteButtons = screen.getAllByRole("button", {
+      name: "Delete text cell",
+    });
+    fireEvent.click(deleteButtons[0]);
+    expect(getTextStore().textStore).toHaveLength(1);
+    expect(getTextStore().textStore[0].id).toBe("second-text-block");
+    expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(0);
+
+    getTextStore().setProjectPresetStore([]);
+    expect(await screen.findByText("No Preset Selected")).toBeInTheDocument();
+    const editor = screen.getByLabelText("Text to synthesize");
+    editor.innerText = "";
+    fireEvent.input(editor);
+    expect(getTextStore().textStore[0].query).toBeNull();
+    expect(screen.getByRole("button", { name: "Save audio" })).toBeDisabled();
+    getTextStore().setProjectPresetStore([preset()]);
   });
 
   it("does not let a stale query response replace newer text", async () => {

@@ -6,7 +6,7 @@ import { createSignal, Show } from "solid-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ConfigProvider } from "../contexts/config";
 import { i18nProvider } from "../contexts/i18n";
-import { MetaProvider } from "../contexts/meta";
+import { MetaProvider, useMetaStore } from "../contexts/meta";
 import { UIProvider } from "../contexts/ui";
 
 const speakers: CharacterMeta[] = [
@@ -19,6 +19,7 @@ const speakers: CharacterMeta[] = [
       { id: 99, name: "Unordered", order: null, type: "talk" },
       { id: 8, name: "Later", order: 4, type: "talk" },
       { id: 7, name: "Representative", order: 1, type: "talk" },
+      { id: 100, name: "Also Unordered", order: null, type: "talk" },
     ],
   },
   {
@@ -50,8 +51,25 @@ const deferred = <T,>() => {
   return { promise, resolve };
 };
 
-const renderDialog = (initialOpen = true) => {
+const renderDialog = (
+  initialOpen = true,
+  speakerList = speakers,
+  onSelect = () => {},
+) => {
   const [open, setOpen] = createSignal(initialOpen);
+  let meta!: NonNullable<ReturnType<typeof useMetaStore>>;
+  const Harness = () => {
+    meta = useMetaStore()!;
+    return (
+      <SpeakerSelectionDialog
+        open={open()}
+        onOpenChange={setOpen}
+        speakers={speakerList}
+        selectedSpeakerUuid="uuid-one"
+        onSelect={onSelect}
+      />
+    );
+  };
   const result = render(() => (
     <MultiProvider
       values={[
@@ -61,16 +79,10 @@ const renderDialog = (initialOpen = true) => {
         [i18nProvider, null],
       ]}
     >
-      <SpeakerSelectionDialog
-        open={open()}
-        onOpenChange={setOpen}
-        speakers={speakers}
-        selectedSpeakerUuid="uuid-one"
-        onSelect={() => {}}
-      />
+      <Harness />
     </MultiProvider>
   ));
-  return { ...result, setOpen };
+  return { ...result, setOpen, getMeta: () => meta };
 };
 
 const renderRemountableDialog = () => {
@@ -122,6 +134,7 @@ describe("SpeakerSelectionDialog persistent icons", () => {
       data: [
         iconResult("uuid-one", iconData("first")),
         iconResult("uuid-two", iconData("second")),
+        iconResult("unknown", null, "bad cache entry"),
       ],
     });
     renderDialog();
@@ -141,6 +154,7 @@ describe("SpeakerSelectionDialog persistent icons", () => {
     expect(
       screen.queryByRole("button", { name: "Download speaker icons" }),
     ).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Engine Alias" }),
     ).toHaveAttribute("aria-pressed", "true");
@@ -176,6 +190,58 @@ describe("SpeakerSelectionDialog persistent icons", () => {
     expect(
       screen.getByRole("button", { name: "Missing Icon" }).querySelector("img"),
     ).toHaveAttribute("src", "blob:speaker-icon-2");
+    document.body.append(download);
+    fireEvent.click(download);
+    download.remove();
+  });
+
+  it("ignores icon downloads invalidated by revision changes or cleanup", async () => {
+    vi.mocked(commands.getCachedSpeakerIcons).mockResolvedValue({
+      status: "ok",
+      data: [
+        iconResult("uuid-one", iconData("first")),
+        iconResult("uuid-two", null),
+      ],
+    });
+    const invalidated =
+      deferred<Awaited<ReturnType<typeof commands.downloadSpeakerIcons>>>();
+    const stale =
+      deferred<Awaited<ReturnType<typeof commands.downloadSpeakerIcons>>>();
+    vi.mocked(commands.downloadSpeakerIcons)
+      .mockReturnValueOnce(invalidated.promise)
+      .mockReturnValueOnce(stale.promise);
+    const dialog = renderDialog();
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Download speaker icons" }),
+    );
+    dialog.getMeta().clearSpeakerIcons();
+    invalidated.resolve({
+      status: "ok",
+      data: [iconResult("uuid-two", iconData("invalidated"))],
+    });
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Download speaker icons" }),
+      ).toBeEnabled(),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Download speaker icons" }),
+    );
+    await waitFor(() =>
+      expect(commands.downloadSpeakerIcons).toHaveBeenCalledTimes(2),
+    );
+    dialog.unmount();
+    stale.resolve({
+      status: "ok",
+      data: [
+        iconResult("uuid-one", iconData("late one")),
+        iconResult("uuid-two", iconData("late two")),
+      ],
+    });
+    await Promise.resolve();
+    expect(URL.createObjectURL).toHaveBeenCalledOnce();
   });
 
   it("preserves successful icons after a partial failure and retries missing entries", async () => {
@@ -287,5 +353,102 @@ describe("SpeakerSelectionDialog persistent icons", () => {
       screen.getByRole("button", { name: "Engine Alias" }).querySelector("img"),
     ).toHaveAttribute("src", "blob:speaker-icon-1");
     expect(commands.getCachedSpeakerIcons).toHaveBeenCalledOnce();
+  });
+
+  it("shows cache failures and ignores a response after cleanup", async () => {
+    vi.mocked(commands.getCachedSpeakerIcons).mockResolvedValueOnce({
+      status: "error",
+      error: "cache failed",
+    });
+    const first = renderDialog();
+    expect(
+      await screen.findByText("Some speaker icons could not be downloaded."),
+    ).toHaveAttribute("role", "alert");
+    first.unmount();
+
+    const cachedIcons =
+      deferred<Awaited<ReturnType<typeof commands.getCachedSpeakerIcons>>>();
+    vi.mocked(commands.getCachedSpeakerIcons).mockReturnValueOnce(
+      cachedIcons.promise,
+    );
+    const second = renderDialog();
+    await waitFor(() =>
+      expect(commands.getCachedSpeakerIcons).toHaveBeenCalledTimes(2),
+    );
+    second.unmount();
+    cachedIcons.resolve({
+      status: "ok",
+      data: [
+        iconResult("uuid-one", iconData("late")),
+        iconResult("uuid-two", null),
+      ],
+    });
+    await Promise.resolve();
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it("handles broken images and download errors", async () => {
+    vi.mocked(commands.getCachedSpeakerIcons).mockResolvedValue({
+      status: "ok",
+      data: [
+        iconResult("uuid-one", iconData("first")),
+        iconResult("uuid-two", null),
+      ],
+    });
+    vi.mocked(commands.downloadSpeakerIcons)
+      .mockResolvedValueOnce({ status: "error", error: "offline" })
+      .mockRejectedValueOnce(new Error("network failed"));
+    renderDialog();
+
+    const image = await waitFor(() => {
+      const value = screen
+        .getByRole("button", { name: "Engine Alias" })
+        .querySelector("img");
+      expect(value).not.toBeNull();
+      return value!;
+    });
+    fireEvent.error(image);
+    expect(
+      await screen.findByText("Some speaker icons could not be downloaded."),
+    ).toHaveAttribute("role", "alert");
+
+    const retry = screen.getByRole("button", {
+      name: "Retry downloading speaker icons",
+    });
+    fireEvent.click(retry);
+    await waitFor(() =>
+      expect(commands.downloadSpeakerIcons).toHaveBeenCalledOnce(),
+    );
+    fireEvent.click(retry);
+    await waitFor(() =>
+      expect(commands.downloadSpeakerIcons).toHaveBeenCalledTimes(2),
+    );
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+  });
+
+  it("renders but disables a speaker without styles", async () => {
+    const noStyles: CharacterMeta = {
+      name: "No Styles",
+      speaker_uuid: "uuid-empty",
+      version: "1.0.0",
+      order: 2,
+      styles: [],
+    };
+    vi.mocked(commands.getCachedSpeakerIcons).mockResolvedValue({
+      status: "ok",
+      data: [iconResult("uuid-one", null), iconResult("uuid-two", null)],
+    });
+    const onSelect = vi.fn();
+    renderDialog(true, [...speakers, noStyles], onSelect);
+
+    const button = await screen.findByRole("button", { name: "No Styles" });
+    expect(button.querySelector("img")).not.toBeInTheDocument();
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(commands.getCachedSpeakerIcons).toHaveBeenCalledWith([
+      { speaker_uuid: "uuid-one", style_id: 7 },
+      { speaker_uuid: "uuid-two", style_id: 9 },
+    ]);
   });
 });

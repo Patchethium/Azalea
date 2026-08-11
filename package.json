@@ -17,7 +17,7 @@
     "test:e2e:build": "pnpm tauri build --debug --no-bundle --features e2e --config src-tauri/tauri.e2e.conf.json",
     "test:e2e:run": "wdio run wdio.conf.ts",
     "test:e2e": "pnpm test:e2e:build && pnpm test:e2e:run",
-    "test:all": "pnpm check && pnpm build && pnpm test:run && cargo test --locked --manifest-path src-tauri/Cargo.toml -- --test-threads=1"
+    "test:all": "pnpm check && pnpm build && pnpm test:coverage && cargo test --locked --manifest-path src-tauri/Cargo.toml -- --test-threads=1"
   },
   "license": "MIT",
   "pnpm": {

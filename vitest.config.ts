@@ -38,8 +38,15 @@ export default defineConfig({
         "src/mountApp.tsx",
         "src/vite-env.d.ts",
         "src/test/**",
+        "src/**/testUtils.{ts,tsx}",
         "src/**/*.test.{ts,tsx}",
       ],
+      thresholds: {
+        statements: 90,
+        branches: 90,
+        functions: 90,
+        lines: 90,
+      },
     },
   },
 });

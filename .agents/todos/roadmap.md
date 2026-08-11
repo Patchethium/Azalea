@@ -221,9 +221,8 @@ Tier meanings:
 
 ## Roadmap Maintenance
 
-- [ ] Add coverage enforcement: remeasure frontend and Rust baselines with the
-      CI toolchain, round thresholds down to whole percentages, publish
-      coverage artifacts, and only ratchet the gates upward.
+- [ ] Enforce a measured Rust coverage baseline, publish frontend and Rust
+      coverage artifacts in CI, and only ratchet the gates upward.
 - [ ] Reconcile README Core/config instructions with the current implementation.
 - [ ] Synchronize application version and license metadata across Tauri, Cargo,
       package metadata, and documentation.

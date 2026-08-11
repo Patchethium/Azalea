@@ -1,10 +1,15 @@
 import { commands } from "@binding";
-import { renderCanvas, renderPanel } from "@layout/bottomPanel/testUtils";
+import {
+  renderCanvas,
+  renderPanel,
+  renderPlaybackHook,
+  renderTuningHook,
+} from "@layout/bottomPanel/testUtils";
 import { fireEvent, screen, waitFor } from "@solidjs/testing-library";
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { describe, expect, it, vi } from "vitest";
-import { audioQuery, preset, spectrogram } from "../../test/fixtures";
+import { audioQuery, mora, preset, spectrogram } from "../../test/fixtures";
 
 describe("SpectrogramCanvas", () => {
   it("crops configured silence while retaining timeline display width", () => {
@@ -40,9 +45,140 @@ describe("SpectrogramCanvas", () => {
     expect(canvas).toHaveClass("opacity-55");
     expect(canvas.style.filter).toBe("grayscale(1)");
   });
+
+  it("rejects every malformed canvas shape and tolerates a missing context", () => {
+    for (const preview of [
+      {
+        values: [],
+        frameCount: 0,
+        melBins: 2,
+        durationSeconds: 1,
+      },
+      {
+        values: [],
+        frameCount: 2,
+        melBins: 0,
+        durationSeconds: 1,
+      },
+      {
+        values: [1],
+        frameCount: 2,
+        melBins: 2,
+        durationSeconds: 1,
+      },
+    ]) {
+      const { container, unmount } = renderCanvas(preview);
+      expect(container.querySelector("canvas")).toHaveAttribute("width", "0");
+      unmount();
+    }
+
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    const { container } = renderCanvas(spectrogram);
+    expect(container.querySelector("canvas")).toHaveAttribute("width", "1");
+  });
 });
 
 describe("BottomPanel playback", () => {
+  it("handles playback controller boundaries and sequence races", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(commands, "playAudio").mockResolvedValue({
+      status: "ok",
+      data: null,
+    });
+    vi.spyOn(commands, "stopAudio")
+      .mockResolvedValueOnce({ status: "error", error: "stop failed" })
+      .mockResolvedValue({ status: "ok", data: null });
+    type SequenceResult = Awaited<
+      ReturnType<typeof commands.playAudioSequence>
+    >;
+    let resolveFirst!: (result: SequenceResult) => void;
+    let resolveSecond!: (result: SequenceResult) => void;
+    const first = new Promise<SequenceResult>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const second = new Promise<SequenceResult>((resolve) => {
+      resolveSecond = resolve;
+    });
+    const playSequence = vi
+      .spyOn(commands, "playAudioSequence")
+      .mockReturnValueOnce(first)
+      .mockReturnValueOnce(second)
+      .mockResolvedValue({ status: "error", error: "sequence failed" });
+    const synthesized = vi.fn();
+    const { getControls, getTextStore, getUiStore } =
+      renderPlaybackHook(synthesized);
+    await Promise.resolve();
+    const controls = getControls();
+    const text = getTextStore();
+    const ui = getUiStore();
+
+    controls.focusPrev();
+    controls.focusNext("wrong-block");
+    expect(ui.uiStore.selectedTextBlockIndex).toBe(0);
+    controls.focusNext();
+    expect(ui.uiStore.selectedTextBlockIndex).toBe(1);
+    controls.focusNext(undefined, false);
+    expect(text.textStore).toHaveLength(2);
+    controls.focusNext(undefined, true);
+    expect(text.textStore).toHaveLength(3);
+
+    text.replaceTextBlocks(text.textStore.slice(0, 2));
+    ui.setUIStore("selectedTextBlockIndex", 0);
+    await controls.togglePlayback();
+    expect(controls.isPlaying()).toBe(true);
+    await controls.togglePlayback();
+    expect(controls.isPlaying()).toBe(true);
+    expect(console.error).toHaveBeenCalledWith(
+      "Failed to stop audio:",
+      "stop failed",
+    );
+    await controls.togglePlayback();
+    expect(controls.isPlaying()).toBe(false);
+    synthesized.mockClear();
+
+    text.setTextStore(0, "query", null);
+    text.setTextStore(1, "query", null);
+    await controls.speakAllFromSelection();
+    expect(playSequence).not.toHaveBeenCalled();
+    text.setTextStore(0, "query", audioQuery());
+    text.setTextStore(1, "query", audioQuery({ speedScale: 1.1 }));
+
+    await emit("audio-sequence-item-started", 0);
+    const firstRun = controls.speakAllFromSelection();
+    await waitFor(() => expect(playSequence).toHaveBeenCalledOnce());
+    await controls.speakAllFromSelection();
+    expect(playSequence).toHaveBeenCalledOnce();
+    await emit("audio-sequence-item-started", Number.NaN);
+    await emit("audio-sequence-item-started", -1);
+    await emit("audio-sequence-item-started", 99);
+    await emit("audio-sequence-item-started", 0);
+    await emit("audio-sequence-item-started", 0);
+    expect(synthesized).toHaveBeenCalledOnce();
+    text.replaceTextBlocks([text.textStore[0]]);
+    await emit("audio-sequence-item-started", 1);
+    expect(synthesized).toHaveBeenCalledOnce();
+    resolveFirst({ status: "ok", data: null });
+    await firstRun;
+    expect(controls.isPlaying()).toBe(true);
+
+    await emit("audio-playback-finished");
+    const secondRun = controls.speakAllFromSelection();
+    await waitFor(() => expect(playSequence).toHaveBeenCalledTimes(2));
+    await emit("audio-playback-finished");
+    resolveSecond({ status: "error", error: "late failure" });
+    await secondRun;
+
+    await controls.speakAllFromSelection();
+    expect(playSequence).toHaveBeenCalledTimes(3);
+    expect(console.error).toHaveBeenCalledWith(
+      "Failed to play audio sequence:",
+      "sequence failed",
+    );
+  });
+
   it("labels and navigates between adjacent text cells", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
@@ -699,6 +835,369 @@ describe("BottomPanel playback", () => {
 
     fireEvent.click(screen.getByText("コ"));
     expect(await screen.findByRole("textbox")).toHaveValue("コンニチワ");
+  });
+
+  it("splits, combines, and adds a pause to accent phrases", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const replaceMora = vi
+      .spyOn(commands, "replaceMora")
+      .mockImplementation(async (phrases) => ({
+        status: "ok",
+        data: JSON.parse(JSON.stringify(phrases)),
+      }));
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { getTextStore } = renderPanel();
+    await screen.findByText("コ");
+    getTextStore().setTextStore(0, "query", "accent_phrases", [
+      {
+        moras: [
+          { ...mora },
+          {
+            ...mora,
+            text: "ン",
+            consonant: "n",
+            vowel: "N",
+          },
+        ],
+        accent: 2,
+        pause_mora: null,
+        is_interrogative: false,
+      },
+    ]);
+
+    const connection = await screen.findByLabelText("Accent connection line");
+    fireEvent.mouseEnter(connection.parentElement!);
+    expect(connection.firstElementChild).toHaveAttribute(
+      "stroke-dasharray",
+      "4 2",
+    );
+    fireEvent.click(connection.parentElement!);
+    expect(getTextStore().textStore[0].query?.accent_phrases).toHaveLength(2);
+    await waitFor(() => expect(replaceMora).toHaveBeenCalledOnce());
+
+    const firstMora = screen.getByText("コ");
+    const combineTarget = firstMora.nextElementSibling as HTMLElement;
+    fireEvent.click(combineTarget);
+    expect(getTextStore().textStore[0].query?.accent_phrases).toHaveLength(1);
+
+    const lastMora = screen.getByText("ン");
+    const pauseTarget = lastMora.nextElementSibling!.firstElementChild!;
+    fireEvent.mouseEnter(pauseTarget);
+    fireEvent.click(pauseTarget);
+    expect(
+      getTextStore().textStore[0].query?.accent_phrases[0].pause_mora?.vowel,
+    ).toBe("pau");
+
+    const accentSlider = screen
+      .getAllByRole("slider")
+      .find((element) => element.tagName === "SPAN")!;
+    fireEvent.keyDown(accentSlider, { key: "ArrowLeft" });
+    expect(getTextStore().textStore[0].query?.accent_phrases[0].accent).toBe(1);
+
+    fireEvent.click(screen.getByText("コ"));
+    const staleEditor = await screen.findByRole("textbox");
+    getTextStore().setTextStore([]);
+    document.body.append(
+      staleEditor,
+      connection.parentElement!,
+      combineTarget,
+      accentSlider,
+    );
+    fireEvent.input(staleEditor, { target: { value: "stale" } });
+    fireEvent.keyDown(staleEditor, { key: "Enter" });
+    fireEvent.click(connection.parentElement!);
+    fireEvent.click(combineTarget);
+    fireEvent.keyDown(accentSlider, { key: "ArrowRight" });
+    await waitFor(() =>
+      expect(console.error).toHaveBeenCalledWith("No accent phrases to split"),
+    );
+    expect(console.error).toHaveBeenCalledWith("No accent phrases to combine");
+    expect(
+      await screen.findByText("No text cell selected"),
+    ).toBeInTheDocument();
+    staleEditor.remove();
+    connection.parentElement?.remove();
+    combineTarget.remove();
+    accentSlider.remove();
+  });
+
+  it("rejects invalid phrase edits and stale backend replacements", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(commands, "replaceMora").mockResolvedValue({
+      status: "error",
+      error: "replace failed",
+    });
+    type AccentResult = Awaited<ReturnType<typeof commands.accentPhrases>>;
+    let resolveStale!: (result: AccentResult) => void;
+    const stale = new Promise<AccentResult>((resolve) => {
+      resolveStale = resolve;
+    });
+    const accentPhrases = vi
+      .spyOn(commands, "accentPhrases")
+      .mockResolvedValueOnce({ status: "error", error: "invalid" })
+      .mockResolvedValueOnce({ status: "ok", data: [] })
+      .mockReturnValueOnce(stale);
+    const { getTextStore } = renderPanel();
+    await screen.findByText("コ");
+
+    const edit = async (value: string) => {
+      fireEvent.click(screen.getByText("コ"));
+      const editor = await screen.findByRole("textbox");
+      fireEvent.input(editor, { target: { value } });
+      fireEvent.keyDown(editor, { key: "Enter" });
+    };
+    await edit("エラー");
+    await waitFor(() => expect(accentPhrases).toHaveBeenCalledTimes(1));
+    await edit("空");
+    await waitFor(() => expect(accentPhrases).toHaveBeenCalledTimes(2));
+
+    await edit("古い");
+    await waitFor(() => expect(accentPhrases).toHaveBeenCalledTimes(3));
+    getTextStore().setTextStore(0, {
+      ...getTextStore().textStore[0],
+      text: "replacement block",
+    });
+    resolveStale({
+      status: "ok",
+      data: [structuredClone(audioQuery().accent_phrases[0])],
+    });
+    await stale;
+    expect(getTextStore().textStore[0].text).toBe("replacement block");
+
+    getTextStore().setProjectPresetStore([]);
+    await edit("プリセットなし");
+    await Promise.resolve();
+    expect(accentPhrases).toHaveBeenCalledTimes(3);
+
+    getTextStore().setProjectPresetStore([preset()]);
+    const moraElement = screen.getByText("コ");
+    fireEvent.click(moraElement.nextElementSibling!);
+    await waitFor(() => expect(commands.replaceMora).toHaveBeenCalledOnce());
+    expect(console.error).toHaveBeenCalledWith(
+      "Invalid accent phrase index to combine",
+    );
+  });
+
+  it("updates tuning values and zoom through the panel controller", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const {
+      container,
+      getConfigStore,
+      getPanel,
+      getTextStore,
+      getUiStore,
+      unmount,
+    } = renderTuningHook({ spectrogram_preview: false });
+    await Promise.resolve();
+    const panel = getPanel();
+    const text = getTextStore();
+    text.setTextStore(
+      0,
+      "query",
+      audioQuery({
+        accent_phrases: [
+          {
+            moras: [
+              { ...mora },
+              {
+                ...mora,
+                text: "ア",
+                consonant: null,
+                consonant_length: null,
+                vowel: "a",
+                vowel_length: 0.2,
+                pitch: 0,
+              },
+            ],
+            accent: 1,
+            pause_mora: {
+              text: "、",
+              consonant: null,
+              consonant_length: null,
+              vowel: "pau",
+              vowel_length: 0.3,
+              pitch: 0,
+            },
+            is_interrogative: false,
+          },
+        ],
+      }),
+    );
+
+    expect(panel.queryExists()).toBe(true);
+    expect(panel.timelineDuration()).toBeCloseTo(0.7);
+    expect(panel.minPitch()).toBeCloseTo(3.4);
+    expect(panel.maxPitch()).toBe(6.5);
+
+    panel.setDraggingData({
+      apIndex: 0,
+      moraIndex: 0,
+      originData: 0.08,
+      mode: "consonant",
+    });
+    panel.setStartX(100);
+    panel.handleDragging(new MouseEvent("mousemove", { clientX: 136 }));
+    expect(
+      text.textStore[0].query?.accent_phrases[0].moras[0].consonant_length,
+    ).toBeCloseTo(0.18);
+
+    panel.setDraggingData({
+      apIndex: 0,
+      moraIndex: 1,
+      originData: 0.2,
+      mode: "vowel",
+    });
+    panel.handleDragging(new MouseEvent("mousemove", { clientX: -1000 }));
+    expect(
+      text.textStore[0].query?.accent_phrases[0].moras[1].vowel_length,
+    ).toBe(0.01);
+
+    panel.setDraggingData({
+      apIndex: 0,
+      moraIndex: -1,
+      originData: 0.3,
+      mode: "pause",
+    });
+    panel.handleDragging(new MouseEvent("mousemove", { clientX: -1000 }));
+    expect(
+      text.textStore[0].query?.accent_phrases[0].pause_mora?.vowel_length,
+    ).toBe(0);
+    panel.setPitch(0, 0, 5.8);
+    expect(text.textStore[0].query?.accent_phrases[0].moras[0].pitch).toBe(5.8);
+    expect(text.textStore[0].query_is_modified).toBe(true);
+
+    panel.handleDragFinish();
+    panel.handleDragging(new MouseEvent("mousemove", { clientX: 200 }));
+    const plainWheel = new WheelEvent("wheel", { deltaY: 1 });
+    panel.handleWheel(plainWheel);
+    expect(panel.scale()).toBe(360);
+    const zoomOut = new WheelEvent("wheel", {
+      ctrlKey: true,
+      deltaY: 1,
+      cancelable: true,
+    });
+    panel.handleWheel(zoomOut);
+    expect(zoomOut.defaultPrevented).toBe(true);
+    expect(panel.scale()).toBe(310);
+    panel.handleWheel(new WheelEvent("wheel", { ctrlKey: true, deltaY: -1 }));
+    expect(panel.scale()).toBe(360);
+    panel.setScale(451.9);
+    expect(panel.scale()).toBe(451);
+
+    getConfigStore().setRange(null);
+    expect(panel.minPitch()).toBe(0);
+    expect(panel.maxPitch()).toBe(0);
+    text.setTextStore([]);
+    expect(panel.queryExists()).toBe(false);
+    panel.setPitch(0, 0, 1);
+    panel.setPauseLength(0, 1);
+
+    Object.defineProperty(container.firstElementChild!, "scrollLeft", {
+      configurable: true,
+      value: 77,
+    });
+    unmount();
+    expect(getUiStore().uiStore.bottom_scroll_pos).toBe(77);
+  });
+
+  it("renders consonantless and pause tuning items", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const { container, getConfigStore, getTextStore } = renderPanel({
+      spectrogram_preview: false,
+    });
+    await screen.findByText("コ");
+    getConfigStore().setConfig("ui_config", "bottom_scale", undefined);
+    getTextStore().setTextStore(
+      0,
+      "query",
+      audioQuery({
+        accent_phrases: [
+          {
+            moras: [
+              {
+                ...mora,
+                text: "ア",
+                consonant: null,
+                consonant_length: null,
+                vowel: "a",
+                pitch: 0,
+              },
+            ],
+            accent: 1,
+            pause_mora: {
+              text: "、",
+              consonant: null,
+              consonant_length: null,
+              vowel: "pau",
+              vowel_length: 0.3,
+              pitch: 0,
+            },
+            is_interrogative: false,
+          },
+        ],
+      }),
+    );
+
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    expect(await screen.findAllByText("ア")).toHaveLength(2);
+    const durationTargets = container.querySelectorAll("div.invisible");
+    expect(durationTargets).toHaveLength(2);
+    fireEvent.mouseDown(durationTargets[0], { clientX: 10 });
+    fireEvent.mouseDown(durationTargets[1], { clientX: 20 });
+    expect(container.querySelectorAll('[role="slider"]')).toHaveLength(2);
+  });
+
+  it("handles spectrogram failures and playback-triggered refreshes", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const getPreview = vi
+      .spyOn(commands, "getSpectrogramPreview")
+      .mockResolvedValueOnce({ status: "error", error: "preview failed" })
+      .mockRejectedValueOnce(new Error("preview threw"))
+      .mockResolvedValue({ status: "ok", data: spectrogram });
+    const { getConfigStore, getTextStore, setNotice } = renderTuningHook({
+      buffer_render: true,
+      synthesis_delay_ms: -10,
+    });
+
+    await waitFor(() => expect(getPreview).toHaveBeenCalledOnce());
+    expect(console.error).toHaveBeenCalledWith(
+      "Failed to create spectrogram preview:",
+      "preview failed",
+    );
+    getTextStore().setTextStore(0, "query", "speedScale", 1.25);
+    await waitFor(() => expect(getPreview).toHaveBeenCalledTimes(2));
+    expect(console.error).toHaveBeenCalledWith(
+      "Failed to create spectrogram preview:",
+      expect.any(Error),
+    );
+
+    getConfigStore().setConfig("ui_config", "buffer_render", false);
+    setNotice({
+      blockId: "first-block",
+      audioQuery: audioQuery(),
+      speakerId: 1,
+    });
+    await waitFor(() => expect(getPreview).toHaveBeenCalledTimes(3));
+    getConfigStore().setSpectrogramPreviewEnabled(false);
+    setNotice({
+      blockId: "first-block",
+      audioQuery: audioQuery({ speedScale: 1.5 }),
+      speakerId: 1,
+    });
+    await Promise.resolve();
+    expect(getPreview).toHaveBeenCalledTimes(3);
   });
 
   it("edits pitch and duration and plays while the pitch slider stays focused", async () => {

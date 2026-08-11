@@ -1,8 +1,10 @@
 import { commands } from "@binding";
 import { ConfigPage } from "@dialogs/config";
+import { AssetCacheSetting } from "@dialogs/config/AssetCacheSetting";
 import { MultiProvider } from "@solid-primitives/context";
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
-import { batch, type Component, onMount } from "solid-js";
+import userEvent from "@testing-library/user-event";
+import { batch, type Component, createSignal, onMount } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ConfigProvider, useConfigStore } from "../../contexts/config";
 import { i18nProvider } from "../../contexts/i18n";
@@ -82,6 +84,57 @@ describe("ConfigPage", () => {
     );
   });
 
+  it("updates general appearance settings", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    vi.spyOn(commands, "getAssetsSize").mockResolvedValue({
+      status: "ok",
+      data: 0,
+    });
+    let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
+    const Harness: Component = () => {
+      appConfig = useConfigStore()!;
+      const ui = useUIStore()!;
+      onMount(() => {
+        batch(() => {
+          appConfig.setConfig(config({ primary_color: "#808080" }));
+          ui.setUIStore("page", "config");
+        });
+      });
+      return <ConfigPage />;
+    };
+
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [i18nProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+
+    await user.click(await screen.findByRole("button", { name: /Theme/ }));
+    await user.click(await screen.findByText("Dark"));
+    expect(appConfig.themeMode()).toBe("Dark");
+
+    await user.click(screen.getByRole("button", { name: "Primary color" }));
+    await user.click(await screen.findByText("Normalize"));
+    expect(appConfig.config.ui_config.primary_color).toMatch(/^#[0-9a-f]{6}$/);
+    expect(appConfig.config.ui_config.primary_color).not.toBe("#808080");
+
+    const truncation = screen.getAllByRole("spinbutton")[0];
+    fireEvent.input(truncation, { target: { value: "12" } });
+    fireEvent.change(truncation, { target: { value: "12" } });
+    expect(appConfig.config.ui_config.name_truncation_len).toBe(12);
+
+    await user.click(screen.getByRole("button", { name: /Language/ }));
+    await user.click(await screen.findByText(/日本語/));
+    expect(appConfig.config.ui_config.locale).toBe("Ja");
+  });
+
   it("shows the saved asset size and refreshes it after clearing", async () => {
     vi.spyOn(commands, "getAssetsSize")
       .mockResolvedValueOnce({ status: "ok", data: 2048 })
@@ -135,7 +188,10 @@ describe("ConfigPage", () => {
       status: "error",
       error: "unavailable",
     });
-    vi.spyOn(commands, "clearAssets");
+    vi.spyOn(commands, "clearAssets").mockResolvedValue({
+      status: "ok",
+      data: null,
+    });
     const Harness: Component = () => {
       const appConfig = useConfigStore()!;
       const ui = useUIStore()!;
@@ -166,6 +222,171 @@ describe("ConfigPage", () => {
         name: "Could not read or clear the asset cache.",
       }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Clear cache" })).toBeEnabled();
+    const clear = screen.getByRole("button", { name: "Clear cache" });
+    expect(clear).toBeEnabled();
+    fireEvent.click(clear);
+    await waitFor(() =>
+      expect(commands.getAssetsSize).toHaveBeenCalledTimes(2),
+    );
+    expect(
+      screen.getByRole("alert", {
+        name: "Could not read or clear the asset cache.",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("ignores a successful cache clear after the page closes", async () => {
+    type ClearResult = Awaited<ReturnType<typeof commands.clearAssets>>;
+    let resolveClear!: (result: ClearResult) => void;
+    vi.spyOn(commands, "getAssetsSize").mockResolvedValue({
+      status: "ok",
+      data: -1,
+    });
+    vi.spyOn(commands, "clearAssets").mockReturnValue(
+      new Promise((resolve) => {
+        resolveClear = resolve;
+      }),
+    );
+    let meta!: NonNullable<ReturnType<typeof useMetaStore>>;
+    const Harness: Component = () => {
+      const appConfig = useConfigStore()!;
+      const ui = useUIStore()!;
+      meta = useMetaStore()!;
+      vi.spyOn(meta, "clearSpeakerIcons");
+      onMount(() => {
+        batch(() => {
+          appConfig.setConfig(config());
+          ui.setUIStore("page", "config");
+        });
+      });
+      return <ConfigPage />;
+    };
+
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [i18nProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+
+    expect(await screen.findByText("—")).toBeInTheDocument();
+    const clear = screen.getByRole("button", { name: "Clear cache" });
+    fireEvent.click(clear);
+    await waitFor(() => expect(commands.clearAssets).toHaveBeenCalledOnce());
+    expect(clear).toHaveTextContent("Clearing…");
+    expect(clear).toHaveAttribute("aria-busy", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Close config" }));
+    resolveClear({ status: "ok", data: null });
+    await waitFor(() => expect(meta.clearSpeakerIcons).toHaveBeenCalledOnce());
+    expect(commands.getAssetsSize).toHaveBeenCalledOnce();
+  });
+
+  it("recovers accessibly when cache commands throw", async () => {
+    vi.spyOn(commands, "getAssetsSize").mockRejectedValue(
+      new Error("read failed"),
+    );
+    vi.spyOn(commands, "clearAssets")
+      .mockResolvedValueOnce({ status: "error", error: "clear failed" })
+      .mockRejectedValueOnce(new Error("clear threw"));
+    const Harness: Component = () => {
+      const appConfig = useConfigStore()!;
+      const ui = useUIStore()!;
+      onMount(() => {
+        batch(() => {
+          appConfig.setConfig(config());
+          ui.setUIStore("page", "config");
+        });
+      });
+      return <ConfigPage />;
+    };
+
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [i18nProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+
+    await screen.findByRole("alert", {
+      name: "Could not read or clear the asset cache.",
+    });
+    const clear = screen.getByRole("button", { name: "Clear cache" });
+    fireEvent.click(clear);
+    await waitFor(() => expect(commands.clearAssets).toHaveBeenCalledOnce());
+    await screen.findByRole("alert", {
+      name: "Could not read or clear the asset cache.",
+    });
+    fireEvent.click(clear);
+    await waitFor(() => expect(commands.clearAssets).toHaveBeenCalledTimes(2));
+    expect(
+      await screen.findByRole("alert", {
+        name: "Could not read or clear the asset cache.",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("ignores cache reads that settle after the setting closes", async () => {
+    type SizeResult = Awaited<ReturnType<typeof commands.getAssetsSize>>;
+    let resolveSize!: (result: SizeResult) => void;
+    let rejectSize!: (error: Error) => void;
+    vi.spyOn(commands, "getAssetsSize")
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveSize = resolve;
+        }),
+      )
+      .mockReturnValueOnce(
+        new Promise((_, reject) => {
+          rejectSize = reject;
+        }),
+      );
+
+    const renderSetting = () => {
+      const [open, setOpen] = createSignal(true);
+      const result = render(() => (
+        <MultiProvider
+          values={[
+            [MetaProvider, []],
+            [UIProvider, null],
+            [ConfigProvider, null],
+            [i18nProvider, null],
+          ]}
+        >
+          <AssetCacheSetting open={open()} />
+        </MultiProvider>
+      ));
+      return { ...result, setOpen };
+    };
+
+    const first = renderSetting();
+    await waitFor(() => expect(commands.getAssetsSize).toHaveBeenCalledOnce());
+    first.setOpen(false);
+    resolveSize({ status: "ok", data: 10 });
+    await Promise.resolve();
+    expect(screen.queryByText("10 B")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    first.unmount();
+
+    const second = renderSetting();
+    await waitFor(() =>
+      expect(commands.getAssetsSize).toHaveBeenCalledTimes(2),
+    );
+    second.setOpen(false);
+    rejectSize(new Error("late failure"));
+    await Promise.resolve();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    second.unmount();
   });
 });

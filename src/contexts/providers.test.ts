@@ -1,3 +1,4 @@
+import { commands } from "@binding";
 import { waitFor } from "@solidjs/testing-library";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { batch } from "solid-js";
@@ -15,7 +16,11 @@ import {
   renderSpectrogramStore,
   renderTextStores,
 } from "./providers.testUtils";
-import { findPresetStyle, resolvePresetIdentity } from "./text";
+import {
+  clampTextBlockIndex,
+  findPresetStyle,
+  resolvePresetIdentity,
+} from "./text";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -99,6 +104,16 @@ describe("MetaProvider", () => {
     ).toBe(true);
     expect(store.speakerIconUrl(request)).toBe("blob:second");
     expect(revokeObjectUrl).toHaveBeenCalledWith("blob:first");
+    expect(
+      store.mergeSpeakerIcons(
+        [request],
+        [{ speaker_uuid: "speaker", data_url: null, error: null }],
+        firstRevision,
+      ),
+    ).toBe(true);
+    expect(store.speakerIconUrl(request)).toBeUndefined();
+    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:second");
+    expect(store.mergeSpeakerIcons([request], [], firstRevision)).toBe(true);
 
     store.clearSpeakerIcons();
     expect(store.speakerIconUrl(request)).toBeUndefined();
@@ -122,6 +137,40 @@ describe("MetaProvider", () => {
     ).toBe(true);
     unmount();
     expect(revokeObjectUrl).toHaveBeenCalledWith("blob:cleanup");
+  });
+
+  it("rejects invalid icon data and stale work without leaking Blob URLs", () => {
+    const { store } = renderMetaStore();
+    const request = { speaker_uuid: "speaker", style_id: 7 };
+    const revision = store.speakerIconRevision();
+    expect(() =>
+      store.hydrateSpeakerIcons(
+        [request],
+        [{ speaker_uuid: "speaker", data_url: "invalid", error: null }],
+        revision,
+      ),
+    ).toThrow("Invalid speaker icon data URL");
+
+    const revokeObjectUrl = vi.spyOn(URL, "revokeObjectURL");
+    vi.spyOn(URL, "createObjectURL").mockImplementationOnce(() => {
+      store.clearSpeakerIcons();
+      return "blob:stale";
+    });
+    expect(
+      store.hydrateSpeakerIcons(
+        [request],
+        [
+          {
+            speaker_uuid: "speaker",
+            data_url: "data:image/svg+xml,%3Csvg%2F%3E",
+            error: null,
+          },
+        ],
+        revision,
+      ),
+    ).toBe(false);
+    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:stale");
+    store.removeSpeakerIcon(request);
   });
 });
 
@@ -181,6 +230,71 @@ describe("ConfigProvider", () => {
     expect(save?.args).toMatchObject({
       config: { ui_config: { theme_mode: "Dark" } },
     });
+  });
+
+  it("reports config persistence failures", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(commands, "setConfig").mockResolvedValue({
+      status: "error",
+      error: "save failed",
+    });
+    const configStore = renderConfigStore();
+
+    batch(() => {
+      configStore.setConfig(config());
+      configStore.setConfigInitialized(true);
+    });
+
+    await waitFor(() =>
+      expect(console.error).toHaveBeenCalledWith(
+        "Failed to save config:",
+        "save failed",
+      ),
+    );
+  });
+
+  it.each([
+    {
+      init: { status: "error" as const, error: "Core already loaded" },
+      range: { status: "error" as const, error: "range failed" },
+      meta: { status: "error" as const, error: "meta failed" },
+      messages: ["Failed to get range:", "Failed to get metas:"],
+    },
+    {
+      init: { status: "error" as const, error: "init failed" },
+      range: { status: "ok" as const, data: {} },
+      meta: { status: "ok" as const, data: [] },
+      messages: ["Failed to initialize core:"],
+    },
+    {
+      init: { status: "ok" as const, data: null },
+      range: { status: "ok" as const, data: { 1: [4, 6] } },
+      meta: { status: "ok" as const, data: metas },
+      messages: [],
+    },
+  ])("handles core initialization result %#", async (scenario) => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(commands, "initCore").mockResolvedValue(scenario.init);
+    vi.spyOn(commands, "getRange").mockResolvedValue(scenario.range);
+    vi.spyOn(commands, "getMetas").mockResolvedValue(scenario.meta);
+    const configStore = renderConfigStore();
+
+    configStore.setConfig("core_config", {
+      ort_path: "/core",
+      ojt_dir: "/dict",
+      vvm_dir: "/models",
+    });
+    await waitFor(() => expect(commands.initCore).toHaveBeenCalledOnce());
+    if (
+      scenario.init.status === "ok" ||
+      scenario.init.error === "Core already loaded"
+    ) {
+      await waitFor(() => expect(commands.getRange).toHaveBeenCalledOnce());
+      expect(commands.getMetas).toHaveBeenCalledOnce();
+    }
+    for (const message of scenario.messages) {
+      expect(console.error).toHaveBeenCalledWith(message, expect.any(String));
+    }
   });
 });
 
@@ -287,5 +401,37 @@ describe("TextProvider", () => {
         metas,
       ),
     ).toBeNull();
+    expect(
+      findPresetStyle(preset({ style_name: "Missing Style" }), metas),
+    ).toBeNull();
+    expect(
+      findPresetStyle(
+        preset({ style_id: 999, speaker_uuid: null, style_name: null }),
+        metas,
+      ),
+    ).toBeNull();
+  });
+
+  it("handles empty stores, query marks, and fallback block IDs", () => {
+    expect(clampTextBlockIndex(Number.NaN, 2)).toBe(0);
+    const originalCrypto = globalThis.crypto;
+    vi.stubGlobal("crypto", undefined);
+    try {
+      const { text } = renderTextStores();
+      text.setTextStore([]);
+      expect(text.insertTextBlockBelow(99)).toBe(0);
+      expect(text.textStore[0]).toMatchObject({ preset_id: null, query: null });
+      expect(text.textStore[0].id).toMatch(/^text-block-/);
+
+      text.markQueryModified(0);
+      expect(text.textStore[0].query_is_modified).toBe(false);
+      text.setTextStore(0, "query", audioQuery());
+      text.markQueryModified(0);
+      expect(text.textStore[0].query_is_modified).toBe(true);
+      text.createFirstTextBlock();
+      expect(text.textStore).toHaveLength(1);
+    } finally {
+      vi.stubGlobal("crypto", originalCrypto);
+    }
   });
 });

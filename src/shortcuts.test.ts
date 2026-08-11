@@ -56,6 +56,20 @@ describe("shortcut normalization and display", () => {
       shift: false,
       alt: true,
     });
+    expect(
+      resolveShortcut(
+        {
+          save_project: {
+            key: "s",
+            primary: false,
+            secondary: false,
+            shift: false,
+            alt: false,
+          },
+        },
+        "save_project",
+      ),
+    ).toMatchObject({ primary: false, secondary: false, shift: false });
   });
 
   it("formats platform modifiers and canonical signatures", () => {
@@ -83,6 +97,7 @@ describe("shortcut normalization and display", () => {
     expect(shortcutSignature(shortcut)).toBe(
       "primary+secondary+alt+shift+Space",
     );
+    expect(formatShortcut({ key: "F1" }, "Linux")).toEqual(["F1"]);
   });
 });
 
@@ -143,6 +158,13 @@ describe("keyboard matching", () => {
         "Linux",
       ),
     ).toBe(false);
+    expect(
+      matchesShortcut(
+        keyboardEvent("a", { altKey: true }),
+        { key: "A", alt: true },
+        "Linux",
+      ),
+    ).toBe(true);
   });
 });
 
@@ -235,5 +257,18 @@ describe("focus safety", () => {
 
     expect(isPlaybackShortcutAllowed(keyboardEvent(" "))).toBe(true);
     expect(isPlaybackToggleAllowed(keyboardEvent(" "))).toBe(true);
+  });
+
+  it("allows playback when a synthetic event has no DOM target", () => {
+    Object.defineProperty(document, "activeElement", {
+      configurable: true,
+      value: null,
+    });
+    try {
+      expect(isPlaybackShortcutAllowed(keyboardEvent(" "))).toBe(true);
+      expect(isPlaybackToggleAllowed(keyboardEvent(" "))).toBe(true);
+    } finally {
+      delete (document as Document & { activeElement?: Element }).activeElement;
+    }
   });
 });
