@@ -269,7 +269,7 @@ export function useSidebar() {
 
   const loadProject = async () => {
     const path = await openDialog({
-      title: "Save Project",
+      title: t1("menu.load_project"),
       filters: [{ name: "Azalea Poject Files", extensions: ["azp"] }],
     });
     if (path === null) return;

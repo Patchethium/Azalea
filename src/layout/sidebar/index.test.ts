@@ -129,6 +129,9 @@ describe("Sidebar project lifecycle", () => {
     await user.click(
       await screen.findByRole("menuitem", { name: "Load Project" }),
     );
+    expect(dialogs.open).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Load Project" }),
+    );
     await waitFor(() => expect(text.textStore[0].text).toBe("Loaded block"));
     expect(text.projectPresetStore[0].name).toBe("Loaded preset");
     expect(text.projectPath()).toBe("/tmp/loaded.azp");
