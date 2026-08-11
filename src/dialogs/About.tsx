@@ -1,7 +1,9 @@
 import { AppDialogContent } from "@dialogs/AppContent";
 import { Dialog } from "@kobalte/core/dialog";
 import { Link } from "@kobalte/core/link";
+import { getVersion } from "@tauri-apps/api/app";
 import { open as openExternal } from "@tauri-apps/plugin-shell";
+import { createResource } from "solid-js";
 import azaleaLogo from "../../icon/azalea.png";
 import { usei18n } from "../contexts/i18n";
 
@@ -12,6 +14,7 @@ interface AboutDialogProps {
 
 export function AboutDialog(props: AboutDialogProps) {
   const { t1 } = usei18n()!;
+  const [version] = createResource(getVersion);
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
@@ -46,7 +49,9 @@ export function AboutDialog(props: AboutDialogProps) {
                   {t1("about.version")}
                 </span>
               </div>
-              <div class="font-mono text-lg font-semibold">0.1.0</div>
+              <div class="font-mono text-lg font-semibold">
+                {version() ?? "—"}
+              </div>
             </div>
             <div class="rounded-xl b b-slate-2 dark:b-slate-6 bg-slate-1/70 dark:bg-slate-7/50 p3">
               <div class="mb2 flex items-center gap2 text-slate-6 dark:text-slate-3">

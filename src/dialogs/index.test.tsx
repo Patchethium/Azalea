@@ -1,3 +1,4 @@
+import { AboutDialog } from "@dialogs/About";
 import { PresetManagerDialog } from "@dialogs/PresetManager";
 import { ShortcutReferenceDialog } from "@dialogs/ShortcutReference";
 import { MultiProvider } from "@solid-primitives/context";
@@ -12,6 +13,27 @@ import { SystemProvider } from "../contexts/system";
 import { TextProvider, useTextStore } from "../contexts/text";
 import { UIProvider } from "../contexts/ui";
 import { config, preset } from "../test/fixtures";
+
+describe("AboutDialog", () => {
+  it("shows the runtime application version", async () => {
+    mockIPC((cmd) => (cmd === "plugin:app|version" ? "9.8.7" : null));
+
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [i18nProvider, null],
+        ]}
+      >
+        <AboutDialog open onOpenChange={() => {}} />
+      </MultiProvider>
+    ));
+
+    expect(await screen.findByText("9.8.7")).toBeInTheDocument();
+  });
+});
 
 describe("PresetManagerDialog", () => {
   it("copies independent presets in both directions and deletes them", async () => {
