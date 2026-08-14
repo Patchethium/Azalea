@@ -105,7 +105,8 @@ export function useTextBlockSynthesis(props: {
   };
 
   let scheduledSynthesis:
-    Scheduled<[SynthesisJobRequest, ActiveSynthesisRequest]> | undefined;
+    | Scheduled<[SynthesisJobRequest, ActiveSynthesisRequest]>
+    | undefined;
   const clearScheduledSynthesis = () => {
     scheduledSynthesis?.clear();
     scheduledSynthesis = undefined;
