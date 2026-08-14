@@ -2,11 +2,10 @@ import { Tooltip } from "@components/tooltip";
 import { Button } from "@kobalte/core/button";
 import { JSX, splitProps } from "solid-js";
 
-interface IconButtonProps
-  extends Omit<
-    JSX.ButtonHTMLAttributes<HTMLButtonElement>,
-    "aria-label" | "children"
-  > {
+interface IconButtonProps extends Omit<
+  JSX.ButtonHTMLAttributes<HTMLButtonElement>,
+  "aria-label" | "children"
+> {
   icon: string;
   iconSize?: "sm" | "full";
   label: string;
