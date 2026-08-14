@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "rules": {
+    "no-unused-vars": "warn",
+    "no-undef": "off"
+  },
+  "plugins": ["unicorn"],
+  "ignorePatterns": ["src/binding.ts"],
+  "overrides": [
+    {
+      "files": ["src/**/*.ts", "src/**/*.tsx"],
+      "rules": {}
+    }
+  ]
+}

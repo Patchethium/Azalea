@@ -143,8 +143,7 @@ export function useTuningPanel(
   };
 
   let scheduledSpectrogramRefresh:
-    | Scheduled<[string, AudioQuery, number]>
-    | undefined;
+    Scheduled<[string, AudioQuery, number]> | undefined;
   const clearScheduledSpectrogramRefresh = () => {
     scheduledSpectrogramRefresh?.clear();
     scheduledSpectrogramRefresh = undefined;
