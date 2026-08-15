@@ -268,7 +268,7 @@ describe("focus safety", () => {
       expect(isPlaybackShortcutAllowed(keyboardEvent(" "))).toBe(true);
       expect(isPlaybackToggleAllowed(keyboardEvent(" "))).toBe(true);
     } finally {
-      delete (document as Document & { activeElement?: Element }).activeElement;
+      delete (document as unknown as { activeElement?: Element }).activeElement;
     }
   });
 });

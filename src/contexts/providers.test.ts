@@ -268,7 +268,7 @@ describe("ConfigProvider", () => {
     },
     {
       init: { status: "ok" as const, data: null },
-      range: { status: "ok" as const, data: { 1: [4, 6] } },
+      range: { status: "ok" as const, data: { 1: [4, 6] as [number, number] } },
       meta: { status: "ok" as const, data: metas },
       messages: [],
     },

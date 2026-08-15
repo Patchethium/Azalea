@@ -80,7 +80,9 @@ fn export_typescript_bindings(builder: &Builder<tauri::Wry>) {
   let binding_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../src/binding.ts");
   builder
     .export(
-      Typescript::default().bigint(specta_typescript::BigIntExportBehavior::Number),
+      Typescript::default()
+        .header("// @ts-nocheck")
+        .bigint(specta_typescript::BigIntExportBehavior::Number),
       binding_path,
     )
     .expect("Failed to export typescript");

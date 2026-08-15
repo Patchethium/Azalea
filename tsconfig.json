@@ -15,15 +15,14 @@
     "jsx": "preserve",
     "jsxImportSource": "solid-js",
     "types": ["vite/client", "@testing-library/jest-dom"],
-    "baseUrl": ".",
     "paths": {
-      "$binding": ["src/binding.ts"],
-      "@components/*": ["src/components/*"],
-      "$constants": ["src/constants.ts"],
-      "@contexts/*": ["src/contexts/*"],
-      "@dialogs/*": ["src/dialogs/*"],
-      "@layout/*": ["src/layout/*"],
-      "$utils": ["src/utils.ts"]
+      "$binding": ["./src/binding.ts"],
+      "@components/*": ["./src/components/*"],
+      "$constants": ["./src/constants.ts"],
+      "@contexts/*": ["./src/contexts/*"],
+      "@dialogs/*": ["./src/dialogs/*"],
+      "@layout/*": ["./src/layout/*"],
+      "$utils": ["./src/utils.ts"]
     },
 
     /* Linting */
