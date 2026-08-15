@@ -10,7 +10,7 @@
 - Run all Rust tests with `cargo test --manifest-path src-tauri/Cargo.toml`.
 - Run one Rust test with `cargo test --manifest-path src-tauri/Cargo.toml --test test_wrapper test::test_query -- --exact --nocapture`.
 
-The Rust tests and `pnpm tauri dev` rely on a configured VOICEVOX core. In debug builds, the app reads and writes its config at `config_dev/config.json`.
+The Rust tests and `pnpm tauri dev` rely on a configured VOICEVOX core. In debug builds, the app reads and writes its config at `config_dev/config.toml`.
 
 ## High-level architecture
 
@@ -38,7 +38,7 @@ Azalea is a Tauri desktop app with a SolidJS frontend in `src/` and a Rust backe
 - Audio synthesis is cache-oriented. The backend keeps LRU caches in `AppState`, `commands.synthesize()` warms the cache, and the frontend checks progress by polling `commands.synthesizeState()` instead of waiting for events.
 - Preserve the query-modification flow in `src/utils.ts`: preset values are applied by cloning an `AudioQuery` and rewriting `pitchScale`, `speedScale`, `intonationScale`, `volumeScale`, and the phoneme-length fields there.
 - Preset silence values are handled in frontend milliseconds and converted to seconds inside `getModifiedQuery()`. Follow that existing conversion instead of writing query timing fields directly.
-- The app persists config as JSON, not TOML. Debug builds use `config_dev/config.json`; release builds use the OS config directory under `azalea/`.
+- The app persists config as TOML. Debug builds use `config_dev/config.toml`; release builds use the OS config directory under `azalea/`.
 - `src/contexts/text.ts` seeds a sample Japanese block only in dev mode. Keep that behavior behind `import.meta.env.DEV` if you touch project initialization.
 - Locale files live in `src/i18n/*.json`. `src/i18n/index.ts` treats English as the fallback source of truth and merges other locales onto it, so missing keys should usually be added to `en.json` first.
 - `src-tauri/src/core.rs` searches for the VOICEVOX assets recursively with `WalkDir::max_depth(8)`. If core-path discovery changes, keep the ONNX runtime library, `open_jtalk_dic_utf_8-1.11`, and `.vvm` model lookup in sync.

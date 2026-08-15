@@ -89,7 +89,7 @@ pub async fn save_project(
   allow_create: bool,
 ) -> Result<(), String> {
   validate_project(&project)?;
-  let project_json = serde_json::to_string(&ProjectFileRef {
+  let project_toml = toml::to_string_pretty(&ProjectFileRef {
     schema_version: CURRENT_PROJECT_SCHEMA_VERSION,
     blocks: project
       .blocks
@@ -114,7 +114,7 @@ pub async fn save_project(
     path
   };
   if Path::new(&path).exists() || allow_create {
-    fs::write(&path, project_json).map_err(|e| e.to_string())?;
+    fs::write(&path, project_toml).map_err(|e| e.to_string())?;
   } else {
     return Err(format!("Project File {path} does not exist").to_string());
   }
@@ -124,8 +124,8 @@ pub async fn save_project(
 #[tauri::command]
 #[specta::specta]
 pub async fn load_project(path: String) -> Result<Project, String> {
-  let project_json = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
-  let project_file: ProjectFile = serde_json::from_str(&project_json).map_err(|e| e.to_string())?;
+  let project_toml = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+  let project_file: ProjectFile = toml::from_str(&project_toml).map_err(|e| e.to_string())?;
   if project_file.schema_version != CURRENT_PROJECT_SCHEMA_VERSION {
     return Err(format!(
       "Unsupported project schema version {}",
@@ -182,12 +182,15 @@ mod tests {
         .unwrap();
       let saved = path.with_extension("azp");
       assert!(saved.is_file());
-      let saved_json: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(&saved).unwrap()).unwrap();
-      assert_eq!(saved_json["schema_version"], CURRENT_PROJECT_SCHEMA_VERSION);
-      assert_eq!(saved_json["blocks"][0]["id"], "block-1");
-      assert!(saved_json["blocks"][0].get("query").is_none());
-      assert!(saved_json["blocks"][0].get("query_override").is_some());
+      let saved_toml: toml::Value =
+        toml::from_str(&std::fs::read_to_string(&saved).unwrap()).unwrap();
+      assert_eq!(
+        saved_toml["schema_version"].as_integer(),
+        Some(CURRENT_PROJECT_SCHEMA_VERSION.into())
+      );
+      assert_eq!(saved_toml["blocks"][0]["id"].as_str(), Some("block-1"));
+      assert!(saved_toml["blocks"][0].get("query").is_none());
+      assert!(saved_toml["blocks"][0].get("query_override").is_some());
       let loaded = load_project(saved.to_string_lossy().into_owned())
         .await
         .unwrap();
@@ -209,7 +212,19 @@ mod tests {
 
   fn sample_query() -> AudioQuery {
     serde_json::from_value(serde_json::json!({
-      "accent_phrases": [],
+      "accent_phrases": [{
+        "moras": [{
+          "text": "コ",
+          "consonant": "k",
+          "consonant_length": 0.08,
+          "vowel": "o",
+          "vowel_length": 0.12,
+          "pitch": 5.4
+        }],
+        "accent": 1,
+        "pause_mora": null,
+        "is_interrogative": false
+      }],
       "speedScale": 1.0,
       "pitchScale": 0.0,
       "intonationScale": 1.0,
@@ -291,26 +306,26 @@ mod tests {
         .is_err());
 
       for (name, contents) in [
-        ("unversioned.azp", r#"{"blocks":[],"presets":[]}"#),
+        ("unversioned.azp", "blocks = []\npresets = []\n"),
         (
           "zero-version.azp",
-          r#"{"schema_version":0,"blocks":[],"presets":[]}"#,
+          "schema_version = 0\nblocks = []\npresets = []\n",
         ),
         (
           "string-version.azp",
-          r#"{"schema_version":"1","blocks":[],"presets":[]}"#,
+          "schema_version = \"1\"\nblocks = []\npresets = []\n",
         ),
         (
           "negative-version.azp",
-          r#"{"schema_version":-1,"blocks":[],"presets":[]}"#,
+          "schema_version = -1\nblocks = []\npresets = []\n",
         ),
         (
           "missing-id.azp",
-          r#"{"schema_version":1,"blocks":[{"text":"missing","preset_id":null}],"presets":[]}"#,
+          "schema_version = 1\npresets = []\n[[blocks]]\ntext = \"missing\"\n",
         ),
         (
           "empty-id.azp",
-          r#"{"schema_version":1,"blocks":[{"id":" ","text":"empty","preset_id":null}],"presets":[]}"#,
+          "schema_version = 1\npresets = []\n[[blocks]]\nid = \" \"\ntext = \"empty\"\n",
         ),
       ] {
         let path = directory.path().join(name);
@@ -336,9 +351,9 @@ mod tests {
       save_project(derived_project, path.to_string_lossy().into_owned(), true)
         .await
         .unwrap();
-      let saved_json: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
-      assert!(saved_json["blocks"][0].get("query_override").is_none());
+      let saved_toml: toml::Value =
+        toml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+      assert!(saved_toml["blocks"][0].get("query_override").is_none());
       let loaded = load_project(path.to_string_lossy().into_owned())
         .await
         .unwrap();
@@ -355,7 +370,7 @@ mod tests {
       std::fs::write(
         &newer,
         format!(
-          r#"{{"schema_version":{},"blocks":[],"presets":[]}}"#,
+          "schema_version = {}\nblocks = []\npresets = []\n",
           CURRENT_PROJECT_SCHEMA_VERSION + 1
         ),
       )
@@ -369,7 +384,7 @@ mod tests {
       let duplicate_ids = directory.path().join("duplicates.azp");
       std::fs::write(
         &duplicate_ids,
-        r#"{"schema_version":1,"blocks":[{"id":"same","text":"a","preset_id":null},{"id":"same","text":"b","preset_id":null}],"presets":[]}"#,
+        "schema_version = 1\npresets = []\n[[blocks]]\nid = \"same\"\ntext = \"a\"\n[[blocks]]\nid = \"same\"\ntext = \"b\"\n",
       )
       .unwrap();
       let error = load_project(duplicate_ids.to_string_lossy().into_owned())
@@ -381,7 +396,7 @@ mod tests {
       let missing_preset = directory.path().join("missing-preset.azp");
       std::fs::write(
         &missing_preset,
-        r#"{"schema_version":1,"blocks":[{"id":"block","text":"a","preset_id":0}],"presets":[]}"#,
+        "schema_version = 1\npresets = []\n[[blocks]]\nid = \"block\"\ntext = \"a\"\npreset_id = 0\n",
       )
       .unwrap();
       let error = load_project(missing_preset.to_string_lossy().into_owned())

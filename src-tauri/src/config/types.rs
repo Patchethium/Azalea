@@ -258,7 +258,7 @@ mod tests {
 
   #[test]
   fn missing_settings_use_defaults() {
-    let config: UIConfig = serde_json::from_str("{}").unwrap();
+    let config: UIConfig = toml::from_str("").unwrap();
     assert_eq!(config.synthesis_delay_ms, 600);
     assert_eq!(
       config.shortcuts.toggle_playback,
@@ -272,8 +272,16 @@ mod tests {
 
   #[test]
   fn missing_shortcut_action_uses_default() {
-    let config: UIConfig = serde_json::from_str(
-      r#"{"shortcuts":{"save_project":{"key":"P","alt":true},"stop_playback":{"key":"Space","primary":true}}}"#,
+    let config: UIConfig = toml::from_str(
+      r#"
+        [shortcuts.save_project]
+        key = "P"
+        alt = true
+
+        [shortcuts.stop_playback]
+        key = "Space"
+        primary = true
+      "#,
     )
     .unwrap();
     assert_eq!(
@@ -290,13 +298,13 @@ mod tests {
       config.shortcuts.toggle_playback,
       KeyboardShortcut::new("Space", false, false)
     );
-    let serialized = serde_json::to_value(config).unwrap();
+    let serialized = toml::Value::try_from(config).unwrap();
     assert!(serialized["shortcuts"].get("stop_playback").is_none());
   }
 
   #[test]
   fn empty_application_config_has_a_default_preset_and_preview() {
-    let config: AzaleaConfig = serde_json::from_str(r#"{"ui_config":{}}"#).unwrap();
+    let config: AzaleaConfig = toml::from_str("[ui_config]\n").unwrap();
 
     assert_eq!(config.system_presets.len(), 1);
     assert_eq!(config.system_presets[0].name, "Default");
@@ -308,24 +316,21 @@ mod tests {
 
   #[test]
   fn shortcut_round_trip_preserves_all_platform_modifiers() {
-    let input = r#"{
-      "shortcuts": {
-        "save_project": {
-          "key": "P",
-          "primary": true,
-          "secondary": true,
-          "shift": true,
-          "alt": true
-        },
-        "toggle_playback": {
-          "key": "P",
-          "alt": true
-        }
-      }
-    }"#;
-    let config: UIConfig = serde_json::from_str(input).unwrap();
-    let serialized = serde_json::to_string(&config).unwrap();
-    let restored: UIConfig = serde_json::from_str(&serialized).unwrap();
+    let input = r#"
+      [shortcuts.save_project]
+      key = "P"
+      primary = true
+      secondary = true
+      shift = true
+      alt = true
+
+      [shortcuts.toggle_playback]
+      key = "P"
+      alt = true
+    "#;
+    let config: UIConfig = toml::from_str(input).unwrap();
+    let serialized = toml::to_string(&config).unwrap();
+    let restored: UIConfig = toml::from_str(&serialized).unwrap();
 
     assert_eq!(
       restored.shortcuts.save_project,

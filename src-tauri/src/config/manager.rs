@@ -38,7 +38,7 @@ pub struct ConfigManager {
 
 impl Default for ConfigManager {
   fn default() -> Self {
-    let config_path = CONFIG_DIR.join("config.json");
+    let config_path = CONFIG_DIR.join("config.toml");
     Self {
       config: AzaleaConfig::default(),
       config_path,
@@ -79,7 +79,7 @@ impl ConfigManager {
 
   pub fn load_as(&mut self, path: &PathBuf) -> Result<()> {
     let config = std::fs::read_to_string(path)?;
-    self.config = serde_json::from_str(&config)?;
+    self.config = toml::from_str(&config)?;
     // guard out-of-range values
     // TODO: implement it in serde
     if self.config.ui_config.side_width < 175 {
@@ -93,7 +93,7 @@ impl ConfigManager {
   }
 
   pub fn save_as(&self, path: &PathBuf) -> Result<()> {
-    let config = serde_json::to_string(&self.config)?;
+    let config = toml::to_string_pretty(&self.config)?;
     std::fs::write(path, config)?;
     Ok(())
   }
@@ -107,7 +107,7 @@ mod tests {
   #[test]
   fn save_and_load_as_round_trip_all_settings() {
     let directory = tempfile::tempdir().unwrap();
-    let path = directory.path().join("config.json");
+    let path = directory.path().join("config.toml");
     let mut source = ConfigManager::default();
     source.config.ui_config.locale = Locale::Ja;
     source.config.ui_config.theme_mode = ThemeMode::Dark;
@@ -130,12 +130,8 @@ mod tests {
   #[test]
   fn load_repairs_invalid_side_panel_width() {
     let directory = tempfile::tempdir().unwrap();
-    let path = directory.path().join("config.json");
-    std::fs::write(
-      &path,
-      r#"{"core_config":null,"ui_config":{"side_width":4},"system_presets":[]}"#,
-    )
-    .unwrap();
+    let path = directory.path().join("config.toml");
+    std::fs::write(&path, "[ui_config]\nside_width = 4\n").unwrap();
     let mut manager = ConfigManager::default();
 
     manager.load_as(&path).unwrap();
@@ -146,9 +142,9 @@ mod tests {
   #[test]
   fn malformed_or_missing_files_return_errors_without_replacing_memory() {
     let directory = tempfile::tempdir().unwrap();
-    let malformed = directory.path().join("malformed.json");
+    let malformed = directory.path().join("malformed.toml");
     std::fs::write(&malformed, "{").unwrap();
-    let missing = directory.path().join("missing.json");
+    let missing = directory.path().join("missing.toml");
     let mut manager = ConfigManager::default();
     manager.config.ui_config.primary_color = "#abcdef".into();
 

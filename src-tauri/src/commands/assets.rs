@@ -567,7 +567,7 @@ mod tests {
   fn asset_size_and_clear_cover_the_whole_tree() {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path().join("assets");
-    let config_path = directory.path().join("config.json");
+    let config_path = directory.path().join("config.toml");
     fs::create_dir_all(root.join("speaker-icons")).unwrap();
     fs::create_dir_all(root.join("other/nested")).unwrap();
     fs::write(&config_path, b"config").unwrap();

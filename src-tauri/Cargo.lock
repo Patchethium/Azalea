@@ -220,6 +220,7 @@ dependencies = [
  "tauri-specta",
  "tempfile",
  "tokio",
+ "toml 0.8.2",
  "uuid",
  "voicevox_core",
  "walkdir",

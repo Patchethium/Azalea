@@ -8,7 +8,7 @@ The Rust backend is under `src-tauri/`. Tauri commands are grouped in `src-tauri
 
 ## Project Files
 
-`.azp` files are versioned JSON documents. The disk-only wrapper and
+`.azp` files are versioned TOML documents. The disk-only wrapper and
 `CURRENT_PROJECT_SCHEMA_VERSION` live in
 `src-tauri/src/commands/project.rs`; keep the schema marker at this
 serialization boundary rather than adding it to the frontend `Project` model
@@ -62,7 +62,7 @@ Refresh behavior depends on `UIConfig.buffer_render`: with buffering enabled, de
 - `cd src-tauri && cargo test --lib regenerate_typescript_bindings` regenerates `src/binding.ts` without launching the desktop application.
 - `cd src-tauri && cargo fmt --check` verifies Rust formatting.
 
-Linux development also requires the Tauri prerequisites, `clang`, and `mold`. The development core path is stored in `config_dev/config.json`.
+Linux development also requires the Tauri prerequisites, `clang`, and `mold`. The development core path is stored in `config_dev/config.toml`.
 
 `src/binding.ts` is generated from the registered Tauri commands, events, and their Rust types by `tauri-specta`. After changing any of them, agents and other automation should run the dedicated `regenerate_typescript_bindings` test and commit the resulting binding changes. Do not edit the generated file by hand.
 
@@ -86,7 +86,7 @@ depend on `config_dev`, VOICEVOX assets, network access, a graphical session,
 audio hardware, or test ordering.
 
 The complete Rust suite includes real VOICEVOX compatibility. It falls back to
-the core in `config_dev/config.json`; `AZALEA_TEST_CORE_DIR` overrides that
+the core in `config_dev/config.toml`; `AZALEA_TEST_CORE_DIR` overrides that
 configuration:
 
 ```sh

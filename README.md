@@ -62,13 +62,13 @@ As long as these files share the same parent directory, Azalea should be able to
 
 ### Setting the dev config
 
-The config file used in development is located in `config_dev/config.json`. You can set the core path in the GUI launched by `pnpm tauri dev` and this file will be created automatically.
+The config file used in development is located in `config_dev/config.toml`. You can set the core path in the GUI launched by `pnpm tauri dev` and this file will be created automatically.
 
-In release builds, the config file is located at `{config_dir}/azalea/config.json` according to the OS. See [here](https://codeberg.org/dirs/dirs-rs#features) for where the config directory is on each OS.
+In release builds, the config file is located at `{config_dir}/azalea/config.toml` according to the OS. See [here](https://codeberg.org/dirs/dirs-rs#features) for where the config directory is on each OS.
 
 ### Project files
 
-Azalea project files use the `.azp` extension and contain a JSON
+Azalea project files use the `.azp` extension and contain a TOML
 `schema_version`. Projects are currently saved with schema version `1`, and
 only that current format is accepted while Azalea remains unreleased.
 
@@ -102,7 +102,7 @@ cargo clean
 The frontend suite and Rust unit tests are deterministic and do not require an
 audio device or a graphical session. The Rust integration suite also exercises
 the real VOICEVOX Core, so configure a development core in
-`config_dev/config.json` or set `AZALEA_TEST_CORE_DIR` to a directory containing
+`config_dev/config.toml` or set `AZALEA_TEST_CORE_DIR` to a directory containing
 the runtime, OpenJTalk dictionary, and VVM assets.
 
 ```sh

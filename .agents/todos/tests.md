@@ -56,7 +56,7 @@ validates the real VOICEVOX pipeline.
 - [x] Keep real audio-device checks out of the default suite; test orchestration
       with mocks.
 - [x] Include the real VOICEVOX pipeline in the ordinary Rust integration suite.
-      Accept `AZALEA_TEST_CORE_DIR`, fall back to `config_dev/config.json`, fail
+      Accept `AZALEA_TEST_CORE_DIR`, fall back to `config_dev/config.toml`, fail
       when neither is configured, and serialize the suite with
       `--test-threads=1`.
 - [x] Move pitch-range generation out of the test harness into the dedicated
