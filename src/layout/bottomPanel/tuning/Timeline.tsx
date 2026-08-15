@@ -154,7 +154,9 @@ export function SpectrogramCanvas(props: {
 
   return (
     <canvas
-      ref={canvasRef}
+      ref={(element) => {
+        canvasRef = element;
+      }}
       class="absolute left-0 top-0 pointer-events-none"
       classList={{ "opacity-55": props.stale }}
       style={{

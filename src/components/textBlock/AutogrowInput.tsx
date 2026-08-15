@@ -62,7 +62,9 @@ export function AutogrowInput(props: AutogrowInputProps) {
         contentEditable="plaintext-only"
         class="relative min-h-6 w-full outline-none"
         {...inputProps}
-        ref={inputRef}
+        ref={(element) => {
+          inputRef = element;
+        }}
         onInput={handleInput}
       />
     </div>
