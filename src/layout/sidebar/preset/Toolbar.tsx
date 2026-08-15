@@ -1,6 +1,6 @@
 import { IconButton } from "@components/iconButton";
+import { usei18n } from "@contexts/i18n";
 import type { SidebarControls } from "@layout/sidebar/useSidebar";
-import { usei18n } from "../../../contexts/i18n";
 
 export function PresetToolbar(props: { controls: SidebarControls }) {
   const { t1 } = usei18n()!;

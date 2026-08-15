@@ -1,9 +1,9 @@
 import { AppDialogContent } from "@dialogs/AppContent";
 import { Dialog } from "@kobalte/core/dialog";
 import { createSignal, For, Show } from "solid-js";
-import { useConfigStore } from "../contexts/config";
-import { usei18n } from "../contexts/i18n";
-import { useSystemStore } from "../contexts/system";
+import { useConfigStore } from "@contexts/config";
+import { usei18n } from "@contexts/i18n";
+import { useSystemStore } from "@contexts/system";
 import {
   defaultKeyboardShortcuts,
   formatShortcut,

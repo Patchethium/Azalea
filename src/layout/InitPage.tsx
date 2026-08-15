@@ -1,10 +1,10 @@
-import { CoreConfig, commands } from "@binding";
+import { CoreConfig, commands } from "$binding";
 import { I18NSelect } from "@dialogs/config";
 import { Button } from "@kobalte/core/button";
 import { RadioGroup } from "@kobalte/core/radio-group";
 import { createSignal, For } from "solid-js";
-import { useConfigStore } from "../contexts/config";
-import { usei18n } from "../contexts/i18n";
+import { useConfigStore } from "@contexts/config";
+import { usei18n } from "@contexts/i18n";
 
 function InitPage() {
   const { setConfig } = useConfigStore()!;

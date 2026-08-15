@@ -1,4 +1,4 @@
-import { commands } from "@binding";
+import { commands } from "$binding";
 import type {
   PlaybackSequence,
   WaveformSynthesisNotice,
@@ -6,18 +6,18 @@ import type {
 import { listen } from "@tauri-apps/api/event";
 import { createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import { unwrap } from "solid-js/store";
-import { useConfigStore } from "../../contexts/config";
-import { useMetaStore } from "../../contexts/meta";
-import { useSystemStore } from "../../contexts/system";
-import { findPresetStyle, useTextStore } from "../../contexts/text";
-import { useUIStore } from "../../contexts/ui";
+import { useConfigStore } from "@contexts/config";
+import { useMetaStore } from "@contexts/meta";
+import { useSystemStore } from "@contexts/system";
+import { findPresetStyle, useTextStore } from "@contexts/text";
+import { useUIStore } from "@contexts/ui";
 import {
   isPlaybackShortcutAllowed,
   isPlaybackToggleAllowed,
   matchesShortcut,
   resolveShortcut,
 } from "../../shortcuts";
-import { getModifiedQuery } from "../../utils";
+import { getModifiedQuery } from "$utils";
 
 export function usePlaybackControls(
   onWaveformSynthesized: (notice: WaveformSynthesisNotice) => void,

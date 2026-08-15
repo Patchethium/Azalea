@@ -1,17 +1,17 @@
-import { events } from "@binding";
+import { events } from "$binding";
 import { MultiProvider } from "@solid-primitives/context";
 import { render, screen, waitFor } from "@solidjs/testing-library";
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import { describe, expect, it, vi } from "vitest";
 import App from "./App";
-import { ConfigProvider } from "./contexts/config";
-import { i18nProvider } from "./contexts/i18n";
-import { MetaProvider } from "./contexts/meta";
-import { SpectrogramProvider } from "./contexts/spectrogram";
-import { SystemProvider } from "./contexts/system";
-import { TextProvider, useTextStore } from "./contexts/text";
-import { UIProvider } from "./contexts/ui";
+import { ConfigProvider } from "@contexts/config";
+import { i18nProvider } from "@contexts/i18n";
+import { MetaProvider } from "@contexts/meta";
+import { SpectrogramProvider } from "@contexts/spectrogram";
+import { SystemProvider } from "@contexts/system";
+import { TextProvider, useTextStore } from "@contexts/text";
+import { UIProvider } from "@contexts/ui";
 import { config, metas } from "./test/fixtures";
 
 const renderApp = () => {
@@ -174,6 +174,57 @@ describe("App initialization", () => {
     });
     create.click();
     expect(getTextStore().textStore).toHaveLength(1);
+  });
+
+  it("keeps the sidebar width fixed when the window is resized", async () => {
+    mockIPC((cmd) => (cmd.includes("theme") ? "light" : null), {
+      shouldMockEvents: true,
+    });
+    mockWindows("main");
+    const removeEventListener = vi.spyOn(window, "removeEventListener");
+    const result = renderApp();
+    await events.initializationEvent.emit({
+      config: config({ side_width: 240 }),
+      core_initialized: true,
+      metas,
+      range: [],
+      error: null,
+    });
+
+    const handles = await screen.findAllByRole("separator", {
+      name: "Resize Handle",
+    });
+    const handle = handles.find(
+      (element) => element.getAttribute("aria-orientation") === "horizontal",
+    )!;
+    const sidebar = handle.previousElementSibling as HTMLElement;
+    const originalWindowWidth = window.innerWidth;
+    const initialBasis = Number.parseFloat(sidebar.style.flexBasis);
+
+    try {
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: originalWindowWidth * 2,
+      });
+      window.dispatchEvent(new Event("resize"));
+
+      await waitFor(() =>
+        expect(Number.parseFloat(sidebar.style.flexBasis)).toBeCloseTo(
+          initialBasis / 2,
+        ),
+      );
+    } finally {
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: originalWindowWidth,
+      });
+    }
+
+    result.unmount();
+    expect(removeEventListener).toHaveBeenCalledWith(
+      "resize",
+      expect.any(Function),
+    );
   });
 
   it("tracks system theme changes and removes the listener on cleanup", async () => {

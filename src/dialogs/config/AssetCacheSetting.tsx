@@ -1,9 +1,9 @@
-import { commands } from "@binding";
+import { commands } from "$binding";
 import { ConfigItem } from "@dialogs/config/Item";
 import { Button } from "@kobalte/core/button";
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
-import { usei18n } from "../../contexts/i18n";
-import { useMetaStore } from "../../contexts/meta";
+import { usei18n } from "@contexts/i18n";
+import { useMetaStore } from "@contexts/meta";
 
 type AssetCacheStatus = "idle" | "loading" | "clearing" | "error";
 

@@ -1,11 +1,12 @@
 // The store holding the configuration
 
-import { AzaleaConfig, commands, StyleId, ThemeMode } from "@binding";
+import { AzaleaConfig, commands, StyleId, ThemeMode } from "$binding";
 import { createContextProvider } from "@solid-primitives/context";
 import { createEffect, createResource, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
-import { useMetaStore } from "./meta";
-import { useUIStore } from "./ui";
+import { DEFAULT_SPECTROGRAM_PREVIEW, DEFAULT_THEME_MODE } from "$constants";
+import { useMetaStore } from "@contexts/meta";
+import { useUIStore } from "@contexts/ui";
 
 const [ConfigProvider, useConfigStore] = createContextProvider(() => {
   const { uiStore, setUIStore } = useUIStore()!;
@@ -22,11 +23,12 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
   const [configInitialized, setConfigInitialized] = createSignal(false);
 
   const spectrogramPreviewEnabled = () =>
-    config.ui_config.spectrogram_preview ?? true;
+    config.ui_config.spectrogram_preview ?? DEFAULT_SPECTROGRAM_PREVIEW;
   const setSpectrogramPreviewEnabled = (enabled: boolean) => {
     setConfig("ui_config", "spectrogram_preview", enabled);
   };
-  const themeMode = (): ThemeMode => config.ui_config.theme_mode ?? "System";
+  const themeMode = (): ThemeMode =>
+    config.ui_config.theme_mode ?? DEFAULT_THEME_MODE;
   const setThemeMode = (mode: ThemeMode) => {
     setConfig("ui_config", "theme_mode", mode);
   };

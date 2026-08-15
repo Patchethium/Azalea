@@ -2,7 +2,7 @@ import {
   type KeyboardShortcut,
   type KeyboardShortcuts,
   type OS,
-} from "@binding";
+} from "$binding";
 
 export const shortcutActions = [
   "save_project",

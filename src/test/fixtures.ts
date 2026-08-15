@@ -4,7 +4,17 @@ import type {
   CharacterMeta,
   Preset,
   SpectrogramPreview,
-} from "@binding";
+} from "$binding";
+import {
+  DEFAULT_BOTTOM_RATIO,
+  DEFAULT_BOTTOM_SCALE,
+  DEFAULT_LOCALE,
+  DEFAULT_PRIMARY_COLOR,
+  DEFAULT_SIDEBAR_WIDTH,
+  DEFAULT_SPECTROGRAM_PREVIEW,
+  DEFAULT_SYNTHESIS_DELAY_MS,
+  DEFAULT_THEME_MODE,
+} from "$constants";
 
 export const mora = {
   text: "コ",
@@ -58,16 +68,16 @@ export const config = (
   core_config: null,
   system_presets: [preset()],
   ui_config: {
-    locale: "En",
-    theme_mode: "System",
-    primary_color: "#3b82f6",
-    bottom_scale: 360,
+    locale: DEFAULT_LOCALE,
+    theme_mode: DEFAULT_THEME_MODE,
+    primary_color: DEFAULT_PRIMARY_COLOR,
+    bottom_scale: DEFAULT_BOTTOM_SCALE,
     auto_save: false,
-    bottom_ratio: 0.3,
-    side_ratio: 0.2,
+    bottom_ratio: DEFAULT_BOTTOM_RATIO,
+    side_width: DEFAULT_SIDEBAR_WIDTH,
     buffer_render: false,
-    synthesis_delay_ms: 600,
-    spectrogram_preview: true,
+    synthesis_delay_ms: DEFAULT_SYNTHESIS_DELAY_MS,
+    spectrogram_preview: DEFAULT_SPECTROGRAM_PREVIEW,
     name_truncation_len: 0,
     last_exported_dir: null,
     shortcuts: {},

@@ -1,8 +1,19 @@
-import { type AudioQuery, commands, type SpectrogramPreview } from "@binding";
+import { type AudioQuery, commands, type SpectrogramPreview } from "$binding";
+import {
+  DEFAULT_BOTTOM_SCALE,
+  DEFAULT_SYNTHESIS_DELAY_MS,
+  MAX_SYNTHESIS_DELAY_MS,
+} from "$constants";
+import { useConfigStore } from "@contexts/config";
+import { useMetaStore } from "@contexts/meta";
+import { useSpectrogramStore } from "@contexts/spectrogram";
+import { findPresetStyle, useTextStore } from "@contexts/text";
+import { useUIStore } from "@contexts/ui";
 import type {
   DraggingMode,
   WaveformSynthesisNotice,
 } from "@layout/bottomPanel/types";
+import { getModifiedQuery } from "$utils";
 import { debounce, type Scheduled } from "@solid-primitives/scheduled";
 import _ from "lodash";
 import {
@@ -14,12 +25,6 @@ import {
   onCleanup,
   onMount,
 } from "solid-js";
-import { useConfigStore } from "../../../contexts/config";
-import { useMetaStore } from "../../../contexts/meta";
-import { useSpectrogramStore } from "../../../contexts/spectrogram";
-import { findPresetStyle, useTextStore } from "../../../contexts/text";
-import { useUIStore } from "../../../contexts/ui";
-import { getModifiedQuery } from "../../../utils";
 
 export function useTuningPanel(
   waveformSynthesisNotice: Accessor<WaveformSynthesisNotice | null>,
@@ -45,7 +50,7 @@ export function useTuningPanel(
     isLatestSpectrogramRequest,
   } = useSpectrogramStore()!;
 
-  const scale = () => config.ui_config?.bottom_scale ?? 360;
+  const scale = () => config.ui_config?.bottom_scale ?? DEFAULT_BOTTOM_SCALE;
   const setScale = (value: number) => {
     setConfig("ui_config", "bottom_scale", Math.floor(value));
   };
@@ -155,8 +160,12 @@ export function useTuningPanel(
     speakerId: number,
   ) => {
     clearScheduledSpectrogramRefresh();
-    const configuredDelay = config.ui_config.synthesis_delay_ms ?? 600;
-    const delay = Math.min(Math.max(Math.trunc(configuredDelay), 0), 10_000);
+    const configuredDelay =
+      config.ui_config.synthesis_delay_ms ?? DEFAULT_SYNTHESIS_DELAY_MS;
+    const delay = Math.min(
+      Math.max(Math.trunc(configuredDelay), 0),
+      MAX_SYNTHESIS_DELAY_MS,
+    );
     scheduledSpectrogramRefresh = debounce(
       (scheduledBlockId, scheduledQuery, scheduledSpeakerId) => {
         void refreshSpectrogram(

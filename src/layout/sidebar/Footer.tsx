@@ -4,8 +4,8 @@ import { DropdownMenu } from "@kobalte/core/dropdown-menu";
 import { ToggleGroup } from "@kobalte/core/toggle-group";
 import style from "@layout/sidebar/sidebar.module.css";
 import type { SidebarControls } from "@layout/sidebar/useSidebar";
-import { usei18n } from "../../contexts/i18n";
-import type { PageType } from "../../contexts/ui";
+import { usei18n } from "@contexts/i18n";
+import type { PageType } from "@contexts/ui";
 
 export function SidebarFooter(props: { controls: SidebarControls }) {
   const { t1 } = usei18n()!;

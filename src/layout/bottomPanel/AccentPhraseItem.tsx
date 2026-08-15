@@ -1,4 +1,4 @@
-import { type AccentPhrase, type Mora } from "@binding";
+import { type AccentPhrase, type Mora } from "$binding";
 import { Slider } from "@kobalte/core/slider";
 import { TextField } from "@kobalte/core/text-field";
 import {
@@ -10,7 +10,7 @@ import {
   Show,
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import { useSideEffect } from "../../utils";
+import { useSideEffect } from "$utils";
 
 export function AccentPhraseItem(props: {
   phrase: AccentPhrase;

@@ -1,4 +1,4 @@
-import { commands } from "@binding";
+import { commands } from "$binding";
 import {
   renderCanvas,
   renderPanel,

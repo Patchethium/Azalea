@@ -3,9 +3,10 @@ import Resizable from "@corvu/resizable";
 import { Button } from "@kobalte/core/button";
 import { BottomPanel } from "@layout/bottomPanel";
 import { For, Show } from "solid-js";
-import { useConfigStore } from "../contexts/config";
-import { usei18n } from "../contexts/i18n";
-import { useTextStore } from "../contexts/text";
+import { DEFAULT_BOTTOM_RATIO } from "$constants";
+import { useConfigStore } from "@contexts/config";
+import { usei18n } from "@contexts/i18n";
+import { useTextStore } from "@contexts/text";
 
 function MainPage() {
   const { textStore, createFirstTextBlock } = useTextStore()!;
@@ -17,7 +18,9 @@ function MainPage() {
       <Resizable orientation="vertical" class="size-full">
         <Resizable.Panel
           class="h-full flex flex-col overflow-hidden ml0 mb0 mr2 mt1"
-          initialSize={1.0 - (config.ui_config.bottom_ratio ?? 0.3)}
+          initialSize={
+            1.0 - (config.ui_config.bottom_ratio ?? DEFAULT_BOTTOM_RATIO)
+          }
           minSize={0.3}
         >
           <div class="h-full w-full flex flex-col overflow-auto bg-transparent pl-1">
@@ -67,7 +70,7 @@ function MainPage() {
           <div class="size-full rounded transition-colors bg-transparent group-hover:bg-primary-5 group-active:bg-primary-5 h-[1px]" />
         </Resizable.Handle>
         <Resizable.Panel
-          initialSize={config.ui_config.bottom_ratio ?? 0.3}
+          initialSize={config.ui_config.bottom_ratio ?? DEFAULT_BOTTOM_RATIO}
           onResize={(s) => setConfig("ui_config", "bottom_ratio", s)}
           minSize={0.2}
         >

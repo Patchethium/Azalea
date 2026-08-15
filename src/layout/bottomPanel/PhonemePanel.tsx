@@ -1,12 +1,12 @@
-import { type AccentPhrase, commands } from "@binding";
+import { type AccentPhrase, commands } from "$binding";
 import { AccentPhraseItem } from "@layout/bottomPanel/AccentPhraseItem";
 import { debounce } from "@solid-primitives/scheduled";
 import { createMemo, For, onCleanup, Show } from "solid-js";
 import { produce } from "solid-js/store";
-import { usei18n } from "../../contexts/i18n";
-import { useMetaStore } from "../../contexts/meta";
-import { findPresetStyle, useTextStore } from "../../contexts/text";
-import { useSideEffect } from "../../utils";
+import { usei18n } from "@contexts/i18n";
+import { useMetaStore } from "@contexts/meta";
+import { findPresetStyle, useTextStore } from "@contexts/text";
+import { useSideEffect } from "$utils";
 
 export function PhonemePanel() {
   const { t1 } = usei18n()!;

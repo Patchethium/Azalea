@@ -2,12 +2,12 @@ import TextBlock from "@components/textBlock";
 import { MultiProvider } from "@solid-primitives/context";
 import { render } from "@solidjs/testing-library";
 import { batch, type Component, For, onMount } from "solid-js";
-import { ConfigProvider, useConfigStore } from "../../contexts/config";
-import { i18nProvider } from "../../contexts/i18n";
-import { MetaProvider, useMetaStore } from "../../contexts/meta";
-import { SpectrogramProvider } from "../../contexts/spectrogram";
-import { TextProvider, useTextStore } from "../../contexts/text";
-import { UIProvider, useUIStore } from "../../contexts/ui";
+import { ConfigProvider, useConfigStore } from "@contexts/config";
+import { i18nProvider } from "@contexts/i18n";
+import { MetaProvider, useMetaStore } from "@contexts/meta";
+import { SpectrogramProvider } from "@contexts/spectrogram";
+import { TextProvider, useTextStore } from "@contexts/text";
+import { UIProvider, useUIStore } from "@contexts/ui";
 import { audioQuery, config, metas, preset } from "../../test/fixtures";
 
 export const renderBlock = (

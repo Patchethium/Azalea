@@ -1,4 +1,4 @@
-import { type AudioQuery } from "@binding";
+import { type AudioQuery } from "$binding";
 
 export type DraggingMode = "consonant" | "vowel" | "pause";
 

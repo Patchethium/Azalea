@@ -1,9 +1,14 @@
-import type { Mora, SpectrogramPreview } from "@binding";
+import type { Mora, SpectrogramPreview } from "$binding";
+import {
+  DEFAULT_BOTTOM_SCALE,
+  DEFAULT_PRIMARY_COLOR,
+  PRIMARY_COLOR_PATTERN,
+} from "$constants";
+import { useConfigStore } from "@contexts/config";
 import { Slider } from "@kobalte/core/slider";
 import type { DraggingMode } from "@layout/bottomPanel/types";
 import _ from "lodash";
 import { createEffect, Show } from "solid-js";
-import { useConfigStore } from "../../../contexts/config";
 
 export function TuningItem(props: {
   mora: Mora;
@@ -16,7 +21,7 @@ export function TuningItem(props: {
   const { config, spectrogramPreviewEnabled } = useConfigStore()!;
   const unvoiced = () => props.mora.pitch === 0;
   const whisper = () => props.maxPitch === 0 && props.minPitch === 0;
-  const scale = () => config.ui_config?.bottom_scale ?? 360;
+  const scale = () => config.ui_config?.bottom_scale ?? DEFAULT_BOTTOM_SCALE;
   const consonantPixels = (): number | null =>
     props.mora.consonant == null
       ? null
@@ -127,10 +132,11 @@ export function SpectrogramCanvas(props: {
 
     const context = canvasRef.getContext("2d");
     if (context === null) return;
-    const configuredColor = config.ui_config.primary_color ?? "#3b82f6";
-    const primaryColor = /^#[0-9a-f]{6}$/i.test(configuredColor)
+    const configuredColor =
+      config.ui_config.primary_color ?? DEFAULT_PRIMARY_COLOR;
+    const primaryColor = PRIMARY_COLOR_PATTERN.test(configuredColor)
       ? configuredColor
-      : "#3b82f6";
+      : DEFAULT_PRIMARY_COLOR;
     const red = Number.parseInt(primaryColor.slice(1, 3), 16);
     const green = Number.parseInt(primaryColor.slice(3, 5), 16);
     const blue = Number.parseInt(primaryColor.slice(5, 7), 16);

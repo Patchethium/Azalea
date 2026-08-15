@@ -1,12 +1,12 @@
-import { Preset } from "@binding";
+import { Preset } from "$binding";
 import { AppDialogContent } from "@dialogs/AppContent";
 import { Button } from "@kobalte/core/button";
 import { Dialog } from "@kobalte/core/dialog";
 import { createSignal, For, Show } from "solid-js";
 import { produce } from "solid-js/store";
-import { useConfigStore } from "../contexts/config";
-import { usei18n } from "../contexts/i18n";
-import { useTextStore } from "../contexts/text";
+import { useConfigStore } from "@contexts/config";
+import { usei18n } from "@contexts/i18n";
+import { useTextStore } from "@contexts/text";
 
 interface PresetManagerDialogProps {
   open: boolean;

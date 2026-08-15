@@ -1,12 +1,15 @@
 import { MultiProvider } from "@solid-primitives/context";
 import { render } from "@solidjs/testing-library";
 import type { Component } from "solid-js";
-import { ConfigProvider, useConfigStore } from "./config";
-import { i18nProvider } from "./i18n";
-import { MetaProvider, useMetaStore } from "./meta";
-import { SpectrogramProvider, useSpectrogramStore } from "./spectrogram";
-import { TextProvider, useTextStore } from "./text";
-import { UIProvider, useUIStore } from "./ui";
+import { ConfigProvider, useConfigStore } from "@contexts/config";
+import { i18nProvider } from "@contexts/i18n";
+import { MetaProvider, useMetaStore } from "@contexts/meta";
+import {
+  SpectrogramProvider,
+  useSpectrogramStore,
+} from "@contexts/spectrogram";
+import { TextProvider, useTextStore } from "@contexts/text";
+import { UIProvider, useUIStore } from "@contexts/ui";
 
 export function renderMetaStore() {
   let store!: NonNullable<ReturnType<typeof useMetaStore>>;

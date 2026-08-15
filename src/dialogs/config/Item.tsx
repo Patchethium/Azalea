@@ -1,6 +1,6 @@
 import { IconButton } from "@components/iconButton";
 import type { ParentProps } from "solid-js";
-import { usei18n } from "../../contexts/i18n";
+import { usei18n } from "@contexts/i18n";
 
 interface ConfigItemProps extends ParentProps {
   label: string;

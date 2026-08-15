@@ -1,4 +1,4 @@
-use super::types::side_ratio_default;
+use super::types::side_width_default;
 use anyhow::Result;
 use std::fs::{create_dir_all, File};
 use std::path::PathBuf;
@@ -82,8 +82,8 @@ impl ConfigManager {
     self.config = serde_json::from_str(&config)?;
     // guard out-of-range values
     // TODO: implement it in serde
-    if self.config.ui_config.side_ratio < 0.0 || self.config.ui_config.side_ratio > 1.0 {
-      self.config.ui_config.side_ratio = side_ratio_default();
+    if self.config.ui_config.side_width < 175 {
+      self.config.ui_config.side_width = side_width_default();
     }
     Ok(())
   }
@@ -128,19 +128,19 @@ mod tests {
   }
 
   #[test]
-  fn load_repairs_non_finite_side_panel_ranges() {
+  fn load_repairs_invalid_side_panel_width() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("config.json");
     std::fs::write(
       &path,
-      r#"{"core_config":null,"ui_config":{"side_ratio":4},"system_presets":[]}"#,
+      r#"{"core_config":null,"ui_config":{"side_width":4},"system_presets":[]}"#,
     )
     .unwrap();
     let mut manager = ConfigManager::default();
 
     manager.load_as(&path).unwrap();
 
-    assert_eq!(manager.config.ui_config.side_ratio, side_ratio_default());
+    assert_eq!(manager.config.ui_config.side_width, side_width_default());
   }
 
   #[test]

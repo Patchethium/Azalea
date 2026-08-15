@@ -1,6 +1,6 @@
+import { useMetaStore } from "@contexts/meta";
+import { findPresetStyle, useTextStore } from "@contexts/text";
 import { createMemo, type JSX } from "solid-js";
-import { useMetaStore } from "../../../contexts/meta";
-import { findPresetStyle, useTextStore } from "../../../contexts/text";
 
 interface PresetCardProps extends JSX.HTMLAttributes<HTMLDivElement> {
   presetIndex: number;

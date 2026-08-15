@@ -67,8 +67,8 @@ pub struct UIConfig {
   pub auto_save: bool,
   #[serde(default = "bottom_ratio_default")]
   pub bottom_ratio: f32,
-  #[serde(default = "side_ratio_default")]
-  pub side_ratio: f32,
+  #[serde(default = "side_width_default")]
+  pub side_width: u32,
   #[serde(default = "buffer_render_default")]
   pub buffer_render: bool,
   #[serde(default = "synthesis_delay_ms_default")]
@@ -92,7 +92,7 @@ impl Default for UIConfig {
       bottom_scale: bottom_scale_default(),
       auto_save: Default::default(),
       bottom_ratio: bottom_ratio_default(),
-      side_ratio: side_ratio_default(),
+      side_width: side_width_default(),
       buffer_render: buffer_render_default(),
       synthesis_delay_ms: synthesis_delay_ms_default(),
       spectrogram_preview: spectrogram_preview_default(),
@@ -115,8 +115,8 @@ fn bottom_ratio_default() -> f32 {
   0.3
 }
 
-pub(super) fn side_ratio_default() -> f32 {
-  0.2
+pub(super) fn side_width_default() -> u32 {
+  200
 }
 
 fn buffer_render_default() -> bool {
@@ -303,7 +303,7 @@ mod tests {
     assert!(config.ui_config.spectrogram_preview);
     assert_eq!(config.ui_config.primary_color, "#3b82f6");
     assert_eq!(config.ui_config.bottom_ratio, 0.3);
-    assert_eq!(config.ui_config.side_ratio, 0.2);
+    assert_eq!(config.ui_config.side_width, 200);
   }
 
   #[test]

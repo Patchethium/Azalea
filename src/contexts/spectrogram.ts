@@ -1,4 +1,4 @@
-import { AudioQuery, SpectrogramPreview } from "@binding";
+import { AudioQuery, SpectrogramPreview } from "$binding";
 import { createContextProvider } from "@solid-primitives/context";
 import { createSignal } from "solid-js";
 

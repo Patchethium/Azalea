@@ -1,10 +1,10 @@
-import type { Preset, SynthesisJobState } from "@binding";
+import type { Preset, SynthesisJobState } from "$binding";
 import { IconButton } from "@components/iconButton";
 import { AutogrowInput } from "@components/textBlock/AutogrowInput";
 import { createSignal, Show } from "solid-js";
-import { useConfigStore } from "../../contexts/config";
-import { usei18n } from "../../contexts/i18n";
-import type { TextBlockProps } from "../../contexts/text";
+import { useConfigStore } from "@contexts/config";
+import { usei18n } from "@contexts/i18n";
+import type { TextBlockProps } from "@contexts/text";
 
 export function TextBlockView(props: {
   index: number;

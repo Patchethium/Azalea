@@ -6,12 +6,17 @@ export default defineConfig({
   plugins: [solid()],
   resolve: {
     alias: {
-      "@binding": fileURLToPath(new URL("./src/binding.ts", import.meta.url)),
+      "$binding": fileURLToPath(new URL("./src/binding.ts", import.meta.url)),
       "@components": fileURLToPath(
         new URL("./src/components", import.meta.url),
       ),
+      "$constants": fileURLToPath(
+        new URL("./src/constants.ts", import.meta.url),
+      ),
+      "@contexts": fileURLToPath(new URL("./src/contexts", import.meta.url)),
       "@dialogs": fileURLToPath(new URL("./src/dialogs", import.meta.url)),
       "@layout": fileURLToPath(new URL("./src/layout", import.meta.url)),
+      "$utils": fileURLToPath(new URL("./src/utils.ts", import.meta.url)),
     },
     conditions: ["development", "browser"],
   },

@@ -3,13 +3,13 @@ import {
   Preset,
   Project,
   TextBlockProps as ProjectTextBlockProps,
-} from "@binding";
+} from "$binding";
 import { createContextProvider } from "@solid-primitives/context";
 import { batch, createEffect, createSignal } from "solid-js";
 import { createStore, produce } from "solid-js/store";
-import { usei18n } from "./i18n";
-import { useMetaStore } from "./meta";
-import { useUIStore } from "./ui";
+import { usei18n } from "@contexts/i18n";
+import { useMetaStore } from "@contexts/meta";
+import { useUIStore } from "@contexts/ui";
 
 type TextBlockProps = ProjectTextBlockProps;
 

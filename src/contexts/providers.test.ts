@@ -1,4 +1,4 @@
-import { commands } from "@binding";
+import { commands } from "$binding";
 import { waitFor } from "@solidjs/testing-library";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { batch } from "solid-js";
@@ -15,12 +15,12 @@ import {
   renderMetaStore,
   renderSpectrogramStore,
   renderTextStores,
-} from "./providers.testUtils";
+} from "@contexts/providers.testUtils";
 import {
   clampTextBlockIndex,
   findPresetStyle,
   resolvePresetIdentity,
-} from "./text";
+} from "@contexts/text";
 
 afterEach(() => {
   vi.restoreAllMocks();

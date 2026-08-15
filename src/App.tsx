@@ -1,4 +1,4 @@
-import { events } from "@binding";
+import { events } from "$binding";
 import Resizable from "@corvu/resizable";
 import ConfigPage from "@dialogs/config";
 import InitPage from "@layout/InitPage";
@@ -14,11 +14,18 @@ import {
   untrack,
 } from "solid-js";
 import style from "./app.module.css";
-import { useConfigStore } from "./contexts/config";
-import { usei18n } from "./contexts/i18n";
-import { useMetaStore } from "./contexts/meta";
-import { useTextStore } from "./contexts/text";
-import { useUIStore } from "./contexts/ui";
+import {
+  DEFAULT_PRIMARY_COLOR,
+  DEFAULT_SIDEBAR_WIDTH,
+  MIN_EDITOR_WIDTH,
+  MIN_SIDEBAR_WIDTH,
+  PRIMARY_COLOR_PATTERN,
+} from "$constants";
+import { useConfigStore } from "@contexts/config";
+import { usei18n } from "@contexts/i18n";
+import { useMetaStore } from "@contexts/meta";
+import { useTextStore } from "@contexts/text";
+import { useUIStore } from "@contexts/ui";
 
 function App() {
   const {
@@ -35,6 +42,7 @@ function App() {
   const { newProject } = useTextStore()!;
 
   const [initializing, setInitializing] = createSignal(true);
+  const [windowWidth, setWindowWidth] = createSignal(window.innerWidth);
   const [systemTheme, setSystemTheme] = createSignal<Theme>(
     window.matchMedia("(prefers-color-scheme: dark)").matches
       ? "dark"
@@ -57,6 +65,12 @@ function App() {
     });
     onCleanup(unlisten);
     await events.frontendReadyEvent.emit();
+  });
+
+  onMount(() => {
+    const updateWindowWidth = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", updateWindowWidth);
+    onCleanup(() => window.removeEventListener("resize", updateWindowWidth));
   });
 
   onMount(() => {
@@ -98,6 +112,19 @@ function App() {
     }
   });
 
+  const sidebarPanelSizes = () => {
+    const width = windowWidth();
+    const sidebarWidth = Math.min(
+      Math.max(
+        config.ui_config.side_width ?? DEFAULT_SIDEBAR_WIDTH,
+        MIN_SIDEBAR_WIDTH,
+      ),
+      width - MIN_EDITOR_WIDTH,
+    );
+    const sidebarRatio = sidebarWidth / width;
+    return [sidebarRatio, 1 - sidebarRatio];
+  };
+
   createEffect(() => {
     const mode = themeMode();
     const useDarkTheme =
@@ -106,10 +133,11 @@ function App() {
   });
 
   createEffect(() => {
-    const configuredColor = config.ui_config.primary_color ?? "#3b82f6";
-    const primaryColor = /^#[0-9a-f]{6}$/i.test(configuredColor)
+    const configuredColor =
+      config.ui_config.primary_color ?? DEFAULT_PRIMARY_COLOR;
+    const primaryColor = PRIMARY_COLOR_PATTERN.test(configuredColor)
       ? configuredColor
-      : "#3b82f6";
+      : DEFAULT_PRIMARY_COLOR;
     document.documentElement.style.setProperty("--primary-color", primaryColor);
   });
 
@@ -127,13 +155,17 @@ function App() {
           <InitPage />
         </Show>
         <Show when={uiStore.coreInitialized}>
-          <Resizable class={`absolute flex flex-row size-full ${style.canvas}`}>
-            <Resizable.Panel
-              class="min-w-175px"
-              initialSize={config.ui_config.side_ratio}
-              minSize={0.1}
-              onResize={(s) => setConfig("ui_config", "side_ratio", s)}
-            >
+          <Resizable
+            class={`absolute flex flex-row size-full ${style.canvas}`}
+            sizes={sidebarPanelSizes()}
+            onSizesChange={(sizes) => {
+              const sideWidth = Math.round(sizes[0] * windowWidth());
+              if (sideWidth !== config.ui_config.side_width) {
+                setConfig("ui_config", "side_width", sideWidth);
+              }
+            }}
+          >
+            <Resizable.Panel minSize="175px">
               <Sidebar />
             </Resizable.Panel>
             <Resizable.Handle
@@ -142,11 +174,7 @@ function App() {
             >
               <div class="rounded transition-colors bg-transparent group-hover:bg-primary-5 group-active:bg-primary-5 h-full w-[1px]" />
             </Resizable.Handle>
-            <Resizable.Panel
-              class="w-full overflow-hidden"
-              initialSize={1.0 - (config.ui_config.side_ratio ?? 0.5)}
-              minSize={0.5}
-            >
+            <Resizable.Panel class="w-full overflow-hidden" minSize="400px">
               <MainPage />
               <ConfigPage />
             </Resizable.Panel>

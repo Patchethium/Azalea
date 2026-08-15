@@ -1,4 +1,6 @@
 import { IconButton } from "@components/iconButton";
+import { PRESET_PANEL_COLLAPSE_THRESHOLD } from "$constants";
+import { usei18n } from "@contexts/i18n";
 import Resizable from "@corvu/resizable";
 import { PresetManagerDialog } from "@dialogs/PresetManager";
 import { SpeakerSelectionDialog } from "@dialogs/SpeakerSelection";
@@ -12,12 +14,8 @@ import {
 } from "@layout/sidebar/preset/Fields";
 import { PresetToolbar } from "@layout/sidebar/preset/Toolbar";
 import style from "@layout/sidebar/sidebar.module.css";
-import {
-  PRESET_PANEL_COLLAPSE_THRESHOLD,
-  type SidebarControls,
-} from "@layout/sidebar/useSidebar";
+import type { SidebarControls } from "@layout/sidebar/useSidebar";
 import { batch, createEffect, For, type JSX, Show } from "solid-js";
-import { usei18n } from "../../../contexts/i18n";
 
 export function PresetSidebar(props: { controls: SidebarControls }) {
   const { t1 } = usei18n()!;

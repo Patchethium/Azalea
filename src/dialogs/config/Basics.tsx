@@ -1,12 +1,13 @@
-import { type Locale, type ThemeMode } from "@binding";
+import { type Locale, type ThemeMode } from "$binding";
 import { ColorArea } from "@kobalte/core/color-area";
 import { ColorSwatch } from "@kobalte/core/color-swatch";
 import { parseColor } from "@kobalte/core/colors";
 import { Popover } from "@kobalte/core/popover";
 import { Select } from "@kobalte/core/select";
 import { createMemo } from "solid-js";
-import { useConfigStore } from "../../contexts/config";
-import { usei18n } from "../../contexts/i18n";
+import { DEFAULT_PRIMARY_COLOR, PRIMARY_COLOR_PATTERN } from "$constants";
+import { useConfigStore } from "@contexts/config";
+import { usei18n } from "@contexts/i18n";
 import { coverages, localeNames, possibleLocales } from "../../i18n";
 
 export function ThemeSelect() {
@@ -69,10 +70,13 @@ export function ThemeSelect() {
 export function PrimaryColorPicker() {
   const { config, setConfig } = useConfigStore()!;
   const { t1 } = usei18n()!;
-  const colorHex = () => config.ui_config.primary_color ?? "#3b82f6";
+  const colorHex = () =>
+    config.ui_config.primary_color ?? DEFAULT_PRIMARY_COLOR;
   const color = createMemo(() => {
     const value = colorHex();
-    return parseColor(/^#[0-9a-f]{6}$/i.test(value) ? value : "#3b82f6");
+    return parseColor(
+      PRIMARY_COLOR_PATTERN.test(value) ? value : DEFAULT_PRIMARY_COLOR,
+    );
   });
   const setPrimaryColor = (value: ReturnType<typeof parseColor>) => {
     setConfig(
@@ -85,7 +89,9 @@ export function PrimaryColorPicker() {
     const hslColor = color().toFormat("hsl");
     const hue =
       hslColor.getChannelValue("saturation") === 0
-        ? parseColor("#3b82f6").toFormat("hsl").getChannelValue("hue")
+        ? parseColor(DEFAULT_PRIMARY_COLOR)
+            .toFormat("hsl")
+            .getChannelValue("hue")
         : hslColor.getChannelValue("hue");
     setPrimaryColor(parseColor(`hsl(${hue}, 80%, 60%)`));
   };

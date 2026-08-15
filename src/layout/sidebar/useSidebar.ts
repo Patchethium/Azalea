@@ -1,4 +1,4 @@
-import { commands, type Preset, type StyleId } from "@binding";
+import { commands, type Preset, type StyleId } from "$binding";
 import { createScheduled, throttle } from "@solid-primitives/scheduled";
 import {
   open as openDialog,
@@ -13,19 +13,17 @@ import {
   onMount,
 } from "solid-js";
 import { produce } from "solid-js/store";
-import { useConfigStore } from "../../contexts/config";
-import { usei18n } from "../../contexts/i18n";
-import { useMetaStore } from "../../contexts/meta";
-import { useSystemStore } from "../../contexts/system";
-import { findPresetStyle, useTextStore } from "../../contexts/text";
-import { useUIStore } from "../../contexts/ui";
+import { useConfigStore } from "@contexts/config";
+import { usei18n } from "@contexts/i18n";
+import { useMetaStore } from "@contexts/meta";
+import { useSystemStore } from "@contexts/system";
+import { findPresetStyle, useTextStore } from "@contexts/text";
+import { useUIStore } from "@contexts/ui";
 import {
   isApplicationShortcutAllowed,
   matchesShortcut,
   resolveShortcut,
 } from "../../shortcuts";
-
-export const PRESET_PANEL_COLLAPSE_THRESHOLD = 0.2;
 
 export function useSidebar() {
   const { availableStyleIds, metas } = useMetaStore()!;

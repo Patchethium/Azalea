@@ -4,7 +4,7 @@ import {
   CharacterMeta,
   type SpeakerIconRequest,
   type SpeakerIconResult,
-} from "@binding";
+} from "$binding";
 import { createContextProvider } from "@solid-primitives/context";
 import _ from "lodash";
 import { createSignal, onCleanup } from "solid-js";

@@ -1,4 +1,4 @@
-import { commands, OS } from "@binding";
+import { commands, OS } from "$binding";
 import { createContextProvider } from "@solid-primitives/context";
 import { createStore } from "solid-js/store";
 

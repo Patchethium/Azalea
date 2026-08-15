@@ -1,3 +1,4 @@
+import { usei18n } from "@contexts/i18n";
 import { Slider } from "@kobalte/core/slider";
 import {
   SpectrogramCanvas,
@@ -9,7 +10,6 @@ import type {
   WaveformSynthesisNotice,
 } from "@layout/bottomPanel/types";
 import { For, Show } from "solid-js";
-import { usei18n } from "../../../contexts/i18n";
 
 export function TuningPanel(props: {
   waveformSynthesisNotice: WaveformSynthesisNotice | null;

@@ -1,19 +1,19 @@
-import { type AudioQuery, commands } from "@binding";
+import { type AudioQuery, commands } from "$binding";
 import { useTextBlockSynthesis } from "@components/textBlock/useSynthesis";
 import { TextBlockView } from "@components/textBlock/View";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import _ from "lodash";
 import { batch, createEffect, createMemo, on, onCleanup } from "solid-js";
 import { produce, unwrap } from "solid-js/store";
-import { useConfigStore } from "../../contexts/config";
-import { useMetaStore } from "../../contexts/meta";
+import { useConfigStore } from "@contexts/config";
+import { useMetaStore } from "@contexts/meta";
 import {
   findPresetStyle,
   type TextBlockProps,
   useTextStore,
-} from "../../contexts/text";
-import { useUIStore } from "../../contexts/ui";
-import { getModifiedQuery } from "../../utils";
+} from "@contexts/text";
+import { useUIStore } from "@contexts/ui";
+import { getModifiedQuery } from "$utils";
 
 export { synthesisRequestFingerprint } from "@components/textBlock/useSynthesis";
 

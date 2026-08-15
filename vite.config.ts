@@ -5,17 +5,20 @@ import UnoCss from "unocss/vite";
 
 const host = process.env.TAURI_DEV_HOST;
 
+const attachViteBase = (url: string) => fileURLToPath(new URL(url, import.meta.url));
+
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
   plugins: [UnoCss({}), solid()],
   resolve: {
     alias: {
-      "@binding": fileURLToPath(new URL("./src/binding.ts", import.meta.url)),
-      "@components": fileURLToPath(
-        new URL("./src/components", import.meta.url),
-      ),
-      "@dialogs": fileURLToPath(new URL("./src/dialogs", import.meta.url)),
-      "@layout": fileURLToPath(new URL("./src/layout", import.meta.url)),
+      "$binding": attachViteBase("./src/binding.ts"),
+      "$constants": attachViteBase("./src/constants.ts"),
+      "$utils": attachViteBase("./src/utils.ts"),
+      "@contexts": attachViteBase("./src/contexts"),
+      "@dialogs": attachViteBase("./src/dialogs"),
+      "@layout": attachViteBase("./src/layout"),
+      "@components": attachViteBase("./src/components"),
     },
   },
 

@@ -2,7 +2,7 @@ import {
   type CharacterMeta,
   commands,
   type SpeakerIconRequest,
-} from "@binding";
+} from "$binding";
 import { Tooltip } from "@components/tooltip";
 import { AppDialogContent } from "@dialogs/AppContent";
 import { Button } from "@kobalte/core/button";
@@ -15,8 +15,8 @@ import {
   onCleanup,
   Show,
 } from "solid-js";
-import { usei18n } from "../contexts/i18n";
-import { useMetaStore } from "../contexts/meta";
+import { usei18n } from "@contexts/i18n";
+import { useMetaStore } from "@contexts/meta";
 
 type IconStatus = "idle" | "loading-cache" | "downloading" | "error";
 

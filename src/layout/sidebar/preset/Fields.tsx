@@ -1,11 +1,11 @@
 import { IconButton } from "@components/iconButton";
 import { Tooltip } from "@components/tooltip";
+import { usei18n } from "@contexts/i18n";
 import { Checkbox } from "@kobalte/core/checkbox";
 import { NumberField } from "@kobalte/core/number-field";
 import { Select } from "@kobalte/core/select";
 import { Slider } from "@kobalte/core/slider";
 import { type JSX, Show } from "solid-js";
-import { usei18n } from "../../../contexts/i18n";
 
 export function OptionSelector(props: {
   name: string;

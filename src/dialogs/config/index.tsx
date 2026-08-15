@@ -11,9 +11,10 @@ import { NumberField } from "@kobalte/core/number-field";
 import { Switch } from "@kobalte/core/switch";
 import _ from "lodash";
 import { Show } from "solid-js";
-import { useConfigStore } from "../../contexts/config";
-import { usei18n } from "../../contexts/i18n";
-import { useUIStore } from "../../contexts/ui";
+import { DEFAULT_SYNTHESIS_DELAY_MS, MAX_SYNTHESIS_DELAY_MS } from "$constants";
+import { useConfigStore } from "@contexts/config";
+import { usei18n } from "@contexts/i18n";
+import { useUIStore } from "@contexts/ui";
 
 export function ConfigPage() {
   const { t1 } = usei18n()!;
@@ -133,11 +134,12 @@ export function ConfigPage() {
 function SynthesisDelayField() {
   const { config, setConfig } = useConfigStore()!;
   const { t1 } = usei18n()!;
-  const delay = () => config.ui_config.synthesis_delay_ms ?? 600;
+  const delay = () =>
+    config.ui_config.synthesis_delay_ms ?? DEFAULT_SYNTHESIS_DELAY_MS;
   return (
     <NumberField
       minValue={0}
-      maxValue={10_000}
+      maxValue={MAX_SYNTHESIS_DELAY_MS}
       step={50}
       value={delay()}
       onChange={(value) => {
@@ -146,7 +148,7 @@ function SynthesisDelayField() {
           setConfig(
             "ui_config",
             "synthesis_delay_ms",
-            Math.min(Math.max(parsed, 0), 10_000),
+            Math.min(Math.max(parsed, 0), MAX_SYNTHESIS_DELAY_MS),
           );
         }
       }}

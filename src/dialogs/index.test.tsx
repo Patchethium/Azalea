@@ -8,12 +8,12 @@ import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { batch, type Component, onMount } from "solid-js";
 import { describe, expect, it } from "vitest";
-import { ConfigProvider, useConfigStore } from "../contexts/config";
-import { i18nProvider } from "../contexts/i18n";
-import { MetaProvider } from "../contexts/meta";
-import { SystemProvider } from "../contexts/system";
-import { TextProvider, useTextStore } from "../contexts/text";
-import { UIProvider } from "../contexts/ui";
+import { ConfigProvider, useConfigStore } from "@contexts/config";
+import { i18nProvider } from "@contexts/i18n";
+import { MetaProvider } from "@contexts/meta";
+import { SystemProvider } from "@contexts/system";
+import { TextProvider, useTextStore } from "@contexts/text";
+import { UIProvider } from "@contexts/ui";
 import { config, preset } from "../test/fixtures";
 
 describe("AppDialogContent", () => {

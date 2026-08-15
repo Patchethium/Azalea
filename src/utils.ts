@@ -1,4 +1,4 @@
-import { AudioQuery, Preset } from "@binding";
+import { AudioQuery, Preset } from "$binding";
 import _ from "lodash";
 
 export function getModifiedQuery(

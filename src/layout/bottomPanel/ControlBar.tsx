@@ -1,7 +1,7 @@
 import { IconButton } from "@components/iconButton";
 import type { WaveformSynthesisNotice } from "@layout/bottomPanel/types";
 import { usePlaybackControls } from "@layout/bottomPanel/usePlaybackControls";
-import { usei18n } from "../../contexts/i18n";
+import { usei18n } from "@contexts/i18n";
 
 export function ControlBar(props: {
   onWaveformSynthesized: (notice: WaveformSynthesisNotice) => void;

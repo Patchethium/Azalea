@@ -1,4 +1,4 @@
-import { commands } from "@binding";
+import { commands } from "$binding";
 import { ConfigPage } from "@dialogs/config";
 import { AssetCacheSetting } from "@dialogs/config/AssetCacheSetting";
 import { MultiProvider } from "@solid-primitives/context";
@@ -6,10 +6,10 @@ import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import userEvent from "@testing-library/user-event";
 import { batch, type Component, createSignal, onMount } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ConfigProvider, useConfigStore } from "../../contexts/config";
-import { i18nProvider } from "../../contexts/i18n";
-import { MetaProvider, useMetaStore } from "../../contexts/meta";
-import { UIProvider, useUIStore } from "../../contexts/ui";
+import { ConfigProvider, useConfigStore } from "@contexts/config";
+import { i18nProvider } from "@contexts/i18n";
+import { MetaProvider, useMetaStore } from "@contexts/meta";
+import { UIProvider, useUIStore } from "@contexts/ui";
 import { config } from "../../test/fixtures";
 
 describe("ConfigPage", () => {

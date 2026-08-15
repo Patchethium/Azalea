@@ -5,7 +5,7 @@ import {
   type Preset,
   type SynthesisJobRequest,
   type SynthesisJobState,
-} from "@binding";
+} from "$binding";
 import { debounce, type Scheduled } from "@solid-primitives/scheduled";
 import {
   type Accessor,
@@ -15,9 +15,10 @@ import {
   onMount,
   untrack,
 } from "solid-js";
-import { useConfigStore } from "../../contexts/config";
-import { usei18n } from "../../contexts/i18n";
-import type { TextBlockProps } from "../../contexts/text";
+import { DEFAULT_SYNTHESIS_DELAY_MS, MAX_SYNTHESIS_DELAY_MS } from "$constants";
+import { useConfigStore } from "@contexts/config";
+import { usei18n } from "@contexts/i18n";
+import type { TextBlockProps } from "@contexts/text";
 
 let synthesisGenerationSequence = 0;
 
@@ -117,9 +118,12 @@ export function useTextBlockSynthesis(props: {
   ) => {
     clearScheduledSynthesis();
     const configuredDelay = untrack(
-      () => config.ui_config.synthesis_delay_ms ?? 600,
+      () => config.ui_config.synthesis_delay_ms ?? DEFAULT_SYNTHESIS_DELAY_MS,
     );
-    const delay = Math.min(Math.max(Math.trunc(configuredDelay), 0), 10_000);
+    const delay = Math.min(
+      Math.max(Math.trunc(configuredDelay), 0),
+      MAX_SYNTHESIS_DELAY_MS,
+    );
     scheduledSynthesis = debounce(submitSynthesis, delay);
     scheduledSynthesis(request, activeRequest);
   };

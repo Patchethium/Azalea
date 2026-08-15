@@ -1,12 +1,12 @@
-import { type CharacterMeta, commands } from "@binding";
+import { type CharacterMeta, commands } from "$binding";
 import { renderSidebar, renderSidebarHook } from "@layout/sidebar/testUtils";
 import { fireEvent, screen, waitFor } from "@solidjs/testing-library";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import userEvent from "@testing-library/user-event";
 import { batch } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
-import { useConfigStore } from "../../contexts/config";
-import { useTextStore } from "../../contexts/text";
+import { useConfigStore } from "@contexts/config";
+import { useTextStore } from "@contexts/text";
 import { audioQuery, config, metas, preset } from "../../test/fixtures";
 
 const secondSpeaker: CharacterMeta = {

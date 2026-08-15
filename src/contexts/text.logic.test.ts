@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { clampTextBlockIndex, createTextBlock } from "./text";
+import { clampTextBlockIndex, createTextBlock } from "@contexts/text";
 
 describe("text-block helpers", () => {
   it.each([

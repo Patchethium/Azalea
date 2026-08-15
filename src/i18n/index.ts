@@ -1,4 +1,4 @@
-import { Locale } from "@binding";
+import { Locale } from "$binding";
 import * as i18n from "@solid-primitives/i18n";
 import _ from "lodash";
 import * as en_dict from "./en.json";

@@ -1,0 +1,13 @@
+export const DEFAULT_LOCALE = "En";
+export const DEFAULT_THEME_MODE = "System";
+export const DEFAULT_PRIMARY_COLOR = "#3b82f6";
+export const PRIMARY_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
+export const DEFAULT_BOTTOM_SCALE = 360;
+export const DEFAULT_BOTTOM_RATIO = 0.3;
+export const DEFAULT_SIDEBAR_WIDTH = 200;
+export const MIN_SIDEBAR_WIDTH = 175;
+export const MIN_EDITOR_WIDTH = 400;
+export const DEFAULT_SYNTHESIS_DELAY_MS = 600;
+export const MAX_SYNTHESIS_DELAY_MS = 10_000;
+export const DEFAULT_SPECTROGRAM_PREVIEW = true;
+export const PRESET_PANEL_COLLAPSE_THRESHOLD = 0.2;

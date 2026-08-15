@@ -1,4 +1,4 @@
-import { commands, events } from "@binding";
+import { commands, events } from "$binding";
 import { AutogrowInput } from "@components/textBlock/AutogrowInput";
 import { renderBlock } from "@components/textBlock/testUtils";
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";

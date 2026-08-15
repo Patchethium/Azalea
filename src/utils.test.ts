@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { audioQuery, preset } from "./test/fixtures";
-import { getModifiedQuery, useSideEffect } from "./utils";
+import { getModifiedQuery, useSideEffect } from "$utils";
 
 describe("getModifiedQuery", () => {
   it("applies every preset parameter without mutating the source query", () => {

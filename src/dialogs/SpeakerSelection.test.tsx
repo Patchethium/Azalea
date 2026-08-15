@@ -1,13 +1,13 @@
-import { type CharacterMeta, commands, type SpeakerIconResult } from "@binding";
+import { type CharacterMeta, commands, type SpeakerIconResult } from "$binding";
 import { SpeakerSelectionDialog } from "@dialogs/SpeakerSelection";
 import { MultiProvider } from "@solid-primitives/context";
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { createSignal, Show } from "solid-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ConfigProvider } from "../contexts/config";
-import { i18nProvider } from "../contexts/i18n";
-import { MetaProvider, useMetaStore } from "../contexts/meta";
-import { UIProvider } from "../contexts/ui";
+import { ConfigProvider } from "@contexts/config";
+import { i18nProvider } from "@contexts/i18n";
+import { MetaProvider, useMetaStore } from "@contexts/meta";
+import { UIProvider } from "@contexts/ui";
 
 const speakers: CharacterMeta[] = [
   {

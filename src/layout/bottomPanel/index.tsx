@@ -4,9 +4,9 @@ import { PhonemePanel } from "@layout/bottomPanel/PhonemePanel";
 import { TuningPanel } from "@layout/bottomPanel/tuning/Panel";
 import type { WaveformSynthesisNotice } from "@layout/bottomPanel/types";
 import { createSignal, Show } from "solid-js";
-import { usei18n } from "../../contexts/i18n";
-import { useTextStore } from "../../contexts/text";
-import { type BottomPanelType, useUIStore } from "../../contexts/ui";
+import { usei18n } from "@contexts/i18n";
+import { useTextStore } from "@contexts/text";
+import { type BottomPanelType, useUIStore } from "@contexts/ui";
 
 function BottomPanel() {
   const { t1 } = usei18n()!;
