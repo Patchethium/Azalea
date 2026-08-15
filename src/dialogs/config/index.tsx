@@ -99,7 +99,7 @@ export function ConfigPage() {
                 aria-label={t1("config.background_buffering")}
                 class="outline-2px"
               />
-              <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5)">
+              <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
                 <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
               </Switch.Control>
             </Switch>
@@ -119,7 +119,7 @@ export function ConfigPage() {
                 aria-label={t1("config.spectrogram_preview")}
                 class="outline-2px"
               />
-              <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5)">
+              <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
                 <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
               </Switch.Control>
             </Switch>
