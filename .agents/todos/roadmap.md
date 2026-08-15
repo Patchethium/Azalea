@@ -67,10 +67,10 @@ Tier meanings:
       through events.
 - [x] Add per-block cancellation and reliable cache-eviction notification.
 
-### Versioned project compatibility
+### Project format
 
 - [x] Add a schema version to `.azp` files.
-- [x] Add validation and migrations for older project versions.
+- [x] Validate project files and reject unsupported schema versions.
 - [x] Give blocks stable IDs instead of relying only on array positions.
 - [x] Store speaker/style identity fallbacks for projects opened with a
       different model set.

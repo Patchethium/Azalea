@@ -6,36 +6,32 @@ Azalea is a Tauri 2 desktop application. The SolidJS/TypeScript frontend lives i
 
 The Rust backend is under `src-tauri/`. Tauri commands are grouped in `src-tauri/src/commands/`, configuration handling in `config/`, and audio code in `audio/`. Rust integration tests and fixtures live in `src-tauri/tests/`. Application icons are in `src-tauri/icons/`; project artwork is in `icon/`. Treat `src/binding.ts` as generated bindings and avoid hand-editing it.
 
-## Project File Compatibility
+## Project Files
 
 `.azp` files are versioned JSON documents. The disk-only wrapper and
 `CURRENT_PROJECT_SCHEMA_VERSION` live in
 `src-tauri/src/commands/project.rs`; keep the schema marker at this
 serialization boundary rather than adding it to the frontend `Project` model
 unless the UI needs it as application state. Current saves must always include
-the current schema version. Continue treating files without `schema_version`
-as legacy version `0`, and reject files newer than the supported version with a
-clear error.
+the current schema version. Azalea is unreleased, so only the current schema is
+supported; reject unversioned files and files with any other schema version.
 
 Schema version `1` persists stable text-block IDs plus preset `speaker_uuid` and
 `style_name` fallbacks. Preserve IDs when loading or moving existing blocks,
-and generate a new ID only when creating a new block or migrating a legacy
-block. Resolve preset fallbacks against the current metadata before using a
+and generate a new ID only when creating a new block. Resolve preset fallbacks
+against the current metadata before using a
 numeric style ID; an unavailable stored identity must not silently select a
 different speaker that reused the same numeric ID. Omit pristine generated
 `AudioQuery` values from the disk DTO so they regenerate after loading, but
 preserve manually edited queries as `query_override`; accent, phoneme, pitch,
 and duration edits must set `query_is_modified`.
 
-Schema version `1` is not released yet; evolve it in place until the first
-release containing versioned project files. After that release, whenever the
-persisted project shape changes, increment `CURRENT_PROJECT_SCHEMA_VERSION`,
-add explicit migrations for supported older versions before accepting the new
-format, and update the compatibility notes in `README.md`. Add Rust tests for
-the current-version round trip, every migration path, unversioned legacy files,
-malformed files, and rejection of unsupported future versions. A
-disk-wrapper-only change does not require regenerating `src/binding.ts`;
-changes to registered command signatures or shared Rust command types do.
+Evolve schema version `1` in place until the first release containing
+versioned project files; do not add compatibility or migrations for unreleased
+formats. Add Rust tests for the current-version round trip, malformed and
+unversioned files, and rejection of unsupported versions. A disk-wrapper-only
+change does not require regenerating `src/binding.ts`; changes to registered
+command signatures or shared Rust command types do.
 
 ## Spectrogram Preview
 

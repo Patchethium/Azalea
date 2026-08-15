@@ -6,21 +6,21 @@ use voicevox_core::AudioQuery;
 const CURRENT_PROJECT_SCHEMA_VERSION: u32 = 1;
 
 #[derive(Serialize)]
-struct ProjectFileV1Ref<'a> {
+struct ProjectFileRef<'a> {
   schema_version: u32,
-  blocks: Vec<ProjectBlockV1Ref<'a>>,
+  blocks: Vec<ProjectBlockRef<'a>>,
   presets: &'a [crate::config::types::Preset],
 }
 
 #[derive(Deserialize)]
-struct ProjectFileV1 {
+struct ProjectFile {
   schema_version: u32,
-  blocks: Vec<ProjectBlockV1>,
+  blocks: Vec<ProjectBlock>,
   presets: Vec<crate::config::types::Preset>,
 }
 
 #[derive(Serialize)]
-struct ProjectBlockV1Ref<'a> {
+struct ProjectBlockRef<'a> {
   id: &'a str,
   text: &'a str,
   #[serde(skip_serializing_if = "Option::is_none")]
@@ -29,25 +29,11 @@ struct ProjectBlockV1Ref<'a> {
 }
 
 #[derive(Deserialize)]
-struct ProjectBlockV1 {
+struct ProjectBlock {
   id: String,
   text: String,
   #[serde(default)]
   query_override: Option<AudioQuery>,
-  preset_id: Option<usize>,
-}
-
-#[derive(Deserialize)]
-struct LegacyProjectFile {
-  blocks: Vec<LegacyProjectBlock>,
-  presets: Vec<crate::config::types::Preset>,
-}
-
-#[derive(Deserialize)]
-struct LegacyProjectBlock {
-  text: String,
-  #[serde(default)]
-  query: Option<AudioQuery>,
   preset_id: Option<usize>,
 }
 
@@ -95,53 +81,6 @@ fn validate_project(project: &Project) -> Result<(), String> {
   Ok(())
 }
 
-fn schema_version(value: &serde_json::Value) -> Result<u32, String> {
-  let Some(version) = value.get("schema_version") else {
-    return Ok(0);
-  };
-  let version = version
-    .as_u64()
-    .ok_or_else(|| "Project schema_version must be a non-negative integer".to_string())?;
-  u32::try_from(version).map_err(|_| "Project schema_version is too large".to_string())
-}
-
-fn migrate_legacy_project(project: LegacyProjectFile) -> Project {
-  Project {
-    blocks: project
-      .blocks
-      .into_iter()
-      .map(|block| {
-        let query_is_modified = block.query.is_some();
-        crate::config::types::TextBlockProps {
-          id: uuid::Uuid::new_v4().to_string(),
-          text: block.text,
-          query: block.query,
-          query_is_modified,
-          preset_id: block.preset_id,
-        }
-      })
-      .collect(),
-    presets: project.presets,
-  }
-}
-
-fn load_current_project(project: ProjectFileV1) -> Project {
-  Project {
-    blocks: project
-      .blocks
-      .into_iter()
-      .map(|block| crate::config::types::TextBlockProps {
-        id: block.id,
-        text: block.text,
-        query_is_modified: block.query_override.is_some(),
-        query: block.query_override,
-        preset_id: block.preset_id,
-      })
-      .collect(),
-    presets: project.presets,
-  }
-}
-
 #[tauri::command]
 #[specta::specta]
 pub async fn save_project(
@@ -150,12 +89,12 @@ pub async fn save_project(
   allow_create: bool,
 ) -> Result<(), String> {
   validate_project(&project)?;
-  let project_json = serde_json::to_string(&ProjectFileV1Ref {
+  let project_json = serde_json::to_string(&ProjectFileRef {
     schema_version: CURRENT_PROJECT_SCHEMA_VERSION,
     blocks: project
       .blocks
       .iter()
-      .map(|block| ProjectBlockV1Ref {
+      .map(|block| ProjectBlockRef {
         id: &block.id,
         text: &block.text,
         query_override: if block.query_is_modified {
@@ -186,27 +125,26 @@ pub async fn save_project(
 #[specta::specta]
 pub async fn load_project(path: String) -> Result<Project, String> {
   let project_json = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
-  let value: serde_json::Value = serde_json::from_str(&project_json).map_err(|e| e.to_string())?;
-  let version = schema_version(&value)?;
-  if version > CURRENT_PROJECT_SCHEMA_VERSION {
+  let project_file: ProjectFile = serde_json::from_str(&project_json).map_err(|e| e.to_string())?;
+  if project_file.schema_version != CURRENT_PROJECT_SCHEMA_VERSION {
     return Err(format!(
-      "Project schema version {} is newer than the supported version {}",
-      version, CURRENT_PROJECT_SCHEMA_VERSION
+      "Unsupported project schema version {}",
+      project_file.schema_version
     ));
   }
-  let project = match version {
-    0 => {
-      let legacy: LegacyProjectFile = serde_json::from_value(value).map_err(|e| e.to_string())?;
-      migrate_legacy_project(legacy)
-    }
-    CURRENT_PROJECT_SCHEMA_VERSION => {
-      let current: ProjectFileV1 = serde_json::from_value(value).map_err(|e| e.to_string())?;
-      if current.schema_version != CURRENT_PROJECT_SCHEMA_VERSION {
-        return Err("Project schema version changed while loading".to_string());
-      }
-      load_current_project(current)
-    }
-    _ => return Err(format!("Unsupported project schema version {version}")),
+  let project = Project {
+    blocks: project_file
+      .blocks
+      .into_iter()
+      .map(|block| crate::config::types::TextBlockProps {
+        id: block.id,
+        text: block.text,
+        query_is_modified: block.query_override.is_some(),
+        query: block.query_override,
+        preset_id: block.preset_id,
+      })
+      .collect(),
+    presets: project_file.presets,
   };
   validate_project(&project)?;
   Ok(project)
@@ -338,7 +276,7 @@ mod tests {
   }
 
   #[test]
-  fn load_reports_missing_and_malformed_projects() {
+  fn load_rejects_missing_malformed_and_unversioned_projects() {
     tauri::async_runtime::block_on(async {
       let directory = tempfile::tempdir().unwrap();
       let missing = directory.path().join("missing.azp");
@@ -353,6 +291,11 @@ mod tests {
         .is_err());
 
       for (name, contents) in [
+        ("unversioned.azp", r#"{"blocks":[],"presets":[]}"#),
+        (
+          "zero-version.azp",
+          r#"{"schema_version":0,"blocks":[],"presets":[]}"#,
+        ),
         (
           "string-version.azp",
           r#"{"schema_version":"1","blocks":[],"presets":[]}"#,
@@ -383,51 +326,6 @@ mod tests {
   }
 
   #[test]
-  fn load_migrates_unversioned_projects_with_stable_ids_and_query_overrides() {
-    tauri::async_runtime::block_on(async {
-      let directory = tempfile::tempdir().unwrap();
-      let legacy = directory.path().join("legacy.azp");
-      let legacy_json = serde_json::json!({
-        "blocks": [
-          {"text": "edited", "query": sample_query(), "preset_id": null},
-          {"text": "derived", "query": null, "preset_id": null}
-        ],
-        "presets": []
-      });
-      std::fs::write(&legacy, serde_json::to_string(&legacy_json).unwrap()).unwrap();
-      let loaded = load_project(legacy.to_string_lossy().into_owned())
-        .await
-        .unwrap();
-      assert!(uuid::Uuid::parse_str(&loaded.blocks[0].id).is_ok());
-      assert!(uuid::Uuid::parse_str(&loaded.blocks[1].id).is_ok());
-      assert_ne!(loaded.blocks[0].id, loaded.blocks[1].id);
-      assert_eq!(loaded.blocks[0].text, "edited");
-      assert!(loaded.blocks[0].query.is_some());
-      assert!(loaded.blocks[0].query_is_modified);
-      assert!(loaded.blocks[1].query.is_none());
-      assert!(!loaded.blocks[1].query_is_modified);
-      assert!(loaded.presets.is_empty());
-
-      let migrated = directory.path().join("migrated.azp");
-      let migrated_ids: Vec<_> = loaded.blocks.iter().map(|block| block.id.clone()).collect();
-      save_project(loaded, migrated.to_string_lossy().into_owned(), true)
-        .await
-        .unwrap();
-      let reloaded = load_project(migrated.to_string_lossy().into_owned())
-        .await
-        .unwrap();
-      assert_eq!(
-        reloaded
-          .blocks
-          .iter()
-          .map(|block| block.id.clone())
-          .collect::<Vec<_>>(),
-        migrated_ids
-      );
-    });
-  }
-
-  #[test]
   fn save_omits_regenerable_queries() {
     tauri::async_runtime::block_on(async {
       let directory = tempfile::tempdir().unwrap();
@@ -450,7 +348,7 @@ mod tests {
   }
 
   #[test]
-  fn load_rejects_newer_schemas_and_invalid_current_projects() {
+  fn load_rejects_unsupported_schemas_and_invalid_current_projects() {
     tauri::async_runtime::block_on(async {
       let directory = tempfile::tempdir().unwrap();
       let newer = directory.path().join("newer.azp");
@@ -465,8 +363,8 @@ mod tests {
       let error = load_project(newer.to_string_lossy().into_owned())
         .await
         .err()
-        .expect("newer project schemas should be rejected");
-      assert!(error.contains("newer than the supported version"));
+        .expect("unsupported project schemas should be rejected");
+      assert!(error.contains("Unsupported project schema version"));
 
       let duplicate_ids = directory.path().join("duplicates.azp");
       std::fs::write(
