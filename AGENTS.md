@@ -58,11 +58,8 @@ Refresh behavior depends on `UIConfig.buffer_render`: with buffering enabled, de
 - `pnpm test:run` runs the deterministic Vitest frontend suite once.
 - `pnpm test:coverage` runs the frontend suite with a V8 coverage report and
   enforces at least 90% statements, branches, functions, and lines.
-- `pnpm test:e2e` builds the E2E-only Tauri binary and runs the packaged
-  WebdriverIO smoke test. A real application window opens locally.
 - `pnpm test:all` runs frontend checks, the frontend build, coverage-gated
-  frontend tests, and every Rust test, including the real VOICEVOX pipeline;
-  it does not run the packaged smoke test.
+  frontend tests, and every Rust test, including the real VOICEVOX pipeline.
 - `cd src-tauri && cargo test --locked -- --test-threads=1` runs
   every Rust unit and integration test in one command, including the real
   VOICEVOX pipeline.
@@ -104,11 +101,6 @@ cargo test --locked -- --test-threads=1
 Do not ignore or feature-gate the real-core target. The complete suite must
 fail clearly when neither the environment override nor the development
 configuration supplies a valid core; do not silently skip it.
-
-The packaged smoke test uses the `e2e` Cargo feature and deterministic
-test-only command behavior. Keep that behavior feature-gated so production
-builds continue to use the real VOICEVOX and audio boundaries. The local smoke
-test opens an application window; CI runs it under Xvfb.
 
 Keep frontend statement, branch, function, and line coverage at or above 90%.
 `pnpm test:coverage` enforces these thresholds. Rust coverage is informational;

@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::{Notify, OnceCell};
 use voicevox_core::{AudioQuery, StyleId};
 
-#[cfg_attr(feature = "e2e", allow(dead_code))]
 const SYNTHESIS_QUEUE_CAPACITY: usize = 256;
 
 #[derive(Clone, Debug, Deserialize, Serialize, specta::Type)]
@@ -48,7 +47,6 @@ pub(crate) struct SynthesisJobIdentity {
 }
 
 impl SynthesisJobIdentity {
-  #[cfg_attr(feature = "e2e", allow(dead_code))]
   fn has_same_payload(&self, other: &Self) -> bool {
     self.query_key == other.query_key && self.speaker_id == other.speaker_id
   }
@@ -88,7 +86,6 @@ struct SynthesisQueueState {
   pending: VecDeque<SynthesisJob>,
   running: Option<SynthesisJobIdentity>,
   latest_by_block: HashMap<String, SynthesisJobIdentity>,
-  #[cfg_attr(feature = "e2e", allow(dead_code))]
   latest_generation_by_block: HashMap<String, u64>,
 }
 
@@ -107,7 +104,6 @@ impl Default for SynthesisQueue {
 }
 
 impl SynthesisQueue {
-  #[cfg_attr(feature = "e2e", allow(dead_code))]
   pub fn enqueue(&self, job: SynthesisJob) -> Vec<SynthesisJobEvent> {
     let mut state = self.state.lock().unwrap();
     let mut events = Vec::new();

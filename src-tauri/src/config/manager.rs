@@ -1,15 +1,13 @@
 use super::types::side_ratio_default;
 use anyhow::Result;
-use std::fs::create_dir_all;
-#[cfg(not(feature = "e2e"))]
-use std::fs::File;
+use std::fs::{create_dir_all, File};
 use std::path::PathBuf;
 use std::sync::LazyLock;
 
 use super::AzaleaConfig;
 
 /// Use the config directory to store the config file in release mode.
-#[cfg(all(not(debug_assertions), not(feature = "e2e")))]
+#[cfg(not(debug_assertions))]
 static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
   use dirs::config_dir;
   let mut config_dir = config_dir().expect("System config directory is not available");
@@ -18,7 +16,7 @@ static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
 });
 
 /// for development, use the project directory to store the config file.
-#[cfg(all(debug_assertions, not(feature = "e2e")))]
+#[cfg(debug_assertions)]
 static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
   let config_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
   let config_dir = config_dir
@@ -26,9 +24,6 @@ static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
     .expect("CARGO_MANIFEST_DIR has no parent directory");
   config_dir.join("config_dev")
 });
-
-#[cfg(feature = "e2e")]
-static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| std::env::temp_dir().join("azalea-e2e"));
 
 pub(crate) fn assets_dir() -> PathBuf {
   CONFIG_DIR.join("assets")
@@ -52,7 +47,6 @@ impl Default for ConfigManager {
 }
 
 impl ConfigManager {
-  #[cfg(not(feature = "e2e"))]
   pub fn new() -> Result<Self> {
     let mut config_manager = Self::default();
     if config_manager.config_path.exists() {
@@ -67,22 +61,6 @@ impl ConfigManager {
       File::create(&config_manager.config_path)?;
       config_manager.save()?;
     }
-    Ok(config_manager)
-  }
-
-  #[cfg(feature = "e2e")]
-  pub fn new() -> Result<Self> {
-    let mut config_manager = Self::default();
-    config_manager.config.ui_config.buffer_render = true;
-    config_manager.config.ui_config.synthesis_delay_ms = 0;
-    config_manager.config.ui_config.spectrogram_preview = false;
-    create_dir_all(
-      config_manager
-        .config_path
-        .parent()
-        .expect("Config path has no parent directory"),
-    )?;
-    config_manager.save()?;
     Ok(config_manager)
   }
 

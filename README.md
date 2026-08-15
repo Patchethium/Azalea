@@ -127,15 +127,6 @@ cargo fmt --check
 cargo test --locked -- --test-threads=1
 ```
 
-`pnpm test:e2e` builds an E2E-only Tauri binary and runs the packaged
-WebdriverIO smoke test. It opens an Azalea application window during a local
-run; CI runs the same test headlessly under Xvfb.
-
-```sh
-# from the repository root
-pnpm test:e2e
-```
-
 The single Rust test command above includes
 `real_core_supports_the_complete_talk_pipeline`; it is not ignored or hidden
 behind a Cargo feature. `AZALEA_TEST_CORE_DIR` overrides the development

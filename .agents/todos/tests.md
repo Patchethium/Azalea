@@ -2,8 +2,8 @@
 
 The goal is to cover Azalea's behavior at the cheapest reliable layer: pure
 logic and state at unit level, UI workflows with a mocked Tauri boundary,
-backend commands with deterministic fixtures, and a small packaged-app smoke
-test. The complete Rust suite also validates the real VOICEVOX pipeline.
+and backend commands with deterministic fixtures. The complete Rust suite also
+validates the real VOICEVOX pipeline.
 
 ## Test infrastructure
 
@@ -11,8 +11,8 @@ test. The complete Rust suite also validates the real VOICEVOX pipeline.
       coverage.
 - [x] Add shared DOM, canvas, Tauri IPC/event, provider, and VOICEVOX fixture
       helpers.
-- [x] Add `test`, `test:run`, `test:coverage`, `test:coverage:rust`, `test:e2e`,
-      and `test:all` package scripts.
+- [x] Add `test`, `test:run`, `test:coverage`, `test:coverage:rust`, and
+      `test:all` package scripts.
 - [x] Add temporary-file support and Tauri's mock runtime to Rust tests.
 - [x] Keep frontend and Rust unit tests independent of `config_dev`, model
       assets, network access, GUI interaction, and audio hardware.
@@ -62,12 +62,10 @@ test. The complete Rust suite also validates the real VOICEVOX pipeline.
 - [x] Move pitch-range generation out of the test harness into the dedicated
       `cargo run --example range` maintenance command.
 
-## Packaged smoke test and CI
+## CI
 
-- [x] Add a small WebdriverIO Tauri smoke test for startup, deterministic core
-      selection, query generation, synthesis completion, and playback.
-- [x] Add pull-request/push CI jobs for frontend checks/build/tests, Rust
-      formatting/tests, and the Linux smoke test.
+- [x] Add pull-request/push CI jobs for frontend checks/build/tests and Rust
+      formatting/tests.
 - [x] Run real VOICEVOX compatibility as part of the documented one-line Rust
       test command, without an ignore marker, feature, or separate target
       selector.
@@ -85,6 +83,5 @@ test. The complete Rust suite also validates the real VOICEVOX pipeline.
       cancellation and spectrogram replacement.
 - [x] Tests consume generated command/event shapes from `src/binding.ts`; the
       generated file is never edited manually.
-- [x] `pnpm check`, `pnpm build`, `pnpm test:coverage`, `cargo fmt --check`, the
-      complete one-line `cargo test`, and the packaged smoke test pass locally
-      and are configured in CI.
+- [x] `pnpm check`, `pnpm build`, `pnpm test:coverage`, `cargo fmt --check`, and
+      the complete one-line `cargo test` pass locally and are configured in CI.

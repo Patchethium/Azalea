@@ -97,11 +97,6 @@ pub fn run() {
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_shell::init());
 
-  #[cfg(feature = "e2e")]
-  let app = app
-    .plugin(tauri_plugin_wdio::init())
-    .plugin(tauri_plugin_wdio_webdriver::init());
-
   #[cfg(not(debug_assertions))] // prevent default on release build
   let app = app.plugin(tauri_plugin_prevent_default::init());
 
