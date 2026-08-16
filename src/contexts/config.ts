@@ -4,7 +4,11 @@ import { AzaleaConfig, commands, StyleId, ThemeMode } from "$binding";
 import { createContextProvider } from "@solid-primitives/context";
 import { createEffect, createResource, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
-import { DEFAULT_SPECTROGRAM_PREVIEW, DEFAULT_THEME_MODE } from "$constants";
+import {
+  DEFAULT_CUSTOM_TITLEBAR,
+  DEFAULT_SPECTROGRAM_PREVIEW,
+  DEFAULT_THEME_MODE,
+} from "$constants";
 import { useMetaStore } from "@contexts/meta";
 import { useUIStore } from "@contexts/ui";
 
@@ -26,6 +30,11 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     config.ui_config.spectrogram_preview ?? DEFAULT_SPECTROGRAM_PREVIEW;
   const setSpectrogramPreviewEnabled = (enabled: boolean) => {
     setConfig("ui_config", "spectrogram_preview", enabled);
+  };
+  const customTitlebarEnabled = () =>
+    config.ui_config.custom_titlebar ?? DEFAULT_CUSTOM_TITLEBAR;
+  const setCustomTitlebarEnabled = (enabled: boolean) => {
+    setConfig("ui_config", "custom_titlebar", enabled);
   };
   const themeMode = (): ThemeMode =>
     config.ui_config.theme_mode ?? DEFAULT_THEME_MODE;
@@ -98,6 +107,8 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     setRange,
     spectrogramPreviewEnabled,
     setSpectrogramPreviewEnabled,
+    customTitlebarEnabled,
+    setCustomTitlebarEnabled,
     themeMode,
     setThemeMode,
   };

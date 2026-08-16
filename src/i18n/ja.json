@@ -87,6 +87,7 @@
     "theme_system": "システム",
     "theme_light": "ライト",
     "theme_dark": "ダーク",
+    "custom_titlebar": "カスタムタイトルバー",
     "primary_color": "メインカラー",
     "hue_saturation": "色相と彩度",
     "normalize": "標準化",
@@ -103,6 +104,11 @@
     "spectrogram_preview": "スペクトログラムプレビュー",
     "truncation_len": "最大ファイル名の長さ",
     "no_truncation": "無制限"
+  },
+  "titlebar": {
+    "minimize": "最小化",
+    "maximize": "最大化または元に戻す",
+    "close": "閉じる"
   },
   "preset": {
     "title": "プリセット",

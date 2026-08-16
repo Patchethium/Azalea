@@ -59,6 +59,8 @@ pub struct UIConfig {
   pub locale: Locale,
   #[serde(default)]
   pub theme_mode: ThemeMode,
+  #[serde(default = "custom_titlebar_default")]
+  pub custom_titlebar: bool,
   #[serde(default = "primary_color_default")]
   pub primary_color: String,
   #[serde(default = "bottom_scale_default")]
@@ -88,6 +90,7 @@ impl Default for UIConfig {
     Self {
       locale: Default::default(),
       theme_mode: Default::default(),
+      custom_titlebar: custom_titlebar_default(),
       primary_color: primary_color_default(),
       bottom_scale: bottom_scale_default(),
       auto_save: Default::default(),
@@ -101,6 +104,10 @@ impl Default for UIConfig {
       shortcuts: Default::default(),
     }
   }
+}
+
+fn custom_titlebar_default() -> bool {
+  true
 }
 
 fn primary_color_default() -> String {
@@ -263,6 +270,7 @@ mod tests {
   fn missing_settings_use_defaults() {
     let config: UIConfig = toml::from_str("").unwrap();
     assert_eq!(config.synthesis_delay_ms, 600);
+    assert!(config.custom_titlebar);
     assert_eq!(
       config.shortcuts.toggle_playback,
       KeyboardShortcut::new("Space", false, false)
@@ -312,6 +320,7 @@ mod tests {
     assert_eq!(config.system_presets.len(), 1);
     assert_eq!(config.system_presets[0].name, "Default");
     assert!(config.ui_config.spectrogram_preview);
+    assert!(config.ui_config.custom_titlebar);
     assert_eq!(config.ui_config.primary_color, "#3b82f6");
     assert_eq!(config.ui_config.bottom_ratio, 0.3);
     assert_eq!(config.ui_config.side_width, 200);

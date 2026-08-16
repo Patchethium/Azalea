@@ -79,6 +79,7 @@
     "theme_system": "System",
     "theme_light": "Light",
     "theme_dark": "Dark",
+    "custom_titlebar": "Custom title bar",
     "primary_color": "Primary color",
     "hue_saturation": "Hue and saturation",
     "normalize": "Normalize",
@@ -95,6 +96,11 @@
     "spectrogram_preview": "Spectrogram Preview",
     "truncation_len": "File name truncation length",
     "no_truncation": "No truncation"
+  },
+  "titlebar": {
+    "minimize": "Minimize",
+    "maximize": "Maximize or restore",
+    "close": "Close"
   },
   "menu": {
     "project_actions": "Project actions",

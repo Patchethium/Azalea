@@ -79,6 +79,7 @@
     "theme_system": "系统",
     "theme_light": "浅色",
     "theme_dark": "深色",
+    "custom_titlebar": "自定义标题栏",
     "primary_color": "主色调",
     "hue_saturation": "色相和饱和度",
     "normalize": "标准化",
@@ -95,6 +96,11 @@
     "spectrogram_preview": "频谱图预览",
     "truncation_len": "文件名截断长度",
     "no_truncation": "不截断"
+  },
+  "titlebar": {
+    "minimize": "最小化",
+    "maximize": "最大化或还原",
+    "close": "关闭"
   },
   "menu": {
     "project_actions": "项目操作",

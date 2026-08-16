@@ -1,5 +1,6 @@
 export const DEFAULT_LOCALE = "En";
 export const DEFAULT_THEME_MODE = "System";
+export const DEFAULT_CUSTOM_TITLEBAR = true;
 export const DEFAULT_PRIMARY_COLOR = "#3b82f6";
 export const PRIMARY_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
 export const DEFAULT_BOTTOM_SCALE = 360;

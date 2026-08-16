@@ -23,3 +23,7 @@ html {
   --un-ring-width: 0px !important;
   outline: none !important;
 }
+
+:global(*[data-tauri-drag-region]) {
+  app-region: drag;
+}

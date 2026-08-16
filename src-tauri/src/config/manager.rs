@@ -111,6 +111,7 @@ mod tests {
     let mut source = ConfigManager::default();
     source.config.ui_config.locale = Locale::Ja;
     source.config.ui_config.theme_mode = ThemeMode::Dark;
+    source.config.ui_config.custom_titlebar = false;
     source.config.ui_config.primary_color = "#123456".into();
     source.config.ui_config.spectrogram_preview = false;
 
@@ -123,6 +124,7 @@ mod tests {
       loaded.config.ui_config.theme_mode,
       ThemeMode::Dark
     ));
+    assert!(!loaded.config.ui_config.custom_titlebar);
     assert_eq!(loaded.config.ui_config.primary_color, "#123456");
     assert!(!loaded.config.ui_config.spectrogram_preview);
   }

@@ -8,6 +8,7 @@ import type {
 import {
   DEFAULT_BOTTOM_RATIO,
   DEFAULT_BOTTOM_SCALE,
+  DEFAULT_CUSTOM_TITLEBAR,
   DEFAULT_LOCALE,
   DEFAULT_PRIMARY_COLOR,
   DEFAULT_SIDEBAR_WIDTH,
@@ -71,6 +72,7 @@ export const config = (
   ui_config: {
     locale: DEFAULT_LOCALE,
     theme_mode: DEFAULT_THEME_MODE,
+    custom_titlebar: DEFAULT_CUSTOM_TITLEBAR,
     primary_color: DEFAULT_PRIMARY_COLOR,
     bottom_scale: DEFAULT_BOTTOM_SCALE,
     auto_save: false,

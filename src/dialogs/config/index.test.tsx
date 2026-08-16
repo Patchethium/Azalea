@@ -120,6 +120,13 @@ describe("ConfigPage", () => {
     await user.click(await screen.findByText("Dark"));
     expect(appConfig.themeMode()).toBe("Dark");
 
+    const customTitlebar = screen.getByRole("switch", {
+      name: "Custom title bar",
+    });
+    expect(customTitlebar).toBeChecked();
+    await user.click(customTitlebar);
+    expect(appConfig.customTitlebarEnabled()).toBe(false);
+
     await user.click(screen.getByRole("button", { name: "Primary color" }));
     await user.click(await screen.findByText("Normalize"));
     expect(appConfig.config.ui_config.primary_color).toMatch(/^#[0-9a-f]{6}$/);

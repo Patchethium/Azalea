@@ -13,6 +13,7 @@
     "windows": [
       {
         "title": "Azalea",
+        "decorations": false,
         "width": 1000,
         "height": 800,
         "minHeight": 600,

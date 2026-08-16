@@ -39,6 +39,41 @@ const renderApp = () => {
 };
 
 describe("App initialization", () => {
+  it("restores the saved system title bar preference", async () => {
+    const calls: Array<{ command: string; payload: unknown }> = [];
+    mockIPC(
+      (command, payload) => {
+        calls.push({ command, payload });
+        if (command.includes("theme")) return "light";
+        return null;
+      },
+      { shouldMockEvents: true },
+    );
+    mockWindows("main");
+
+    renderApp();
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+    await events.initializationEvent.emit({
+      config: config({ custom_titlebar: false }),
+      core_initialized: false,
+      metas: null,
+      range: [],
+      error: null,
+    });
+
+    await waitFor(() =>
+      expect(calls).toContainEqual({
+        command: "plugin:window|set_decorations",
+        payload: { label: "main", value: true },
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: "Close" }),
+      ).not.toBeInTheDocument(),
+    );
+  });
+
   it("leaves loading for core selection and applies validated appearance settings", async () => {
     const calls: string[] = [];
     mockIPC(
