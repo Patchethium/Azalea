@@ -12,6 +12,6 @@ pub fn test_core_config() -> CoreConfig {
   ConfigManager::new()
     .expect("failed to load config_dev/config.toml")
     .config
-    .core_config
+    .core
     .expect("configure a development core in config_dev/config.toml or set AZALEA_TEST_CORE_DIR")
 }

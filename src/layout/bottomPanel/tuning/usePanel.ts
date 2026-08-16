@@ -49,9 +49,9 @@ export function useTuningPanel(
     isLatestSpectrogramRequest,
   } = useSpectrogramStore()!;
 
-  const scale = () => config.ui_config?.bottom_scale ?? DEFAULT_BOTTOM_SCALE;
+  const scale = () => config.ui?.bottom_scale ?? DEFAULT_BOTTOM_SCALE;
   const setScale = (value: number) => {
-    setConfig("ui_config", "bottom_scale", Math.floor(value));
+    setConfig("ui", "bottom_scale", Math.floor(value));
   };
   const minScale = 100;
   const maxScale = 1500;
@@ -158,7 +158,7 @@ export function useTuningPanel(
   ) => {
     clearScheduledSpectrogramRefresh();
     const configuredDelay =
-      config.ui_config.synthesis_delay_ms ?? DEFAULT_SYNTHESIS_DELAY_MS;
+      config.ui.synthesis_delay_ms ?? DEFAULT_SYNTHESIS_DELAY_MS;
     const delay = Math.min(
       Math.max(Math.trunc(configuredDelay), 0),
       MAX_SYNTHESIS_DELAY_MS,
@@ -180,7 +180,7 @@ export function useTuningPanel(
     const block = currentText();
     const query = currentModifiedQuery();
     const preset = currentPreset();
-    const bufferRender = config.ui_config.buffer_render;
+    const bufferRender = config.ui.buffer_render;
     const previewEnabled = spectrogramPreviewEnabled();
     clearScheduledSpectrogramRefresh();
     if (!previewEnabled) {
@@ -212,7 +212,7 @@ export function useTuningPanel(
     on(waveformSynthesisNotice, (notice) => {
       if (
         notice === null ||
-        config.ui_config.buffer_render ||
+        config.ui.buffer_render ||
         !spectrogramPreviewEnabled()
       ) {
         return;

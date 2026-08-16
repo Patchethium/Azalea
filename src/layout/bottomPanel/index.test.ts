@@ -1373,7 +1373,7 @@ describe("BottomPanel playback", () => {
       spectrogram_preview: false,
     });
     await screen.findByText("コ");
-    getConfigStore().setConfig("ui_config", "bottom_scale", undefined);
+    getConfigStore().setConfig("ui", "bottom_scale", undefined);
     getTextStore().setTextStore(
       0,
       "query",
@@ -1441,7 +1441,7 @@ describe("BottomPanel playback", () => {
       expect.any(Error),
     );
 
-    getConfigStore().setConfig("ui_config", "buffer_render", false);
+    getConfigStore().setConfig("ui", "buffer_render", false);
     setNotice({
       blockId: "first-block",
       audioQuery: audioQuery(),

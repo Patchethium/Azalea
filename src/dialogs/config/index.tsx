@@ -85,19 +85,15 @@ export function ConfigPage() {
             <NumberField
               minValue={0}
               step={1}
-              value={config.ui_config.name_truncation_len}
+              value={config.ui.name_truncation_len}
               onChange={(v) =>
-                setConfig(
-                  "ui_config",
-                  "name_truncation_len",
-                  Number.parseInt(v, 10),
-                )
+                setConfig("ui", "name_truncation_len", Number.parseInt(v, 10))
               }
               changeOnWheel={true}
               format={false}
               class="flex flex-row items-center justify-center gap-1"
             >
-              <Show when={config.ui_config.name_truncation_len === 0}>
+              <Show when={config.ui.name_truncation_len === 0}>
                 <NumberField.Label class="text-slate-6">
                   {_.capitalize(t1("config.no_truncation"))}
                 </NumberField.Label>
@@ -126,8 +122,8 @@ export function ConfigPage() {
           <ConfigSectionTitle label={t1("config.synthesis")} />
           <ConfigItem label={t1("config.background_buffering")} experimental>
             <Switch
-              checked={config.ui_config.buffer_render}
-              onChange={(v) => setConfig("ui_config", "buffer_render", v)}
+              checked={config.ui.buffer_render}
+              onChange={(v) => setConfig("ui", "buffer_render", v)}
               class="inline-flex items-center select-none cursor-pointer justify-center"
             >
               <Switch.Input
@@ -139,7 +135,7 @@ export function ConfigPage() {
               </Switch.Control>
             </Switch>
           </ConfigItem>
-          <Show when={config.ui_config.buffer_render}>
+          <Show when={config.ui.buffer_render}>
             <ConfigItem label={t1("config.synthesis_delay")} nested>
               <SynthesisDelayField />
             </ConfigItem>
@@ -169,7 +165,7 @@ function SynthesisDelayField() {
   const { config, setConfig } = useConfigStore()!;
   const { t1 } = usei18n()!;
   const delay = () =>
-    config.ui_config.synthesis_delay_ms ?? DEFAULT_SYNTHESIS_DELAY_MS;
+    config.ui.synthesis_delay_ms ?? DEFAULT_SYNTHESIS_DELAY_MS;
   return (
     <NumberField
       minValue={0}
@@ -180,7 +176,7 @@ function SynthesisDelayField() {
         const parsed = Number.parseInt(value, 10);
         if (Number.isFinite(parsed)) {
           setConfig(
-            "ui_config",
+            "ui",
             "synthesis_delay_ms",
             Math.min(Math.max(parsed, 0), MAX_SYNTHESIS_DELAY_MS),
           );

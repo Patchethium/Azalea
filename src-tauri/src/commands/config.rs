@@ -39,7 +39,7 @@ pub async fn initialize(app: tauri::AppHandle) -> InitializationEvent {
     .unwrap()
     .replace(config_manager);
 
-  let error = if let Some(core_config) = config.core_config.clone() {
+  let error = if let Some(core_config) = config.core.clone() {
     super::core::initialize_core(&state, core_config)
       .await
       .err()

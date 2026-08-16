@@ -6,8 +6,8 @@ use voicevox_core::{AudioQuery, StyleId};
 
 #[derive(Default, Clone, Deserialize, Serialize, Type)]
 pub struct AzaleaConfig {
-  pub core_config: Option<CoreConfig>,
-  pub ui_config: UIConfig,
+  pub core: Option<CoreConfig>,
+  pub ui: UIConfig,
   #[serde(default = "presets_default")]
   pub system_presets: Vec<Preset>,
 }
@@ -326,12 +326,12 @@ mod tests {
 
     assert_eq!(config.system_presets.len(), 1);
     assert_eq!(config.system_presets[0].name, "Default");
-    assert!(config.ui_config.spectrogram_preview);
-    assert!(config.ui_config.playback_timeline);
-    assert!(config.ui_config.custom_titlebar);
-    assert_eq!(config.ui_config.primary_color, "#3b82f6");
-    assert_eq!(config.ui_config.bottom_ratio, 0.3);
-    assert_eq!(config.ui_config.side_width, 200);
+    assert!(config.ui.spectrogram_preview);
+    assert!(config.ui.playback_timeline);
+    assert!(config.ui.custom_titlebar);
+    assert_eq!(config.ui.primary_color, "#3b82f6");
+    assert_eq!(config.ui.bottom_ratio, 0.3);
+    assert_eq!(config.ui.side_width, 200);
   }
 
   #[test]

@@ -70,8 +70,7 @@ export function ThemeSelect() {
 export function PrimaryColorPicker() {
   const { config, setConfig } = useConfigStore()!;
   const { t1 } = usei18n()!;
-  const colorHex = () =>
-    config.ui_config.primary_color ?? DEFAULT_PRIMARY_COLOR;
+  const colorHex = () => config.ui.primary_color ?? DEFAULT_PRIMARY_COLOR;
   const color = createMemo(() => {
     const value = colorHex();
     return parseColor(
@@ -79,11 +78,7 @@ export function PrimaryColorPicker() {
     );
   });
   const setPrimaryColor = (value: ReturnType<typeof parseColor>) => {
-    setConfig(
-      "ui_config",
-      "primary_color",
-      value.toString("hex").toLowerCase(),
-    );
+    setConfig("ui", "primary_color", value.toString("hex").toLowerCase());
   };
   const normalizeColor = () => {
     const hslColor = color().toFormat("hsl");
@@ -165,9 +160,9 @@ export function I18NSelect() {
     <Select
       options={possibleLocales}
       class="w-48 h-8"
-      value={config.ui_config?.locale}
+      value={config.ui?.locale}
       onChange={(value) => {
-        if (value !== null) setConfig("ui_config", "locale", value as Locale);
+        if (value !== null) setConfig("ui", "locale", value as Locale);
       }}
       itemComponent={(props) => (
         <Select.Item

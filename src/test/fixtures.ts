@@ -66,11 +66,11 @@ export const preset = (overrides: Partial<Preset> = {}): Preset => ({
 });
 
 export const config = (
-  overrides: Partial<AzaleaConfig["ui_config"]> = {},
+  overrides: Partial<AzaleaConfig["ui"]> = {},
 ): AzaleaConfig => ({
-  core_config: null,
+  core: null,
   system_presets: [preset()],
-  ui_config: {
+  ui: {
     locale: DEFAULT_LOCALE,
     theme_mode: DEFAULT_THEME_MODE,
     custom_titlebar: DEFAULT_CUSTOM_TITLEBAR,

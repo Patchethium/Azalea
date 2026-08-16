@@ -110,7 +110,7 @@ export function TextBlockView(props: {
               </p>
             </Show>
           </div>
-          <Show when={config.ui_config.buffer_render}>
+          <Show when={config.ui.buffer_render}>
             <Tooltip content={props.synthStateText()}>
               <output
                 aria-label={props.synthStateText()}

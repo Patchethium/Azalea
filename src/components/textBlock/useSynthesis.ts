@@ -123,7 +123,7 @@ export function useTextBlockSynthesis(props: {
   ) => {
     clearScheduledSynthesis();
     const configuredDelay = untrack(
-      () => config.ui_config.synthesis_delay_ms ?? DEFAULT_SYNTHESIS_DELAY_MS,
+      () => config.ui.synthesis_delay_ms ?? DEFAULT_SYNTHESIS_DELAY_MS,
     );
     const delay = Math.min(
       Math.max(Math.trunc(configuredDelay), 0),
@@ -167,7 +167,7 @@ export function useTextBlockSynthesis(props: {
   createEffect(() => {
     const query = props.currentModifiedQuery();
     const preset = props.currentPreset();
-    if (!config.ui_config.buffer_render || query === null || preset === null) {
+    if (!config.ui.buffer_render || query === null || preset === null) {
       clearScheduledSynthesis();
       cancelSynthesisRequest(activeSynthesisRequest);
       activeSynthesisRequest = null;

@@ -26,8 +26,8 @@ export function ShortcutReferenceDialog() {
     action: ShortcutAction,
     shortcut: ResolvedKeyboardShortcut,
   ) => {
-    setConfig("ui_config", "shortcuts", {
-      ...config.ui_config.shortcuts,
+    setConfig("ui", "shortcuts", {
+      ...config.ui.shortcuts,
       [action]: shortcut,
     });
   };
@@ -39,9 +39,8 @@ export function ShortcutReferenceDialog() {
     const duplicate = shortcutActions.some(
       (candidate) =>
         candidate !== action &&
-        shortcutSignature(
-          resolveShortcut(config.ui_config.shortcuts, candidate),
-        ) === shortcutSignature(shortcut),
+        shortcutSignature(resolveShortcut(config.ui.shortcuts, candidate)) ===
+          shortcutSignature(shortcut),
     );
     if (duplicate) {
       setConflict(true);
@@ -74,7 +73,7 @@ export function ShortcutReferenceDialog() {
   };
 
   const resetAllShortcuts = () => {
-    setConfig("ui_config", "shortcuts", { ...defaultKeyboardShortcuts });
+    setConfig("ui", "shortcuts", { ...defaultKeyboardShortcuts });
     setRecording(null);
     setConflict(false);
   };
@@ -105,7 +104,7 @@ export function ShortcutReferenceDialog() {
           <For each={shortcutActions}>
             {(action) => {
               const shortcut = () =>
-                resolveShortcut(config.ui_config.shortcuts, action);
+                resolveShortcut(config.ui.shortcuts, action);
               const keys = () => formatShortcut(shortcut(), systemStore.os);
               const isDefault = () =>
                 shortcutSignature(shortcut()) ===

@@ -18,7 +18,9 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
   const { setMetas } = useMetaStore()!;
 
   const [config, setConfig] = createStore<AzaleaConfig>({
-    ui_config: {},
+    core: null,
+    system_presets: [],
+    ui: {},
   } as AzaleaConfig);
 
   type RangeMap = { [key in StyleId]: [number, number] };
@@ -28,24 +30,23 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
   const [configInitialized, setConfigInitialized] = createSignal(false);
 
   const spectrogramPreviewEnabled = () =>
-    config.ui_config.spectrogram_preview ?? DEFAULT_SPECTROGRAM_PREVIEW;
+    config.ui.spectrogram_preview ?? DEFAULT_SPECTROGRAM_PREVIEW;
   const setSpectrogramPreviewEnabled = (enabled: boolean) => {
-    setConfig("ui_config", "spectrogram_preview", enabled);
+    setConfig("ui", "spectrogram_preview", enabled);
   };
   const playbackTimelineEnabled = () =>
-    config.ui_config.playback_timeline ?? DEFAULT_PLAYBACK_TIMELINE;
+    config.ui.playback_timeline ?? DEFAULT_PLAYBACK_TIMELINE;
   const setPlaybackTimelineEnabled = (enabled: boolean) => {
-    setConfig("ui_config", "playback_timeline", enabled);
+    setConfig("ui", "playback_timeline", enabled);
   };
   const customTitlebarEnabled = () =>
-    config.ui_config.custom_titlebar ?? DEFAULT_CUSTOM_TITLEBAR;
+    config.ui.custom_titlebar ?? DEFAULT_CUSTOM_TITLEBAR;
   const setCustomTitlebarEnabled = (enabled: boolean) => {
-    setConfig("ui_config", "custom_titlebar", enabled);
+    setConfig("ui", "custom_titlebar", enabled);
   };
-  const themeMode = (): ThemeMode =>
-    config.ui_config.theme_mode ?? DEFAULT_THEME_MODE;
+  const themeMode = (): ThemeMode => config.ui.theme_mode ?? DEFAULT_THEME_MODE;
   const setThemeMode = (mode: ThemeMode) => {
-    setConfig("ui_config", "theme_mode", mode);
+    setConfig("ui", "theme_mode", mode);
   };
 
   const load_meta = async () => {
@@ -67,7 +68,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
   };
 
   const [coreInitializeResource] = createResource(
-    () => (uiStore.coreInitialized ? undefined : config.core_config),
+    () => (uiStore.coreInitialized ? undefined : config.core),
     async (cfg) => {
       const res = await commands.initCore(cfg);
       if (res.status === "error") {

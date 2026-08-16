@@ -454,7 +454,7 @@ outputStereo: boolean;
  */
 kana: string | null }
 export type AudioSequenceItem = { audio_query: AudioQuery; speaker_id: StyleId }
-export type AzaleaConfig = { core_config: CoreConfig | null; ui_config: UIConfig; system_presets?: Preset[] }
+export type AzaleaConfig = { core: CoreConfig | null; ui: UIConfig; system_presets?: Preset[] }
 /**
  * <i>キャラクター</i>のメタ情報。
  */

@@ -38,8 +38,7 @@ export function PlaybackTimeline(props: {
     "left" | "right" | null
   >(null);
 
-  const tuningScale = () =>
-    config.ui_config.bottom_scale ?? DEFAULT_BOTTOM_SCALE;
+  const tuningScale = () => config.ui.bottom_scale ?? DEFAULT_BOTTOM_SCALE;
   const phraseWidth = (phrase: PlaybackPhraseAnchor) =>
     uiStore.bottomPanel === "tuning"
       ? `${phrase.duration * tuningScale()}px`

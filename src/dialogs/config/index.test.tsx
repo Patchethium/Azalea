@@ -61,14 +61,14 @@ describe("ConfigPage", () => {
     });
     expect(buffering).not.toBeChecked();
     fireEvent.click(buffering);
-    expect(appConfig.config.ui_config.buffer_render).toBe(true);
+    expect(appConfig.config.ui.buffer_render).toBe(true);
 
     const delay = await screen.findByRole("spinbutton", {
       name: "Synthesis request delay",
     });
     fireEvent.input(delay, { target: { value: "15000" } });
     fireEvent.change(delay, { target: { value: "15000" } });
-    expect(appConfig.config.ui_config.synthesis_delay_ms).toBe(10_000);
+    expect(appConfig.config.ui.synthesis_delay_ms).toBe(10_000);
 
     const preview = screen.getByRole("switch", {
       name: "Spectrogram Preview",
@@ -136,17 +136,17 @@ describe("ConfigPage", () => {
 
     await user.click(screen.getByRole("button", { name: "Primary color" }));
     await user.click(await screen.findByText("Normalize"));
-    expect(appConfig.config.ui_config.primary_color).toMatch(/^#[0-9a-f]{6}$/);
-    expect(appConfig.config.ui_config.primary_color).not.toBe("#808080");
+    expect(appConfig.config.ui.primary_color).toMatch(/^#[0-9a-f]{6}$/);
+    expect(appConfig.config.ui.primary_color).not.toBe("#808080");
 
     const truncation = screen.getAllByRole("spinbutton")[0];
     fireEvent.input(truncation, { target: { value: "12" } });
     fireEvent.change(truncation, { target: { value: "12" } });
-    expect(appConfig.config.ui_config.name_truncation_len).toBe(12);
+    expect(appConfig.config.ui.name_truncation_len).toBe(12);
 
     await user.click(screen.getByRole("button", { name: /Language/ }));
     await user.click(await screen.findByText(/日本語/));
-    expect(appConfig.config.ui_config.locale).toBe("Ja");
+    expect(appConfig.config.ui.locale).toBe("Ja");
   });
 
   it("shows the saved asset size and refreshes it after clearing", async () => {

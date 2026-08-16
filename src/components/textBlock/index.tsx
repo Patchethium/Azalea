@@ -131,7 +131,7 @@ function TextBlock(props: { index: number }) {
     const preset = currentPreset();
     if (preset === null) return;
     let fileName = currentText().text;
-    const truncationLength = config.ui_config.name_truncation_len;
+    const truncationLength = config.ui.name_truncation_len;
     if (truncationLength !== 0 && truncationLength !== undefined) {
       fileName = _.truncate(fileName, {
         length: truncationLength,
@@ -141,7 +141,7 @@ function TextBlock(props: { index: number }) {
             : `+${(fileName.length - truncationLength).toString()}`,
       });
     }
-    const lastSavedDir = config.ui_config.last_exported_dir ?? ".";
+    const lastSavedDir = config.ui.last_exported_dir ?? ".";
     const targetPath = await commands.joinPath(lastSavedDir, fileName);
     let path = await saveDialog({
       title: "Save Audio",
@@ -157,7 +157,7 @@ function TextBlock(props: { index: number }) {
     );
     if (result.status === "ok") {
       const parent = await commands.parentPath(path);
-      setConfig("ui_config", "last_exported_dir", parent);
+      setConfig("ui", "last_exported_dir", parent);
     } else {
       console.error(result.error);
     }

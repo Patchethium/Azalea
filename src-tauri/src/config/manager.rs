@@ -82,8 +82,8 @@ impl ConfigManager {
     self.config = toml::from_str(&config)?;
     // guard out-of-range values
     // TODO: implement it in serde
-    if self.config.ui_config.side_width != 0 && self.config.ui_config.side_width < 175 {
-      self.config.ui_config.side_width = side_width_default();
+    if self.config.ui.side_width != 0 && self.config.ui.side_width < 175 {
+      self.config.ui.side_width = side_width_default();
     }
     Ok(())
   }
@@ -109,26 +109,23 @@ mod tests {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("config.toml");
     let mut source = ConfigManager::default();
-    source.config.ui_config.locale = Locale::Ja;
-    source.config.ui_config.theme_mode = ThemeMode::Dark;
-    source.config.ui_config.custom_titlebar = false;
-    source.config.ui_config.primary_color = "#123456".into();
-    source.config.ui_config.spectrogram_preview = false;
-    source.config.ui_config.playback_timeline = false;
+    source.config.ui.locale = Locale::Ja;
+    source.config.ui.theme_mode = ThemeMode::Dark;
+    source.config.ui.custom_titlebar = false;
+    source.config.ui.primary_color = "#123456".into();
+    source.config.ui.spectrogram_preview = false;
+    source.config.ui.playback_timeline = false;
 
     source.save_as(&path).unwrap();
     let mut loaded = ConfigManager::default();
     loaded.load_as(&path).unwrap();
 
-    assert!(matches!(loaded.config.ui_config.locale, Locale::Ja));
-    assert!(matches!(
-      loaded.config.ui_config.theme_mode,
-      ThemeMode::Dark
-    ));
-    assert!(!loaded.config.ui_config.custom_titlebar);
-    assert_eq!(loaded.config.ui_config.primary_color, "#123456");
-    assert!(!loaded.config.ui_config.spectrogram_preview);
-    assert!(!loaded.config.ui_config.playback_timeline);
+    assert!(matches!(loaded.config.ui.locale, Locale::Ja));
+    assert!(matches!(loaded.config.ui.theme_mode, ThemeMode::Dark));
+    assert!(!loaded.config.ui.custom_titlebar);
+    assert_eq!(loaded.config.ui.primary_color, "#123456");
+    assert!(!loaded.config.ui.spectrogram_preview);
+    assert!(!loaded.config.ui.playback_timeline);
   }
 
   #[test]
@@ -140,13 +137,13 @@ mod tests {
 
     manager.load_as(&path).unwrap();
 
-    assert_eq!(manager.config.ui_config.side_width, 0);
+    assert_eq!(manager.config.ui.side_width, 0);
 
     std::fs::write(&path, "[ui_config]\nside_width = 4\n").unwrap();
 
     manager.load_as(&path).unwrap();
 
-    assert_eq!(manager.config.ui_config.side_width, side_width_default());
+    assert_eq!(manager.config.ui.side_width, side_width_default());
   }
 
   #[test]
@@ -156,10 +153,10 @@ mod tests {
     std::fs::write(&malformed, "{").unwrap();
     let missing = directory.path().join("missing.toml");
     let mut manager = ConfigManager::default();
-    manager.config.ui_config.primary_color = "#abcdef".into();
+    manager.config.ui.primary_color = "#abcdef".into();
 
     assert!(manager.load_as(&malformed).is_err());
-    assert_eq!(manager.config.ui_config.primary_color, "#abcdef");
+    assert_eq!(manager.config.ui.primary_color, "#abcdef");
     assert!(manager.load_as(&missing).is_err());
   }
 }

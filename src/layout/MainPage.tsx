@@ -18,9 +18,7 @@ function MainPage() {
       <Resizable orientation="vertical" class="size-full">
         <Resizable.Panel
           class="h-full flex flex-col overflow-hidden ml0 mb0 mr2 mt1"
-          initialSize={
-            1.0 - (config.ui_config.bottom_ratio ?? DEFAULT_BOTTOM_RATIO)
-          }
+          initialSize={1.0 - (config.ui.bottom_ratio ?? DEFAULT_BOTTOM_RATIO)}
           minSize={0.3}
         >
           <div class="h-full w-full flex flex-col overflow-auto bg-transparent pl-1">
@@ -71,8 +69,8 @@ function MainPage() {
         </Resizable.Handle>
         <Resizable.Panel
           class="min-h-0 overflow-hidden"
-          initialSize={config.ui_config.bottom_ratio ?? DEFAULT_BOTTOM_RATIO}
-          onResize={(s) => setConfig("ui_config", "bottom_ratio", s)}
+          initialSize={config.ui.bottom_ratio ?? DEFAULT_BOTTOM_RATIO}
+          onResize={(s) => setConfig("ui", "bottom_ratio", s)}
           minSize={0.2}
           collapsible
           collapseThreshold={0.05}

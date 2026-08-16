@@ -145,7 +145,7 @@ describe("Sidebar project lifecycle", () => {
     const savesBeforeAutosave = invocations.filter(
       ({ cmd }) => cmd === "save_project",
     ).length;
-    appConfig.setConfig("ui_config", "auto_save", true);
+    appConfig.setConfig("ui", "auto_save", true);
     text.setTextStore(0, "text", "Autosaved edit");
     await waitFor(
       () =>

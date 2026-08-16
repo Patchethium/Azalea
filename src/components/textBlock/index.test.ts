@@ -98,7 +98,7 @@ describe("TextBlock", () => {
     );
     expect(getTextStore().textStore[0].query_is_modified).toBe(false);
 
-    getConfigStore().setConfig("ui_config", "buffer_render", false);
+    getConfigStore().setConfig("ui", "buffer_render", false);
     await waitFor(() =>
       expect(screen.queryByRole("status")).not.toBeInTheDocument(),
     );
@@ -256,7 +256,7 @@ describe("TextBlock", () => {
       screen.getByRole("status", { name: "No Longer Buffered" }),
     ).toBeInTheDocument();
 
-    getConfigStore().setConfig("ui_config", "buffer_render", false);
+    getConfigStore().setConfig("ui", "buffer_render", false);
     await waitFor(() =>
       expect(cancel).toHaveBeenCalledWith(
         request.blockId,
@@ -422,7 +422,7 @@ describe("TextBlock", () => {
       await screen.findByRole("status", { name: "No Query" }),
     ).toBeInTheDocument();
 
-    getConfigStore().setConfig("ui_config", "synthesis_delay_ms", undefined);
+    getConfigStore().setConfig("ui", "synthesis_delay_ms", undefined);
     getTextStore().setTextStore(0, "query", audioQuery({ speedScale: 1.1 }));
     await waitFor(() => expect(synthesize).toHaveBeenCalledTimes(2), {
       timeout: 1_500,
@@ -470,9 +470,7 @@ describe("TextBlock", () => {
       1,
     ]);
     await waitFor(() =>
-      expect(getConfigStore().config.ui_config.last_exported_dir).toBe(
-        "/exports",
-      ),
+      expect(getConfigStore().config.ui.last_exported_dir).toBe("/exports"),
     );
   });
 
@@ -499,13 +497,13 @@ describe("TextBlock", () => {
     });
     await waitFor(() => expect(saveButton).toBeEnabled());
 
-    getConfigStore().setConfig("ui_config", "last_exported_dir", "/custom");
-    getConfigStore().setConfig("ui_config", "name_truncation_len", 4);
+    getConfigStore().setConfig("ui", "last_exported_dir", "/custom");
+    getConfigStore().setConfig("ui", "name_truncation_len", 4);
     fireEvent.click(saveButton);
     await waitFor(() => expect(saveDialog).toHaveBeenCalledOnce());
     expect(saveAudio).not.toHaveBeenCalled();
 
-    getConfigStore().setConfig("ui_config", "name_truncation_len", 10);
+    getConfigStore().setConfig("ui", "name_truncation_len", 10);
     fireEvent.click(saveButton);
     await waitFor(() => expect(saveAudio).toHaveBeenCalledOnce());
     expect(joinPath).toHaveBeenLastCalledWith("/custom", "hello");

@@ -279,7 +279,7 @@ describe("ConfigProvider", () => {
     vi.spyOn(commands, "getMetas").mockResolvedValue(scenario.meta);
     const configStore = renderConfigStore();
 
-    configStore.setConfig("core_config", {
+    configStore.setConfig("core", {
       ort_path: "/core",
       ojt_dir: "/dict",
       vvm_dir: "/models",

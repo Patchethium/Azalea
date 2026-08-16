@@ -178,9 +178,9 @@ export function useSidebar() {
   };
 
   const [actionMenuOpen, setActionMenuOpen] = createSignal(false);
-  const autoSave = createMemo(() => config.ui_config.auto_save);
+  const autoSave = createMemo(() => config.ui.auto_save);
   const setAutoSave = (value: boolean) => {
-    setConfig("ui_config", "auto_save", value);
+    setConfig("ui", "auto_save", value);
   };
   const saveProject = async () => {
     let path = projectPath();
@@ -202,7 +202,7 @@ export function useSidebar() {
         !isApplicationShortcutAllowed(event) ||
         !matchesShortcut(
           event,
-          resolveShortcut(config.ui_config.shortcuts, "save_project"),
+          resolveShortcut(config.ui.shortcuts, "save_project"),
           systemStore.os,
         )
       ) {
@@ -237,11 +237,7 @@ export function useSidebar() {
   const scheduledSave = createScheduled((fn) => throttle(fn, 500));
   createEffect(() => {
     JSON.stringify(project);
-    if (
-      scheduledSave() &&
-      config.ui_config.auto_save &&
-      projectPath() !== null
-    ) {
+    if (scheduledSave() && config.ui.auto_save && projectPath() !== null) {
       void saveProject();
     }
   });

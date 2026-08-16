@@ -141,8 +141,7 @@ function App() {
 
   const sidebarPanelSizes = () => {
     const width = windowWidth();
-    const configuredWidth =
-      config.ui_config.side_width ?? DEFAULT_SIDEBAR_WIDTH;
+    const configuredWidth = config.ui.side_width ?? DEFAULT_SIDEBAR_WIDTH;
     const sidebarWidth =
       configuredWidth === 0
         ? 0
@@ -162,8 +161,7 @@ function App() {
   });
 
   createEffect(() => {
-    const configuredColor =
-      config.ui_config.primary_color ?? DEFAULT_PRIMARY_COLOR;
+    const configuredColor = config.ui.primary_color ?? DEFAULT_PRIMARY_COLOR;
     const primaryColor = PRIMARY_COLOR_PATTERN.test(configuredColor)
       ? configuredColor
       : DEFAULT_PRIMARY_COLOR;
@@ -193,8 +191,8 @@ function App() {
               sizes={sidebarPanelSizes()}
               onSizesChange={(sizes) => {
                 const sideWidth = Math.round(sizes[0] * windowWidth());
-                if (sideWidth !== config.ui_config.side_width) {
-                  setConfig("ui_config", "side_width", sideWidth);
+                if (sideWidth !== config.ui.side_width) {
+                  setConfig("ui", "side_width", sideWidth);
                 }
               }}
             >

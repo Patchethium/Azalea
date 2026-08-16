@@ -269,7 +269,7 @@ export function usePlaybackControls(
       const playbackShortcutAllowed = isPlaybackShortcutAllowed(event);
       const playbackToggleAllowed = isPlaybackToggleAllowed(event);
       if (!playbackShortcutAllowed && !playbackToggleAllowed) return;
-      const shortcuts = config.ui_config.shortcuts;
+      const shortcuts = config.ui.shortcuts;
       const togglePlaybackShortcut =
         playbackToggleAllowed &&
         matchesShortcut(

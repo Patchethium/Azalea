@@ -226,7 +226,7 @@ describe("ShortcutReferenceDialog", () => {
       ctrlKey: true,
       shiftKey: true,
     });
-    expect(appConfig.config.ui_config.shortcuts?.save_project).toMatchObject({
+    expect(appConfig.config.ui.shortcuts?.save_project).toMatchObject({
       key: "S",
       primary: true,
       shift: true,
@@ -240,12 +240,12 @@ describe("ShortcutReferenceDialog", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "That shortcut is already assigned.",
     );
-    expect(appConfig.config.ui_config.shortcuts?.play_current).toBeUndefined();
+    expect(appConfig.config.ui.shortcuts?.play_current).toBeUndefined();
 
     fireEvent.keyDown(playShortcut, { key: "Escape" });
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     fireEvent.keyDown(playShortcut, { key: "X" });
-    expect(appConfig.config.ui_config.shortcuts?.play_current).toBeUndefined();
+    expect(appConfig.config.ui.shortcuts?.play_current).toBeUndefined();
 
     const editedSaveShortcut = screen.getByRole("button", {
       name: "Save project: Ctrl + Shift + S",
@@ -265,7 +265,7 @@ describe("ShortcutReferenceDialog", () => {
       .getAllByRole("button", { name: "Restore default shortcut" })
       .find((button) => !button.hasAttribute("disabled"))!;
     fireEvent.click(resetSave);
-    expect(appConfig.config.ui_config.shortcuts?.save_project).toMatchObject({
+    expect(appConfig.config.ui.shortcuts?.save_project).toMatchObject({
       key: "S",
       primary: true,
       shift: false,
@@ -283,18 +283,16 @@ describe("ShortcutReferenceDialog", () => {
       screen.getByRole("button", { name: "Restore all defaults" }),
     );
     await waitFor(() =>
-      expect(appConfig.config.ui_config.shortcuts?.save_project).toMatchObject({
+      expect(appConfig.config.ui.shortcuts?.save_project).toMatchObject({
         key: "S",
         primary: true,
         shift: false,
       }),
     );
-    expect(appConfig.config.ui_config.shortcuts?.toggle_playback).toMatchObject(
-      {
-        key: "Space",
-        primary: false,
-      },
-    );
+    expect(appConfig.config.ui.shortcuts?.toggle_playback).toMatchObject({
+      key: "Space",
+      primary: false,
+    });
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 
     fireEvent.click(

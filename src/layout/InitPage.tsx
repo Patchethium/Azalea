@@ -11,7 +11,7 @@ function InitPage() {
   const { t1, t2 } = usei18n()!;
 
   const setCoreConfig = (config: CoreConfig) => {
-    setConfig("core_config", config);
+    setConfig("core", config);
   };
 
   type ActionType = "later" | "installed";

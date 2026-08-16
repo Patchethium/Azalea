@@ -33,7 +33,7 @@ Azalea is a Tauri desktop app with a SolidJS frontend in `src/` and a Rust backe
 
 - Do not hand-edit `src/binding.ts`. It is generated from Rust commands in debug builds and is intentionally excluded from Biome checks.
 - New frontend/backend calls should be added as Tauri commands with `#[tauri::command]` and `#[specta::specta]`, then consumed through `commands` from `src/binding.ts` instead of raw `invoke()` calls.
-- `ConfigProvider` is more than storage: changing `config.core_config` triggers `commands.initCore()` through a Solid `createResource`. The `"Core already loaded"` error is treated as a successful restore path.
+- `ConfigProvider` is more than storage: changing `config.core` triggers `commands.initCore()` through a Solid `createResource`. The `"Core already loaded"` error is treated as a successful restore path.
 - `MetaProvider` normalizes raw backend metadata by merging entries with the same `speaker_uuid` and sorting styles. UI code should use `useMetaStore()` rather than assuming `commands.getMetas()` already returns display-ready data.
 - Audio synthesis is cache-oriented. The backend keeps LRU caches in `AppState`, `commands.synthesize()` warms the cache, and the frontend checks progress by polling `commands.synthesizeState()` instead of waiting for events.
 - Preserve the query-modification flow in `src/utils.ts`: preset values are applied by cloning an `AudioQuery` and rewriting `pitchScale`, `speedScale`, `intonationScale`, `volumeScale`, and the phoneme-length fields there.

@@ -21,7 +21,7 @@ export function TuningItem(props: {
   const { config, spectrogramPreviewEnabled } = useConfigStore()!;
   const unvoiced = () => props.mora.pitch === 0;
   const whisper = () => props.maxPitch === 0 && props.minPitch === 0;
-  const scale = () => config.ui_config?.bottom_scale ?? DEFAULT_BOTTOM_SCALE;
+  const scale = () => config.ui?.bottom_scale ?? DEFAULT_BOTTOM_SCALE;
   const consonantPixels = (): number | null =>
     props.mora.consonant == null
       ? null
@@ -132,8 +132,7 @@ export function SpectrogramCanvas(props: {
 
     const context = canvasRef.getContext("2d");
     if (context === null) return;
-    const configuredColor =
-      config.ui_config.primary_color ?? DEFAULT_PRIMARY_COLOR;
+    const configuredColor = config.ui.primary_color ?? DEFAULT_PRIMARY_COLOR;
     const primaryColor = PRIMARY_COLOR_PATTERN.test(configuredColor)
       ? configuredColor
       : DEFAULT_PRIMARY_COLOR;

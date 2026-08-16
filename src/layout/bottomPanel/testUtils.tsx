@@ -44,7 +44,7 @@ export const renderCanvas = (
   ));
 
 export const renderPanel = (
-  configOverrides: Partial<ReturnType<typeof config>["ui_config"]> = {},
+  configOverrides: Partial<ReturnType<typeof config>["ui"]> = {},
   withSidebar = false,
 ) => {
   let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
@@ -110,7 +110,7 @@ export const renderPanel = (
 };
 
 export const renderTuningHook = (
-  configOverrides: Partial<ReturnType<typeof config>["ui_config"]> = {},
+  configOverrides: Partial<ReturnType<typeof config>["ui"]> = {},
 ) => {
   let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
   let text!: NonNullable<ReturnType<typeof useTextStore>>;
