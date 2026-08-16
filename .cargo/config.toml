@@ -2,6 +2,9 @@
 linker = "clang"
 rustflags = ["-C", "link-arg=-fuse-ld=mold"]
 
+[build]
+rustflags = ["-Z", "threads=8"]
+
 [unstable.git]
 shallow_index = true
 shallow_deps = true
