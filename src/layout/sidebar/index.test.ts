@@ -181,6 +181,61 @@ describe("Sidebar project lifecycle", () => {
 });
 
 describe("Sidebar controls", () => {
+  it("expands the recreated preset editor to its current maximum", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    let contentHeight = 600;
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(
+      function (this: HTMLElement) {
+        if (this.tagName === "BUTTON") return 8;
+        if (this.tagName === "H2") return 28;
+        return 1_000;
+      },
+    );
+    vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockImplementation(
+      () => contentHeight,
+    );
+    let text!: NonNullable<ReturnType<typeof useTextStore>>;
+    const { getControls } = renderSidebarHook(({ meta, text: textStore }) => {
+      text = textStore;
+      batch(() => {
+        meta.setMetas(metas);
+        text.setProjectPresetStore([preset()]);
+        text.replaceTextBlocks([
+          {
+            id: "current-block",
+            text: "Current block",
+            query: audioQuery(),
+            query_is_modified: false,
+            preset_id: "preset-1",
+          },
+        ]);
+      });
+    });
+    await Promise.resolve();
+    const controls = getControls();
+    controls.setPresetPanelSize(0.6);
+
+    controls.removePreset();
+    contentHeight = 10;
+    controls.setPresetPanelContent(document.createElement("div"));
+    await Promise.resolve();
+    expect(controls.presetPanelSize()).toBe(0.6);
+    controls.collapsePresetPanel();
+    text.setProjectPresetStore([preset({ id: "unselected-preset" })]);
+    await Promise.resolve();
+    expect(controls.expanded()).toEqual([]);
+    text.setProjectPresetStore([]);
+    controls.createPreset();
+    contentHeight = 600;
+    await Promise.resolve();
+
+    expect(text.projectPresetStore).toHaveLength(1);
+    expect(controls.expanded()).toEqual(["preset"]);
+    expect(controls.presetPanelMaxSize()).toBeCloseTo(631 / 992);
+    expect(controls.presetPanelSize()).toBeCloseTo(631 / 992);
+    expect(controls.presetPanelSizes()[1]).toBeCloseTo(631 / 992);
+  });
+
   it("handles preset controller edge cases", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
     dialogs.open.mockResolvedValue(null);

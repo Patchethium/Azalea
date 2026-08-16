@@ -103,6 +103,7 @@ export function useSidebar() {
   let presetPanelContent!: HTMLDivElement;
   let presetPanelObserver: ResizeObserver | undefined;
   let updatePresetPanelBounds = () => {};
+  let expandPresetPanelOnResize = false;
 
   onMount(() => {
     updatePresetPanelBounds = () => {
@@ -123,14 +124,20 @@ export function useSidebar() {
         (headerHeight + contentHeight) / availableHeight,
         1,
       );
-      const size =
-        expanded().length > 0
+      const shouldExpand = expandPresetPanelOnResize;
+      const size = shouldExpand
+        ? maxSize
+        : expanded().length > 0
           ? Math.min(presetPanelSizes()[1], maxSize)
           : collapsedSize;
+      expandPresetPanelOnResize = false;
       batch(() => {
         setCollapsedPresetPanelSize(collapsedSize);
         setPresetPanelMaxSize(maxSize);
-        setPresetPanelSize(Math.min(presetPanelSize(), maxSize));
+        if (shouldExpand) {
+          setExpanded(["preset"]);
+          setPresetPanelSize(maxSize);
+        }
         setPresetPanelSizes([1 - size, size]);
       });
     };
@@ -158,6 +165,15 @@ export function useSidebar() {
   const currentPreset = createMemo(() =>
     findPresetById(projectPresetStore, currentText()?.preset_id),
   );
+  let hadCurrentPreset = currentPreset() !== null;
+  createEffect(() => {
+    const hasCurrentPreset = currentPreset() !== null;
+    if (!hadCurrentPreset && hasCurrentPreset) {
+      expandPresetPanelOnResize = true;
+      queueMicrotask(() => updatePresetPanelBounds());
+    }
+    hadCurrentPreset = hasCurrentPreset;
+  });
   const currentPresetIndex = createMemo(() =>
     projectPresetStore.findIndex(
       (preset) => preset.id === currentText()?.preset_id,
