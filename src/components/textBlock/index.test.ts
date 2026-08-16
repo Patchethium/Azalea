@@ -81,7 +81,10 @@ describe("TextBlock", () => {
 
     const { getTextStore, getConfigStore } = renderBlock(true);
     await waitFor(() => expect(query).toHaveBeenCalledWith("hello", 1));
-    expect(screen.getByRole("status", { name: "Queued" })).toBeInTheDocument();
+    const status = screen.getByRole("status", { name: "Queued" });
+    expect(status).toBeInTheDocument();
+    fireEvent.pointerEnter(status.parentElement!, { pointerType: "mouse" });
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Queued");
 
     const editor = screen.getByLabelText("Text to synthesize");
     editor.innerText = "changed";

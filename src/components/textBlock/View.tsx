@@ -1,6 +1,7 @@
 import type { Preset, SynthesisJobState } from "$binding";
 import { IconButton } from "@components/iconButton";
 import { AutogrowInput } from "@components/textBlock/AutogrowInput";
+import { Tooltip } from "@components/tooltip";
 import { createSignal, Show } from "solid-js";
 import { useConfigStore } from "@contexts/config";
 import { usei18n } from "@contexts/i18n";
@@ -110,30 +111,31 @@ export function TextBlockView(props: {
             </Show>
           </div>
           <Show when={config.ui_config.buffer_render}>
-            <output
-              aria-label={props.synthStateText()}
-              class="ml-2 flex size-5 items-center justify-center rounded-full border border-slate-2 bg-slate-1/80 text-slate-5 shadow-sm dark:(border-slate-6 bg-slate-8/80 text-slate-4)"
-              classList={{
-                "opacity-60": !props.selected,
-                "!border-amber-2 !bg-amber-1/70 !text-amber-7 dark:(!border-amber-8/60 !bg-amber-9/20 !text-amber-4)":
-                  props.selected && props.synthState === "Queued",
-                "!border-sky-2 !bg-sky-1/70 !text-sky-7 dark:(!border-sky-8/60 !bg-sky-9/20 !text-sky-4)":
-                  props.selected && props.synthState === "Running",
-                "!border-emerald-2 !bg-emerald-1/70 !text-emerald-7 dark:(!border-emerald-8/60 !bg-emerald-9/20 !text-emerald-4)":
-                  props.selected && props.synthState === "Completed",
-                "!border-rose-2 !bg-rose-1/70 !text-rose-7 dark:(!border-rose-8/60 !bg-rose-9/20 !text-rose-4)":
-                  props.selected && props.synthState === "Failed",
-              }}
-              title={props.synthStateText()}
-            >
-              <span
-                aria-hidden="true"
-                class={`size-3 ${props.synthStateIcon()}`}
+            <Tooltip content={props.synthStateText()}>
+              <output
+                aria-label={props.synthStateText()}
+                class="ml-2 flex size-5 items-center justify-center rounded-full border border-slate-2 bg-slate-1/80 text-slate-5 shadow-sm dark:(border-slate-6 bg-slate-8/80 text-slate-4)"
                 classList={{
-                  "animate-spin": props.synthState === "Running",
+                  "opacity-60": !props.selected,
+                  "!border-amber-2 !bg-amber-1/70 !text-amber-7 dark:(!border-amber-8/60 !bg-amber-9/20 !text-amber-4)":
+                    props.selected && props.synthState === "Queued",
+                  "!border-sky-2 !bg-sky-1/70 !text-sky-7 dark:(!border-sky-8/60 !bg-sky-9/20 !text-sky-4)":
+                    props.selected && props.synthState === "Running",
+                  "!border-emerald-2 !bg-emerald-1/70 !text-emerald-7 dark:(!border-emerald-8/60 !bg-emerald-9/20 !text-emerald-4)":
+                    props.selected && props.synthState === "Completed",
+                  "!border-rose-2 !bg-rose-1/70 !text-rose-7 dark:(!border-rose-8/60 !bg-rose-9/20 !text-rose-4)":
+                    props.selected && props.synthState === "Failed",
                 }}
-              />
-            </output>
+              >
+                <span
+                  aria-hidden="true"
+                  class={`size-3 ${props.synthStateIcon()}`}
+                  classList={{
+                    "animate-spin": props.synthState === "Running",
+                  }}
+                />
+              </output>
+            </Tooltip>
           </Show>
         </div>
       </div>
