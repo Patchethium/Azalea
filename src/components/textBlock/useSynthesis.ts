@@ -85,7 +85,11 @@ export function useTextBlockSynthesis(props: {
     if (disposed || activeSynthesisRequest !== activeRequest) return;
     activeRequest.submitted = true;
     const result = await commands.synthesize(request);
-    if (disposed || activeSynthesisRequest !== activeRequest) {
+    if (
+      disposed ||
+      activeSynthesisRequest === null ||
+      activeSynthesisRequest.blockId !== activeRequest.blockId
+    ) {
       if (result.status === "ok") {
         void commands.cancelSynthesis(
           activeRequest.blockId,
@@ -94,6 +98,7 @@ export function useTextBlockSynthesis(props: {
       }
       return;
     }
+    if (activeSynthesisRequest !== activeRequest) return;
     if (result.status === "error") {
       setSynthState("Failed");
       console.error(
@@ -178,7 +183,12 @@ export function useTextBlockSynthesis(props: {
     if (blockSignature === lastSynthesisSignature) return;
 
     clearScheduledSynthesis();
-    cancelSynthesisRequest(activeSynthesisRequest);
+    if (
+      activeSynthesisRequest !== null &&
+      activeSynthesisRequest.blockId !== blockId
+    ) {
+      cancelSynthesisRequest(activeSynthesisRequest);
+    }
     synthesisGenerationSequence += 1;
     const activeRequest: ActiveSynthesisRequest = {
       blockId,

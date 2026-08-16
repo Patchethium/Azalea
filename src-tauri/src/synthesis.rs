@@ -47,10 +47,6 @@ pub(crate) struct SynthesisJobIdentity {
 }
 
 impl SynthesisJobIdentity {
-  fn has_same_payload(&self, other: &Self) -> bool {
-    self.query_key == other.query_key && self.speaker_id == other.speaker_id
-  }
-
   pub fn event(&self, state: SynthesisJobState, error: Option<String>) -> SynthesisJobEvent {
     SynthesisJobEvent {
       block_id: self.block_id.clone(),
@@ -85,7 +81,7 @@ impl SynthesisJob {
 struct SynthesisQueueState {
   pending: VecDeque<SynthesisJob>,
   running: Option<SynthesisJobIdentity>,
-  latest_by_block: HashMap<String, SynthesisJobIdentity>,
+  running_is_cancelled: bool,
   latest_generation_by_block: HashMap<String, u64>,
 }
 
@@ -109,15 +105,6 @@ impl SynthesisQueue {
     let mut events = Vec::new();
 
     if state
-      .latest_generation_by_block
-      .get(&job.identity.block_id)
-      .is_some_and(|generation_id| job.identity.generation_id < *generation_id)
-    {
-      events.push(job.identity.event(SynthesisJobState::Cancelled, None));
-      return events;
-    }
-
-    if state
       .pending
       .iter()
       .any(|pending| pending.identity == job.identity)
@@ -126,7 +113,21 @@ impl SynthesisQueue {
       return events;
     }
     if state.running.as_ref() == Some(&job.identity) {
-      events.push(job.identity.event(SynthesisJobState::Running, None));
+      let current_state = if state.running_is_cancelled {
+        SynthesisJobState::Cancelled
+      } else {
+        SynthesisJobState::Running
+      };
+      events.push(job.identity.event(current_state, None));
+      return events;
+    }
+
+    if state
+      .latest_generation_by_block
+      .get(&job.identity.block_id)
+      .is_some_and(|generation_id| job.identity.generation_id < *generation_id)
+    {
+      events.push(job.identity.event(SynthesisJobState::Cancelled, None));
       return events;
     }
 
@@ -141,55 +142,22 @@ impl SynthesisQueue {
     {
       let existing = state
         .pending
-        .get(position)
+        .remove(position)
         .expect("pending synthesis job disappeared while locked");
-      if existing.identity.has_same_payload(&job.identity) {
-        let existing = state
-          .pending
-          .remove(position)
-          .expect("pending synthesis job disappeared while locked");
-        events.push(existing.identity.event(SynthesisJobState::Cancelled, None));
-        state
-          .latest_by_block
-          .insert(job.identity.block_id.clone(), job.identity.clone());
-        events.push(job.identity.event(SynthesisJobState::Queued, None));
-        state.pending.insert(position, job);
-        drop(state);
-        self.notify.notify_one();
-        return events;
-      }
-    }
-
-    let mut retained = VecDeque::with_capacity(state.pending.len());
-    while let Some(pending) = state.pending.pop_front() {
-      if pending.identity.block_id == job.identity.block_id {
-        events.push(pending.identity.event(SynthesisJobState::Cancelled, None));
-      } else {
-        retained.push_back(pending);
-      }
-    }
-    state.pending = retained;
-
-    if let Some(running) = state.running.as_ref() {
-      if running.block_id == job.identity.block_id
-        && state.latest_by_block.get(&running.block_id) == Some(running)
-      {
-        events.push(running.event(SynthesisJobState::Cancelled, None));
-      }
+      events.push(existing.identity.event(SynthesisJobState::Cancelled, None));
+      events.push(job.identity.event(SynthesisJobState::Queued, None));
+      state.pending.insert(position, job);
+      drop(state);
+      self.notify.notify_one();
+      return events;
     }
 
     while state.pending.len() >= SYNTHESIS_QUEUE_CAPACITY {
       if let Some(evicted) = state.pending.pop_front() {
-        if state.latest_by_block.get(&evicted.identity.block_id) == Some(&evicted.identity) {
-          state.latest_by_block.remove(&evicted.identity.block_id);
-        }
         events.push(evicted.identity.event(SynthesisJobState::Evicted, None));
       }
     }
 
-    state
-      .latest_by_block
-      .insert(job.identity.block_id.clone(), job.identity.clone());
     events.push(job.identity.event(SynthesisJobState::Queued, None));
     state.pending.push_back(job);
     drop(state);
@@ -209,26 +177,26 @@ impl SynthesisQueue {
 
   fn pop_next(&self) -> Option<SynthesisJob> {
     let mut state = self.state.lock().unwrap();
-    while let Some(job) = state.pending.pop_front() {
-      if state.latest_by_block.get(&job.identity.block_id) == Some(&job.identity) {
-        state.running = Some(job.identity.clone());
-        return Some(job);
-      }
+    if state.running.is_some() {
+      return None;
     }
-    None
+    let job = state.pending.pop_front()?;
+    state.running = Some(job.identity.clone());
+    state.running_is_cancelled = false;
+    Some(job)
   }
 
   pub fn finish(&self, identity: &SynthesisJobIdentity) -> bool {
     let mut state = self.state.lock().unwrap();
-    if state.running.as_ref() == Some(identity) {
-      state.running = None;
+    if state.running.as_ref() != Some(identity) {
+      return false;
     }
-    if state.latest_by_block.get(&identity.block_id) == Some(identity) {
-      state.latest_by_block.remove(&identity.block_id);
-      true
-    } else {
-      false
-    }
+    state.running = None;
+    let completed_without_cancellation = !state.running_is_cancelled;
+    state.running_is_cancelled = false;
+    drop(state);
+    self.notify.notify_one();
+    completed_without_cancellation
   }
 
   pub fn cancel(&self, block_id: &str, generation_id: Option<u64>) -> Vec<SynthesisJobEvent> {
@@ -252,14 +220,9 @@ impl SynthesisQueue {
     state.pending = retained;
 
     if let Some(running) = state.running.as_ref() {
-      if matches(running) && state.latest_by_block.get(&running.block_id) == Some(running) {
+      if matches(running) && !state.running_is_cancelled {
         events.push(running.event(SynthesisJobState::Cancelled, None));
-      }
-    }
-
-    if let Some(latest) = state.latest_by_block.get(block_id) {
-      if matches(latest) {
-        state.latest_by_block.remove(block_id);
+        state.running_is_cancelled = true;
       }
     }
     events
@@ -338,7 +301,7 @@ mod tests {
   }
 
   #[test]
-  fn replacement_moves_the_newest_block_job_to_the_back() {
+  fn replacement_keeps_the_pending_jobs_position() {
     let queue = SynthesisQueue::default();
     queue.enqueue(job("first", 1, 1.0));
     queue.enqueue(job("second", 1, 1.0));
@@ -350,22 +313,30 @@ mod tests {
     assert_eq!(events[0].state, SynthesisJobState::Cancelled);
     assert_eq!(events[1].generation_id, 2);
     assert_eq!(events[1].state, SynthesisJobState::Queued);
-    assert_eq!(queue.pop_next().unwrap().identity.block_id, "second");
-    queue.finish(&job("second", 1, 1.0).identity);
-    assert_eq!(queue.pop_next().unwrap().identity.generation_id, 2);
-  }
-
-  #[test]
-  fn identical_payload_keeps_its_place_in_the_queue() {
-    let queue = SynthesisQueue::default();
-    queue.enqueue(job("first", 1, 1.0));
-    queue.enqueue(job("second", 1, 1.0));
-
-    queue.enqueue(job("first", 2, 1.0));
-
     let first = queue.pop_next().unwrap();
     assert_eq!(first.identity.block_id, "first");
     assert_eq!(first.identity.generation_id, 2);
+    assert!(queue.finish(&first.identity));
+    assert_eq!(queue.pop_next().unwrap().identity.block_id, "second");
+  }
+
+  #[test]
+  fn a_running_job_is_not_replaced_by_newer_work_for_the_same_block() {
+    let queue = SynthesisQueue::default();
+    queue.enqueue(job("block", 1, 1.0));
+    let running = queue.pop_next().unwrap();
+
+    let events = queue.enqueue(job("block", 2, 1.2));
+
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].generation_id, 2);
+    assert_eq!(events[0].state, SynthesisJobState::Queued);
+    let duplicate_events = queue.enqueue(running.clone());
+    assert_eq!(duplicate_events.len(), 1);
+    assert_eq!(duplicate_events[0].state, SynthesisJobState::Running);
+    assert!(queue.pop_next().is_none());
+    assert!(queue.finish(&running.identity));
+    assert_eq!(queue.pop_next().unwrap().identity.generation_id, 2);
   }
 
   #[test]

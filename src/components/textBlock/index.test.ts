@@ -301,6 +301,38 @@ describe("TextBlock", () => {
     );
   });
 
+  it("lets the backend queue replace a superseded pending synthesis", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    vi.spyOn(commands, "audioQuery").mockResolvedValue({
+      status: "ok",
+      data: audioQuery(),
+    });
+    const synthesize = vi
+      .spyOn(commands, "synthesize")
+      .mockResolvedValue({ status: "ok", data: null });
+    const cancel = vi
+      .spyOn(commands, "cancelSynthesis")
+      .mockResolvedValue({ status: "ok", data: null });
+    const { getTextStore } = renderBlock(true);
+    await waitFor(() => expect(synthesize).toHaveBeenCalledOnce());
+
+    getTextStore().replaceTextBlocks([
+      {
+        ...getTextStore().textStore[0],
+        query: audioQuery({ outputStereo: true }),
+      },
+    ]);
+
+    await waitFor(() => expect(synthesize).toHaveBeenCalledTimes(2));
+    expect(cancel).not.toHaveBeenCalled();
+    expect(synthesize.mock.calls[1][0].blockId).toBe(
+      synthesize.mock.calls[0][0].blockId,
+    );
+    expect(synthesize.mock.calls[1][0].generationId).toBeGreaterThan(
+      synthesize.mock.calls[0][0].generationId,
+    );
+  });
+
   it("cancels a successful synthesis response that finishes after unmount", async () => {
     mockIPC(() => null, { shouldMockEvents: true });
     vi.spyOn(commands, "audioQuery").mockResolvedValue({
