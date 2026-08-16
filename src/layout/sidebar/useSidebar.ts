@@ -215,13 +215,14 @@ export function useSidebar() {
   const setTextPresetIdx = (presetIndex: number) => {
     const block = currentText();
     const nextPreset = projectPresetStore[presetIndex];
-    if (block === null || nextPreset === undefined) return;
+    const nextPresetId = nextPreset?.id;
+    if (block === null || nextPresetId === undefined) return;
     const previousStyle = findPresetById(
       projectPresetStore,
       block.preset_id,
     )?.style_id;
     batch(() => {
-      setTextStore(selectedTextBlockIndex(), "preset_id", nextPreset.id);
+      setTextStore(selectedTextBlockIndex(), "preset_id", nextPresetId);
       if (previousStyle !== nextPreset.style_id) {
         setTextStore(selectedTextBlockIndex(), "query_is_modified", false);
       }

@@ -10,7 +10,7 @@
     "build": "vite build",
     "serve": "vite preview",
     "tauri": "tauri",
-    "check": "oxlint -c .oxlintrc.jsonc src/ && oxfmt -c .oxfmtrc.jsonc --check src/",
+    "check": "oxlint -c .oxlintrc.jsonc src/ && oxfmt -c .oxfmtrc.jsonc --check src/ && tsc --noEmit",
     "format": "oxfmt -c .oxfmtrc.jsonc --write src/",
     "test": "vitest",
     "test:run": "vitest run",
