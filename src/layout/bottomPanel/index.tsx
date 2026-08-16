@@ -26,7 +26,7 @@ function BottomPanel() {
     >
       <Tabs
         aria-label="Bottom Panel Tabs"
-        class="size-full flex flex-col bg-white dark:bg-slate-8 border border-slate-2 dark:border-slate-6 rounded-lg overflow-hidden outline-none select-none"
+        class="size-full relative flex flex-col bg-white dark:bg-slate-8 border border-slate-2 dark:border-slate-6 rounded-lg overflow-hidden outline-none select-none"
         orientation="horizontal"
         value={uiStore.bottomPanel}
         onChange={(panel) =>
@@ -35,7 +35,7 @@ function BottomPanel() {
         defaultValue="accent"
       >
         <ControlBar onWaveformSynthesized={setWaveformSynthesisNotice} />
-        <div class="absolute">
+        <div class="absolute left-0 top-0">
           <Tabs.List class="w-full flex flex-row items-center relative p-1 outline-none select-none">
             <Tabs.Trigger
               class="bg-transparent hover:bg-slate-1 dark:hover:bg-slate-7 px-2 rounded-md outline-none select-none"

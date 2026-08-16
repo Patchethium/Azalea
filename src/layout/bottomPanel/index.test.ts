@@ -207,6 +207,263 @@ describe("BottomPanel playback", () => {
     );
   });
 
+  it("shows or hides the playback timeline from UI config", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const { getConfigStore } = renderPanel({ playback_timeline: false });
+
+    await screen.findByRole("button", { name: "Play selected cell" });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("group", { name: "Playback starting phrase" }),
+      ).not.toBeInTheDocument(),
+    );
+
+    getConfigStore().setPlaybackTimelineEnabled(true);
+    const timeline = await screen.findByRole("group", {
+      name: "Playback starting phrase",
+    });
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Start playback from accent phrase 1",
+      }),
+    );
+    expect(timeline).toHaveAttribute("data-playback-anchor", "0");
+
+    getConfigStore().setPlaybackTimelineEnabled(false);
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("group", { name: "Playback starting phrase" }),
+      ).not.toBeInTheDocument(),
+    );
+
+    getConfigStore().setPlaybackTimelineEnabled(true);
+    expect(
+      await screen.findByRole("group", { name: "Playback starting phrase" }),
+    ).toHaveAttribute("data-playback-anchor", "unset");
+  });
+
+  it("sets, moves, and clears accent-phrase playback anchors", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const play = vi
+      .spyOn(commands, "playAudio")
+      .mockResolvedValue({ status: "ok", data: null });
+    const sequence = vi
+      .spyOn(commands, "playAudioSequence")
+      .mockResolvedValue({ status: "ok", data: null });
+    const { getTextStore } = renderPanel();
+    const timeline = await screen.findByRole("group", {
+      name: "Playback starting phrase",
+    });
+    const query = audioQuery();
+    query.accent_phrases.push({
+      ...structuredClone(query.accent_phrases[0]),
+      moras: [
+        { ...mora, text: "ア", vowel: "a" },
+        { ...mora, text: "イ", vowel: "i" },
+      ],
+    });
+    getTextStore().setTextStore(0, "query", query);
+    const firstPhrase = await screen.findByRole("button", {
+      name: "Start playback from accent phrase 1",
+    });
+    const secondPhrase = await screen.findByRole("button", {
+      name: "Start playback from accent phrase 2",
+    });
+
+    expect(timeline).toHaveAttribute("data-playback-anchor", "unset");
+    expect(timeline.parentElement).toHaveClass("h-6");
+    expect(firstPhrase).toHaveStyle({ width: "5rem" });
+    expect(secondPhrase).toHaveStyle({ width: "8rem" });
+    expect(secondPhrase).toHaveClass("bg-transparent");
+    secondPhrase.focus();
+    expect(secondPhrase).toHaveFocus();
+    fireEvent.click(secondPhrase);
+    expect(secondPhrase).not.toHaveFocus();
+    expect(secondPhrase).toHaveAttribute("tabindex", "-1");
+    expect(timeline).toHaveAttribute("data-playback-anchor", "1");
+    expect(secondPhrase).toHaveAttribute("aria-pressed", "true");
+    expect(secondPhrase).toHaveClass("bg-primary-1", "dark:bg-primary-9");
+    expect(secondPhrase).not.toHaveClass("bg-transparent");
+
+    fireEvent.keyDown(window, { key: " " });
+    await waitFor(() => expect(play).toHaveBeenCalledOnce());
+    expect(play.mock.calls[0][2]).toBeCloseTo(0.3);
+    expect(play.mock.calls[0][0].accent_phrases).toHaveLength(2);
+
+    await emit("audio-playback-finished");
+    fireEvent.click(firstPhrase);
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Play selected cell and all cells below",
+      }),
+    );
+    await waitFor(() => expect(sequence).toHaveBeenCalledOnce());
+    expect(sequence.mock.calls[0][1]).toBeCloseTo(0.1);
+
+    await emit("audio-playback-finished");
+    fireEvent.click(firstPhrase);
+    expect(timeline).toHaveAttribute("data-playback-anchor", "unset");
+    fireEvent.click(screen.getByRole("button", { name: "Play selected cell" }));
+    await waitFor(() => expect(play).toHaveBeenCalledTimes(2));
+    expect(play.mock.calls[1][2]).toBeNull();
+  });
+
+  it("synchronizes timeline geometry and scrolling with both panels", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const { container, getTextStore, getUiStore } = renderPanel();
+    const timeline = await screen.findByRole("group", {
+      name: "Playback starting phrase",
+    });
+    const phraseAnchor = await screen.findByRole("button", {
+      name: "Start playback from accent phrase 1",
+    });
+    const accentPanel = container.querySelector<HTMLElement>(
+      '[data-bottom-panel-scroll="accent"]',
+    )!;
+
+    accentPanel.scrollLeft = 37;
+    fireEvent.scroll(accentPanel);
+    await waitFor(() =>
+      expect(getUiStore().uiStore.bottom_scroll_pos).toBe(37),
+    );
+    expect(timeline.scrollLeft).toBe(37);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Tuning" }));
+    await waitFor(() =>
+      expect(
+        container.querySelector<HTMLElement>(
+          '[data-bottom-panel-scroll="tuning"]',
+        ),
+      ).not.toBeNull(),
+    );
+    const activeTuningPanel = container.querySelector<HTMLElement>(
+      '[data-bottom-panel-scroll="tuning"]',
+    )!;
+    expect(activeTuningPanel.scrollLeft).toBe(37);
+    expect(phraseAnchor).toHaveStyle({ width: "72px" });
+
+    getTextStore().setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      0,
+      "moras",
+      0,
+      "vowel_length",
+      0.22,
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", {
+          name: "Start playback from accent phrase 1",
+        }),
+      ).toHaveStyle({ width: "108px" }),
+    );
+
+    timeline.scrollLeft = 24;
+    fireEvent.scroll(timeline);
+    await waitFor(() => expect(activeTuningPanel.scrollLeft).toBe(24));
+    expect(getUiStore().uiStore.bottom_scroll_pos).toBe(24);
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Start playback from accent phrase 1",
+      }),
+    );
+    expect(timeline).toHaveAttribute("data-playback-anchor", "0");
+    getUiStore().setUIStore("selectedTextBlockIndex", 1);
+    await waitFor(() =>
+      expect(timeline).toHaveAttribute("data-playback-anchor", "unset"),
+    );
+  });
+
+  it("points toward a selected phrase anchor outside the timeline viewport", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const { container, getUiStore } = renderPanel();
+    const timeline = await screen.findByRole("group", {
+      name: "Playback starting phrase",
+    });
+    const phraseAnchor = await screen.findByRole("button", {
+      name: "Start playback from accent phrase 1",
+    });
+    Object.defineProperty(timeline, "clientWidth", {
+      configurable: true,
+      value: 100,
+    });
+    Object.defineProperty(timeline, "scrollWidth", {
+      configurable: true,
+      value: 300,
+    });
+    Object.defineProperty(phraseAnchor, "offsetLeft", {
+      configurable: true,
+      value: 150,
+    });
+    const accentPanel = container.querySelector<HTMLElement>(
+      '[data-bottom-panel-scroll="accent"]',
+    )!;
+
+    fireEvent.click(phraseAnchor);
+    const rightIndicator = await waitFor(() => {
+      const indicator = screen.getByRole("button", {
+        name: "Show playback starting phrase",
+      });
+      expect(indicator).toHaveAttribute(
+        "data-playback-anchor-overflow",
+        "right",
+      );
+      return indicator;
+    });
+    expect(rightIndicator).toHaveClass("bg-slate-50", "dark:bg-slate-9");
+    const rightChevron = rightIndicator.querySelector("span");
+    expect(rightChevron).toHaveClass(
+      "bg-slate-5",
+      "group-hover:bg-primary-5",
+      "group-active:bg-primary-5",
+      "dark:bg-slate-4",
+    );
+    rightIndicator.focus();
+    expect(rightIndicator).toHaveFocus();
+    fireEvent.click(rightIndicator);
+    expect(rightIndicator).not.toHaveFocus();
+    expect(rightIndicator).toHaveAttribute("tabindex", "-1");
+    expect(timeline.scrollLeft).toBe(142);
+    expect(getUiStore().uiStore.bottom_scroll_pos).toBe(142);
+    await waitFor(() => expect(accentPanel.scrollLeft).toBe(142));
+
+    await waitFor(() =>
+      expect(
+        container.querySelector("[data-playback-anchor-overflow]"),
+      ).not.toBeInTheDocument(),
+    );
+
+    timeline.scrollLeft = 160;
+    fireEvent.scroll(timeline);
+    const leftIndicator = await screen.findByRole("button", {
+      name: "Show playback starting phrase",
+    });
+    expect(leftIndicator).toHaveAttribute(
+      "data-playback-anchor-overflow",
+      "left",
+    );
+    fireEvent.click(leftIndicator);
+    expect(timeline.scrollLeft).toBe(142);
+    expect(getUiStore().uiStore.bottom_scroll_pos).toBe(142);
+    await waitFor(() => expect(accentPanel.scrollLeft).toBe(142));
+    await waitFor(() =>
+      expect(
+        container.querySelector("[data-playback-anchor-overflow]"),
+      ).not.toBeInTheDocument(),
+    );
+  });
+
   it("plays, stops, reacts to completion, and builds a sequence from valid blocks", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
@@ -233,6 +490,7 @@ describe("BottomPanel playback", () => {
         postPhonemeLength: 0.2,
       },
       1,
+      null,
     ]);
 
     const stopButton = await screen.findByRole("button", {

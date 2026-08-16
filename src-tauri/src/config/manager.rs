@@ -114,6 +114,7 @@ mod tests {
     source.config.ui_config.custom_titlebar = false;
     source.config.ui_config.primary_color = "#123456".into();
     source.config.ui_config.spectrogram_preview = false;
+    source.config.ui_config.playback_timeline = false;
 
     source.save_as(&path).unwrap();
     let mut loaded = ConfigManager::default();
@@ -127,6 +128,7 @@ mod tests {
     assert!(!loaded.config.ui_config.custom_titlebar);
     assert_eq!(loaded.config.ui_config.primary_color, "#123456");
     assert!(!loaded.config.ui_config.spectrogram_preview);
+    assert!(!loaded.config.ui_config.playback_timeline);
   }
 
   #[test]

@@ -6,6 +6,7 @@ import { createEffect, createResource, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import {
   DEFAULT_CUSTOM_TITLEBAR,
+  DEFAULT_PLAYBACK_TIMELINE,
   DEFAULT_SPECTROGRAM_PREVIEW,
   DEFAULT_THEME_MODE,
 } from "$constants";
@@ -30,6 +31,11 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     config.ui_config.spectrogram_preview ?? DEFAULT_SPECTROGRAM_PREVIEW;
   const setSpectrogramPreviewEnabled = (enabled: boolean) => {
     setConfig("ui_config", "spectrogram_preview", enabled);
+  };
+  const playbackTimelineEnabled = () =>
+    config.ui_config.playback_timeline ?? DEFAULT_PLAYBACK_TIMELINE;
+  const setPlaybackTimelineEnabled = (enabled: boolean) => {
+    setConfig("ui_config", "playback_timeline", enabled);
   };
   const customTitlebarEnabled = () =>
     config.ui_config.custom_titlebar ?? DEFAULT_CUSTOM_TITLEBAR;
@@ -107,6 +113,8 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     setRange,
     spectrogramPreviewEnabled,
     setSpectrogramPreviewEnabled,
+    playbackTimelineEnabled,
+    setPlaybackTimelineEnabled,
     customTitlebarEnabled,
     setCustomTitlebarEnabled,
     themeMode,

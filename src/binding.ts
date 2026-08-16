@@ -203,9 +203,9 @@ async getSpectrogramPreview(audioQuery: AudioQuery, speakerId: StyleId) : Promis
     else return { status: "error", error: e  as any };
 }
 },
-async playAudio(audioQuery: AudioQuery, speakerId: StyleId) : Promise<Result<null, string>> {
+async playAudio(audioQuery: AudioQuery, speakerId: StyleId, startTimeSeconds: number | null) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("play_audio", { audioQuery, speakerId }) };
+    return { status: "ok", data: await TAURI_INVOKE("play_audio", { audioQuery, speakerId, startTimeSeconds }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -214,9 +214,9 @@ async playAudio(audioQuery: AudioQuery, speakerId: StyleId) : Promise<Result<nul
 /**
  * Synthesizes and queues multiple audio queries for uninterrupted playback.
  */
-async playAudioSequence(items: AudioSequenceItem[]) : Promise<Result<null, string>> {
+async playAudioSequence(items: AudioSequenceItem[], startTimeSeconds: number | null) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("play_audio_sequence", { items }) };
+    return { status: "ok", data: await TAURI_INVOKE("play_audio_sequence", { items, startTimeSeconds }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -666,7 +666,7 @@ export type SynthesisJobRequest = { blockId: string; generationId: number; audio
 export type SynthesisJobState = "Queued" | "Running" | "Completed" | "Failed" | "Cancelled" | "Evicted"
 export type TextBlockProps = { id: string; text: string; query: AudioQuery | null; query_is_modified: boolean; preset_id: string | null }
 export type ThemeMode = "System" | "Light" | "Dark"
-export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; custom_titlebar?: boolean; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; side_width?: number; buffer_render?: boolean; synthesis_delay_ms?: number; spectrogram_preview?: boolean; name_truncation_len?: number; last_exported_dir?: string | null; shortcuts?: KeyboardShortcuts }
+export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; custom_titlebar?: boolean; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; side_width?: number; buffer_render?: boolean; synthesis_delay_ms?: number; spectrogram_preview?: boolean; playback_timeline?: boolean; name_truncation_len?: number; last_exported_dir?: string | null; shortcuts?: KeyboardShortcuts }
 
 /** tauri-specta globals **/
 

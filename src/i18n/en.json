@@ -18,7 +18,11 @@
     "next": "Select next text cell",
     "play": "Play selected cell",
     "play_all_from_selection": "Play selected cell and all cells below",
-    "stop": "Stop playback"
+    "stop": "Stop playback",
+    "playback_timeline": "Playback starting phrase",
+    "playback_timeline_hint": "Choose an accent phrase to start playback. Choose it again to clear it.",
+    "playback_phrase_anchor": "Start playback from accent phrase {{ index }}",
+    "jump_to_playback_anchor": "Show playback starting phrase"
   },
   "shortcuts": {
     "title": "Keyboard Shortcuts",
@@ -80,6 +84,7 @@
     "theme_light": "Light",
     "theme_dark": "Dark",
     "custom_titlebar": "Custom title bar",
+    "playback_timeline": "Playback timeline",
     "primary_color": "Primary color",
     "hue_saturation": "Hue and saturation",
     "normalize": "Normalize",

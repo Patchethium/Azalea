@@ -3,7 +3,7 @@ use voicevox_core::{
   AccentPhrase, AudioQuery, StyleId, StyleType, VoiceModelId, VoiceModelMeta,
 };
 
-use crate::config::{CoreConfig, types::cache_size_default};
+use crate::config::{types::cache_size_default, CoreConfig};
 use std::{
   collections::{HashMap, HashSet},
   path::{Path, PathBuf},
@@ -284,10 +284,7 @@ mod tests {
     assert_eq!(config.ort_path, ort);
     assert_eq!(config.ojt_dir, dictionary);
     assert_eq!(config.vvm_dir, models);
-    assert_eq!(
-      config.cache_size,
-      cache_size_default()
-    );
+    assert_eq!(config.cache_size, cache_size_default());
   }
 
   #[test]

@@ -427,10 +427,12 @@ pub async fn play_audio(
   state: State<'_, AppState>,
   audio_query: AudioQuery,
   speaker_id: StyleId,
+  start_time_seconds: Option<f64>,
 ) -> std::result::Result<(), String> {
+  let start_at = playback_start_duration(start_time_seconds)?;
   let wav = synthesize_cached(&app, &state, audio_query, speaker_id, None).await?;
   let playback_app = app.clone();
-  let audio_player = AudioPlayer::play(wav, move || {
+  let audio_player = AudioPlayer::play(wav, start_at, move || {
     if let Err(error) = playback_app.emit("audio-playback-finished", ()) {
       eprintln!("Failed to emit playback completion: {error}");
     }
@@ -457,18 +459,21 @@ pub async fn play_audio_sequence(
   app: AppHandle,
   state: State<'_, AppState>,
   items: Vec<AudioSequenceItem>,
+  start_time_seconds: Option<f64>,
 ) -> std::result::Result<(), String> {
   if items.is_empty() {
     return Ok(());
   }
+  let start_at = playback_start_duration(start_time_seconds)?;
   let mut wavs = Vec::with_capacity(items.len());
   for item in items {
     wavs.push(synthesize_cached(&app, &state, item.audio_query, item.speaker_id, None).await?);
   }
   let item_started_app = app.clone();
   let playback_app = app.clone();
-  let audio_player = AudioPlayer::play_many(
+  let audio_player = AudioPlayer::play_many_from(
     wavs,
+    start_at,
     move |index| {
       if let Err(error) = item_started_app.emit("audio-sequence-item-started", index) {
         eprintln!("Failed to emit audio sequence progress: {error}");
@@ -487,6 +492,14 @@ pub async fn play_audio_sequence(
     .map_err(|e| e.to_string())?
     .replace(audio_player);
   Ok(())
+}
+
+fn playback_start_duration(start_time_seconds: Option<f64>) -> Result<std::time::Duration, String> {
+  let Some(seconds) = start_time_seconds else {
+    return Ok(std::time::Duration::ZERO);
+  };
+  std::time::Duration::try_from_secs_f64(seconds)
+    .map_err(|_| "Playback start time must be a finite, non-negative number".to_string())
 }
 
 #[tauri::command]
@@ -673,6 +686,21 @@ mod tests {
     assert_eq!(stereo.frame_count, 1);
     assert_eq!(stereo.values.len(), 96);
     assert!((stereo.duration_seconds - 0.001).abs() < 1e-9);
+  }
+
+  #[test]
+  fn playback_start_duration_accepts_unset_and_rejects_invalid_values() {
+    assert_eq!(
+      playback_start_duration(None).unwrap(),
+      std::time::Duration::ZERO
+    );
+    assert_eq!(
+      playback_start_duration(Some(1.25)).unwrap(),
+      std::time::Duration::from_millis(1250)
+    );
+    for invalid in [f64::NAN, f64::INFINITY, -0.1] {
+      assert!(playback_start_duration(Some(invalid)).is_err());
+    }
   }
 
   #[test]

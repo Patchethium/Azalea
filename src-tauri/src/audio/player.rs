@@ -1,4 +1,4 @@
-use rodio::{OutputStream, Sink};
+use rodio::{OutputStream, Sink, Source};
 use std::io::Cursor;
 use std::thread;
 use std::time::Duration;
@@ -12,15 +12,28 @@ pub struct AudioPlayer {
 }
 
 impl AudioPlayer {
-  pub async fn play<F>(wav: Vec<u8>, on_finished: F) -> Result<Self, String>
+  pub async fn play<F>(wav: Vec<u8>, start_at: Duration, on_finished: F) -> Result<Self, String>
   where
     F: FnOnce() + Send + 'static,
   {
-    Self::play_many(vec![wav], |_| {}, on_finished).await
+    Self::play_many_from(vec![wav], start_at, |_| {}, on_finished).await
   }
 
   pub async fn play_many<F, G>(
     wavs: Vec<Vec<u8>>,
+    on_item_started: F,
+    on_finished: G,
+  ) -> Result<Self, String>
+  where
+    F: FnMut(usize) + Send + 'static,
+    G: FnOnce() + Send + 'static,
+  {
+    Self::play_many_from(wavs, Duration::ZERO, on_item_started, on_finished).await
+  }
+
+  pub async fn play_many_from<F, G>(
+    wavs: Vec<Vec<u8>>,
+    start_at: Duration,
     mut on_item_started: F,
     on_finished: G,
   ) -> Result<Self, String>
@@ -49,7 +62,7 @@ impl AudioPlayer {
           }
         };
         sink.pause();
-        for wav in wavs {
+        for (index, wav) in wavs.into_iter().enumerate() {
           let decoder = match rodio::Decoder::new_wav(Cursor::new(wav)) {
             Ok(v) => v,
             Err(e) => {
@@ -57,7 +70,11 @@ impl AudioPlayer {
               return false;
             }
           };
-          sink.append(decoder);
+          if index == 0 && !start_at.is_zero() {
+            sink.append(decoder.skip_duration(start_at));
+          } else {
+            sink.append(decoder);
+          }
         }
         let mut next_started_item = 0;
         notify_started_items(

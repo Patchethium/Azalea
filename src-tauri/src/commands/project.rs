@@ -1,4 +1,4 @@
-use crate::config::types::{Project, Preset, TextBlockProps};
+use crate::config::types::{Preset, Project, TextBlockProps};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, fs, path::Path, result::Result};
 use voicevox_core::AudioQuery;

@@ -127,6 +127,13 @@ describe("ConfigPage", () => {
     await user.click(customTitlebar);
     expect(appConfig.customTitlebarEnabled()).toBe(false);
 
+    const playbackTimeline = screen.getByRole("switch", {
+      name: "Playback timeline",
+    });
+    expect(playbackTimeline).toBeChecked();
+    await user.click(playbackTimeline);
+    expect(appConfig.playbackTimelineEnabled()).toBe(false);
+
     await user.click(screen.getByRole("button", { name: "Primary color" }));
     await user.click(await screen.findByText("Normalize"));
     expect(appConfig.config.ui_config.primary_color).toMatch(/^#[0-9a-f]{6}$/);

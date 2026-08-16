@@ -18,7 +18,11 @@
     "next": "选择下一个文本单元格",
     "play": "播放选中的单元格",
     "play_all_from_selection": "播放选中的单元格及下方所有单元格",
-    "stop": "停止播放"
+    "stop": "停止播放",
+    "playback_timeline": "播放起始重音短语",
+    "playback_timeline_hint": "选择重音短语可设置播放起点，再次选择可将其清除。",
+    "playback_phrase_anchor": "从重音短语 {{ index }} 开始播放",
+    "jump_to_playback_anchor": "显示播放起始重音短语"
   },
   "shortcuts": {
     "title": "键盘快捷键",
@@ -80,6 +84,7 @@
     "theme_light": "浅色",
     "theme_dark": "深色",
     "custom_titlebar": "自定义标题栏",
+    "playback_timeline": "播放时间线",
     "primary_color": "主色调",
     "hue_saturation": "色相和饱和度",
     "normalize": "标准化",

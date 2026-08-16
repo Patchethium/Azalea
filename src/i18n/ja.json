@@ -18,7 +18,11 @@
     "next": "次のテキストセルを選択",
     "play": "選択したセルを再生",
     "play_all_from_selection": "選択したセル以降をすべて再生",
-    "stop": "再生を停止"
+    "stop": "再生を停止",
+    "playback_timeline": "再生開始アクセント句",
+    "playback_timeline_hint": "アクセント句を選ぶと再生開始位置を設定し、もう一度選ぶと解除します。",
+    "playback_phrase_anchor": "アクセント句{{ index }}から再生",
+    "jump_to_playback_anchor": "再生開始アクセント句を表示"
   },
   "shortcuts": {
     "title": "キーボードショートカット",
@@ -88,6 +92,7 @@
     "theme_light": "ライト",
     "theme_dark": "ダーク",
     "custom_titlebar": "カスタムタイトルバー",
+    "playback_timeline": "再生タイムライン",
     "primary_color": "メインカラー",
     "hue_saturation": "色相と彩度",
     "normalize": "標準化",

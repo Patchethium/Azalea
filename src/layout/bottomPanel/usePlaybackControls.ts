@@ -4,7 +4,14 @@ import type {
   WaveformSynthesisNotice,
 } from "@layout/bottomPanel/types";
 import { listen } from "@tauri-apps/api/event";
-import { createMemo, createSignal, onCleanup, onMount } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  on,
+  onCleanup,
+  onMount,
+} from "solid-js";
 import { unwrap } from "solid-js/store";
 import { useConfigStore } from "@contexts/config";
 import { useMetaStore } from "@contexts/meta";
@@ -31,10 +38,13 @@ export function usePlaybackControls(
   } = useTextStore()!;
   const { metas } = useMetaStore()!;
   const { setUIStore } = useUIStore()!;
-  const { config } = useConfigStore()!;
+  const { config, playbackTimelineEnabled } = useConfigStore()!;
   const { systemStore } = useSystemStore()!;
   const [isPlaying, setIsPlaying] = createSignal(false);
   const [playRequestPending, setPlayRequestPending] = createSignal(false);
+  const [playbackAnchorIndex, setPlaybackAnchorIndexSignal] = createSignal<
+    number | null
+  >(null);
   let playbackShortcutFocus: HTMLElement | null = null;
   let activePlaybackSequence: PlaybackSequence | null = null;
 
@@ -95,6 +105,77 @@ export function usePlaybackControls(
       : null;
   });
   const canPlay = () => queryExists() && currentPreset() !== null;
+  const currentModifiedQuery = createMemo(() => {
+    const block = selectedTextBlock();
+    const preset = currentPreset();
+    return block?.query == null || preset === null
+      ? null
+      : getModifiedQuery(block.query, preset);
+  });
+  const playbackPhrases = createMemo(() => {
+    const query = currentModifiedQuery();
+    if (
+      query === null ||
+      !Number.isFinite(query.speedScale) ||
+      query.speedScale <= 0
+    ) {
+      return [];
+    }
+    let elapsed = 0;
+    return query.accent_phrases.map((phrase) => {
+      const duration =
+        phrase.moras.reduce(
+          (phraseTotal, mora) =>
+            phraseTotal + (mora.consonant_length ?? 0) + mora.vowel_length,
+          0,
+        ) + (phrase.pause_mora?.vowel_length ?? 0);
+      const anchor = {
+        duration: Number.isFinite(duration) && duration > 0 ? duration : 0,
+        startSeconds: elapsed / query.speedScale,
+        moraCount: phrase.moras.length,
+      };
+      elapsed += anchor.duration;
+      return anchor;
+    });
+  });
+  const setPlaybackAnchorIndex = (index: number | null) => {
+    setPlaybackAnchorIndexSignal(
+      index === null ||
+        !Number.isInteger(index) ||
+        index < 0 ||
+        index >= playbackPhrases().length
+        ? null
+        : index,
+    );
+  };
+  const playbackStartTime = () => {
+    if (!playbackTimelineEnabled()) return null;
+    const query = currentModifiedQuery();
+    const anchor = playbackPhrases()[playbackAnchorIndex() ?? -1];
+    return query === null || anchor === undefined
+      ? null
+      : query.prePhonemeLength + anchor.startSeconds;
+  };
+
+  createEffect(
+    on(
+      () => selectedTextBlock()?.id,
+      () => setPlaybackAnchorIndexSignal(null),
+      { defer: true },
+    ),
+  );
+  createEffect(() => {
+    if (!playbackTimelineEnabled()) setPlaybackAnchorIndexSignal(null);
+  });
+  createEffect(() => {
+    const anchorIndex = playbackAnchorIndex();
+    if (
+      anchorIndex !== null &&
+      (anchorIndex < 0 || anchorIndex >= playbackPhrases().length)
+    ) {
+      setPlaybackAnchorIndexSignal(null);
+    }
+  });
 
   const focusSequenceItem = (itemIndex: number) => {
     const sequence = activePlaybackSequence;
@@ -137,7 +218,11 @@ export function usePlaybackControls(
       if (isPlaying()) await stop();
       activePlaybackSequence = null;
       const audioQuery = getModifiedQuery(unwrap(block.query!), preset);
-      const result = await commands.playAudio(audioQuery, preset.style_id);
+      const result = await commands.playAudio(
+        audioQuery,
+        preset.style_id,
+        playbackStartTime(),
+      );
       if (result.status === "ok") {
         setIsPlaying(true);
         onWaveformSynthesized({
@@ -276,6 +361,7 @@ export function usePlaybackControls(
           audio_query: item.audioQuery,
           speaker_id: item.speakerId,
         })),
+        playbackStartTime(),
       );
       if (result.status === "error") {
         if (activePlaybackSequence === sequence) activePlaybackSequence = null;
@@ -295,6 +381,9 @@ export function usePlaybackControls(
     prevExists,
     nextExists,
     canPlay,
+    playbackPhrases,
+    playbackAnchorIndex,
+    setPlaybackAnchorIndex,
     focusPrev,
     focusNext,
     togglePlayback,

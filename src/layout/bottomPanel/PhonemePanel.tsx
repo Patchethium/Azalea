@@ -1,11 +1,12 @@
 import { type AccentPhrase, commands } from "$binding";
 import { AccentPhraseItem } from "@layout/bottomPanel/AccentPhraseItem";
 import { debounce } from "@solid-primitives/scheduled";
-import { createMemo, For, onCleanup, Show } from "solid-js";
+import { createEffect, createMemo, For, onCleanup, Show } from "solid-js";
 import { produce } from "solid-js/store";
 import { usei18n } from "@contexts/i18n";
 import { useMetaStore } from "@contexts/meta";
 import { findPresetById, findPresetStyle, useTextStore } from "@contexts/text";
+import { useUIStore } from "@contexts/ui";
 import { useSideEffect } from "$utils";
 
 export function PhonemePanel() {
@@ -19,6 +20,8 @@ export function PhonemePanel() {
     selectedTextBlockIndex,
   } = useTextStore()!;
   const { metas } = useMetaStore()!;
+  const { uiStore, setUIStore } = useUIStore()!;
+  let scrollAreaRef!: HTMLDivElement;
   const currentText = selectedTextBlock;
   const selectedIdx = () =>
     currentText() === null ? null : selectedTextBlockIndex();
@@ -147,8 +150,26 @@ export function PhonemePanel() {
       query !== null && query !== undefined && query.accent_phrases.length > 0
     );
   };
+  createEffect(() => {
+    const scrollLeft = uiStore.bottom_scroll_pos;
+    if (scrollAreaRef.scrollLeft !== scrollLeft) {
+      scrollAreaRef.scrollLeft = scrollLeft;
+    }
+  });
   return (
-    <div class="size-full relative flex flex-row left-0 top-0 overflow-x-auto overflow-y-hidden cursor-default p-2">
+    <div
+      ref={(element) => {
+        scrollAreaRef = element;
+      }}
+      class="size-full relative flex flex-row left-0 top-0 overflow-x-auto overflow-y-hidden cursor-default p-2"
+      data-bottom-panel-scroll="accent"
+      onScroll={(event) => {
+        const scrollLeft = event.currentTarget.scrollLeft;
+        if (uiStore.bottom_scroll_pos !== scrollLeft) {
+          setUIStore("bottom_scroll_pos", scrollLeft);
+        }
+      }}
+    >
       <Show
         when={queryExists()}
         fallback={

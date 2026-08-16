@@ -12,3 +12,9 @@ export type PlaybackSequence = {
   items: WaveformSynthesisNotice[];
   lastStartedIndex: number | null;
 };
+
+export type PlaybackPhraseAnchor = {
+  duration: number;
+  startSeconds: number;
+  moraCount: number;
+};

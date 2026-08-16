@@ -22,6 +22,8 @@ export function TuningPanel(props: {
       <div
         ref={panel.setScrollAreaRef}
         onWheel={panel.handleWheel}
+        onScroll={panel.handleScroll}
+        data-bottom-panel-scroll="tuning"
         class="size-full relative flex flex-col left-0 top-0 overflow-x-auto overflow-y-hidden cursor-default"
         classList={{
           "!overflow-x-hidden !cursor-ew-resize": panel.draggingData() !== null,

@@ -23,7 +23,6 @@ import {
   createSignal,
   on,
   onCleanup,
-  onMount,
 } from "solid-js";
 
 export function useTuningPanel(
@@ -340,8 +339,11 @@ export function useTuningPanel(
     setScale(_.clamp(scale() + (event.deltaY > 0 ? -50 : 50), 100, maxScale));
   };
 
-  onMount(() => {
-    scrollAreaRef?.scroll({ left: uiStore.bottom_scroll_pos });
+  createEffect(() => {
+    const scrollLeft = uiStore.bottom_scroll_pos;
+    if (scrollAreaRef && scrollAreaRef.scrollLeft !== scrollLeft) {
+      scrollAreaRef.scrollLeft = scrollLeft;
+    }
   });
   onCleanup(() => {
     mounted = false;
@@ -371,6 +373,12 @@ export function useTuningPanel(
     handleDragFinish,
     handleDragging,
     handleWheel,
+    handleScroll: (event: Event & { currentTarget: HTMLDivElement }) => {
+      const scrollLeft = event.currentTarget.scrollLeft;
+      if (uiStore.bottom_scroll_pos !== scrollLeft) {
+        setUIStore("bottom_scroll_pos", scrollLeft);
+      }
+    },
     minScale,
     maxScale,
     scale,
