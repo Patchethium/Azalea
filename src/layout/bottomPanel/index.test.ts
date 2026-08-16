@@ -462,13 +462,13 @@ describe("BottomPanel playback", () => {
     await playFrom(accentTab, 2);
     expect(tuningTab).not.toHaveAttribute("data-playback-shortcut-focus");
 
-    const presetToggle = screen.getByRole("button", { name: "Preset" });
-    fireEvent.click(presetToggle);
-    const presetExpanded = presetToggle.getAttribute("aria-expanded");
-    await playFrom(presetToggle, 3);
-    expect(presetToggle).toHaveAttribute("aria-expanded", presetExpanded);
+    const presetResizeHandle = screen.getByRole("separator", {
+      name: "Preset",
+    });
+    const presetSize = presetResizeHandle.getAttribute("aria-valuenow");
+    await playFrom(presetResizeHandle, 3);
+    expect(presetResizeHandle).toHaveAttribute("aria-valuenow", presetSize);
 
-    fireEvent.click(presetToggle);
     const speakerSelect = await screen.findByRole("button", {
       name: "Speaker Speaker",
     });

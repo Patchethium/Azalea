@@ -181,61 +181,6 @@ describe("Sidebar project lifecycle", () => {
 });
 
 describe("Sidebar controls", () => {
-  it("expands the recreated preset editor to its current maximum", async () => {
-    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
-    let contentHeight = 600;
-    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(
-      function (this: HTMLElement) {
-        if (this.tagName === "BUTTON") return 8;
-        if (this.tagName === "H2") return 28;
-        return 1_000;
-      },
-    );
-    vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockImplementation(
-      () => contentHeight,
-    );
-    let text!: NonNullable<ReturnType<typeof useTextStore>>;
-    const { getControls } = renderSidebarHook(({ meta, text: textStore }) => {
-      text = textStore;
-      batch(() => {
-        meta.setMetas(metas);
-        text.setProjectPresetStore([preset()]);
-        text.replaceTextBlocks([
-          {
-            id: "current-block",
-            text: "Current block",
-            query: audioQuery(),
-            query_is_modified: false,
-            preset_id: "preset-1",
-          },
-        ]);
-      });
-    });
-    await Promise.resolve();
-    const controls = getControls();
-    controls.setPresetPanelSize(0.6);
-
-    controls.removePreset();
-    contentHeight = 10;
-    controls.setPresetPanelContent(document.createElement("div"));
-    await Promise.resolve();
-    expect(controls.presetPanelSize()).toBe(0.6);
-    controls.collapsePresetPanel();
-    text.setProjectPresetStore([preset({ id: "unselected-preset" })]);
-    await Promise.resolve();
-    expect(controls.expanded()).toEqual([]);
-    text.setProjectPresetStore([]);
-    controls.createPreset();
-    contentHeight = 600;
-    await Promise.resolve();
-
-    expect(text.projectPresetStore).toHaveLength(1);
-    expect(controls.expanded()).toEqual(["preset"]);
-    expect(controls.presetPanelMaxSize()).toBeCloseTo(631 / 992);
-    expect(controls.presetPanelSize()).toBeCloseTo(631 / 992);
-    expect(controls.presetPanelSizes()[1]).toBeCloseTo(631 / 992);
-  });
-
   it("handles preset controller edge cases", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
     dialogs.open.mockResolvedValue(null);
@@ -347,18 +292,6 @@ describe("Sidebar controls", () => {
     expect(text.projectPresetStore).toHaveLength(2);
     expect(text.textStore[0].preset_id).toBe("preset-1");
 
-    controls.finishPresetPanelResize();
-    controls.setResizingPresetPanel(true);
-    controls.setExpanded([]);
-    controls.finishPresetPanelResize();
-    controls.setResizingPresetPanel(true);
-    controls.setExpanded(["preset"]);
-    controls.setPresetPanelSizes([0.25, 0.75]);
-    controls.finishPresetPanelResize();
-    expect(controls.presetPanelSize()).toBe(0.75);
-    controls.collapsePresetPanel();
-    controls.setPresetPanelContent(document.createElement("div"));
-
     text.setTextStore([]);
     text.setProjectPresetStore([]);
     controls.setStyleId(1);
@@ -390,6 +323,35 @@ describe("Sidebar controls", () => {
   it("resizes the preset editor and applies speaker changes after selection", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    const resizeObservers: ResizeObserverTestMock[] = [];
+    class ResizeObserverTestMock {
+      private readonly elements: Element[] = [];
+
+      constructor(callback: ResizeObserverCallback) {
+        this.callback = callback;
+        resizeObservers.push(this);
+      }
+
+      private readonly callback: ResizeObserverCallback;
+
+      observe(element: Element) {
+        this.elements.push(element);
+      }
+      unobserve() {}
+      disconnect() {}
+
+      notify() {
+        this.callback(
+          this.elements.map((target) => ({ target }) as ResizeObserverEntry),
+          this as unknown as ResizeObserver,
+        );
+      }
+    }
+    Object.defineProperty(globalThis, "ResizeObserver", {
+      configurable: true,
+      value: ResizeObserverTestMock,
+    });
+    let contentHeight = 600;
     vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(
       function (this: HTMLElement) {
         if (this.hasAttribute("data-corvu-resizable-root")) return 1_000;
@@ -400,7 +362,9 @@ describe("Sidebar controls", () => {
     );
     vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockImplementation(
       function (this: HTMLElement) {
-        return this.hasAttribute("data-preset-editor-content") ? 600 : 0;
+        return this.hasAttribute("data-preset-editor-content")
+          ? contentHeight
+          : 0;
       },
     );
     let text!: NonNullable<ReturnType<typeof useTextStore>>;
@@ -432,13 +396,26 @@ describe("Sidebar controls", () => {
     await screen.findByRole("button", { name: "Create preset" });
     const resizeHandle = screen.getByRole("separator", { name: "Preset" });
     const presetPanel = resizeHandle.nextElementSibling as HTMLElement;
-    const presetToggle = screen.getByRole("button", { name: "Preset" });
     expect(resizeHandle).toHaveAttribute("aria-orientation", "vertical");
+    expect(screen.getByRole("heading", { name: "Preset" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Preset" }),
+    ).not.toBeInTheDocument();
     await waitFor(() =>
       expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(63.61, 2),
     );
     expect((parseFloat(presetPanel.style.flexBasis) / 100) * 992).toBeCloseTo(
       631,
+    );
+    contentHeight = 500;
+    for (const observer of resizeObservers) observer.notify();
+    await waitFor(() =>
+      expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(53.53, 2),
+    );
+    contentHeight = 600;
+    for (const observer of resizeObservers) observer.notify();
+    await waitFor(() =>
+      expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(63.61, 2),
     );
     fireEvent.keyDown(resizeHandle, { key: "ArrowDown" });
     expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(53.61, 2);
@@ -446,37 +423,36 @@ describe("Sidebar controls", () => {
     expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(63.61, 2);
     fireEvent.keyDown(resizeHandle, { key: "ArrowUp" });
     expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(63.61, 2);
-    await user.click(presetToggle);
-    await waitFor(() =>
-      expect(presetToggle).toHaveAttribute("aria-expanded", "false"),
-    );
-    expect(resizeHandle).toHaveAttribute("data-collapsed");
-    expect(resizeHandle).toBeDisabled();
-    expect(presetPanel.style.flexBasis).toBe("3%");
-    await user.click(presetToggle);
-    await waitFor(() =>
-      expect(presetToggle).toHaveAttribute("aria-expanded", "true"),
-    );
-    expect(resizeHandle).not.toHaveAttribute("data-collapsed");
-    expect(resizeHandle).not.toBeDisabled();
-    expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(63.61, 2);
-    fireEvent.keyDown(resizeHandle, { key: "ArrowDown" });
-    expect(resizeHandle).toHaveAttribute("data-resizing");
-    fireEvent.keyDown(resizeHandle, { key: "ArrowDown" });
-    fireEvent.keyDown(resizeHandle, { key: "ArrowDown" });
-    fireEvent.keyDown(resizeHandle, { key: "ArrowDown" });
-    fireEvent.keyDown(resizeHandle, { key: "ArrowDown" });
-    await waitFor(() =>
-      expect(presetToggle).toHaveAttribute("aria-expanded", "false"),
-    );
-    expect(resizeHandle).toBeDisabled();
-    expect(resizeHandle).not.toHaveAttribute("data-resizing");
-    expect(presetPanel.style.flexBasis).toBe("3%");
-    await user.click(presetToggle);
-    await waitFor(() =>
-      expect(presetToggle).toHaveAttribute("aria-expanded", "true"),
-    );
-    expect(parseFloat(presetPanel.style.flexBasis)).toBeCloseTo(63.61, 2);
+
+    const drag = (fromY: number, toY: number) => {
+      resizeHandle.setPointerCapture = vi.fn();
+      resizeHandle.dispatchEvent(
+        new MouseEvent("pointerdown", {
+          bubbles: true,
+          clientX: 0,
+          clientY: fromY,
+        }),
+      );
+      window.dispatchEvent(
+        new MouseEvent("pointermove", {
+          bubbles: true,
+          clientX: 0,
+          clientY: toY,
+        }),
+      );
+      window.dispatchEvent(
+        new MouseEvent("pointerup", {
+          bubbles: true,
+          clientX: 0,
+          clientY: toY,
+        }),
+      );
+    };
+    drag(200, 1_000);
+    expect(presetPanel).toHaveAttribute("data-collapsed");
+    expect(resizeHandle).toBeInTheDocument();
+    drag(1_000, 700);
+    expect(presetPanel).not.toHaveAttribute("data-collapsed");
     expect(
       screen.getByRole("button", { name: "Move preset up" }),
     ).toBeInTheDocument();

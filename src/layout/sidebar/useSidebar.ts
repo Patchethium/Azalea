@@ -86,94 +86,13 @@ export function useSidebar() {
     });
   };
 
-  const [collapsedPresetPanelSize, setCollapsedPresetPanelSize] =
-    createSignal(0.05);
-  const [expanded, setExpanded] = createSignal(["preset"]);
-  const [presetPanelSize, setPresetPanelSize] = createSignal(0.9);
-  const [presetPanelMaxSize, setPresetPanelMaxSize] = createSignal(1);
-  const [presetPanelSizes, setPresetPanelSizes] = createSignal([0.1, 0.9]);
-  const [resizingPresetPanel, setResizingPresetPanel] = createSignal(false);
   const [presetManagerOpen, setPresetManagerOpen] = createSignal(false);
   const [speakerSelectionOpen, setSpeakerSelectionOpen] = createSignal(false);
   const [aboutOpen, setAboutOpen] = createSignal(false);
-  let presetSplitter!: HTMLDivElement;
-  let presetResizeHandle!: HTMLButtonElement;
-  let presetResizeHandleHeight = 0;
-  let presetPanelHeader!: HTMLHeadingElement;
-  let presetPanelContent!: HTMLDivElement;
-  let presetPanelObserver: ResizeObserver | undefined;
-  let updatePresetPanelBounds = () => {};
-  let expandPresetPanelOnResize = false;
-
-  onMount(() => {
-    updatePresetPanelBounds = () => {
-      const rootHeight = presetSplitter.offsetHeight;
-      const headerHeight = presetPanelHeader.offsetHeight + 2;
-      const contentHeight = presetPanelContent.scrollHeight + 1;
-      if (rootHeight === 0 || headerHeight === 2 || contentHeight === 1) return;
-      presetResizeHandleHeight = Math.max(
-        presetResizeHandleHeight,
-        presetResizeHandle.offsetHeight,
-      );
-      const collapsedSize = headerHeight / rootHeight;
-      const availableHeight = Math.max(
-        rootHeight - presetResizeHandleHeight,
-        1,
-      );
-      const maxSize = Math.min(
-        (headerHeight + contentHeight) / availableHeight,
-        1,
-      );
-      const shouldExpand = expandPresetPanelOnResize;
-      const size = shouldExpand
-        ? maxSize
-        : expanded().length > 0
-          ? Math.min(presetPanelSizes()[1], maxSize)
-          : collapsedSize;
-      expandPresetPanelOnResize = false;
-      batch(() => {
-        setCollapsedPresetPanelSize(collapsedSize);
-        setPresetPanelMaxSize(maxSize);
-        if (shouldExpand) {
-          setExpanded(["preset"]);
-          setPresetPanelSize(maxSize);
-        }
-        setPresetPanelSizes([1 - size, size]);
-      });
-    };
-    presetPanelObserver = new ResizeObserver(updatePresetPanelBounds);
-    presetPanelObserver.observe(presetSplitter);
-    presetPanelObserver.observe(presetPanelContent);
-    queueMicrotask(updatePresetPanelBounds);
-    onCleanup(() => presetPanelObserver?.disconnect());
-  });
-
-  const collapsePresetPanel = () => {
-    setResizingPresetPanel(false);
-    const size = collapsedPresetPanelSize();
-    batch(() => {
-      setExpanded([]);
-      setPresetPanelSizes([1 - size, size]);
-    });
-  };
-  const finishPresetPanelResize = () => {
-    if (!resizingPresetPanel()) return;
-    setResizingPresetPanel(false);
-    if (expanded().length > 0) setPresetPanelSize(presetPanelSizes()[1]);
-  };
 
   const currentPreset = createMemo(() =>
     findPresetById(projectPresetStore, currentText()?.preset_id),
   );
-  let hadCurrentPreset = currentPreset() !== null;
-  createEffect(() => {
-    const hasCurrentPreset = currentPreset() !== null;
-    if (!hadCurrentPreset && hasCurrentPreset) {
-      expandPresetPanelOnResize = true;
-      queueMicrotask(() => updatePresetPanelBounds());
-    }
-    hadCurrentPreset = hasCurrentPreset;
-  });
   const currentPresetIndex = createMemo(() =>
     projectPresetStore.findIndex(
       (preset) => preset.id === currentText()?.preset_id,
@@ -369,17 +288,6 @@ export function useSidebar() {
     createPreset,
     removePreset,
     movePreset,
-    expanded,
-    setExpanded,
-    presetPanelSize,
-    setPresetPanelSize,
-    presetPanelMaxSize,
-    presetPanelSizes,
-    setPresetPanelSizes,
-    resizingPresetPanel,
-    setResizingPresetPanel,
-    collapsePresetPanel,
-    finishPresetPanelResize,
     presetManagerOpen,
     setPresetManagerOpen,
     speakerSelectionOpen,
@@ -393,22 +301,6 @@ export function useSidebar() {
     newProject,
     loadProject,
     saveProject,
-    setPresetSplitter: (element: HTMLDivElement) => {
-      presetSplitter = element;
-    },
-    setPresetResizeHandle: (element: HTMLButtonElement) => {
-      presetResizeHandle = element;
-    },
-    setPresetPanelHeader: (element: HTMLHeadingElement) => {
-      presetPanelHeader = element;
-    },
-    setPresetPanelContent: (element: HTMLDivElement) => {
-      if (presetPanelContent)
-        presetPanelObserver?.unobserve(presetPanelContent);
-      presetPanelContent = element;
-      presetPanelObserver?.observe(element);
-      queueMicrotask(updatePresetPanelBounds);
-    },
   };
 }
 

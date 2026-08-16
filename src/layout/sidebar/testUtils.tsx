@@ -54,13 +54,7 @@ export function renderSidebarHook(setup: (stores: SidebarTestStores) => void) {
       text: useTextStore()!,
     };
     onMount(() => setup(stores));
-    return (
-      <div ref={controls.setPresetSplitter}>
-        <button ref={controls.setPresetResizeHandle} type="button" />
-        <h2 ref={controls.setPresetPanelHeader}>Preset</h2>
-        <div ref={controls.setPresetPanelContent} />
-      </div>
-    );
+    return <div />;
   };
   const result = render(() => (
     <MultiProvider
