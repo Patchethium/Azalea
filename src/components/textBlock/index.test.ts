@@ -5,6 +5,7 @@ import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { createComponent } from "solid-js";
+import { produce } from "solid-js/store";
 import { describe, expect, it, vi } from "vitest";
 import { audioQuery, preset } from "../../test/fixtures";
 
@@ -334,6 +335,50 @@ describe("TextBlock", () => {
     expect(synthesize.mock.calls[1][0].generationId).toBeGreaterThan(
       synthesize.mock.calls[0][0].generationId,
     );
+  });
+
+  it("resubmits buffered synthesis after nested audio query edits", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    vi.spyOn(commands, "audioQuery").mockResolvedValue({
+      status: "ok",
+      data: audioQuery(),
+    });
+    const synthesize = vi
+      .spyOn(commands, "synthesize")
+      .mockResolvedValue({ status: "ok", data: null });
+    const { getTextStore } = renderBlock(true);
+    await waitFor(() => expect(synthesize).toHaveBeenCalledOnce());
+
+    const phrase = audioQuery().accent_phrases[0];
+    getTextStore().setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      produce((phrases) => {
+        phrases.splice(0, 1, { ...phrase }, { ...phrase });
+      }),
+    );
+
+    await waitFor(() => expect(synthesize).toHaveBeenCalledTimes(2));
+    expect(synthesize.mock.calls[1][0].audioQuery.accent_phrases).toHaveLength(
+      2,
+    );
+
+    getTextStore().setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      1,
+      "moras",
+      0,
+      "pitch",
+      5.8,
+    );
+
+    await waitFor(() => expect(synthesize).toHaveBeenCalledTimes(3));
+    expect(
+      synthesize.mock.calls[2][0].audioQuery.accent_phrases[1].moras[0].pitch,
+    ).toBe(5.8);
   });
 
   it("cancels a successful synthesis response that finishes after unmount", async () => {

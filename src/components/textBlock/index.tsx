@@ -211,7 +211,7 @@ function TextBlock(props: { index: number }) {
     const query = currentQuery();
     return preset === null || query === null
       ? null
-      : getModifiedQuery(unwrap(query), preset);
+      : getModifiedQuery(query, preset);
   });
   const { synthState, synthStateText, synthStateIcon } = useTextBlockSynthesis({
     index: props.index,
