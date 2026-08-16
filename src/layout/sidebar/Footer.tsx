@@ -19,9 +19,9 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
         >
           <DropdownMenu.Trigger
             aria-label={t1("menu.project_actions")}
-            class="group p1 size-8 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-primary-5 ui-expanded:bg-primary-5 transition-transform outline-none"
+            class="group p1 size-8 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-primary-5 data-[expanded]:bg-primary-5 transition-transform outline-none"
           >
-            <div class="i-lucide:kanban bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white ui-expanded:!bg-white" />
+            <div class="i-lucide:kanban bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white group-data-[expanded]:!bg-white" />
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Arrow size={8} />

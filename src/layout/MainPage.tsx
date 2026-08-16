@@ -70,9 +70,12 @@ function MainPage() {
           <div class="size-full rounded transition-colors bg-transparent group-hover:bg-primary-5 group-active:bg-primary-5 h-[1px]" />
         </Resizable.Handle>
         <Resizable.Panel
+          class="min-h-0 overflow-hidden"
           initialSize={config.ui_config.bottom_ratio ?? DEFAULT_BOTTOM_RATIO}
           onResize={(s) => setConfig("ui_config", "bottom_ratio", s)}
           minSize={0.2}
+          collapsible
+          collapseThreshold={0.05}
         >
           <div class="hfull bg-transparent p-2 pl-0 pt-0">
             <BottomPanel />

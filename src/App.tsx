@@ -114,13 +114,15 @@ function App() {
 
   const sidebarPanelSizes = () => {
     const width = windowWidth();
-    const sidebarWidth = Math.min(
-      Math.max(
-        config.ui_config.side_width ?? DEFAULT_SIDEBAR_WIDTH,
-        MIN_SIDEBAR_WIDTH,
-      ),
-      width - MIN_EDITOR_WIDTH,
-    );
+    const configuredWidth =
+      config.ui_config.side_width ?? DEFAULT_SIDEBAR_WIDTH;
+    const sidebarWidth =
+      configuredWidth === 0
+        ? 0
+        : Math.min(
+            Math.max(configuredWidth, MIN_SIDEBAR_WIDTH),
+            width - MIN_EDITOR_WIDTH,
+          );
     const sidebarRatio = sidebarWidth / width;
     return [sidebarRatio, 1 - sidebarRatio];
   };
@@ -165,7 +167,12 @@ function App() {
               }
             }}
           >
-            <Resizable.Panel minSize="175px">
+            <Resizable.Panel
+              class="min-w-0 overflow-hidden"
+              minSize="175px"
+              collapsible
+              collapseThreshold={0.05}
+            >
               <Sidebar />
             </Resizable.Panel>
             <Resizable.Handle

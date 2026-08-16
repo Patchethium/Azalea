@@ -87,11 +87,11 @@ export function ShortcutReferenceDialog() {
   return (
     <Dialog onOpenChange={(open) => !open && resetEditor()}>
       <Dialog.Trigger
-        class="group size-8 p1 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-primary-5 ui-expanded:bg-primary-5 transition-transform outline-none"
+        class="group size-8 p1 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-primary-5 data-[expanded]:bg-primary-5 transition-transform outline-none"
         title={t1("shortcuts.open")}
         aria-label={t1("shortcuts.open")}
       >
-        <div class="i-lucide:keyboard bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white ui-expanded:!bg-white" />
+        <div class="i-lucide:keyboard bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white group-data-[expanded]:!bg-white" />
       </Dialog.Trigger>
       <AppDialogContent
         title={t1("shortcuts.title")}

@@ -227,6 +227,92 @@ describe("App initialization", () => {
     );
   });
 
+  it("collapses and re-expands the sidebar and bottom panel by dragging", async () => {
+    mockIPC((cmd) => (cmd.includes("theme") ? "light" : null), {
+      shouldMockEvents: true,
+    });
+    mockWindows("main");
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(
+      function (this: HTMLElement) {
+        return this.hasAttribute("data-corvu-resizable-root")
+          ? window.innerWidth
+          : 0;
+      },
+    );
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(
+      function (this: HTMLElement) {
+        return this.hasAttribute("data-corvu-resizable-root") &&
+          this.className === "size-full"
+          ? 1_000
+          : 0;
+      },
+    );
+    renderApp();
+    await events.initializationEvent.emit({
+      config: config({ side_width: 240 }),
+      core_initialized: true,
+      metas,
+      range: [],
+      error: null,
+    });
+
+    const handles = await screen.findAllByRole("separator", {
+      name: "Resize Handle",
+    });
+    const sidebarHandle = handles.find(
+      (element) => element.getAttribute("aria-orientation") === "horizontal",
+    )!;
+    const bottomHandle = handles.find(
+      (element) => element.getAttribute("aria-orientation") === "vertical",
+    )!;
+    const sidebar = sidebarHandle.previousElementSibling as HTMLElement;
+    const bottomPanel = bottomHandle.nextElementSibling as HTMLElement;
+    const drag = (
+      handle: HTMLElement,
+      from: { clientX: number; clientY: number },
+      to: { clientX: number; clientY: number },
+    ) => {
+      handle.setPointerCapture = vi.fn();
+      handle.dispatchEvent(
+        new MouseEvent("pointerdown", { bubbles: true, ...from }),
+      );
+      window.dispatchEvent(
+        new MouseEvent("pointermove", { bubbles: true, ...to }),
+      );
+      window.dispatchEvent(
+        new MouseEvent("pointerup", { bubbles: true, ...to }),
+      );
+    };
+
+    drag(
+      sidebarHandle,
+      { clientX: 240, clientY: 0 },
+      { clientX: 0, clientY: 0 },
+    );
+    expect(sidebar).toHaveAttribute("data-collapsed");
+    expect(sidebarHandle).toBeInTheDocument();
+    drag(
+      sidebarHandle,
+      { clientX: 0, clientY: 0 },
+      { clientX: 200, clientY: 0 },
+    );
+    expect(sidebar).not.toHaveAttribute("data-collapsed");
+
+    drag(
+      bottomHandle,
+      { clientX: 0, clientY: 700 },
+      { clientX: 0, clientY: 1_000 },
+    );
+    expect(bottomPanel).toHaveAttribute("data-collapsed");
+    expect(bottomHandle).toBeInTheDocument();
+    drag(
+      bottomHandle,
+      { clientX: 0, clientY: 1_000 },
+      { clientX: 0, clientY: 800 },
+    );
+    expect(bottomPanel).not.toHaveAttribute("data-collapsed");
+  });
+
   it("tracks system theme changes and removes the listener on cleanup", async () => {
     vi.mocked(window.matchMedia).mockReturnValue({
       ...window.matchMedia(""),
