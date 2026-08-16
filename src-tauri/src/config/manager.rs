@@ -132,14 +132,14 @@ mod tests {
   fn load_preserves_collapsed_and_repairs_invalid_side_panel_width() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("config.toml");
-    std::fs::write(&path, "[ui_config]\nside_width = 0\n").unwrap();
+    std::fs::write(&path, "[ui]\nside_width = 0\n").unwrap();
     let mut manager = ConfigManager::default();
 
     manager.load_as(&path).unwrap();
 
     assert_eq!(manager.config.ui.side_width, 0);
 
-    std::fs::write(&path, "[ui_config]\nside_width = 4\n").unwrap();
+    std::fs::write(&path, "[ui]\nside_width = 4\n").unwrap();
 
     manager.load_as(&path).unwrap();
 

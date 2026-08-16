@@ -228,7 +228,7 @@ describe("ConfigProvider", () => {
     );
     const save = invocations.find(({ cmd }) => cmd === "set_config");
     expect(save?.args).toMatchObject({
-      config: { ui_config: { theme_mode: "Dark" } },
+      config: { ui: { theme_mode: "Dark" } },
     });
   });
 

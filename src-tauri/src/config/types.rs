@@ -322,7 +322,7 @@ mod tests {
 
   #[test]
   fn empty_application_config_has_a_default_preset_and_preview() {
-    let config: AzaleaConfig = toml::from_str("[ui_config]\n").unwrap();
+    let config: AzaleaConfig = toml::from_str("[ui]\n").unwrap();
 
     assert_eq!(config.system_presets.len(), 1);
     assert_eq!(config.system_presets[0].name, "Default");
