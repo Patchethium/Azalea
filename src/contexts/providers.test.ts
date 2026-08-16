@@ -310,14 +310,14 @@ describe("TextProvider", () => {
         text: "first",
         query: null,
         query_is_modified: false,
-        preset_id: 0,
+        preset_id: "preset-1",
       },
       {
         id: "second-id",
         text: "second",
         query: audioQuery(),
         query_is_modified: false,
-        preset_id: 0,
+        preset_id: "preset-1",
       },
     ]);
     ui.setUIStore("selectedTextBlockIndex", 99);
@@ -333,13 +333,13 @@ describe("TextProvider", () => {
             id: "first-id",
             text: "first",
             query_is_modified: false,
-            preset_id: 0,
+            preset_id: "preset-1",
           },
           {
             id: "second-id",
             text: "second",
             query_is_modified: false,
-            preset_id: 0,
+            preset_id: "preset-1",
           },
         ],
         presets: [{ name: "Default" }],
@@ -352,11 +352,44 @@ describe("TextProvider", () => {
     expect(text.textStore).toHaveLength(1);
     expect(text.textStore[0]).toMatchObject({
       text: "",
-      preset_id: 0,
+      preset_id: "preset-1",
       query: null,
       query_is_modified: false,
     });
     expect(ui.uiStore.selectedTextBlockIndex).toBe(0);
+  });
+
+  it("removes preset references without changing other preset identities", () => {
+    const { text } = renderTextStores();
+    text.setProjectPresetStore([
+      preset({ id: "preset-1" }),
+      preset({ id: "preset-2", name: "Second" }),
+    ]);
+    text.replaceTextBlocks([
+      {
+        id: "first",
+        text: "first",
+        query: null,
+        query_is_modified: false,
+        preset_id: "preset-1",
+      },
+      {
+        id: "second",
+        text: "second",
+        query: null,
+        query_is_modified: false,
+        preset_id: "preset-2",
+      },
+    ]);
+
+    expect(text.removeProjectPreset("preset-1")).toBe(0);
+    expect(text.projectPresetStore.map((item) => item.id)).toEqual([
+      "preset-2",
+    ]);
+    expect(text.textStore.map((block) => block.preset_id)).toEqual([
+      null,
+      "preset-2",
+    ]);
   });
 
   it("creates a new project from available metadata and localized defaults", async () => {
@@ -374,7 +407,7 @@ describe("TextProvider", () => {
       style_name: "Normal",
     });
     expect(text.textStore).toHaveLength(1);
-    expect(text.textStore[0].preset_id).toBe(0);
+    expect(text.textStore[0].preset_id).toBe(text.projectPresetStore[0].id);
   });
 
   it("remaps style IDs by speaker UUID and style name", () => {

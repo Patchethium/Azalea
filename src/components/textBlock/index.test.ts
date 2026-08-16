@@ -149,7 +149,7 @@ describe("TextBlock", () => {
     expect(getTextStore().textStore[0].id).toBe("text-block");
     expect(getTextStore().textStore[1]).toMatchObject({
       text: "",
-      preset_id: 0,
+      preset_id: "preset-1",
       query: null,
       query_is_modified: false,
     });

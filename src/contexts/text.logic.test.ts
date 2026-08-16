@@ -17,13 +17,13 @@ describe("text-block helpers", () => {
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000001")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000002");
 
-    const first = createTextBlock(2, "hello");
+    const first = createTextBlock("preset-2", "hello");
     const second = createTextBlock(null);
 
     expect(first).toEqual({
       id: "00000000-0000-4000-8000-000000000001",
       text: "hello",
-      preset_id: 2,
+      preset_id: "preset-2",
       query: null,
       query_is_modified: false,
     });

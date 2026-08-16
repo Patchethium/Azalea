@@ -201,6 +201,8 @@ fn play_next_shortcut_default() -> KeyboardShortcut {
 
 #[derive(Clone, Deserialize, Serialize, Type)]
 pub struct Preset {
+  #[serde(default)]
+  pub id: String,
   pub name: String,
   pub style_id: StyleId,
   /// in percentage, 50-200
@@ -223,6 +225,7 @@ pub struct Preset {
 impl Default for Preset {
   fn default() -> Self {
     Self {
+      id: String::new(),
       name: String::from("Default"),
       style_id: StyleId::new(0),
       speed: 100,
@@ -243,7 +246,7 @@ pub struct TextBlockProps {
   pub text: String,
   pub query: Option<AudioQuery>,
   pub query_is_modified: bool,
-  pub preset_id: Option<usize>,
+  pub preset_id: Option<String>,
 }
 
 #[derive(Clone, Deserialize, Serialize, Type, Default)]

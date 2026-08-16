@@ -67,10 +67,10 @@ export function PresetSidebar(props: { controls: SidebarControls }) {
           <div class="size-full flex flex-col overflow-hidden">
             <div class="size-full gap-1 overflow-auto pl-0 pr-2 pt-1">
               <For each={controls.projectPresetStore}>
-                {(_, index) => (
+                {(preset, index) => (
                   <PresetCard
                     presetIndex={index()}
-                    selected={index() === controls.currentText()?.preset_id}
+                    selected={preset.id === controls.currentText()?.preset_id}
                     onClick={() => controls.setTextPresetIdx(index())}
                   />
                 )}

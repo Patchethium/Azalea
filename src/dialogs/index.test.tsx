@@ -62,6 +62,15 @@ describe("PresetManagerDialog", () => {
             system_presets: [preset({ name: "System Only" })],
           });
           text.setProjectPresetStore([preset({ name: "Project Only" })]);
+          text.replaceTextBlocks([
+            {
+              id: "block-1",
+              text: "",
+              query: null,
+              query_is_modified: false,
+              preset_id: "preset-1",
+            },
+          ]);
         });
       });
       return <PresetManagerDialog open onOpenChange={() => {}} />;
@@ -91,6 +100,7 @@ describe("PresetManagerDialog", () => {
       "System Only",
       "Project Only",
     ]);
+    expect(appConfig.config.system_presets?.[1].id).not.toBe("preset-1");
 
     text.setProjectPresetStore(0, "name", "Changed Project");
     expect(appConfig.config.system_presets?.[1].name).toBe("Project Only");
@@ -104,6 +114,7 @@ describe("PresetManagerDialog", () => {
       "Changed Project",
       "System Only",
     ]);
+    expect(text.projectPresetStore[1].id).not.toBe("preset-1");
 
     fireEvent.mouseEnter(screen.getByText("Changed Project").parentElement!);
     fireEvent.click(
@@ -112,6 +123,7 @@ describe("PresetManagerDialog", () => {
     expect(text.projectPresetStore.map((item) => item.name)).toEqual([
       "System Only",
     ]);
+    expect(text.textStore[0].preset_id).toBeNull();
 
     const systemCopies = screen.getAllByText("System Only");
     fireEvent.mouseEnter(systemCopies[systemCopies.length - 1].parentElement!);

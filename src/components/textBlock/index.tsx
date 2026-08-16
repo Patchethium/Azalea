@@ -8,6 +8,7 @@ import { produce, unwrap } from "solid-js/store";
 import { useConfigStore } from "@contexts/config";
 import { useMetaStore } from "@contexts/meta";
 import {
+  findPresetById,
   findPresetStyle,
   type TextBlockProps,
   useTextStore,
@@ -31,11 +32,8 @@ function TextBlock(props: { index: number }) {
   const currentText = createMemo(() => textStore[props.index]);
   const currentQuery = createMemo(() => currentText().query);
   const currentPreset = createMemo(() => {
-    if (projectPresetStore.length === 0 || currentText().preset_id === null) {
-      return null;
-    }
-    const preset = projectPresetStore[currentText().preset_id ?? 0];
-    return preset !== undefined && findPresetStyle(preset, metas) !== null
+    const preset = findPresetById(projectPresetStore, currentText().preset_id);
+    return preset !== null && findPresetStyle(preset, metas) !== null
       ? preset
       : null;
   });

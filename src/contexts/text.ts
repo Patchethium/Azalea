@@ -13,18 +13,21 @@ import { useUIStore } from "@contexts/ui";
 
 type TextBlockProps = ProjectTextBlockProps;
 
-let textBlockSequence = 0;
+let fallbackIdSequence = 0;
 
-const createTextBlockId = () => {
+const createId = (prefix: string) => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
   }
-  textBlockSequence += 1;
-  return `text-block-${Date.now()}-${textBlockSequence}`;
+  fallbackIdSequence += 1;
+  return `${prefix}-${Date.now()}-${fallbackIdSequence}`;
 };
 
+const createTextBlockId = () => createId("text-block");
+export const createPresetId = () => createId("preset");
+
 const createTextBlock = (
-  presetId: number | null,
+  presetId: string | null,
   text = "",
 ): TextBlockProps => ({
   id: createTextBlockId(),
@@ -82,6 +85,14 @@ export const resolvePresetIdentity = (
     style_name: identity.style.name,
   };
 };
+
+export const findPresetById = (
+  presets: readonly Preset[],
+  presetId: string | null | undefined,
+) =>
+  presetId == null
+    ? null
+    : (presets.find((preset) => preset.id === presetId) ?? null);
 
 export const clampTextBlockIndex = (index: number, blockCount: number) => {
   if (blockCount === 0 || !Number.isFinite(index)) return 0;
@@ -146,6 +157,26 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     setTextStore(blocks.map((block) => ({ ...block })));
   };
 
+  const removeProjectPreset = (presetId: string) => {
+    const index = projectPresetStore.findIndex(
+      (preset) => preset.id === presetId,
+    );
+    if (index === -1) return -1;
+    batch(() => {
+      setTextStore(
+        produce((blocks) => {
+          for (const block of blocks) {
+            if (block.preset_id === presetId) block.preset_id = null;
+          }
+        }),
+      );
+      setProjectPresetStore(
+        projectPresetStore.filter((preset) => preset.id !== presetId),
+      );
+    });
+    return index;
+  };
+
   const markQueryModified = (index: number) => {
     const query = textStore[index]?.query;
     if (query !== null && query !== undefined) {
@@ -171,19 +202,24 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
       return;
     }
     batch(() => {
-      setTextStore([createTextBlock(projectPresetStore.length > 0 ? 0 : null)]);
+      setTextStore([createTextBlock(projectPresetStore[0]?.id ?? null)]);
       setUIStore("selectedTextBlockIndex", 0);
     });
   };
 
   const newProject = () => {
+    const presetId = createPresetId();
     batch(() => {
       setProjectPath(null);
       setTextStore([
-        createTextBlock(0, import.meta.env.DEV ? "こんにちは、世界！" : ""),
+        createTextBlock(
+          presetId,
+          import.meta.env.DEV ? "こんにちは、世界！" : "",
+        ),
       ]);
       setProjectPresetStore([
         {
+          id: presetId,
           name: t1("preset.new_preset"),
           style_id: Math.min(...availableStyleIds()),
           speaker_uuid: null,
@@ -215,6 +251,7 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     createFirstTextBlock,
     markQueryModified,
     replaceTextBlocks,
+    removeProjectPreset,
     newProject,
   };
 });

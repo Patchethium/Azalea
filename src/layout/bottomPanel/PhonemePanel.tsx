@@ -5,7 +5,7 @@ import { createMemo, For, onCleanup, Show } from "solid-js";
 import { produce } from "solid-js/store";
 import { usei18n } from "@contexts/i18n";
 import { useMetaStore } from "@contexts/meta";
-import { findPresetStyle, useTextStore } from "@contexts/text";
+import { findPresetById, findPresetStyle, useTextStore } from "@contexts/text";
 import { useSideEffect } from "$utils";
 
 export function PhonemePanel() {
@@ -23,10 +23,8 @@ export function PhonemePanel() {
   const selectedIdx = () =>
     currentText() === null ? null : selectedTextBlockIndex();
   const currentPreset = createMemo(() => {
-    const presetId = currentText()?.preset_id;
-    if (presetId == null) return null;
-    const preset = projectPresetStore[presetId];
-    return preset !== undefined && findPresetStyle(preset, metas) !== null
+    const preset = findPresetById(projectPresetStore, currentText()?.preset_id);
+    return preset !== null && findPresetStyle(preset, metas) !== null
       ? preset
       : null;
   });

@@ -49,7 +49,7 @@ describe("Sidebar project lifecycle", () => {
               text: "Loaded block",
               query: audioQuery({ speedScale: 1.2 }),
               query_is_modified: true,
-              preset_id: 0,
+              preset_id: "preset-1",
             },
           ],
           presets: [preset({ name: "Loaded preset" })],
@@ -76,7 +76,7 @@ describe("Sidebar project lifecycle", () => {
             text: "Current block",
             query: audioQuery(),
             query_is_modified: false,
-            preset_id: 0,
+            preset_id: "preset-1",
           },
         ]);
       });
@@ -94,8 +94,14 @@ describe("Sidebar project lifecycle", () => {
       path: "/tmp/current.azp",
       allowCreate: true,
       project: {
-        blocks: [{ id: "current-block", text: "Current block", preset_id: 0 }],
-        presets: [{ name: "Default" }],
+        blocks: [
+          {
+            id: "current-block",
+            text: "Current block",
+            preset_id: "preset-1",
+          },
+        ],
+        presets: [{ id: "preset-1", name: "Default" }],
       },
     });
     expect(
@@ -195,6 +201,7 @@ describe("Sidebar controls", () => {
           text.setProjectPresetStore([
             preset(),
             preset({
+              id: "preset-2",
               name: "Second",
               style_id: 10,
               speaker_uuid: "speaker-2",
@@ -206,14 +213,14 @@ describe("Sidebar controls", () => {
               text: "First",
               query: audioQuery(),
               query_is_modified: true,
-              preset_id: 0,
+              preset_id: "preset-1",
             },
             {
               id: "second",
               text: "Second",
               query: audioQuery(),
               query_is_modified: true,
-              preset_id: 1,
+              preset_id: "preset-2",
             },
             {
               id: "unassigned",
@@ -245,7 +252,7 @@ describe("Sidebar controls", () => {
     text.setTextStore(0, "query_is_modified", true);
     controls.setTextPresetIdx(1);
     expect(text.textStore[0]).toMatchObject({
-      preset_id: 1,
+      preset_id: "preset-2",
       query_is_modified: false,
     });
     text.setTextStore(0, "query_is_modified", true);
@@ -273,17 +280,17 @@ describe("Sidebar controls", () => {
     controls.movePreset(1, 1);
     controls.movePreset(1, -1);
     expect(text.textStore.map((block) => block.preset_id)).toEqual([
-      0,
-      0,
+      "preset-2",
+      "preset-2",
       null,
     ]);
 
     controls.createPreset();
     expect(text.projectPresetStore).toHaveLength(3);
-    expect(text.textStore[0].preset_id).toBe(2);
+    expect(text.textStore[0].preset_id).toBe(text.projectPresetStore[2].id);
     controls.removePreset();
     expect(text.projectPresetStore).toHaveLength(2);
-    expect(text.textStore[0].preset_id).toBe(1);
+    expect(text.textStore[0].preset_id).toBe("preset-1");
 
     controls.finishPresetPanelResize();
     controls.setResizingPresetPanel(true);
@@ -354,14 +361,14 @@ describe("Sidebar controls", () => {
             text: "Current block",
             query: audioQuery(),
             query_is_modified: true,
-            preset_id: 0,
+            preset_id: "preset-1",
           },
           {
             id: "related-block",
             text: "Related block",
             query: audioQuery(),
             query_is_modified: true,
-            preset_id: 0,
+            preset_id: "preset-1",
           },
         ]);
       });
@@ -504,20 +511,21 @@ describe("Sidebar controls", () => {
 
     await user.click(screen.getByRole("button", { name: "Create preset" }));
     expect(text.projectPresetStore).toHaveLength(2);
-    expect(text.textStore[0].preset_id).toBe(1);
+    const createdPresetId = text.projectPresetStore[1].id;
+    expect(text.textStore[0].preset_id).toBe(createdPresetId);
     const moveUp = screen.getByRole("button", { name: "Move preset up" });
     const moveDown = screen.getByRole("button", { name: "Move preset down" });
     expect(moveUp).not.toBeDisabled();
     expect(moveDown).toBeDisabled();
     await user.click(moveUp);
-    expect(text.textStore[0].preset_id).toBe(0);
+    expect(text.textStore[0].preset_id).toBe(createdPresetId);
     expect(moveUp).toBeDisabled();
     expect(moveDown).not.toBeDisabled();
     await user.click(moveDown);
-    expect(text.textStore[0].preset_id).toBe(1);
+    expect(text.textStore[0].preset_id).toBe(createdPresetId);
 
     await user.click(screen.getByText("Edited"));
-    expect(text.textStore[0].preset_id).toBe(0);
+    expect(text.textStore[0].preset_id).toBe("preset-1");
     await user.click(screen.getByRole("button", { name: "Manage presets" }));
     expect(
       await screen.findByRole("dialog", { name: "Preset Manager" }),

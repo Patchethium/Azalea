@@ -25,7 +25,7 @@ struct ProjectBlockRef<'a> {
   text: &'a str,
   #[serde(skip_serializing_if = "Option::is_none")]
   query_override: Option<&'a AudioQuery>,
-  preset_id: Option<usize>,
+  preset_id: Option<&'a str>,
 }
 
 #[derive(Deserialize)]
@@ -34,33 +34,18 @@ struct ProjectBlock {
   text: String,
   #[serde(default)]
   query_override: Option<AudioQuery>,
-  preset_id: Option<usize>,
+  preset_id: Option<String>,
 }
 
 fn validate_project(project: &Project) -> Result<(), String> {
-  let mut block_ids = HashSet::with_capacity(project.blocks.len());
-  for (index, block) in project.blocks.iter().enumerate() {
-    if block.id.trim().is_empty() {
-      return Err(format!("Project block {index} has an empty ID"));
-    }
-    if !block_ids.insert(&block.id) {
-      return Err(format!("Project block {index} has a duplicate ID"));
-    }
-    if block.query_is_modified && block.query.is_none() {
-      return Err(format!(
-        "Project block {index} marks a missing query as modified"
-      ));
-    }
-    if let Some(preset_id) = block.preset_id {
-      if preset_id >= project.presets.len() {
-        return Err(format!(
-          "Project block {index} references missing preset {preset_id}"
-        ));
-      }
-    }
-  }
-
+  let mut preset_ids = HashSet::with_capacity(project.presets.len());
   for (index, preset) in project.presets.iter().enumerate() {
+    if preset.id.trim().is_empty() {
+      return Err(format!("Project preset {index} has an empty ID"));
+    }
+    if !preset_ids.insert(&preset.id) {
+      return Err(format!("Project preset {index} has a duplicate ID"));
+    }
     match (&preset.speaker_uuid, &preset.style_name) {
       (Some(speaker_uuid), Some(style_name))
         if speaker_uuid.trim().is_empty() || style_name.trim().is_empty() =>
@@ -75,6 +60,28 @@ fn validate_project(project: &Project) -> Result<(), String> {
         ));
       }
       _ => {}
+    }
+  }
+
+  let mut block_ids = HashSet::with_capacity(project.blocks.len());
+  for (index, block) in project.blocks.iter().enumerate() {
+    if block.id.trim().is_empty() {
+      return Err(format!("Project block {index} has an empty ID"));
+    }
+    if !block_ids.insert(&block.id) {
+      return Err(format!("Project block {index} has a duplicate ID"));
+    }
+    if block.query_is_modified && block.query.is_none() {
+      return Err(format!(
+        "Project block {index} marks a missing query as modified"
+      ));
+    }
+    if let Some(preset_id) = &block.preset_id {
+      if !preset_ids.contains(preset_id) {
+        return Err(format!(
+          "Project block {index} references missing preset {preset_id}"
+        ));
+      }
     }
   }
 
@@ -102,7 +109,7 @@ pub async fn save_project(
         } else {
           None
         },
-        preset_id: block.preset_id,
+        preset_id: block.preset_id.as_deref(),
       })
       .collect(),
     presets: &project.presets,
@@ -157,6 +164,7 @@ mod tests {
 
   fn project() -> Project {
     let mut preset = Preset::default();
+    preset.id = "preset-1".into();
     preset.speaker_uuid = Some("speaker-uuid".into());
     preset.style_name = Some("Normal".into());
     Project {
@@ -165,7 +173,7 @@ mod tests {
         text: "こんにちは、Azalea 🌺".into(),
         query: Some(sample_query()),
         query_is_modified: true,
-        preset_id: Some(0),
+        preset_id: Some("preset-1".into()),
       }],
       presets: vec![preset],
     }
@@ -189,6 +197,11 @@ mod tests {
         Some(CURRENT_PROJECT_SCHEMA_VERSION.into())
       );
       assert_eq!(saved_toml["blocks"][0]["id"].as_str(), Some("block-1"));
+      assert_eq!(
+        saved_toml["blocks"][0]["preset_id"].as_str(),
+        Some("preset-1")
+      );
+      assert_eq!(saved_toml["presets"][0]["id"].as_str(), Some("preset-1"));
       assert!(saved_toml["blocks"][0].get("query").is_none());
       assert!(saved_toml["blocks"][0].get("query_override").is_some());
       let loaded = load_project(saved.to_string_lossy().into_owned())
@@ -200,7 +213,7 @@ mod tests {
       assert_eq!(loaded.blocks[0].text, "こんにちは、Azalea 🌺");
       assert!(loaded.blocks[0].query.is_some());
       assert!(loaded.blocks[0].query_is_modified);
-      assert_eq!(loaded.blocks[0].preset_id, Some(0));
+      assert_eq!(loaded.blocks[0].preset_id.as_deref(), Some("preset-1"));
       assert_eq!(loaded.presets.len(), 1);
       assert_eq!(
         loaded.presets[0].speaker_uuid.as_deref(),
@@ -264,6 +277,30 @@ mod tests {
         .await
         .unwrap_err();
       assert!(error.contains("empty ID"));
+      assert!(!path.exists());
+
+      let mut empty_preset_id = project();
+      empty_preset_id.presets[0].id = " ".into();
+      let path = directory.path().join("empty-preset-id.azp");
+      let error = save_project(empty_preset_id, path.to_string_lossy().into_owned(), true)
+        .await
+        .unwrap_err();
+      assert!(error.contains("preset 0 has an empty ID"), "{error}");
+      assert!(!path.exists());
+
+      let mut duplicate_preset_id = project();
+      duplicate_preset_id
+        .presets
+        .push(duplicate_preset_id.presets[0].clone());
+      let path = directory.path().join("duplicate-preset-id.azp");
+      let error = save_project(
+        duplicate_preset_id,
+        path.to_string_lossy().into_owned(),
+        true,
+      )
+      .await
+      .unwrap_err();
+      assert!(error.contains("duplicate ID"));
       assert!(!path.exists());
 
       let mut missing_query = project();
@@ -393,10 +430,28 @@ mod tests {
         .expect("duplicate block IDs should be rejected");
       assert!(error.contains("duplicate ID"));
 
+      let missing_preset_id = directory.path().join("missing-preset-id.azp");
+      save_project(
+        project(),
+        missing_preset_id.to_string_lossy().into_owned(),
+        true,
+      )
+      .await
+      .unwrap();
+      let contents = std::fs::read_to_string(&missing_preset_id)
+        .unwrap()
+        .replace("\nid = \"preset-1\"\n", "\n");
+      std::fs::write(&missing_preset_id, contents).unwrap();
+      let error = load_project(missing_preset_id.to_string_lossy().into_owned())
+        .await
+        .err()
+        .expect("missing preset IDs should be rejected");
+      assert!(error.contains("preset 0 has an empty ID"), "{error}");
+
       let missing_preset = directory.path().join("missing-preset.azp");
       std::fs::write(
         &missing_preset,
-        "schema_version = 1\npresets = []\n[[blocks]]\nid = \"block\"\ntext = \"a\"\npreset_id = 0\n",
+        "schema_version = 1\npresets = []\n[[blocks]]\nid = \"block\"\ntext = \"a\"\npreset_id = \"missing\"\n",
       )
       .unwrap();
       let error = load_project(missing_preset.to_string_lossy().into_owned())

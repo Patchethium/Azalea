@@ -16,10 +16,11 @@ unless the UI needs it as application state. Current saves must always include
 the current schema version. Azalea is unreleased, so only the current schema is
 supported; reject unversioned files and files with any other schema version.
 
-Schema version `1` persists stable text-block IDs plus preset `speaker_uuid` and
-`style_name` fallbacks. Preserve IDs when loading or moving existing blocks,
-and generate a new ID only when creating a new block. Resolve preset fallbacks
-against the current metadata before using a
+Schema version `1` persists stable text-block and preset IDs plus preset
+`speaker_uuid` and `style_name` fallbacks. Preserve IDs when loading or moving
+existing blocks and presets, and generate a new ID only when creating or
+copying one. Text blocks reference presets by stable ID rather than array
+position. Resolve preset fallbacks against the current metadata before using a
 numeric style ID; an unavailable stored identity must not silently select a
 different speaker that reused the same numeric ID. Omit pristine generated
 `AudioQuery` values from the disk DTO so they regenerate after loading, but

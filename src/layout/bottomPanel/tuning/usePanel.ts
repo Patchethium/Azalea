@@ -7,7 +7,7 @@ import {
 import { useConfigStore } from "@contexts/config";
 import { useMetaStore } from "@contexts/meta";
 import { useSpectrogramStore } from "@contexts/spectrogram";
-import { findPresetStyle, useTextStore } from "@contexts/text";
+import { findPresetById, findPresetStyle, useTextStore } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
 import type {
   DraggingMode,
@@ -68,10 +68,8 @@ export function useTuningPanel(
   };
 
   const currentPreset = createMemo(() => {
-    const presetId = currentText()?.preset_id;
-    if (projectPresetStore.length === 0 || presetId == null) return null;
-    const preset = projectPresetStore[presetId];
-    return preset !== undefined && findPresetStyle(preset, metas) !== null
+    const preset = findPresetById(projectPresetStore, currentText()?.preset_id);
+    return preset !== null && findPresetStyle(preset, metas) !== null
       ? preset
       : null;
   });

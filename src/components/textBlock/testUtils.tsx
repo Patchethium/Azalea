@@ -37,7 +37,7 @@ export const renderBlock = (
               text: "hello",
               query: audioQuery(),
               query_is_modified: queryIsModified,
-              preset_id: 0,
+              preset_id: "preset-1",
             },
             renderAllBlocks
               ? {
@@ -45,7 +45,7 @@ export const renderBlock = (
                   text: "second",
                   query: audioQuery(),
                   query_is_modified: false,
-                  preset_id: 0,
+                  preset_id: "preset-1",
                 }
               : null,
           ].filter((block) => block !== null),

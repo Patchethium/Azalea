@@ -276,7 +276,7 @@ describe("BottomPanel playback", () => {
         text: "third",
         query: audioQuery({ speedScale: 1.2 }),
         query_is_modified: false,
-        preset_id: 0,
+        preset_id: "preset-1",
       },
     ]);
 
@@ -554,7 +554,7 @@ describe("BottomPanel playback", () => {
     expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(2);
     expect(getTextStore().textStore[2]).toMatchObject({
       text: "",
-      preset_id: 0,
+      preset_id: "preset-1",
       query: null,
       query_is_modified: false,
     });
@@ -585,21 +585,21 @@ describe("BottomPanel playback", () => {
         text: "first",
         query: audioQuery(),
         query_is_modified: false,
-        preset_id: 0,
+        preset_id: "preset-1",
       },
       {
         id: "second-block",
         text: "second",
         query: audioQuery({ speedScale: 1.1 }),
         query_is_modified: false,
-        preset_id: 0,
+        preset_id: "preset-1",
       },
       {
         id: "third-block",
         text: "third",
         query: audioQuery({ speedScale: 1.2 }),
         query_is_modified: false,
-        preset_id: 0,
+        preset_id: "preset-1",
       },
     ]);
 

@@ -9,7 +9,7 @@ import { unwrap } from "solid-js/store";
 import { useConfigStore } from "@contexts/config";
 import { useMetaStore } from "@contexts/meta";
 import { useSystemStore } from "@contexts/system";
-import { findPresetStyle, useTextStore } from "@contexts/text";
+import { findPresetById, findPresetStyle, useTextStore } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
 import {
   isPlaybackShortcutAllowed,
@@ -86,10 +86,11 @@ export function usePlaybackControls(
   };
 
   const currentPreset = createMemo(() => {
-    const presetId = selectedTextBlock()?.preset_id;
-    if (projectPresetStore.length === 0 || presetId == null) return null;
-    const preset = projectPresetStore[presetId];
-    return preset !== undefined && findPresetStyle(preset, metas) !== null
+    const preset = findPresetById(
+      projectPresetStore,
+      selectedTextBlock()?.preset_id,
+    );
+    return preset !== null && findPresetStyle(preset, metas) !== null
       ? preset
       : null;
   });
@@ -239,12 +240,10 @@ export function usePlaybackControls(
 
   const playableFromSelection = createMemo(() =>
     textStore.slice(selectedTextBlockIndex()).flatMap((block) => {
-      const preset =
-        block.preset_id === null ? null : projectPresetStore[block.preset_id];
+      const preset = findPresetById(projectPresetStore, block.preset_id);
       if (
         block.query === null ||
         block.query.accent_phrases.length === 0 ||
-        preset === undefined ||
         preset === null ||
         findPresetStyle(preset, metas) === null
       ) {

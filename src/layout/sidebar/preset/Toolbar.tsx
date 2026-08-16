@@ -15,25 +15,18 @@ export function PresetToolbar(props: { controls: SidebarControls }) {
       <IconButton
         icon="i-lucide:chevron-up"
         label={t1("preset.controls.move_up")}
-        disabled={
-          controls.currentText()?.preset_id == null ||
-          controls.currentText()?.preset_id === 0
-        }
-        onClick={() =>
-          controls.movePreset(controls.currentText()?.preset_id ?? 0, -1)
-        }
+        disabled={controls.currentPresetIndex() <= 0}
+        onClick={() => controls.movePreset(controls.currentPresetIndex(), -1)}
       />
       <IconButton
         icon="i-lucide:chevron-down"
         label={t1("preset.controls.move_down")}
         disabled={
-          controls.currentText()?.preset_id == null ||
-          controls.currentText()?.preset_id ===
+          controls.currentPresetIndex() === -1 ||
+          controls.currentPresetIndex() ===
             controls.projectPresetStore.length - 1
         }
-        onClick={() =>
-          controls.movePreset(controls.currentText()?.preset_id ?? 0, 1)
-        }
+        onClick={() => controls.movePreset(controls.currentPresetIndex(), 1)}
       />
       <div class="flex-1" />
       <IconButton

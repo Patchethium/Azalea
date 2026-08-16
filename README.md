@@ -72,11 +72,12 @@ Azalea project files use the `.azp` extension and contain a TOML
 `schema_version`. Projects are currently saved with schema version `1`, and
 only that current format is accepted while Azalea remains unreleased.
 
-Schema version `1` gives every text block a persistent ID and records each
-preset's speaker UUID and style name so changed numeric style IDs can be
-remapped safely. Pristine generated `AudioQuery` data is regenerated after
-loading rather than stored in the project file; queries containing manual
-accent, phoneme, pitch, or duration edits are retained as explicit
+Schema version `1` gives every text block and preset a persistent ID, with text
+blocks referencing presets independently of their display order. It also
+records each preset's speaker UUID and style name so changed numeric style IDs
+can be remapped safely. Pristine generated `AudioQuery` data is regenerated
+after loading rather than stored in the project file; queries containing
+manual accent, phoneme, pitch, or duration edits are retained as explicit
 `query_override` data.
 
 ### Setup
