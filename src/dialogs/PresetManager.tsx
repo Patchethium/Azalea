@@ -110,7 +110,9 @@ function PresetItem(props: PresetItemProps) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <span class="truncate font-medium">{props.preset.name}</span>
+      <span class="truncate font-medium">
+        {props.preset.name || t1("preset.placeholder_name")}
+      </span>
       <Show when={hovered()} fallback={<div />}>
         <div class="flex gap-1">
           <Button

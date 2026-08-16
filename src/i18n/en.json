@@ -117,6 +117,7 @@
       "decrease": "Decrease {{ label }}"
     },
     "name": "Name",
+    "placeholder_name": "Untitled Preset",
     "speaker": "Speaker",
     "style": "Style",
     "speed": "Speed",

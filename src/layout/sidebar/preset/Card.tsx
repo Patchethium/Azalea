@@ -1,4 +1,5 @@
 import { useMetaStore } from "@contexts/meta";
+import { usei18n } from "@contexts/i18n";
 import { findPresetStyle, useTextStore } from "@contexts/text";
 import { createMemo, type JSX } from "solid-js";
 
@@ -8,6 +9,7 @@ interface PresetCardProps extends JSX.HTMLAttributes<HTMLDivElement> {
 }
 
 export function PresetCard(props: PresetCardProps) {
+  const { t1 } = usei18n()!;
   const { metas } = useMetaStore()!;
   const { projectPresetStore } = useTextStore()!;
   const preset = createMemo(
@@ -28,7 +30,7 @@ export function PresetCard(props: PresetCardProps) {
             props.selected,
         }}
       >
-        <div>{preset()?.name ?? ""}</div>
+        <div>{preset()?.name || t1("preset.placeholder_name")}</div>
         <div class="text-xs text-slate-5 flex flex-row items-center">
           {identity()?.speaker.name}
           <span class="mx-1">{">"}</span>

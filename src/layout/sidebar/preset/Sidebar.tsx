@@ -169,7 +169,10 @@ export function PresetSidebar(props: { controls: SidebarControls }) {
                       value={controls.currentPreset()?.name}
                       onChange={controls.setPresetName}
                     >
-                      <TextField.Input class="p1 px2 w-full b b-slate-2 dark:(b-slate-6 bg-slate-7) rounded-md outline-none focus:b-primary-5" />
+                      <TextField.Input
+                        placeholder={t1("preset.placeholder_name")}
+                        class="p1 px2 w-full b b-slate-2 dark:(b-slate-6 bg-slate-7) rounded-md outline-none focus:b-primary-5"
+                      />
                     </TextField>
                     <OptionSelector
                       name={t1("preset.speaker")}

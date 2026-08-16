@@ -499,6 +499,8 @@ describe("Sidebar controls", () => {
 
     const name = screen.getByRole("textbox");
     await user.clear(name);
+    expect(screen.getByPlaceholderText("Untitled Preset")).toHaveValue("");
+    expect(screen.getByText("Untitled Preset")).toBeInTheDocument();
     await user.type(name, "Edited");
     expect(text.projectPresetStore[0].name).toBe("Edited");
 

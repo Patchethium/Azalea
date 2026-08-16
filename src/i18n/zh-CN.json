@@ -117,6 +117,7 @@
       "decrease": "减少{{ label }}"
     },
     "name": "名称",
+    "placeholder_name": "未命名预设",
     "speaker": "说话人",
     "style": "风格",
     "speed": "语速",

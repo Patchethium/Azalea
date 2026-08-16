@@ -104,7 +104,9 @@ export function TextBlockView(props: {
                 <p class="text-yellow-7">{t1("preset.no_preset_selected")}</p>
               }
             >
-              <p>{props.currentPreset?.name}</p>
+              <p>
+                {props.currentPreset?.name || t1("preset.placeholder_name")}
+              </p>
             </Show>
           </div>
           <Show when={config.ui_config.buffer_render}>
