@@ -1,4 +1,4 @@
-use crate::config::types::Project;
+use crate::config::types::{Project, Preset, TextBlockProps};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, fs, path::Path, result::Result};
 use voicevox_core::AudioQuery;
@@ -9,14 +9,14 @@ const CURRENT_PROJECT_SCHEMA_VERSION: u32 = 1;
 struct ProjectFileRef<'a> {
   schema_version: u32,
   blocks: Vec<ProjectBlockRef<'a>>,
-  presets: &'a [crate::config::types::Preset],
+  presets: &'a [Preset],
 }
 
 #[derive(Deserialize)]
 struct ProjectFile {
   schema_version: u32,
   blocks: Vec<ProjectBlock>,
-  presets: Vec<crate::config::types::Preset>,
+  presets: Vec<Preset>,
 }
 
 #[derive(Serialize)]
@@ -143,7 +143,7 @@ pub async fn load_project(path: String) -> Result<Project, String> {
     blocks: project_file
       .blocks
       .into_iter()
-      .map(|block| crate::config::types::TextBlockProps {
+      .map(|block| TextBlockProps {
         id: block.id,
         text: block.text,
         query_is_modified: block.query_override.is_some(),
