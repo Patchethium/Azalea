@@ -54,6 +54,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
       replace_mora_pitch,
       replace_mora_duration,
       synthesize,
+      synthesize_nonblocking,
       cancel_synthesis,
       synthesize_state,
       get_spectrogram_preview,

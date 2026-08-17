@@ -1,5 +1,9 @@
 use voicevox_core::{
   blocking::{Onnxruntime, OpenJtalk, Synthesizer, VoiceModelFile},
+  nonblocking::{
+    Onnxruntime as NonblockingOnnxruntime, Synthesizer as NonblockingSynthesizer,
+    VoiceModelFile as NonblockingVoiceModelFile,
+  },
   AccentPhrase, AudioQuery, StyleId, StyleType, VoiceModelId, VoiceModelMeta,
 };
 
@@ -48,6 +52,7 @@ pub fn search_dir(dirname: &str, dir: impl AsRef<Path>, partial: bool) -> Option
 
 pub struct Core {
   pub synthesizer: Synthesizer<OpenJtalk>,
+  nonblocking_synthesizer: NonblockingSynthesizer<()>,
   pub metas: HashMap<String, VoiceModelMeta>,
   pub speaker_to_vvm: HashMap<StyleId, VoiceModelId>,
 }
@@ -110,9 +115,13 @@ impl Core {
     let ort = Onnxruntime::load_once().filename(&cfg.ort_path).perform()?;
     let ojt = OpenJtalk::new(cfg.ojt_dir.to_string_lossy().to_string())?;
     let synthesizer = Synthesizer::builder(ort).text_analyzer(ojt).build()?;
+    let nonblocking_ort = NonblockingOnnxruntime::get()
+      .context("nonblocking ONNX Runtime is unavailable after initialization")?;
+    let nonblocking_synthesizer = NonblockingSynthesizer::builder(nonblocking_ort).build()?;
     let (speaker_to_vvm, metas) = Self::gather_meta(&cfg.vvm_dir)?;
     Ok(Self {
       synthesizer,
+      nonblocking_synthesizer,
       metas,
       speaker_to_vvm,
     })
@@ -191,6 +200,63 @@ impl Core {
       self.load_speaker(speaker_id)?;
     }
     Ok(self.synthesizer.synthesis(query, speaker_id).perform()?)
+  }
+
+  async fn load_speaker_nonblocking(&self, speaker_id: StyleId) -> Result<()> {
+    let vvm_name = self
+      .metas
+      .iter()
+      .find_map(|(path, characters)| {
+        characters
+          .iter()
+          .flat_map(|character| &character.styles)
+          .any(|style| style.id == speaker_id)
+          .then(|| path.clone())
+      })
+      .context("Speaker ID not found in any loaded VVM")?;
+    let vvm = NonblockingVoiceModelFile::open(vvm_name).await?;
+    self
+      .nonblocking_synthesizer
+      .load_voice_model(&vvm)
+      .perform()
+      .await?;
+    Ok(())
+  }
+
+  pub async fn prepare_nonblocking_synthesis(&self, speaker_id: StyleId) -> Result<()> {
+    let vvm_id = self
+      .speaker_to_vvm
+      .get(&speaker_id)
+      .copied()
+      .context("Speaker ID not found in any loaded VVM")?;
+    if !self.nonblocking_synthesizer.is_loaded_voice_model(vvm_id) {
+      self.load_speaker_nonblocking(speaker_id).await?;
+    }
+    Ok(())
+  }
+
+  pub async fn synthesis_nonblocking_prepared(
+    &self,
+    query: &AudioQuery,
+    speaker_id: StyleId,
+  ) -> Result<Vec<u8>> {
+    Ok(
+      self
+        .nonblocking_synthesizer
+        .synthesis(query, speaker_id)
+        .cancellable(true)
+        .perform()
+        .await?,
+    )
+  }
+
+  pub async fn synthesis_nonblocking(
+    &self,
+    query: &AudioQuery,
+    speaker_id: StyleId,
+  ) -> Result<Vec<u8>> {
+    self.prepare_nonblocking_synthesis(speaker_id).await?;
+    self.synthesis_nonblocking_prepared(query, speaker_id).await
   }
 
   pub fn unload_all_speakers(&self) -> Result<()> {

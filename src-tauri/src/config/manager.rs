@@ -113,6 +113,7 @@ mod tests {
     source.config.ui.theme_mode = ThemeMode::Dark;
     source.config.ui.custom_titlebar = false;
     source.config.ui.primary_color = "#123456".into();
+    source.config.ui.nonblocking_synthesis = true;
     source.config.ui.spectrogram_preview = false;
     source.config.ui.playback_timeline = false;
 
@@ -124,6 +125,7 @@ mod tests {
     assert!(matches!(loaded.config.ui.theme_mode, ThemeMode::Dark));
     assert!(!loaded.config.ui.custom_titlebar);
     assert_eq!(loaded.config.ui.primary_color, "#123456");
+    assert!(loaded.config.ui.nonblocking_synthesis);
     assert!(!loaded.config.ui.spectrogram_preview);
     assert!(!loaded.config.ui.playback_timeline);
   }

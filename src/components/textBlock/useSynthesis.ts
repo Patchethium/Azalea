@@ -84,7 +84,10 @@ export function useTextBlockSynthesis(props: {
   ) => {
     if (disposed || activeSynthesisRequest !== activeRequest) return;
     activeRequest.submitted = true;
-    const result = await commands.synthesize(request);
+    const result =
+      config.ui.buffer_render && config.ui.nonblocking_synthesis
+        ? await commands.synthesizeNonblocking(request)
+        : await commands.synthesize(request);
     if (
       disposed ||
       activeSynthesisRequest === null ||

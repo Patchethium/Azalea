@@ -96,6 +96,7 @@
     "assets_cache_error": "Could not read or clear the asset cache.",
     "experimental": "Experimental Features",
     "background_buffering": "Background Buffering for Audio Generation",
+    "nonblocking_synthesis": "Non-blocking synthesis",
     "synthesis_delay": "Synthesis request delay",
     "milliseconds": "ms",
     "spectrogram_preview": "Spectrogram Preview",

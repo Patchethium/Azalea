@@ -66,6 +66,14 @@ Tier meanings:
 - [x] Expose queued, running, completed, failed, cancelled, and evicted states
       through events.
 - [x] Add per-block cancellation and reliable cache-eviction notification.
+- [ ] Extract the keyed, latest-generation queue, cancellation, and lifecycle
+      event behavior into a reusable async-job abstraction.
+- [ ] Use that abstraction for both waveform synthesis and spectrogram preview
+      so a newer request cancels stale running and pending work for the same
+      block instead of leaving blocking preview synthesis behind the core gate.
+- [ ] Cover rapid tuning with concurrent waveform and spectrogram requests,
+      including native cancellation, cache reuse, stale-response rejection, and
+      proof that only the latest generation can consume inference time.
 
 ### Project format
 

@@ -1,11 +1,49 @@
 use std::collections::{HashMap, VecDeque};
-use std::sync::{Arc, Mutex};
+use std::sync::{
+  atomic::{AtomicBool, Ordering},
+  Arc, Mutex,
+};
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::{Notify, OnceCell};
 use voicevox_core::{AudioQuery, StyleId};
 
 const SYNTHESIS_QUEUE_CAPACITY: usize = 256;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum SynthesisBackend {
+  Blocking,
+  Nonblocking,
+}
+
+#[derive(Default)]
+pub(crate) struct SynthesisCancellation {
+  cancelled: AtomicBool,
+  notify: Notify,
+}
+
+impl SynthesisCancellation {
+  fn cancel(&self) {
+    if !self.cancelled.swap(true, Ordering::AcqRel) {
+      self.notify.notify_waiters();
+    }
+  }
+
+  pub async fn cancelled(&self) {
+    loop {
+      let notified = self.notify.notified();
+      if self.cancelled.load(Ordering::Acquire) {
+        return;
+      }
+      notified.await;
+    }
+  }
+
+  #[cfg(test)]
+  fn is_cancelled(&self) -> bool {
+    self.cancelled.load(Ordering::Acquire)
+  }
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
@@ -62,10 +100,12 @@ impl SynthesisJobIdentity {
 pub(crate) struct SynthesisJob {
   pub request: SynthesisJobRequest,
   pub identity: SynthesisJobIdentity,
+  pub backend: SynthesisBackend,
+  pub cancellation: Arc<SynthesisCancellation>,
 }
 
 impl SynthesisJob {
-  pub fn new(request: SynthesisJobRequest, query_key: String) -> Self {
+  pub fn new(request: SynthesisJobRequest, query_key: String, backend: SynthesisBackend) -> Self {
     let identity = SynthesisJobIdentity {
       block_id: request.block_id.clone(),
       generation_id: request.generation_id,
@@ -73,7 +113,12 @@ impl SynthesisJob {
       query_key,
       speaker_id: request.speaker_id,
     };
-    Self { request, identity }
+    Self {
+      request,
+      identity,
+      backend,
+      cancellation: Arc::new(SynthesisCancellation::default()),
+    }
   }
 }
 
@@ -81,6 +126,8 @@ impl SynthesisJob {
 struct SynthesisQueueState {
   pending: VecDeque<SynthesisJob>,
   running: Option<SynthesisJobIdentity>,
+  running_backend: Option<SynthesisBackend>,
+  running_cancellation: Option<Arc<SynthesisCancellation>>,
   running_is_cancelled: bool,
   latest_generation_by_block: HashMap<String, u64>,
 }
@@ -135,6 +182,25 @@ impl SynthesisQueue {
       .latest_generation_by_block
       .insert(job.identity.block_id.clone(), job.identity.generation_id);
 
+    let superseded_running = state
+      .running
+      .as_ref()
+      .filter(|running| {
+        running.block_id == job.identity.block_id
+          && state.running_backend == Some(SynthesisBackend::Nonblocking)
+          && !state.running_is_cancelled
+      })
+      .cloned();
+    if let Some(running) = superseded_running {
+      events.push(running.event(SynthesisJobState::Cancelled, None));
+      state.running_is_cancelled = true;
+      state
+        .running_cancellation
+        .as_ref()
+        .expect("running synthesis job has no cancellation signal")
+        .cancel();
+    }
+
     if let Some(position) = state
       .pending
       .iter()
@@ -182,6 +248,8 @@ impl SynthesisQueue {
     }
     let job = state.pending.pop_front()?;
     state.running = Some(job.identity.clone());
+    state.running_backend = Some(job.backend);
+    state.running_cancellation = Some(job.cancellation.clone());
     state.running_is_cancelled = false;
     Some(job)
   }
@@ -192,6 +260,8 @@ impl SynthesisQueue {
       return false;
     }
     state.running = None;
+    state.running_backend = None;
+    state.running_cancellation = None;
     let completed_without_cancellation = !state.running_is_cancelled;
     state.running_is_cancelled = false;
     drop(state);
@@ -219,10 +289,16 @@ impl SynthesisQueue {
     }
     state.pending = retained;
 
-    if let Some(running) = state.running.as_ref() {
-      if matches(running) && !state.running_is_cancelled {
-        events.push(running.event(SynthesisJobState::Cancelled, None));
-        state.running_is_cancelled = true;
+    let cancelled_running = state
+      .running
+      .as_ref()
+      .filter(|running| matches(running) && !state.running_is_cancelled)
+      .cloned();
+    if let Some(running) = cancelled_running {
+      events.push(running.event(SynthesisJobState::Cancelled, None));
+      state.running_is_cancelled = true;
+      if let Some(cancellation) = state.running_cancellation.as_ref() {
+        cancellation.cancel();
       }
     }
     events
@@ -294,10 +370,24 @@ mod tests {
     }
   }
 
-  fn job(block_id: &str, generation_id: u64, speed_scale: f32) -> SynthesisJob {
+  fn job_with_backend(
+    block_id: &str,
+    generation_id: u64,
+    speed_scale: f32,
+    backend: SynthesisBackend,
+  ) -> SynthesisJob {
     let request = request(block_id, generation_id, speed_scale);
     let query_key = serde_json::to_string(&request.audio_query).unwrap();
-    SynthesisJob::new(request, query_key)
+    SynthesisJob::new(request, query_key, backend)
+  }
+
+  fn job(block_id: &str, generation_id: u64, speed_scale: f32) -> SynthesisJob {
+    job_with_backend(
+      block_id,
+      generation_id,
+      speed_scale,
+      SynthesisBackend::Blocking,
+    )
   }
 
   #[test]
@@ -321,7 +411,7 @@ mod tests {
   }
 
   #[test]
-  fn a_running_job_is_not_replaced_by_newer_work_for_the_same_block() {
+  fn a_running_blocking_job_is_not_cancelled_by_newer_work_for_the_same_block() {
     let queue = SynthesisQueue::default();
     queue.enqueue(job("block", 1, 1.0));
     let running = queue.pop_next().unwrap();
@@ -331,11 +421,41 @@ mod tests {
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].generation_id, 2);
     assert_eq!(events[0].state, SynthesisJobState::Queued);
+    assert!(!running.cancellation.is_cancelled());
     let duplicate_events = queue.enqueue(running.clone());
     assert_eq!(duplicate_events.len(), 1);
     assert_eq!(duplicate_events[0].state, SynthesisJobState::Running);
     assert!(queue.pop_next().is_none());
     assert!(queue.finish(&running.identity));
+    assert_eq!(queue.pop_next().unwrap().identity.generation_id, 2);
+  }
+
+  #[test]
+  fn newer_work_cancels_a_running_nonblocking_job_for_the_same_block() {
+    let queue = SynthesisQueue::default();
+    queue.enqueue(job_with_backend(
+      "block",
+      1,
+      1.0,
+      SynthesisBackend::Nonblocking,
+    ));
+    let running = queue.pop_next().unwrap();
+
+    let events = queue.enqueue(job_with_backend(
+      "block",
+      2,
+      1.2,
+      SynthesisBackend::Nonblocking,
+    ));
+
+    assert_eq!(events.len(), 2);
+    assert_eq!(events[0].generation_id, 1);
+    assert_eq!(events[0].state, SynthesisJobState::Cancelled);
+    assert_eq!(events[1].generation_id, 2);
+    assert_eq!(events[1].state, SynthesisJobState::Queued);
+    assert!(running.cancellation.is_cancelled());
+    assert!(queue.pop_next().is_none());
+    assert!(!queue.finish(&running.identity));
     assert_eq!(queue.pop_next().unwrap().identity.generation_id, 2);
   }
 
@@ -362,7 +482,25 @@ mod tests {
 
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].state, SynthesisJobState::Cancelled);
+    assert!(running.cancellation.is_cancelled());
     assert!(!queue.finish(&running.identity));
+  }
+
+  #[test]
+  fn jobs_remember_the_requested_synthesis_backend() {
+    let request = request("block", 1, 1.0);
+    let query_key = serde_json::to_string(&request.audio_query).unwrap();
+    let queue = SynthesisQueue::default();
+    queue.enqueue(SynthesisJob::new(
+      request,
+      query_key,
+      SynthesisBackend::Nonblocking,
+    ));
+
+    assert_eq!(
+      queue.pop_next().unwrap().backend,
+      SynthesisBackend::Nonblocking
+    );
   }
 
   #[test]

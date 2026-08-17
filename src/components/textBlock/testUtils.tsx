@@ -1,4 +1,5 @@
 import TextBlock from "@components/textBlock";
+import type { AzaleaConfig } from "$binding";
 import { MultiProvider } from "@solid-primitives/context";
 import { render } from "@solidjs/testing-library";
 import { batch, type Component, For, onMount } from "solid-js";
@@ -14,6 +15,7 @@ export const renderBlock = (
   bufferRender: boolean,
   queryIsModified = false,
   renderAllBlocks = false,
+  configOverrides: Partial<AzaleaConfig["ui"]> = {},
 ) => {
   let text!: NonNullable<ReturnType<typeof useTextStore>>;
   let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
@@ -27,7 +29,11 @@ export const renderBlock = (
       batch(() => {
         meta.setMetas(metas);
         appConfig.setConfig(
-          config({ buffer_render: bufferRender, synthesis_delay_ms: 0 }),
+          config({
+            buffer_render: bufferRender,
+            synthesis_delay_ms: 0,
+            ...configOverrides,
+          }),
         );
         text.setProjectPresetStore([preset()]);
         text.replaceTextBlocks(

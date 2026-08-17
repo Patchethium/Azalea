@@ -169,7 +169,20 @@ async synthesize(request: SynthesisJobRequest) : Promise<Result<null, string>> {
 }
 },
 /**
- * Cancels queued work for one block. Running inference is marked stale and its result is ignored.
+ * Queues a cancellable synthesis request using VOICEVOX Core's experimental nonblocking API.
+ * A newer request for the same block cancels its running nonblocking generation.
+ */
+async synthesizeNonblocking(request: SynthesisJobRequest) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("synthesize_nonblocking", { request }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Cancels queued work for one block. Running nonblocking inference is stopped; running blocking
+ * inference is marked stale and its result is ignored.
  */
 async cancelSynthesis(blockId: string, generationId: number | null) : Promise<Result<null, string>> {
     try {
@@ -666,7 +679,7 @@ export type SynthesisJobRequest = { blockId: string; generationId: number; audio
 export type SynthesisJobState = "Queued" | "Running" | "Completed" | "Failed" | "Cancelled" | "Evicted"
 export type TextBlockProps = { id: string; text: string; query: AudioQuery | null; query_is_modified: boolean; preset_id: string | null }
 export type ThemeMode = "System" | "Light" | "Dark"
-export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; custom_titlebar?: boolean; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; side_width?: number; buffer_render?: boolean; synthesis_delay_ms?: number; spectrogram_preview?: boolean; playback_timeline?: boolean; name_truncation_len?: number; last_exported_dir?: string | null; shortcuts?: KeyboardShortcuts }
+export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; custom_titlebar?: boolean; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; side_width?: number; buffer_render?: boolean; nonblocking_synthesis?: boolean; synthesis_delay_ms?: number; spectrogram_preview?: boolean; playback_timeline?: boolean; name_truncation_len?: number; last_exported_dir?: string | null; shortcuts?: KeyboardShortcuts }
 
 /** tauri-specta globals **/
 

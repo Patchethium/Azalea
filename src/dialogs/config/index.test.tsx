@@ -30,7 +30,12 @@ describe("ConfigPage", () => {
       ui = useUIStore()!;
       onMount(() => {
         batch(() => {
-          appConfig.setConfig(config({ buffer_render: false }));
+          appConfig.setConfig(
+            config({
+              buffer_render: false,
+              nonblocking_synthesis: true,
+            }),
+          );
           ui.setUIStore("page", "config");
         });
       });
@@ -56,12 +61,26 @@ describe("ConfigPage", () => {
     expect(
       screen.getAllByRole("button", { name: "Experimental Features" }),
     ).toHaveLength(2);
+    expect(
+      screen.queryByRole("switch", { name: "Non-blocking synthesis" }),
+    ).not.toBeInTheDocument();
+    expect(appConfig.config.ui.nonblocking_synthesis).toBe(true);
+
     const buffering = screen.getByRole("switch", {
       name: "Background Buffering for Audio Generation",
     });
     expect(buffering).not.toBeChecked();
     fireEvent.click(buffering);
     expect(appConfig.config.ui.buffer_render).toBe(true);
+    expect(
+      screen.getAllByRole("button", { name: "Experimental Features" }),
+    ).toHaveLength(3);
+
+    const nonblocking = screen.getByRole("switch", {
+      name: "Non-blocking synthesis",
+    });
+    expect(nonblocking).toBeChecked();
+    expect(appConfig.config.ui.nonblocking_synthesis).toBe(true);
 
     const delay = await screen.findByRole("spinbutton", {
       name: "Synthesis request delay",
@@ -69,6 +88,19 @@ describe("ConfigPage", () => {
     fireEvent.input(delay, { target: { value: "15000" } });
     fireEvent.change(delay, { target: { value: "15000" } });
     expect(appConfig.config.ui.synthesis_delay_ms).toBe(10_000);
+
+    fireEvent.click(buffering);
+    expect(appConfig.config.ui.buffer_render).toBe(false);
+    expect(appConfig.config.ui.nonblocking_synthesis).toBe(true);
+    expect(
+      screen.queryByRole("switch", { name: "Non-blocking synthesis" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(buffering);
+    expect(appConfig.config.ui.buffer_render).toBe(true);
+    expect(
+      screen.getByRole("switch", { name: "Non-blocking synthesis" }),
+    ).toBeChecked();
 
     const preview = screen.getByRole("switch", {
       name: "Spectrogram Preview",

@@ -80,6 +80,7 @@ export const config = (
     bottom_ratio: DEFAULT_BOTTOM_RATIO,
     side_width: DEFAULT_SIDEBAR_WIDTH,
     buffer_render: false,
+    nonblocking_synthesis: false,
     synthesis_delay_ms: DEFAULT_SYNTHESIS_DELAY_MS,
     spectrogram_preview: DEFAULT_SPECTROGRAM_PREVIEW,
     playback_timeline: DEFAULT_PLAYBACK_TIMELINE,

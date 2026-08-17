@@ -1,12 +1,13 @@
 use super::utils::state_mut;
 use crate::config::CoreConfig;
 use crate::synthesis::{
-  eviction_events, SynthesisJob, SynthesisJobEvent, SynthesisJobRequest, SynthesisJobState,
-  WaveformCacheEntry, WaveformCacheOwner,
+  eviction_events, SynthesisBackend, SynthesisJob, SynthesisJobEvent, SynthesisJobRequest,
+  SynthesisJobState, WaveformCacheEntry, WaveformCacheOwner,
 };
 use crate::AppState;
 use crate::{audio::spectal::MelSpec, audio::AudioPlayer, core::Core};
 
+use futures_util::future::{select, Either};
 use ndarray::Array1;
 use rodio::Source;
 use serde::Serialize;
@@ -113,6 +114,53 @@ where
   .map_err(|e| format!("Core task failed: {e}"))?
 }
 
+async fn run_nonblocking_synthesis_task(
+  state: &AppState,
+  audio_query: AudioQuery,
+  speaker_id: StyleId,
+) -> Result<Vec<u8>, String> {
+  let core = state
+    .core
+    .read()
+    .await
+    .as_ref()
+    .cloned()
+    .ok_or("core is not initialized")?;
+  let _permit = state
+    .core_task_gate
+    .clone()
+    .acquire_owned()
+    .await
+    .map_err(|_| "Core task worker is unavailable")?;
+  core
+    .synthesis_nonblocking_prepared(&audio_query, speaker_id)
+    .await
+    .map_err(|e| e.to_string())
+}
+
+async fn prepare_nonblocking_synthesis_task(
+  state: &AppState,
+  speaker_id: StyleId,
+) -> Result<(), String> {
+  let core = state
+    .core
+    .read()
+    .await
+    .as_ref()
+    .cloned()
+    .ok_or("core is not initialized")?;
+  let _permit = state
+    .core_task_gate
+    .clone()
+    .acquire_owned()
+    .await
+    .map_err(|_| "Core task worker is unavailable")?;
+  core
+    .prepare_nonblocking_synthesis(speaker_id)
+    .await
+    .map_err(|e| e.to_string())
+}
+
 /// Encodes text into audio query
 #[tauri::command]
 #[specta::specta]
@@ -205,11 +253,32 @@ pub async fn synthesize(
   state: State<'_, AppState>,
   request: SynthesisJobRequest,
 ) -> std::result::Result<(), String> {
+  enqueue_synthesis(&app, &state, request, SynthesisBackend::Blocking)
+}
+
+#[tauri::command]
+#[specta::specta]
+/// Queues a cancellable synthesis request using VOICEVOX Core's experimental nonblocking API.
+/// A newer request for the same block cancels its running nonblocking generation.
+pub async fn synthesize_nonblocking(
+  app: AppHandle,
+  state: State<'_, AppState>,
+  request: SynthesisJobRequest,
+) -> std::result::Result<(), String> {
+  enqueue_synthesis(&app, &state, request, SynthesisBackend::Nonblocking)
+}
+
+fn enqueue_synthesis(
+  app: &AppHandle,
+  state: &AppState,
+  request: SynthesisJobRequest,
+  backend: SynthesisBackend,
+) -> std::result::Result<(), String> {
   validate_synthesis_request(&request)?;
   let query_key = serde_json::to_string(&request.audio_query).map_err(|e| e.to_string())?;
-  let job = SynthesisJob::new(request, query_key);
+  let job = SynthesisJob::new(request, query_key, backend);
   let events = state.synthesis_queue.enqueue(job);
-  emit_synthesis_events(&app, events);
+  emit_synthesis_events(app, events);
   Ok(())
 }
 
@@ -225,7 +294,8 @@ fn validate_synthesis_request(request: &SynthesisJobRequest) -> Result<(), Strin
 
 #[tauri::command]
 #[specta::specta]
-/// Cancels queued work for one block. Running inference is marked stale and its result is ignored.
+/// Cancels queued work for one block. Running nonblocking inference is stopped; running blocking
+/// inference is marked stale and its result is ignored.
 pub async fn cancel_synthesis(
   app: AppHandle,
   state: State<'_, AppState>,
@@ -256,16 +326,39 @@ pub fn start_synthesis_worker(app: AppHandle) {
 
       let result = {
         let state = app.state::<AppState>();
-        synthesize_cached(
-          &app,
-          &state,
-          job.request.audio_query,
-          job.request.speaker_id,
-          Some(WaveformCacheOwner {
-            identity: job.identity.clone(),
-          }),
-        )
-        .await
+        let preparation = match job.backend {
+          SynthesisBackend::Blocking => Ok(()),
+          SynthesisBackend::Nonblocking => {
+            prepare_nonblocking_synthesis_task(&state, job.request.speaker_id).await
+          }
+        };
+        match preparation {
+          Err(error) => Some(Err(error)),
+          Ok(()) => {
+            let synthesis = synthesize_cached(
+              &app,
+              &state,
+              job.request.audio_query,
+              job.request.speaker_id,
+              Some(WaveformCacheOwner {
+                identity: job.identity.clone(),
+              }),
+              job.backend,
+            );
+            match job.backend {
+              SynthesisBackend::Blocking => Some(synthesis.await),
+              SynthesisBackend::Nonblocking => {
+                let cancellation = job.cancellation.clone();
+                let result =
+                  match select(Box::pin(cancellation.cancelled()), Box::pin(synthesis)).await {
+                    Either::Left(_) => None,
+                    Either::Right((result, _)) => Some(result),
+                  };
+                result
+              }
+            }
+          }
+        }
       };
 
       let is_current = {
@@ -275,7 +368,7 @@ pub fn start_synthesis_worker(app: AppHandle) {
       if !is_current {
         continue;
       }
-      let event = match result {
+      let event = match result.expect("an uncancelled synthesis job must have a result") {
         Ok(_) => job.identity.event(SynthesisJobState::Completed, None),
         Err(error) => job.identity.event(SynthesisJobState::Failed, Some(error)),
       };
@@ -347,7 +440,15 @@ pub async fn get_spectrogram_preview(
   audio_query: AudioQuery,
   speaker_id: StyleId,
 ) -> Result<SpectrogramPreview, String> {
-  let wav = synthesize_cached(&app, &state, audio_query, speaker_id, None).await?;
+  let wav = synthesize_cached(
+    &app,
+    &state,
+    audio_query,
+    speaker_id,
+    None,
+    SynthesisBackend::Blocking,
+  )
+  .await?;
 
   tauri::async_runtime::spawn_blocking(move || create_spectrogram_preview(wav))
     .await
@@ -361,6 +462,7 @@ async fn synthesize_cached(
   audio_query: AudioQuery,
   speaker_id: StyleId,
   owner: Option<WaveformCacheOwner>,
+  backend: SynthesisBackend,
 ) -> std::result::Result<Vec<u8>, String> {
   let query_string = serde_json::to_string(&audio_query).map_err(|e| e.to_string())?;
   let cache_key = (query_string, speaker_id);
@@ -382,12 +484,19 @@ async fn synthesize_cached(
   let query_for_task = audio_query.clone();
   let wav = cell
     .get_or_try_init(|| async {
-      run_core_task(state, move |core| {
-        core
-          .synthesis(&query_for_task, speaker_id)
-          .map_err(|e| e.to_string())
-      })
-      .await
+      match backend {
+        SynthesisBackend::Blocking => {
+          run_core_task(state, move |core| {
+            core
+              .synthesis(&query_for_task, speaker_id)
+              .map_err(|e| e.to_string())
+          })
+          .await
+        }
+        SynthesisBackend::Nonblocking => {
+          run_nonblocking_synthesis_task(state, query_for_task, speaker_id).await
+        }
+      }
     })
     .await?;
 
@@ -430,7 +539,15 @@ pub async fn play_audio(
   start_time_seconds: Option<f64>,
 ) -> std::result::Result<(), String> {
   let start_at = playback_start_duration(start_time_seconds)?;
-  let wav = synthesize_cached(&app, &state, audio_query, speaker_id, None).await?;
+  let wav = synthesize_cached(
+    &app,
+    &state,
+    audio_query,
+    speaker_id,
+    None,
+    SynthesisBackend::Blocking,
+  )
+  .await?;
   let playback_app = app.clone();
   let audio_player = AudioPlayer::play(wav, start_at, move || {
     if let Err(error) = playback_app.emit("audio-playback-finished", ()) {
@@ -467,7 +584,17 @@ pub async fn play_audio_sequence(
   let start_at = playback_start_duration(start_time_seconds)?;
   let mut wavs = Vec::with_capacity(items.len());
   for item in items {
-    wavs.push(synthesize_cached(&app, &state, item.audio_query, item.speaker_id, None).await?);
+    wavs.push(
+      synthesize_cached(
+        &app,
+        &state,
+        item.audio_query,
+        item.speaker_id,
+        None,
+        SynthesisBackend::Blocking,
+      )
+      .await?,
+    );
   }
   let item_started_app = app.clone();
   let playback_app = app.clone();
@@ -527,7 +654,15 @@ pub async fn save_audio(
   audio_query: AudioQuery,
   speaker_id: StyleId,
 ) -> std::result::Result<String, String> {
-  let waveform = synthesize_cached(&app, &state, audio_query, speaker_id, None).await?;
+  let waveform = synthesize_cached(
+    &app,
+    &state,
+    audio_query,
+    speaker_id,
+    None,
+    SynthesisBackend::Blocking,
+  )
+  .await?;
   std::fs::write(&path, waveform).map_err(|e| e.to_string())?;
   Ok(path)
 }

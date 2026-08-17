@@ -73,6 +73,8 @@ pub struct UIConfig {
   pub side_width: u32,
   #[serde(default = "buffer_render_default")]
   pub buffer_render: bool,
+  #[serde(default)]
+  pub nonblocking_synthesis: bool,
   #[serde(default = "synthesis_delay_ms_default")]
   pub synthesis_delay_ms: u32,
   #[serde(default = "spectrogram_preview_default")]
@@ -99,6 +101,7 @@ impl Default for UIConfig {
       bottom_ratio: bottom_ratio_default(),
       side_width: side_width_default(),
       buffer_render: buffer_render_default(),
+      nonblocking_synthesis: false,
       synthesis_delay_ms: synthesis_delay_ms_default(),
       spectrogram_preview: spectrogram_preview_default(),
       playback_timeline: playback_timeline_default(),
@@ -277,6 +280,7 @@ mod tests {
   fn missing_settings_use_defaults() {
     let config: UIConfig = toml::from_str("").unwrap();
     assert_eq!(config.synthesis_delay_ms, 600);
+    assert!(!config.nonblocking_synthesis);
     assert!(config.custom_titlebar);
     assert_eq!(
       config.shortcuts.toggle_playback,

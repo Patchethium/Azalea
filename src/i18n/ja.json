@@ -104,6 +104,7 @@
     "assets_cache_error": "アセットキャッシュを読み込みまたは削除できませんでした。",
     "experimental": "実験的な機能",
     "background_buffering": "音声生成バッファリング",
+    "nonblocking_synthesis": "ノンブロッキング音声合成",
     "synthesis_delay": "音声合成リクエストの待機時間",
     "milliseconds": "ミリ秒",
     "spectrogram_preview": "スペクトログラムプレビュー",

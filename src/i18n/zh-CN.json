@@ -96,6 +96,7 @@
     "assets_cache_error": "无法读取或清除资源缓存。",
     "experimental": "实验性功能",
     "background_buffering": "后台缓冲音频生成",
+    "nonblocking_synthesis": "非阻塞语音合成",
     "synthesis_delay": "合成请求延迟",
     "milliseconds": "毫秒",
     "spectrogram_preview": "频谱图预览",

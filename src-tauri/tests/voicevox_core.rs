@@ -1,4 +1,10 @@
-use std::{collections::HashSet, io::Cursor, path::Path};
+use std::{
+  collections::HashSet,
+  io::Cursor,
+  path::Path,
+  sync::Arc,
+  time::{Duration, Instant},
+};
 
 use azalea_lib::{audio::spectal::MelSpec, core::Core};
 use hound::{SampleFormat, WavSpec};
@@ -255,6 +261,60 @@ fn real_core_synthesis_honors_requested_wav_format() {
   assert!(!samples.is_empty());
   assert_eq!(samples.len() % spec.channels as usize, 0);
   assert!(samples.iter().any(|sample| *sample != 0));
+}
+
+#[test]
+fn real_core_nonblocking_synthesis_can_be_cancelled() {
+  tauri::async_runtime::block_on(async {
+    let core = Arc::new(test_core());
+    let style_id = first_talk_style_id(&core);
+    let short_query = core
+      .audio_query(TEST_TEXT, style_id)
+      .expect("audio query failed");
+
+    let warmup_started = Instant::now();
+    core
+      .synthesis_nonblocking(&short_query, style_id)
+      .await
+      .expect("nonblocking warm-up synthesis failed");
+    let warmup_elapsed = warmup_started.elapsed();
+
+    let mut long_query = short_query.clone();
+    let phrase_template = long_query.accent_phrases.clone();
+    long_query.accent_phrases = (0..32).flat_map(|_| phrase_template.clone()).collect();
+    let long_core = core.clone();
+    let long_job =
+      tokio::spawn(async move { long_core.synthesis_nonblocking(&long_query, style_id).await });
+
+    tokio::time::sleep(Duration::from_millis(250)).await;
+    assert!(
+      !long_job.is_finished(),
+      "long synthesis finished before cancellation could be tested"
+    );
+    long_job.abort();
+    let join_error = tokio::time::timeout(Duration::from_secs(5), long_job)
+      .await
+      .expect("the canceled synthesis task did not stop before the timeout")
+      .expect_err("the canceled synthesis task unexpectedly completed normally");
+    assert!(
+      join_error.is_cancelled(),
+      "synthesis task failed: {join_error}"
+    );
+
+    let follow_up_timeout = warmup_elapsed
+      .checked_mul(10)
+      .unwrap_or(Duration::from_secs(60))
+      .min(Duration::from_secs(60))
+      .max(Duration::from_secs(5));
+    let follow_up = tokio::time::timeout(
+      follow_up_timeout,
+      core.synthesis_nonblocking(&short_query, style_id),
+    )
+    .await
+    .expect("follow-up synthesis remained blocked behind canceled inference")
+    .expect("follow-up nonblocking synthesis failed");
+    assert!(!follow_up.is_empty());
+  });
 }
 
 #[test]

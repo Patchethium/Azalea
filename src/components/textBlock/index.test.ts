@@ -305,6 +305,25 @@ describe("TextBlock", () => {
     );
   });
 
+  it("uses the experimental nonblocking command only when enabled", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    vi.spyOn(commands, "audioQuery").mockResolvedValue({
+      status: "ok",
+      data: audioQuery(),
+    });
+    const blocking = vi
+      .spyOn(commands, "synthesize")
+      .mockResolvedValue({ status: "ok", data: null });
+    const nonblocking = vi
+      .spyOn(commands, "synthesizeNonblocking")
+      .mockResolvedValue({ status: "ok", data: null });
+
+    renderBlock(true, false, false, { nonblocking_synthesis: true });
+
+    await waitFor(() => expect(nonblocking).toHaveBeenCalledOnce());
+    expect(blocking).not.toHaveBeenCalled();
+  });
+
   it("lets the backend queue replace a superseded pending synthesis", async () => {
     mockIPC(() => null, { shouldMockEvents: true });
     vi.spyOn(commands, "audioQuery").mockResolvedValue({
