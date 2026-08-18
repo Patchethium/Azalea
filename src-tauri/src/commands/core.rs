@@ -76,6 +76,30 @@ pub async fn initialize_core(
   Ok(())
 }
 
+/// Reloads the voicevox core using the supplied config, replacing the running instance.
+/// In-flight tasks keep their old core reference; new work uses the reloaded one.
+#[tauri::command]
+#[specta::specta]
+pub async fn reinit_core(
+  state: State<'_, AppState>,
+  config: CoreConfig,
+) -> std::result::Result<(), String> {
+  reinitialize_core(&state, config).await
+}
+
+pub async fn reinitialize_core(
+  state: &AppState,
+  config: CoreConfig,
+) -> std::result::Result<(), String> {
+  let core_config = config.clone();
+  let core = tauri::async_runtime::spawn_blocking(move || Core::init(&core_config))
+    .await
+    .map_err(|e| format!("Core initialization task failed: {e}"))?
+    .map_err(|e| e.to_string())?;
+  state.core.write().await.replace(Arc::new(core));
+  Ok(())
+}
+
 /// Gets metas from voicevox core
 #[tauri::command]
 #[specta::specta]

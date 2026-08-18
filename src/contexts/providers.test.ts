@@ -284,6 +284,92 @@ describe("ConfigProvider", () => {
       expect(console.error).toHaveBeenCalledWith(message, expect.any(String));
     }
   });
+
+  it("reinitializes the core with the current config and refreshes state", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(commands, "initCore").mockResolvedValue({
+      status: "ok",
+      data: null,
+    });
+    vi.spyOn(commands, "getRange").mockResolvedValue({
+      status: "ok",
+      data: { 1: [4, 6] },
+    });
+    vi.spyOn(commands, "getMetas").mockResolvedValue({
+      status: "ok",
+      data: metas,
+    });
+    const reinit = vi
+      .spyOn(commands, "reinitCore")
+      .mockResolvedValue({ status: "ok", data: null });
+    const configStore = renderConfigStore();
+
+    configStore.setConfig("core", {
+      ort_path: "/core",
+      ojt_dir: "/dict",
+      vvm_dir: "/models",
+      cache_size: 128,
+      cpu_num_threads: 4,
+    });
+    await waitFor(() => expect(commands.initCore).toHaveBeenCalledOnce());
+
+    await expect(configStore.reinitializeCore()).resolves.toBe(true);
+    expect(reinit).toHaveBeenCalledOnce();
+    expect(reinit).toHaveBeenCalledWith({
+      ort_path: "/core",
+      ojt_dir: "/dict",
+      vvm_dir: "/models",
+      cache_size: 128,
+      cpu_num_threads: 4,
+    });
+    await waitFor(() => expect(commands.getRange).toHaveBeenCalledTimes(2));
+    expect(commands.getMetas).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports reinitialization failures without refreshing state", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(commands, "initCore").mockResolvedValue({
+      status: "ok",
+      data: null,
+    });
+    vi.spyOn(commands, "getRange").mockResolvedValue({
+      status: "ok",
+      data: {},
+    });
+    vi.spyOn(commands, "getMetas").mockResolvedValue({
+      status: "ok",
+      data: [],
+    });
+    vi.spyOn(commands, "reinitCore").mockResolvedValue({
+      status: "error",
+      error: "reinit failed",
+    });
+    const configStore = renderConfigStore();
+
+    configStore.setConfig("core", {
+      ort_path: "/core",
+      ojt_dir: "/dict",
+      vvm_dir: "/models",
+    });
+    await waitFor(() => expect(commands.initCore).toHaveBeenCalledOnce());
+
+    await expect(configStore.reinitializeCore()).resolves.toBe(false);
+    expect(console.error).toHaveBeenCalledWith(
+      "Failed to reinitialize core:",
+      "reinit failed",
+    );
+    expect(commands.getRange).toHaveBeenCalledOnce();
+  });
+
+  it("refuses to reinitialize before a core config is set", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const configStore = renderConfigStore();
+
+    await expect(configStore.reinitializeCore()).resolves.toBe(false);
+    expect(console.error).toHaveBeenCalledWith(
+      "Cannot reinitialize core: no core config is set",
+    );
+  });
 });
 
 describe("TextProvider", () => {

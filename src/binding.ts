@@ -84,6 +84,18 @@ async initCore(config: CoreConfig) : Promise<Result<null, string>> {
 }
 },
 /**
+ * Reloads the voicevox core using the supplied config, replacing the running instance.
+ * In-flight tasks keep their old core reference; new work uses the reloaded one.
+ */
+async reinitCore(config: CoreConfig) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("reinit_core", { config }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Gets metas from voicevox core
  */
 async getMetas() : Promise<Result<CharacterMeta[], string>> {
@@ -516,7 +528,7 @@ export type CoreConfig = {
  * For example, if the lib is in `/home/user/VOICEVOX/vv-engine/libvoicevox_core.so`,
  * the path should be `/home/user/VOICEVOX/vv-engine`.
  */
-ort_path: string; ojt_dir: string; vvm_dir: string; cache_size?: number }
+ort_path: string; ojt_dir: string; vvm_dir: string; cache_size?: number; cpu_num_threads?: number }
 export type FrontendReadyEvent = null
 export type InitializationEvent = { config: AzaleaConfig | null; core_initialized: boolean; metas: CharacterMeta[] | null; range: ([StyleId, [number, number]])[]; error: string | null }
 export type KeyboardShortcut = { key: string; primary?: boolean; secondary?: boolean; shift?: boolean; alt?: boolean }

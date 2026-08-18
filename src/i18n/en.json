@@ -101,7 +101,10 @@
     "milliseconds": "ms",
     "spectrogram_preview": "Spectrogram Preview",
     "truncation_len": "File name truncation length",
-    "no_truncation": "No truncation"
+    "no_truncation": "No truncation",
+    "cpu_num_threads": "CPU threads",
+    "reinitialize_core": "Reinitialize core",
+    "auto": "Auto"
   },
   "titlebar": {
     "minimize": "Minimize",

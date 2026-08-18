@@ -50,6 +50,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
       get_config,
       set_config,
       init_core,
+      reinit_core,
       get_metas,
       get_range,
       audio_query,

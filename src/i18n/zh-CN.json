@@ -101,7 +101,10 @@
     "milliseconds": "毫秒",
     "spectrogram_preview": "频谱图预览",
     "truncation_len": "文件名截断长度",
-    "no_truncation": "不截断"
+    "no_truncation": "不截断",
+    "cpu_num_threads": "CPU线程数",
+    "reinitialize_core": "重新初始化核心",
+    "auto": "自动"
   },
   "titlebar": {
     "minimize": "最小化",

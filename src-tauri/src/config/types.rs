@@ -26,10 +26,17 @@ pub struct CoreConfig {
   pub vvm_dir: PathBuf,
   #[serde(default = "cache_size_default")]
   pub cache_size: usize,
+  #[serde(default = "cpu_num_threads_default")]
+  pub cpu_num_threads: u16,
 }
 
 pub fn cache_size_default() -> usize {
   128
+}
+
+/// Number of CPU threads VOICEVOX Core may use. 0 lets the runtime choose automatically.
+pub fn cpu_num_threads_default() -> u16 {
+  0
 }
 
 #[derive(Clone, Deserialize, Serialize, Type)]
@@ -274,7 +281,9 @@ pub struct Project {
 
 #[cfg(test)]
 mod tests {
-  use super::{AzaleaConfig, KeyboardShortcut, UIConfig};
+  use super::{
+    cache_size_default, cpu_num_threads_default, AzaleaConfig, KeyboardShortcut, UIConfig,
+  };
 
   #[test]
   fn missing_settings_use_defaults() {
@@ -336,6 +345,25 @@ mod tests {
     assert_eq!(config.ui.primary_color, "#3b82f6");
     assert_eq!(config.ui.bottom_ratio, 0.3);
     assert_eq!(config.ui.side_width, 200);
+  }
+
+  #[test]
+  fn missing_core_settings_use_defaults() {
+    let config: AzaleaConfig = toml::from_str(
+      r#"
+        [ui]
+
+        [core]
+        ort_path = "/runtime"
+        ojt_dir = "/dictionary"
+        vvm_dir = "/models"
+      "#,
+    )
+    .unwrap();
+
+    let core = config.core.unwrap();
+    assert_eq!(core.cache_size, cache_size_default());
+    assert_eq!(core.cpu_num_threads, cpu_num_threads_default());
   }
 
   #[test]

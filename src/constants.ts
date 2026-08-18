@@ -12,3 +12,4 @@ export const DEFAULT_SYNTHESIS_DELAY_MS = 600;
 export const MAX_SYNTHESIS_DELAY_MS = 10_000;
 export const DEFAULT_SPECTROGRAM_PREVIEW = true;
 export const DEFAULT_PLAYBACK_TIMELINE = true;
+export const DEFAULT_CPU_NUM_THREADS = 0;

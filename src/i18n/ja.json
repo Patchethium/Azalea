@@ -109,7 +109,10 @@
     "milliseconds": "ミリ秒",
     "spectrogram_preview": "スペクトログラムプレビュー",
     "truncation_len": "最大ファイル名の長さ",
-    "no_truncation": "無制限"
+    "no_truncation": "無制限",
+    "cpu_num_threads": "CPUスレッド数",
+    "reinitialize_core": "コアを再初期化",
+    "auto": "自動"
   },
   "titlebar": {
     "minimize": "最小化",

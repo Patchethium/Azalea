@@ -6,12 +6,17 @@ import {
   ThemeSelect,
 } from "@dialogs/config/Basics";
 import { ConfigItem } from "@dialogs/config/Item";
+import { IconButton } from "@components/iconButton";
 import { Dialog } from "@kobalte/core/dialog";
 import { NumberField } from "@kobalte/core/number-field";
 import { Switch } from "@kobalte/core/switch";
 import _ from "lodash";
-import { Show } from "solid-js";
-import { DEFAULT_SYNTHESIS_DELAY_MS, MAX_SYNTHESIS_DELAY_MS } from "$constants";
+import { createSignal, Show } from "solid-js";
+import {
+  DEFAULT_CPU_NUM_THREADS,
+  DEFAULT_SYNTHESIS_DELAY_MS,
+  MAX_SYNTHESIS_DELAY_MS,
+} from "$constants";
 import { useConfigStore } from "@contexts/config";
 import { usei18n } from "@contexts/i18n";
 import { useUIStore } from "@contexts/ui";
@@ -120,6 +125,9 @@ export function ConfigPage() {
           <ConfigSectionTitle label={t1("config.storage")} />
           <AssetCacheSetting open={uiStore.page === "config"} />
           <ConfigSectionTitle label={t1("config.synthesis")} />
+          <ConfigItem label={t1("config.cpu_num_threads")}>
+            <CPUThreadSetting />
+          </ConfigItem>
           <ConfigItem label={t1("config.background_buffering")} experimental>
             <Switch
               checked={config.ui.buffer_render}
@@ -229,6 +237,95 @@ function SynthesisDelayField() {
         {t1("config.milliseconds")}
       </span>
     </NumberField>
+  );
+}
+
+function CPUThreadSetting() {
+  const { config, setConfig, reinitializeCore } = useConfigStore()!;
+  const { t1 } = usei18n()!;
+  const [status, setStatus] = createSignal<"idle" | "loading" | "error">(
+    "idle",
+  );
+  const [committedThreads, setCommittedThreads] = createSignal(
+    config.core?.cpu_num_threads ?? DEFAULT_CPU_NUM_THREADS,
+  );
+  const threads = () => config.core?.cpu_num_threads ?? DEFAULT_CPU_NUM_THREADS;
+  const threadsChanged = () => threads() !== committedThreads();
+
+  const updateThreads = (value: string) => {
+    if (status() === "error") setStatus("idle");
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isFinite(parsed) && config.core !== null) {
+      setConfig(
+        "core",
+        "cpu_num_threads",
+        Math.min(Math.max(parsed, 0), 65535),
+      );
+    }
+  };
+
+  const reinit = async () => {
+    setStatus("loading");
+    const ok = await reinitializeCore();
+    setStatus(ok ? "idle" : "error");
+    if (ok) {
+      setCommittedThreads(threads());
+    }
+  };
+
+  return (
+    <div class="flex items-center gap-2">
+      <IconButton
+        icon={
+          status() === "loading"
+            ? "i-lucide:loader-circle animate-spin"
+            : status() === "error"
+              ? "i-lucide:triangle-alert text-red-6 dark:text-red-4"
+              : "i-lucide:refresh-cw"
+        }
+        label={t1("config.reinitialize_core")}
+        disabled={
+          status() === "loading" || config.core === null || !threadsChanged()
+        }
+        onClick={() => void reinit()}
+      />
+      <NumberField
+        minValue={0}
+        maxValue={65535}
+        step={1}
+        value={threads()}
+        onChange={updateThreads}
+        changeOnWheel={true}
+        format={false}
+        class="flex items-center gap-2"
+      >
+        <div class="flex w-24 items-center gap-1">
+          <NumberField.Input
+            aria-label={t1("config.cpu_num_threads")}
+            class="h-8 w-full rounded-lg b b-slate-2 px-1 outline-none focus:b-primary-3 dark:(b-slate-6 bg-slate-8)"
+          />
+          <div class="flex flex-col">
+            <NumberField.IncrementTrigger
+              aria-label="Increment"
+              class="size-4 bg-transparent group"
+            >
+              <div class="i-lucide:chevron-up size-full group-hover:bg-primary-5 group-active:bg-primary-7" />
+            </NumberField.IncrementTrigger>
+            <NumberField.DecrementTrigger
+              aria-label="Decrement"
+              class="size-4 bg-transparent group"
+            >
+              <div class="i-lucide:chevron-down size-full group-hover:bg-primary-5 group-active:bg-primary-7" />
+            </NumberField.DecrementTrigger>
+          </div>
+        </div>
+        <Show when={threads() === 0}>
+          <span class="text-sm text-slate-5 dark:text-slate-4">
+            {t1("config.auto")}
+          </span>
+        </Show>
+      </NumberField>
+    </div>
   );
 }
 

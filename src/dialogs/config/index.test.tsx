@@ -435,4 +435,213 @@ describe("ConfigPage", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     second.unmount();
   });
+
+  it("edits CPU threads and reinitializes the core on demand", async () => {
+    vi.spyOn(commands, "getAssetsSize").mockResolvedValue({
+      status: "ok",
+      data: 0,
+    });
+    vi.spyOn(commands, "initCore").mockResolvedValue({
+      status: "ok",
+      data: null,
+    });
+    vi.spyOn(commands, "getRange").mockResolvedValue({
+      status: "ok",
+      data: { 1: [4, 6] },
+    });
+    vi.spyOn(commands, "getMetas").mockResolvedValue({
+      status: "ok",
+      data: [],
+    });
+    const reinit = vi
+      .spyOn(commands, "reinitCore")
+      .mockResolvedValue({ status: "ok", data: null });
+    let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
+    const Harness: Component = () => {
+      appConfig = useConfigStore()!;
+      const ui = useUIStore()!;
+      onMount(() => {
+        batch(() => {
+          appConfig.setConfig(config());
+          appConfig.setConfig("core", {
+            ort_path: "/core",
+            ojt_dir: "/dict",
+            vvm_dir: "/models",
+            cache_size: 128,
+            cpu_num_threads: 4,
+          });
+          ui.setUIStore("page", "config");
+        });
+      });
+      return <ConfigPage />;
+    };
+
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [i18nProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+
+    const threads = await screen.findByRole("spinbutton", {
+      name: "CPU threads",
+    });
+    const reinitButton = screen.getByRole("button", {
+      name: "Reinitialize core",
+    });
+    expect(reinitButton).toBeDisabled();
+
+    fireEvent.input(threads, { target: { value: "8" } });
+    fireEvent.change(threads, { target: { value: "8" } });
+    expect(appConfig.config.core?.cpu_num_threads).toBe(8);
+    expect(reinitButton).toBeEnabled();
+
+    fireEvent.click(reinitButton);
+    await waitFor(() => expect(reinit).toHaveBeenCalledOnce());
+    expect(reinit).toHaveBeenCalledWith({
+      ort_path: "/core",
+      ojt_dir: "/dict",
+      vvm_dir: "/models",
+      cache_size: 128,
+      cpu_num_threads: 8,
+    });
+    await waitFor(() => expect(reinitButton).toBeDisabled());
+  });
+
+  it("ignores invalid CPU thread input and shows a failed reinitialization", async () => {
+    vi.spyOn(commands, "getAssetsSize").mockResolvedValue({
+      status: "ok",
+      data: 0,
+    });
+    vi.spyOn(commands, "initCore").mockResolvedValue({
+      status: "ok",
+      data: null,
+    });
+    vi.spyOn(commands, "getRange").mockResolvedValue({
+      status: "ok",
+      data: {},
+    });
+    vi.spyOn(commands, "getMetas").mockResolvedValue({
+      status: "ok",
+      data: [],
+    });
+    const reinit = vi
+      .spyOn(commands, "reinitCore")
+      .mockResolvedValue({ status: "error", error: "reinit failed" });
+    let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
+    const Harness: Component = () => {
+      appConfig = useConfigStore()!;
+      const ui = useUIStore()!;
+      onMount(() => {
+        batch(() => {
+          appConfig.setConfig(config());
+          appConfig.setConfig("core", {
+            ort_path: "/core",
+            ojt_dir: "/dict",
+            vvm_dir: "/models",
+            cache_size: 128,
+            cpu_num_threads: 4,
+          });
+          ui.setUIStore("page", "config");
+        });
+      });
+      return <ConfigPage />;
+    };
+
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [i18nProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+
+    const threads = await screen.findByRole("spinbutton", {
+      name: "CPU threads",
+    });
+    fireEvent.input(threads, { target: { value: "" } });
+    fireEvent.change(threads, { target: { value: "" } });
+    expect(appConfig.config.core?.cpu_num_threads).toBe(4);
+
+    const reinitButton = screen.getByRole("button", {
+      name: "Reinitialize core",
+    });
+    expect(reinitButton).toBeDisabled();
+
+    fireEvent.input(threads, { target: { value: "8" } });
+    fireEvent.change(threads, { target: { value: "8" } });
+    expect(appConfig.config.core?.cpu_num_threads).toBe(8);
+    expect(reinitButton).toBeEnabled();
+
+    fireEvent.click(reinitButton);
+    await waitFor(() => expect(reinit).toHaveBeenCalledOnce());
+    await waitFor(() => expect(reinitButton).toBeEnabled());
+    expect(reinit).toHaveBeenCalledWith({
+      ort_path: "/core",
+      ojt_dir: "/dict",
+      vvm_dir: "/models",
+      cache_size: 128,
+      cpu_num_threads: 8,
+    });
+
+    fireEvent.input(threads, { target: { value: "9" } });
+    fireEvent.change(threads, { target: { value: "9" } });
+    expect(appConfig.config.core?.cpu_num_threads).toBe(9);
+    expect(reinitButton).toBeEnabled();
+  });
+
+  it("disables reinitialization and ignores edits without a core config", async () => {
+    vi.spyOn(commands, "getAssetsSize").mockResolvedValue({
+      status: "ok",
+      data: 0,
+    });
+    let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
+    const Harness: Component = () => {
+      appConfig = useConfigStore()!;
+      const ui = useUIStore()!;
+      onMount(() => {
+        batch(() => {
+          appConfig.setConfig(config());
+          ui.setUIStore("page", "config");
+        });
+      });
+      return <ConfigPage />;
+    };
+
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [i18nProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+
+    const threads = await screen.findByRole("spinbutton", {
+      name: "CPU threads",
+    });
+    fireEvent.input(threads, { target: { value: "8" } });
+    fireEvent.change(threads, { target: { value: "8" } });
+    expect(appConfig.config.core).toBeNull();
+
+    const reinitButton = screen.getByRole("button", {
+      name: "Reinitialize core",
+    });
+    expect(reinitButton).toBeDisabled();
+  });
 });

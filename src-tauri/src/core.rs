@@ -7,7 +7,8 @@ use voicevox_core::{
   AccentPhrase, AudioQuery, StyleId, StyleType, VoiceModelId, VoiceModelMeta,
 };
 
-use crate::config::{types::cache_size_default, CoreConfig};
+use crate::config::types::{cache_size_default, cpu_num_threads_default};
+use crate::config::CoreConfig;
 use std::{
   collections::{HashMap, HashSet},
   path::{Path, PathBuf},
@@ -108,16 +109,22 @@ impl Core {
       ojt_dir,
       ort_path,
       cache_size: cache_size_default(),
+      cpu_num_threads: cpu_num_threads_default(),
     })
   }
 
   pub fn init(cfg: &CoreConfig) -> Result<Self> {
     let ort = Onnxruntime::load_once().filename(&cfg.ort_path).perform()?;
     let ojt = OpenJtalk::new(cfg.ojt_dir.to_string_lossy().to_string())?;
-    let synthesizer = Synthesizer::builder(ort).text_analyzer(ojt).build()?;
+    let synthesizer = Synthesizer::builder(ort)
+      .text_analyzer(ojt)
+      .cpu_num_threads(cfg.cpu_num_threads)
+      .build()?;
     let nonblocking_ort = NonblockingOnnxruntime::get()
       .context("nonblocking ONNX Runtime is unavailable after initialization")?;
-    let nonblocking_synthesizer = NonblockingSynthesizer::builder(nonblocking_ort).build()?;
+    let nonblocking_synthesizer = NonblockingSynthesizer::builder(nonblocking_ort)
+      .cpu_num_threads(cfg.cpu_num_threads)
+      .build()?;
     let (speaker_to_vvm, metas) = Self::gather_meta(&cfg.vvm_dir)?;
     Ok(Self {
       synthesizer,
@@ -351,6 +358,7 @@ mod tests {
     assert_eq!(config.ojt_dir, dictionary);
     assert_eq!(config.vvm_dir, models);
     assert_eq!(config.cache_size, cache_size_default());
+    assert_eq!(config.cpu_num_threads, cpu_num_threads_default());
   }
 
   #[test]

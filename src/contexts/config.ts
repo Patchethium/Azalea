@@ -67,22 +67,39 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     }
   };
 
+  const reloadCoreDependentState = async () => {
+    await Promise.all([load_meta(), load_range()]);
+  };
+
+  const reinitializeCore = async (): Promise<boolean> => {
+    const coreConfig = config.core;
+    if (coreConfig === null) {
+      console.error("Cannot reinitialize core: no core config is set");
+      return false;
+    }
+    const res = await commands.reinitCore(coreConfig);
+    if (res.status === "error") {
+      console.error("Failed to reinitialize core:", res.error);
+      return false;
+    }
+    await reloadCoreDependentState();
+    return true;
+  };
+
   const [coreInitializeResource] = createResource(
     () => (uiStore.coreInitialized ? undefined : config.core),
     async (cfg) => {
       const res = await commands.initCore(cfg);
       if (res.status === "error") {
         if (res.error === "Core already loaded") {
-          load_range();
-          load_meta();
+          void reloadCoreDependentState();
           setUIStore("coreInitialized", true);
         } else {
           setUIStore("coreInitialized", false);
           console.error("Failed to initialize core:", res.error);
         }
       } else {
-        load_range();
-        load_meta();
+        void reloadCoreDependentState();
         setUIStore("coreInitialized", true);
       }
     },
@@ -112,6 +129,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     coreInitializeResource,
     range,
     setRange,
+    reinitializeCore,
     spectrogramPreviewEnabled,
     setSpectrogramPreviewEnabled,
     playbackTimelineEnabled,
