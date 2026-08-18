@@ -73,11 +73,7 @@ export function useTextBlockSynthesis(props: {
       config.ui.buffer_render && config.ui.nonblocking_synthesis
         ? await commands.synthesizeNonblocking(request)
         : await commands.synthesize(request);
-    if (
-      disposed ||
-      activeSynthesisRequest === null ||
-      activeSynthesisRequest.blockId !== activeRequest.blockId
-    ) {
+    if (disposed || activeSynthesisRequest !== activeRequest) {
       if (result.status === "ok") {
         void commands.cancelSynthesis(
           activeRequest.blockId,
@@ -86,7 +82,6 @@ export function useTextBlockSynthesis(props: {
       }
       return;
     }
-    if (activeSynthesisRequest !== activeRequest) return;
     if (result.status === "error") {
       setSynthState("Failed");
       console.error(

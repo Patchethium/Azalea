@@ -1007,6 +1007,200 @@ describe("BottomPanel playback", () => {
     expect(container.querySelector("canvas")?.width).toBe(3);
   });
 
+  it("coalesces rapid waveform and spectrogram requests onto matching cache keys", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const synthesize = vi
+      .spyOn(commands, "synthesizeNonblocking")
+      .mockResolvedValue({ status: "ok", data: null });
+    const blockingSynthesis = vi
+      .spyOn(commands, "synthesize")
+      .mockResolvedValue({ status: "ok", data: null });
+    const cancelSynthesis = vi
+      .spyOn(commands, "cancelSynthesis")
+      .mockResolvedValue({ status: "ok", data: null });
+    const requestPreview = vi
+      .spyOn(commands, "requestSpectrogramPreview")
+      .mockResolvedValue({ status: "ok", data: null });
+    const cancelPreview = vi
+      .spyOn(commands, "cancelSpectrogramPreview")
+      .mockResolvedValue({ status: "ok", data: null });
+    const { getConfigStore, getTextStore } = renderPanel(
+      {
+        buffer_render: true,
+        nonblocking_synthesis: true,
+        synthesis_delay_ms: 0,
+      },
+      false,
+      true,
+    );
+
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    expect(getConfigStore().config.ui.buffer_render).toBe(true);
+    expect(getConfigStore().config.ui.nonblocking_synthesis).toBe(true);
+    await waitFor(() =>
+      expect(
+        synthesize.mock.calls.length + blockingSynthesis.mock.calls.length,
+      ).toBe(1),
+    );
+    expect(blockingSynthesis).not.toHaveBeenCalled();
+    await waitFor(() => expect(requestPreview).toHaveBeenCalledOnce());
+    const firstWaveform = synthesize.mock.calls[0][0];
+    const firstPreview = requestPreview.mock.calls[0][0];
+    expect(firstPreview).toMatchObject({
+      blockId: firstWaveform.blockId,
+      audioQuery: firstWaveform.audioQuery,
+      speakerId: firstWaveform.speakerId,
+      hash: firstWaveform.hash,
+    });
+
+    getTextStore().setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      0,
+      "moras",
+      0,
+      "pitch",
+      5.1,
+    );
+    getTextStore().setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      0,
+      "moras",
+      0,
+      "pitch",
+      5.2,
+    );
+
+    await waitFor(() => expect(synthesize).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(requestPreview).toHaveBeenCalledTimes(2));
+    expect(cancelSynthesis).toHaveBeenCalledWith(
+      firstWaveform.blockId,
+      firstWaveform.generationId,
+    );
+    expect(cancelPreview).toHaveBeenCalledWith(
+      firstPreview.blockId,
+      firstPreview.generationId,
+    );
+    const latestWaveform = synthesize.mock.calls[1][0];
+    const latestPreview = requestPreview.mock.calls[1][0];
+    expect(latestPreview).toMatchObject({
+      blockId: latestWaveform.blockId,
+      audioQuery: latestWaveform.audioQuery,
+      speakerId: latestWaveform.speakerId,
+      hash: latestWaveform.hash,
+    });
+    expect(latestWaveform.audioQuery.accent_phrases[0].moras[0].pitch).toBe(
+      5.2,
+    );
+  });
+
+  it("recancels delayed preview submissions and stops buffered work when buffering is disabled", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    let resolveFirst!: (
+      result: Awaited<ReturnType<typeof commands.requestSpectrogramPreview>>,
+    ) => void;
+    const firstResult = new Promise<
+      Awaited<ReturnType<typeof commands.requestSpectrogramPreview>>
+    >((resolve) => {
+      resolveFirst = resolve;
+    });
+    const requestPreview = vi
+      .spyOn(commands, "requestSpectrogramPreview")
+      .mockReturnValueOnce(firstResult)
+      .mockResolvedValue({ status: "ok", data: null });
+    const cancelPreview = vi
+      .spyOn(commands, "cancelSpectrogramPreview")
+      .mockResolvedValue({ status: "ok", data: null });
+    const { getConfigStore, getTextStore } = renderPanel({
+      buffer_render: true,
+      synthesis_delay_ms: 0,
+    });
+
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    await waitFor(() => expect(requestPreview).toHaveBeenCalledOnce());
+    const firstRequest = requestPreview.mock.calls[0][0];
+    getTextStore().setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      0,
+      "moras",
+      0,
+      "pitch",
+      5.8,
+    );
+    await waitFor(() => expect(requestPreview).toHaveBeenCalledTimes(2));
+    const secondRequest = requestPreview.mock.calls[1][0];
+    expect(cancelPreview).toHaveBeenCalledWith(
+      firstRequest.blockId,
+      firstRequest.generationId,
+    );
+
+    getConfigStore().setConfig("ui", "buffer_render", false);
+    await waitFor(() =>
+      expect(cancelPreview).toHaveBeenCalledWith(
+        secondRequest.blockId,
+        secondRequest.generationId,
+      ),
+    );
+
+    resolveFirst({ status: "ok", data: null });
+    await waitFor(() =>
+      expect(
+        cancelPreview.mock.calls.filter(
+          ([blockId, generationId]) =>
+            blockId === firstRequest.blockId &&
+            generationId === firstRequest.generationId,
+        ),
+      ).toHaveLength(2),
+    );
+  });
+
+  it("ignores running preview events and rejects completed events without a preview", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const requestPreview = vi
+      .spyOn(commands, "requestSpectrogramPreview")
+      .mockResolvedValue({ status: "ok", data: null });
+    renderPanel({ buffer_render: true, synthesis_delay_ms: 0 });
+
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    await waitFor(() => expect(requestPreview).toHaveBeenCalledOnce());
+    const request = requestPreview.mock.calls[0][0];
+    await events.spectrogramJobEvent.emit({
+      blockId: request.blockId,
+      generationId: request.generationId,
+      hash: request.hash,
+      state: "Running",
+      error: null,
+      preview: null,
+    });
+    await events.spectrogramJobEvent.emit({
+      blockId: request.blockId,
+      generationId: request.generationId,
+      hash: request.hash,
+      state: "Completed",
+      error: null,
+      preview: null,
+    });
+
+    await waitFor(() =>
+      expect(console.error).toHaveBeenCalledWith(
+        "Failed to create spectrogram preview:",
+        "completed job returned no preview",
+      ),
+    );
+  });
+
   it("updates an edited accent phrase through the backend", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,

@@ -134,6 +134,11 @@ impl SpectrogramQueue {
     self.0.next().await
   }
 
+  #[cfg(test)]
+  fn pop_next(&self) -> Option<QueuedJob<SpectrogramJob>> {
+    self.0.pop_next()
+  }
+
   pub fn finish(&self, identity: &SpectrogramJobIdentity) -> bool {
     self.0.finish(identity)
   }
@@ -209,10 +214,10 @@ mod tests {
 
   use super::*;
 
-  fn request(block_id: &str, hash: &str) -> SpectrogramJobRequest {
+  fn request(block_id: &str, generation_id: u64, hash: &str) -> SpectrogramJobRequest {
     SpectrogramJobRequest {
       block_id: block_id.into(),
-      generation_id: 1,
+      generation_id,
       audio_query: serde_json::from_value(json!({
         "accent_phrases": [],
         "speedScale": 1.0,
@@ -233,13 +238,42 @@ mod tests {
   #[test]
   fn request_validation_rejects_blank_identifiers() {
     assert_eq!(
-      validate_spectrogram_request(&request(" ", "hash")),
+      validate_spectrogram_request(&request(" ", 1, "hash")),
       Err("block_id must not be empty".into())
     );
     assert_eq!(
-      validate_spectrogram_request(&request("block", "\n")),
+      validate_spectrogram_request(&request("block", 1, "\n")),
       Err("hash must not be empty".into())
     );
-    assert!(validate_spectrogram_request(&request("block", "hash")).is_ok());
+    assert!(validate_spectrogram_request(&request("block", 1, "hash")).is_ok());
+  }
+
+  #[test]
+  fn newer_preview_cancels_running_and_pending_generations_for_the_same_block() {
+    let queue = SpectrogramQueue::default();
+    let job = |generation_id| {
+      let request = request("block", generation_id, &format!("hash-{generation_id}"));
+      let query_key = serde_json::to_string(&request.audio_query).unwrap();
+      SpectrogramJob::new(request, query_key)
+    };
+    queue.enqueue(job(1));
+    let running = queue.pop_next().unwrap();
+
+    let second_events = queue.enqueue(job(2));
+    let third_events = queue.enqueue(job(3));
+
+    assert_eq!(second_events.len(), 2);
+    assert_eq!(second_events[0].generation_id, 1);
+    assert_eq!(second_events[0].state, SynthesisJobState::Cancelled);
+    assert_eq!(second_events[1].generation_id, 2);
+    assert_eq!(second_events[1].state, SynthesisJobState::Queued);
+    assert_eq!(third_events.len(), 2);
+    assert_eq!(third_events[0].generation_id, 2);
+    assert_eq!(third_events[0].state, SynthesisJobState::Cancelled);
+    assert_eq!(third_events[1].generation_id, 3);
+    assert_eq!(third_events[1].state, SynthesisJobState::Queued);
+    assert!(running.cancellation.is_cancelled());
+    assert!(!queue.finish(&running.job.identity));
+    assert_eq!(queue.pop_next().unwrap().job.identity.generation_id, 3);
   }
 }

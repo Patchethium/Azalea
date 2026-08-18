@@ -12,6 +12,7 @@ use crate::synthesis::{
 use crate::AppState;
 use crate::{audio::AudioPlayer, core::Core};
 
+use std::future::Future;
 #[cfg(test)]
 use std::io::Cursor;
 use std::num::NonZeroUsize;
@@ -501,23 +502,22 @@ async fn synthesize_cached(
   }
 
   let query_for_task = audio_query.clone();
-  let wav = cell
-    .get_or_try_init(|| async {
-      match backend {
-        SynthesisBackend::Blocking => {
-          run_core_task(state, move |core| {
-            core
-              .synthesis(&query_for_task, speaker_id)
-              .map_err(|e| e.to_string())
-          })
-          .await
-        }
-        SynthesisBackend::Nonblocking => {
-          run_nonblocking_synthesis_task(state, query_for_task, speaker_id).await
-        }
+  let wav = initialize_waveform_cell(&cell, || async {
+    match backend {
+      SynthesisBackend::Blocking => {
+        run_core_task(state, move |core| {
+          core
+            .synthesis(&query_for_task, speaker_id)
+            .map_err(|e| e.to_string())
+        })
+        .await
       }
-    })
-    .await?;
+      SynthesisBackend::Nonblocking => {
+        run_nonblocking_synthesis_task(state, query_for_task, speaker_id).await
+      }
+    }
+  })
+  .await?;
 
   let evicted = {
     let mut cache_guard = state.wav_lru.write().await;
@@ -545,7 +545,21 @@ async fn synthesize_cached(
   if let Some((_, entry)) = evicted {
     emit_synthesis_events(app, eviction_events(entry));
   }
-  Ok(wav.clone())
+  Ok(wav)
+}
+
+/// Coalesces waveform and spectrogram consumers of the same cache entry so only one initializer
+/// performs inference. If that initializer is cancelled, `OnceCell` leaves the entry empty and a
+/// waiting consumer may take over.
+async fn initialize_waveform_cell<F, Fut>(
+  cell: &OnceCell<Vec<u8>>,
+  initialize: F,
+) -> Result<Vec<u8>, String>
+where
+  F: FnOnce() -> Fut,
+  Fut: Future<Output = Result<Vec<u8>, String>>,
+{
+  cell.get_or_try_init(initialize).await.cloned()
 }
 
 #[tauri::command]
@@ -765,6 +779,7 @@ pub async fn synthesize_state(
 mod tests {
   use super::*;
   use serde_json::json;
+  use std::sync::atomic::{AtomicUsize, Ordering};
 
   fn wav(channels: u16, sample_rate: u32, frames: usize) -> Vec<u8> {
     let mut cursor = Cursor::new(Vec::new());
@@ -820,6 +835,45 @@ mod tests {
       Err("hash must not be empty".into())
     );
     assert!(validate_synthesis_request(&synthesis_request("block", "hash")).is_ok());
+  }
+
+  #[test]
+  fn waveform_and_spectrogram_consumers_share_one_in_flight_cache_initialization() {
+    tauri::async_runtime::block_on(async {
+      let cell = Arc::new(OnceCell::new());
+      let initialization_count = Arc::new(AtomicUsize::new(0));
+      let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+      let (release_tx, release_rx) = tokio::sync::oneshot::channel();
+
+      let waveform_cell = cell.clone();
+      let waveform_count = initialization_count.clone();
+      let waveform = tauri::async_runtime::spawn(async move {
+        initialize_waveform_cell(&waveform_cell, || async move {
+          waveform_count.fetch_add(1, Ordering::SeqCst);
+          started_tx.send(()).unwrap();
+          release_rx.await.unwrap();
+          Ok(vec![1, 2, 3])
+        })
+        .await
+      });
+      started_rx.await.unwrap();
+
+      let preview_cell = cell.clone();
+      let preview_count = initialization_count.clone();
+      let preview = tauri::async_runtime::spawn(async move {
+        initialize_waveform_cell(&preview_cell, || async move {
+          preview_count.fetch_add(1, Ordering::SeqCst);
+          Ok(vec![9, 9, 9])
+        })
+        .await
+      });
+      tokio::task::yield_now().await;
+      release_tx.send(()).unwrap();
+
+      assert_eq!(waveform.await.unwrap().unwrap(), vec![1, 2, 3]);
+      assert_eq!(preview.await.unwrap().unwrap(), vec![1, 2, 3]);
+      assert_eq!(initialization_count.load(Ordering::SeqCst), 1);
+    });
   }
 
   #[test]

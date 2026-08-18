@@ -1,4 +1,5 @@
 import { BottomPanel, SpectrogramCanvas } from "@layout/bottomPanel";
+import { useTextBlockSynthesis } from "@components/textBlock/useSynthesis";
 import { useTuningPanel } from "@layout/bottomPanel/tuning/usePanel";
 import type { WaveformSynthesisNotice } from "@layout/bottomPanel/types";
 import { usePlaybackControls } from "@layout/bottomPanel/usePlaybackControls";
@@ -8,6 +9,7 @@ import { render } from "@solidjs/testing-library";
 import {
   batch,
   type Component,
+  createMemo,
   createSignal,
   onMount,
   type Setter,
@@ -17,9 +19,32 @@ import { i18nProvider } from "@contexts/i18n";
 import { MetaProvider, useMetaStore } from "@contexts/meta";
 import { SpectrogramProvider } from "@contexts/spectrogram";
 import { SystemProvider } from "@contexts/system";
-import { TextProvider, useTextStore } from "@contexts/text";
+import { findPresetById, TextProvider, useTextStore } from "@contexts/text";
 import { UIProvider, useUIStore } from "@contexts/ui";
+import { getModifiedQuery } from "$utils";
 import { audioQuery, config, metas, preset } from "../../test/fixtures";
+
+const BufferedWaveformJob: Component = () => {
+  const { projectPresetStore, textStore } = useTextStore()!;
+  const currentText = createMemo(() => textStore[0]);
+  const currentPreset = createMemo(() =>
+    findPresetById(projectPresetStore, currentText().preset_id),
+  );
+  const currentModifiedQuery = createMemo(() => {
+    const query = currentText().query;
+    const selectedPreset = currentPreset();
+    return query === null || selectedPreset === null
+      ? null
+      : getModifiedQuery(query, selectedPreset);
+  });
+  useTextBlockSynthesis({
+    index: 0,
+    currentText,
+    currentPreset,
+    currentModifiedQuery,
+  });
+  return null;
+};
 
 export const renderCanvas = (
   preview: Parameters<typeof SpectrogramCanvas>[0]["preview"],
@@ -46,11 +71,13 @@ export const renderCanvas = (
 export const renderPanel = (
   configOverrides: Partial<ReturnType<typeof config>["ui"]> = {},
   withSidebar = false,
+  withWaveformSynthesis = false,
 ) => {
   let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
   let text!: NonNullable<ReturnType<typeof useTextStore>>;
   let ui!: NonNullable<ReturnType<typeof useUIStore>>;
   const Harness: Component = () => {
+    const [fixtureInitialized, setFixtureInitialized] = createSignal(false);
     appConfig = useConfigStore()!;
     text = useTextStore()!;
     ui = useUIStore()!;
@@ -77,11 +104,15 @@ export const renderPanel = (
             preset_id: "preset-1",
           },
         ]);
+        setFixtureInitialized(true);
       });
     });
     return (
       <main>
         {withSidebar && <Sidebar />}
+        {withWaveformSynthesis && fixtureInitialized() && (
+          <BufferedWaveformJob />
+        )}
         <BottomPanel />
       </main>
     );

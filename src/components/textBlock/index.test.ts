@@ -359,6 +359,74 @@ describe("TextBlock", () => {
     );
   });
 
+  it("cancels a stale same-block request again when its delayed IPC response arrives", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    vi.spyOn(commands, "audioQuery").mockResolvedValue({
+      status: "ok",
+      data: audioQuery(),
+    });
+    let resolveFirst!: (
+      result: Awaited<ReturnType<typeof commands.synthesizeNonblocking>>,
+    ) => void;
+    const firstResult = new Promise<
+      Awaited<ReturnType<typeof commands.synthesizeNonblocking>>
+    >((resolve) => {
+      resolveFirst = resolve;
+    });
+    let resolveSecond!: (
+      result: Awaited<ReturnType<typeof commands.synthesizeNonblocking>>,
+    ) => void;
+    const secondResult = new Promise<
+      Awaited<ReturnType<typeof commands.synthesizeNonblocking>>
+    >((resolve) => {
+      resolveSecond = resolve;
+    });
+    const synthesize = vi
+      .spyOn(commands, "synthesizeNonblocking")
+      .mockReturnValueOnce(firstResult)
+      .mockReturnValueOnce(secondResult)
+      .mockResolvedValue({ status: "ok", data: null });
+    const cancel = vi
+      .spyOn(commands, "cancelSynthesis")
+      .mockResolvedValue({ status: "ok", data: null });
+    const { getTextStore } = renderBlock(true, false, false, {
+      nonblocking_synthesis: true,
+    });
+    await waitFor(() => expect(synthesize).toHaveBeenCalledOnce());
+    const firstRequest = synthesize.mock.calls[0][0];
+
+    getTextStore().setTextStore(0, "query", "outputStereo", true);
+    await waitFor(() => expect(synthesize).toHaveBeenCalledTimes(2));
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(cancel).toHaveBeenLastCalledWith(
+      firstRequest.blockId,
+      firstRequest.generationId,
+    );
+
+    resolveFirst({ status: "ok", data: null });
+    await waitFor(() => expect(cancel).toHaveBeenCalledTimes(2));
+    expect(cancel).toHaveBeenLastCalledWith(
+      firstRequest.blockId,
+      firstRequest.generationId,
+    );
+
+    const secondRequest = synthesize.mock.calls[1][0];
+    getTextStore().setTextStore(0, "query", "outputSamplingRate", 48_000);
+    await waitFor(() => expect(synthesize).toHaveBeenCalledTimes(3));
+    expect(cancel).toHaveBeenCalledTimes(3);
+    expect(cancel).toHaveBeenLastCalledWith(
+      secondRequest.blockId,
+      secondRequest.generationId,
+    );
+
+    resolveSecond({ status: "error", error: "stale queue failure" });
+    await Promise.resolve();
+    expect(cancel).toHaveBeenCalledTimes(3);
+    expect(
+      screen.queryByRole("status", { name: "Failed" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("resubmits buffered synthesis after nested audio query edits", async () => {
     mockIPC(() => null, { shouldMockEvents: true });
     vi.spyOn(commands, "audioQuery").mockResolvedValue({
