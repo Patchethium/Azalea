@@ -9,7 +9,6 @@ type BlockSpectrogramCache = {
 
 const [SpectrogramProvider, useSpectrogramStore] = createContextProvider(() => {
   let cache = new Map<string, BlockSpectrogramCache>();
-  let requestRevisions = new Map<string, number>();
   const [cacheRevision, setCacheRevision] = createSignal(0);
 
   const getCacheKey = (audioQuery: AudioQuery, speakerId: number) =>
@@ -51,17 +50,8 @@ const [SpectrogramProvider, useSpectrogramStore] = createContextProvider(() => {
 
   const clearSpectrogramCache = () => {
     cache = new Map();
-    requestRevisions = new Map();
     setCacheRevision((revision) => revision + 1);
   };
-
-  const beginSpectrogramRequest = (blockId: string) => {
-    const revision = (requestRevisions.get(blockId) ?? 0) + 1;
-    requestRevisions.set(blockId, revision);
-    return revision;
-  };
-  const isLatestSpectrogramRequest = (blockId: string, revision: number) =>
-    revision === requestRevisions.get(blockId);
 
   return {
     getCacheKey,
@@ -69,8 +59,6 @@ const [SpectrogramProvider, useSpectrogramStore] = createContextProvider(() => {
     getLastCachedSpectrogram,
     cacheSpectrogram,
     clearSpectrogramCache,
-    beginSpectrogramRequest,
-    isLatestSpectrogramRequest,
   };
 });
 

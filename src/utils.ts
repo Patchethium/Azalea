@@ -1,4 +1,4 @@
-import { AudioQuery, Preset } from "$binding";
+import type { AudioQuery, Preset } from "$binding";
 import _ from "lodash";
 
 export function getModifiedQuery(
@@ -14,6 +14,22 @@ export function getModifiedQuery(
   newQuery.postPhonemeLength = preset.end_slience / 1000.0;
   return newQuery;
 }
+
+export const renderRequestFingerprint = (
+  query: AudioQuery,
+  speakerId: number,
+) => {
+  const serialized = JSON.stringify([speakerId, query]);
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < serialized.length; index += 1) {
+    hash ^= serialized.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return {
+    hash: `${(hash >>> 0).toString(16).padStart(8, "0")}-${serialized.length}`,
+    signature: serialized,
+  };
+};
 
 /**
  * Adds a side effect to a function.

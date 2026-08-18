@@ -206,11 +206,19 @@ async synthesizeState(query: AudioQuery, speakerId: StyleId) : Promise<Result<Sy
 }
 },
 /**
- * Gets a compact mel spectrogram from the same cached waveform used for playback.
+ * Queues a cancellable spectrogram request backed by the shared waveform cache.
  */
-async getSpectrogramPreview(audioQuery: AudioQuery, speakerId: StyleId) : Promise<Result<SpectrogramPreview, string>> {
+async requestSpectrogramPreview(request: SpectrogramJobRequest) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("get_spectrogram_preview", { audioQuery, speakerId }) };
+    return { status: "ok", data: await TAURI_INVOKE("request_spectrogram_preview", { request }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async cancelSpectrogramPreview(blockId: string, generationId: number | null) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cancel_spectrogram_preview", { blockId, generationId }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -293,10 +301,12 @@ async loadProject(path: string) : Promise<Result<Project, string>> {
 export const events = __makeEvents__<{
 frontendReadyEvent: FrontendReadyEvent,
 initializationEvent: InitializationEvent,
+spectrogramJobEvent: SpectrogramJobEvent,
 synthesisJobEvent: SynthesisJobEvent
 }>({
 frontendReadyEvent: "frontend-ready-event",
 initializationEvent: "initialization-event",
+spectrogramJobEvent: "spectrogram-job-event",
 synthesisJobEvent: "synthesis-job-event"
 })
 
@@ -578,6 +588,8 @@ end_slience: number; speaker_uuid?: string | null; style_name?: string | null }
 export type Project = { blocks: TextBlockProps[]; presets: Preset[] }
 export type SpeakerIconRequest = { speaker_uuid: string; style_id: number }
 export type SpeakerIconResult = { speaker_uuid: string; data_url: string | null; error: string | null }
+export type SpectrogramJobEvent = { blockId: string; generationId: number; hash: string; state: SynthesisJobState; error: string | null; preview: SpectrogramPreview | null }
+export type SpectrogramJobRequest = { blockId: string; generationId: number; audioQuery: AudioQuery; speakerId: StyleId; hash: string }
 export type SpectrogramPreview = { values: number[]; frameCount: number; melBins: number; durationSeconds: number }
 /**
  * スタイルID。

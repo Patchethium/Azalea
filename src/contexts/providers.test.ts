@@ -175,7 +175,7 @@ describe("MetaProvider", () => {
 });
 
 describe("SpectrogramProvider", () => {
-  it("keys previews by block, speaker, and query and invalidates stale requests", () => {
+  it("keys previews by block, speaker, and query", () => {
     const store = renderSpectrogramStore();
 
     const query = audioQuery();
@@ -185,20 +185,8 @@ describe("SpectrogramProvider", () => {
     expect(store.getCachedSpectrogram("block", query, 2)).toBeNull();
     expect(store.getLastCachedSpectrogram("block")).toBe(spectrogram);
 
-    const staleRevision = store.beginSpectrogramRequest("block");
-    const latestRevision = store.beginSpectrogramRequest("block");
-    expect(store.isLatestSpectrogramRequest("block", staleRevision)).toBe(
-      false,
-    );
-    expect(store.isLatestSpectrogramRequest("block", latestRevision)).toBe(
-      true,
-    );
-
     store.clearSpectrogramCache();
     expect(store.getLastCachedSpectrogram("block")).toBeNull();
-    expect(store.isLatestSpectrogramRequest("block", latestRevision)).toBe(
-      false,
-    );
   });
 });
 

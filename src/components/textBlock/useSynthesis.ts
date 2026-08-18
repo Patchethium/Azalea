@@ -19,24 +19,9 @@ import { DEFAULT_SYNTHESIS_DELAY_MS, MAX_SYNTHESIS_DELAY_MS } from "$constants";
 import { useConfigStore } from "@contexts/config";
 import { usei18n } from "@contexts/i18n";
 import type { TextBlockProps } from "@contexts/text";
+import { renderRequestFingerprint } from "$utils";
 
 let synthesisGenerationSequence = 0;
-
-export const synthesisRequestFingerprint = (
-  query: AudioQuery,
-  speakerId: number,
-) => {
-  const serialized = JSON.stringify([speakerId, query]);
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < serialized.length; index += 1) {
-    hash ^= serialized.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return {
-    hash: `${(hash >>> 0).toString(16).padStart(8, "0")}-${serialized.length}`,
-    signature: serialized,
-  };
-};
 
 type ActiveSynthesisRequest = {
   blockId: string;
@@ -181,17 +166,12 @@ export function useTextBlockSynthesis(props: {
 
     const blockId = props.currentText().id;
     const speakerId = preset.style_id;
-    const { hash, signature } = synthesisRequestFingerprint(query, speakerId);
+    const { hash, signature } = renderRequestFingerprint(query, speakerId);
     const blockSignature = `${blockId}:${signature}`;
     if (blockSignature === lastSynthesisSignature) return;
 
     clearScheduledSynthesis();
-    if (
-      activeSynthesisRequest !== null &&
-      activeSynthesisRequest.blockId !== blockId
-    ) {
-      cancelSynthesisRequest(activeSynthesisRequest);
-    }
+    cancelSynthesisRequest(activeSynthesisRequest);
     synthesisGenerationSequence += 1;
     const activeRequest: ActiveSynthesisRequest = {
       blockId,

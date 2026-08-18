@@ -38,9 +38,23 @@ command signatures or shared Rust command types do.
 
 The pitch-tuning panel in `src/components/BottomPanel.tsx` renders a mel spectrogram on a canvas behind the pitch controls. Do not show it in the accent panel. Its width follows the editable mora-duration timeline; configured leading and trailing silence is cropped from the preview so the image remains aligned with that timeline.
 
-`get_spectrogram_preview` in `src-tauri/src/commands/core.rs` reuses the same waveform LRU cache as playback, decodes the cached WAV to mono samples, and runs `MelSpec` from `src-tauri/src/audio/spectal.rs`. Keep the frontend payload compact and normalized rather than transferring the full waveform unless a future implementation specifically needs it. Run CPU-heavy spectrogram extraction in a blocking task.
+`request_spectrogram_preview` in `src-tauri/src/commands/core.rs` queues work
+through the same reusable latest-generation job abstraction as buffered
+waveform synthesis. Newer requests cancel stale running and pending preview
+jobs for the same block. The worker reuses the waveform LRU cache, uses
+cancellable nonblocking synthesis on a cache miss, decodes the cached WAV to
+mono samples, and runs `MelSpec` from `src-tauri/src/audio/spectal.rs`. Keep the
+frontend payload compact and normalized rather than transferring the full
+waveform unless a future implementation specifically needs it. Run CPU-heavy
+spectrogram extraction in a blocking task and suppress its result if the job
+was cancelled.
 
-Refresh behavior depends on `UIConfig.buffer_render`: with buffering enabled, debounce refreshes alongside automatic waveform synthesis; without it, refresh only after playback has synthesized the waveform. Preserve the previous canvas while a replacement is pending and render it grayed out until the new spectrogram arrives. Stale async responses must not replace newer previews.
+Refresh behavior depends on `UIConfig.buffer_render`: with buffering enabled,
+debounce queued refreshes alongside automatic waveform synthesis; without it,
+queue a refresh only after playback has synthesized the waveform. Preserve the
+previous canvas while a replacement is pending and render it grayed out until
+the new spectrogram arrives. Match completion events by block ID, generation
+ID, and hash so stale async responses cannot replace newer previews.
 
 `UIConfig.spectrogram_preview` controls the feature and defaults to enabled. Disabling it must cancel pending refreshes, clear the canvas, and avoid spectrogram extraction. Keep its switch in `src/layout/ConfigPage.tsx`, synchronize its English, Japanese, and Simplified Chinese labels, and regenerate `src/binding.ts` after changing related Rust commands or types.
 

@@ -1,48 +1,17 @@
-use std::collections::{HashMap, VecDeque};
-use std::sync::{
-  atomic::{AtomicBool, Ordering},
-  Arc, Mutex,
-};
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use tokio::sync::{Notify, OnceCell};
+use tokio::sync::OnceCell;
 use voicevox_core::{AudioQuery, StyleId};
 
-const SYNTHESIS_QUEUE_CAPACITY: usize = 256;
+#[cfg(test)]
+use crate::async_job::DEFAULT_QUEUE_CAPACITY;
+use crate::async_job::{LatestJob, LatestJobQueue, QueueEvent, QueueEventState, QueuedJob};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum SynthesisBackend {
   Blocking,
   Nonblocking,
-}
-
-#[derive(Default)]
-pub(crate) struct SynthesisCancellation {
-  cancelled: AtomicBool,
-  notify: Notify,
-}
-
-impl SynthesisCancellation {
-  fn cancel(&self) {
-    if !self.cancelled.swap(true, Ordering::AcqRel) {
-      self.notify.notify_waiters();
-    }
-  }
-
-  pub async fn cancelled(&self) {
-    loop {
-      let notified = self.notify.notified();
-      if self.cancelled.load(Ordering::Acquire) {
-        return;
-      }
-      notified.await;
-    }
-  }
-
-  #[cfg(test)]
-  fn is_cancelled(&self) -> bool {
-    self.cancelled.load(Ordering::Acquire)
-  }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, specta::Type)]
@@ -101,7 +70,6 @@ pub(crate) struct SynthesisJob {
   pub request: SynthesisJobRequest,
   pub identity: SynthesisJobIdentity,
   pub backend: SynthesisBackend,
-  pub cancellation: Arc<SynthesisCancellation>,
 }
 
 impl SynthesisJob {
@@ -117,191 +85,79 @@ impl SynthesisJob {
       request,
       identity,
       backend,
-      cancellation: Arc::new(SynthesisCancellation::default()),
     }
   }
 }
 
-#[derive(Default)]
-struct SynthesisQueueState {
-  pending: VecDeque<SynthesisJob>,
-  running: Option<SynthesisJobIdentity>,
-  running_backend: Option<SynthesisBackend>,
-  running_cancellation: Option<Arc<SynthesisCancellation>>,
-  running_is_cancelled: bool,
-  latest_generation_by_block: HashMap<String, u64>,
+impl LatestJob for SynthesisJob {
+  type Key = String;
+  type Identity = SynthesisJobIdentity;
+
+  fn key(&self) -> &Self::Key {
+    &self.identity.block_id
+  }
+
+  fn generation_id(&self) -> u64 {
+    self.identity.generation_id
+  }
+
+  fn identity(&self) -> &Self::Identity {
+    &self.identity
+  }
+
+  fn cancel_running_when_superseded(&self) -> bool {
+    self.backend == SynthesisBackend::Nonblocking
+  }
 }
 
-pub(crate) struct SynthesisQueue {
-  state: Mutex<SynthesisQueueState>,
-  notify: Notify,
+fn synthesis_queue_event(event: QueueEvent<SynthesisJobIdentity>) -> SynthesisJobEvent {
+  let state = match event.state {
+    QueueEventState::Queued => SynthesisJobState::Queued,
+    QueueEventState::Running => SynthesisJobState::Running,
+    QueueEventState::Cancelled => SynthesisJobState::Cancelled,
+    QueueEventState::Evicted => SynthesisJobState::Evicted,
+  };
+  event.identity.event(state, None)
 }
+
+pub(crate) struct SynthesisQueue(LatestJobQueue<SynthesisJob>);
 
 impl Default for SynthesisQueue {
   fn default() -> Self {
-    Self {
-      state: Mutex::new(SynthesisQueueState::default()),
-      notify: Notify::new(),
-    }
+    Self(LatestJobQueue::default())
   }
 }
 
 impl SynthesisQueue {
   pub fn enqueue(&self, job: SynthesisJob) -> Vec<SynthesisJobEvent> {
-    let mut state = self.state.lock().unwrap();
-    let mut events = Vec::new();
-
-    if state
-      .pending
-      .iter()
-      .any(|pending| pending.identity == job.identity)
-    {
-      events.push(job.identity.event(SynthesisJobState::Queued, None));
-      return events;
-    }
-    if state.running.as_ref() == Some(&job.identity) {
-      let current_state = if state.running_is_cancelled {
-        SynthesisJobState::Cancelled
-      } else {
-        SynthesisJobState::Running
-      };
-      events.push(job.identity.event(current_state, None));
-      return events;
-    }
-
-    if state
-      .latest_generation_by_block
-      .get(&job.identity.block_id)
-      .is_some_and(|generation_id| job.identity.generation_id < *generation_id)
-    {
-      events.push(job.identity.event(SynthesisJobState::Cancelled, None));
-      return events;
-    }
-
-    state
-      .latest_generation_by_block
-      .insert(job.identity.block_id.clone(), job.identity.generation_id);
-
-    let superseded_running = state
-      .running
-      .as_ref()
-      .filter(|running| {
-        running.block_id == job.identity.block_id
-          && state.running_backend == Some(SynthesisBackend::Nonblocking)
-          && !state.running_is_cancelled
-      })
-      .cloned();
-    if let Some(running) = superseded_running {
-      events.push(running.event(SynthesisJobState::Cancelled, None));
-      state.running_is_cancelled = true;
-      state
-        .running_cancellation
-        .as_ref()
-        .expect("running synthesis job has no cancellation signal")
-        .cancel();
-    }
-
-    if let Some(position) = state
-      .pending
-      .iter()
-      .position(|pending| pending.identity.block_id == job.identity.block_id)
-    {
-      let existing = state
-        .pending
-        .remove(position)
-        .expect("pending synthesis job disappeared while locked");
-      events.push(existing.identity.event(SynthesisJobState::Cancelled, None));
-      events.push(job.identity.event(SynthesisJobState::Queued, None));
-      state.pending.insert(position, job);
-      drop(state);
-      self.notify.notify_one();
-      return events;
-    }
-
-    while state.pending.len() >= SYNTHESIS_QUEUE_CAPACITY {
-      if let Some(evicted) = state.pending.pop_front() {
-        events.push(evicted.identity.event(SynthesisJobState::Evicted, None));
-      }
-    }
-
-    events.push(job.identity.event(SynthesisJobState::Queued, None));
-    state.pending.push_back(job);
-    drop(state);
-    self.notify.notify_one();
-    events
+    self
+      .0
+      .enqueue(job)
+      .into_iter()
+      .map(synthesis_queue_event)
+      .collect()
   }
 
-  pub async fn next(&self) -> SynthesisJob {
-    loop {
-      let notified = self.notify.notified();
-      if let Some(job) = self.pop_next() {
-        return job;
-      }
-      notified.await;
-    }
+  pub async fn next(&self) -> QueuedJob<SynthesisJob> {
+    self.0.next().await
   }
 
-  fn pop_next(&self) -> Option<SynthesisJob> {
-    let mut state = self.state.lock().unwrap();
-    if state.running.is_some() {
-      return None;
-    }
-    let job = state.pending.pop_front()?;
-    state.running = Some(job.identity.clone());
-    state.running_backend = Some(job.backend);
-    state.running_cancellation = Some(job.cancellation.clone());
-    state.running_is_cancelled = false;
-    Some(job)
+  #[cfg(test)]
+  fn pop_next(&self) -> Option<QueuedJob<SynthesisJob>> {
+    self.0.pop_next()
   }
 
   pub fn finish(&self, identity: &SynthesisJobIdentity) -> bool {
-    let mut state = self.state.lock().unwrap();
-    if state.running.as_ref() != Some(identity) {
-      return false;
-    }
-    state.running = None;
-    state.running_backend = None;
-    state.running_cancellation = None;
-    let completed_without_cancellation = !state.running_is_cancelled;
-    state.running_is_cancelled = false;
-    drop(state);
-    self.notify.notify_one();
-    completed_without_cancellation
+    self.0.finish(identity)
   }
 
   pub fn cancel(&self, block_id: &str, generation_id: Option<u64>) -> Vec<SynthesisJobEvent> {
-    let mut state = self.state.lock().unwrap();
-    let mut events = Vec::new();
-    let matches = |identity: &SynthesisJobIdentity| {
-      identity.block_id == block_id
-        && generation_id
-          .map(|generation_id| identity.generation_id == generation_id)
-          .unwrap_or(true)
-    };
-
-    let mut retained = VecDeque::with_capacity(state.pending.len());
-    while let Some(job) = state.pending.pop_front() {
-      if matches(&job.identity) {
-        events.push(job.identity.event(SynthesisJobState::Cancelled, None));
-      } else {
-        retained.push_back(job);
-      }
-    }
-    state.pending = retained;
-
-    let cancelled_running = state
-      .running
-      .as_ref()
-      .filter(|running| matches(running) && !state.running_is_cancelled)
-      .cloned();
-    if let Some(running) = cancelled_running {
-      events.push(running.event(SynthesisJobState::Cancelled, None));
-      state.running_is_cancelled = true;
-      if let Some(cancellation) = state.running_cancellation.as_ref() {
-        cancellation.cancel();
-      }
-    }
-    events
+    self
+      .0
+      .cancel(&block_id.to_owned(), generation_id)
+      .into_iter()
+      .map(synthesis_queue_event)
+      .collect()
   }
 }
 
@@ -404,10 +260,10 @@ mod tests {
     assert_eq!(events[1].generation_id, 2);
     assert_eq!(events[1].state, SynthesisJobState::Queued);
     let first = queue.pop_next().unwrap();
-    assert_eq!(first.identity.block_id, "first");
-    assert_eq!(first.identity.generation_id, 2);
-    assert!(queue.finish(&first.identity));
-    assert_eq!(queue.pop_next().unwrap().identity.block_id, "second");
+    assert_eq!(first.job.identity.block_id, "first");
+    assert_eq!(first.job.identity.generation_id, 2);
+    assert!(queue.finish(&first.job.identity));
+    assert_eq!(queue.pop_next().unwrap().job.identity.block_id, "second");
   }
 
   #[test]
@@ -422,12 +278,12 @@ mod tests {
     assert_eq!(events[0].generation_id, 2);
     assert_eq!(events[0].state, SynthesisJobState::Queued);
     assert!(!running.cancellation.is_cancelled());
-    let duplicate_events = queue.enqueue(running.clone());
+    let duplicate_events = queue.enqueue(running.job.clone());
     assert_eq!(duplicate_events.len(), 1);
     assert_eq!(duplicate_events[0].state, SynthesisJobState::Running);
     assert!(queue.pop_next().is_none());
-    assert!(queue.finish(&running.identity));
-    assert_eq!(queue.pop_next().unwrap().identity.generation_id, 2);
+    assert!(queue.finish(&running.job.identity));
+    assert_eq!(queue.pop_next().unwrap().job.identity.generation_id, 2);
   }
 
   #[test]
@@ -455,8 +311,8 @@ mod tests {
     assert_eq!(events[1].state, SynthesisJobState::Queued);
     assert!(running.cancellation.is_cancelled());
     assert!(queue.pop_next().is_none());
-    assert!(!queue.finish(&running.identity));
-    assert_eq!(queue.pop_next().unwrap().identity.generation_id, 2);
+    assert!(!queue.finish(&running.job.identity));
+    assert_eq!(queue.pop_next().unwrap().job.identity.generation_id, 2);
   }
 
   #[test]
@@ -469,7 +325,7 @@ mod tests {
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].generation_id, 1);
     assert_eq!(events[0].state, SynthesisJobState::Cancelled);
-    assert_eq!(queue.pop_next().unwrap().identity.generation_id, 2);
+    assert_eq!(queue.pop_next().unwrap().job.identity.generation_id, 2);
   }
 
   #[test]
@@ -483,7 +339,7 @@ mod tests {
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].state, SynthesisJobState::Cancelled);
     assert!(running.cancellation.is_cancelled());
-    assert!(!queue.finish(&running.identity));
+    assert!(!queue.finish(&running.job.identity));
   }
 
   #[test]
@@ -498,7 +354,7 @@ mod tests {
     ));
 
     assert_eq!(
-      queue.pop_next().unwrap().backend,
+      queue.pop_next().unwrap().job.backend,
       SynthesisBackend::Nonblocking
     );
   }
@@ -517,7 +373,7 @@ mod tests {
     let running_events = queue.enqueue(duplicate);
     assert_eq!(running_events.len(), 1);
     assert_eq!(running_events[0].state, SynthesisJobState::Running);
-    assert!(queue.finish(&running.identity));
+    assert!(queue.finish(&running.job.identity));
   }
 
   #[test]
@@ -530,7 +386,7 @@ mod tests {
     let targeted = queue.cancel("first", Some(1));
     assert_eq!(targeted.len(), 1);
     assert_eq!(targeted[0].block_id, "first");
-    assert_eq!(queue.pop_next().unwrap().identity.block_id, "second");
+    assert_eq!(queue.pop_next().unwrap().job.identity.block_id, "second");
 
     queue.enqueue(job("third", 4, 1.0));
     let all = queue.cancel("third", None);
@@ -541,7 +397,7 @@ mod tests {
   #[test]
   fn full_queue_evicts_the_oldest_pending_block() {
     let queue = SynthesisQueue::default();
-    for index in 0..SYNTHESIS_QUEUE_CAPACITY {
+    for index in 0..DEFAULT_QUEUE_CAPACITY {
       queue.enqueue(job(&format!("block-{index}"), 1, 1.0));
     }
 
@@ -552,7 +408,7 @@ mod tests {
     assert_eq!(events[0].state, SynthesisJobState::Evicted);
     assert_eq!(events[1].block_id, "newest");
     assert_eq!(events[1].state, SynthesisJobState::Queued);
-    assert_eq!(queue.pop_next().unwrap().identity.block_id, "block-1");
+    assert_eq!(queue.pop_next().unwrap().job.identity.block_id, "block-1");
   }
 
   #[test]
@@ -594,7 +450,7 @@ mod tests {
     queue.enqueue(job("concurrent", 3, 1.0));
 
     let received = consumer.join().unwrap();
-    assert_eq!(received.identity.block_id, "concurrent");
-    assert_eq!(received.identity.generation_id, 3);
+    assert_eq!(received.job.identity.block_id, "concurrent");
+    assert_eq!(received.job.identity.generation_id, 3);
   }
 }

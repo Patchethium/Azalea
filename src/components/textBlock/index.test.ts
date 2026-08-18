@@ -324,7 +324,7 @@ describe("TextBlock", () => {
     expect(blocking).not.toHaveBeenCalled();
   });
 
-  it("lets the backend queue replace a superseded pending synthesis", async () => {
+  it("cancels active synthesis immediately before queuing a newer generation", async () => {
     mockIPC(() => null, { shouldMockEvents: true });
     vi.spyOn(commands, "audioQuery").mockResolvedValue({
       status: "ok",
@@ -347,7 +347,10 @@ describe("TextBlock", () => {
     ]);
 
     await waitFor(() => expect(synthesize).toHaveBeenCalledTimes(2));
-    expect(cancel).not.toHaveBeenCalled();
+    expect(cancel).toHaveBeenCalledWith(
+      synthesize.mock.calls[0][0].blockId,
+      synthesize.mock.calls[0][0].generationId,
+    );
     expect(synthesize.mock.calls[1][0].blockId).toBe(
       synthesize.mock.calls[0][0].blockId,
     );

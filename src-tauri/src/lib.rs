@@ -1,8 +1,10 @@
 //! TODO: there's no reason we pass the audio to frontend, we can keep it in the buffer and avoid the IPC overhead
+mod async_job;
 pub mod audio;
 pub mod commands;
 pub mod config;
 pub mod core;
+mod spectrogram;
 mod synthesis;
 use core::Core;
 
@@ -18,6 +20,7 @@ use tauri_specta::{collect_commands, collect_events, Builder, Event};
 
 use voicevox_core::{AudioQuery, StyleId};
 
+use spectrogram::{SpectrogramJobEvent, SpectrogramQueue};
 use synthesis::{SynthesisJobEvent, SynthesisQueue, WaveformCacheEntry};
 
 pub(crate) type WavLruType = lru::LruCache<(String, StyleId), WaveformCacheEntry>;
@@ -29,6 +32,7 @@ pub struct AppState {
   pub(crate) query_lru: LockedState<lru::LruCache<(String, StyleId), AudioQuery>>,
   pub(crate) wav_lru: TokioRwLock<Option<WavLruType>>,
   pub(crate) synthesis_queue: SynthesisQueue,
+  pub(crate) spectrogram_queue: SpectrogramQueue,
   pub(crate) config_manager: LockedState<config::ConfigManager>,
   pub(crate) audio_player: LockedState<audio::AudioPlayer>,
 }
@@ -57,7 +61,8 @@ fn specta_builder() -> Builder<tauri::Wry> {
       synthesize_nonblocking,
       cancel_synthesis,
       synthesize_state,
-      get_spectrogram_preview,
+      request_spectrogram_preview,
+      cancel_spectrogram_preview,
       play_audio,
       play_audio_sequence,
       stop_audio,
@@ -72,7 +77,8 @@ fn specta_builder() -> Builder<tauri::Wry> {
     .events(collect_events![
       InitializationEvent,
       FrontendReadyEvent,
-      SynthesisJobEvent
+      SynthesisJobEvent,
+      SpectrogramJobEvent
     ])
 }
 
@@ -110,6 +116,7 @@ pub fn run() {
       query_lru: RwLock::new(None),
       wav_lru: TokioRwLock::new(None),
       synthesis_queue: SynthesisQueue::default(),
+      spectrogram_queue: SpectrogramQueue::default(),
       config_manager: RwLock::new(None),
       audio_player: RwLock::new(None),
     })
@@ -118,6 +125,7 @@ pub fn run() {
       builder.mount_events(app);
       let app_handle = app.handle().clone();
       start_synthesis_worker(app_handle.clone());
+      start_spectrogram_worker(app_handle.clone());
       let startup = Arc::new(Mutex::new(None::<InitializationEvent>));
       let ready_startup = startup.clone();
       let ready_app = app_handle.clone();
@@ -170,6 +178,7 @@ mod tests {
       query_lru: RwLock::new(query_lru),
       wav_lru: TokioRwLock::new(wav_lru),
       synthesis_queue: SynthesisQueue::default(),
+      spectrogram_queue: SpectrogramQueue::default(),
       config_manager: RwLock::new(None),
       audio_player: RwLock::new(None),
     }

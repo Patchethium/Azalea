@@ -1,4 +1,10 @@
-import { type AudioQuery, commands, type SpectrogramPreview } from "$binding";
+import {
+  type AudioQuery,
+  commands,
+  events,
+  type SpectrogramJobRequest,
+  type SpectrogramPreview,
+} from "$binding";
 import {
   DEFAULT_BOTTOM_SCALE,
   DEFAULT_SYNTHESIS_DELAY_MS,
@@ -13,7 +19,7 @@ import type {
   DraggingMode,
   WaveformSynthesisNotice,
 } from "@layout/bottomPanel/types";
-import { getModifiedQuery } from "$utils";
+import { getModifiedQuery, renderRequestFingerprint } from "$utils";
 import { debounce, type Scheduled } from "@solid-primitives/scheduled";
 import _ from "lodash";
 import {
@@ -23,7 +29,17 @@ import {
   createSignal,
   on,
   onCleanup,
+  onMount,
 } from "solid-js";
+
+let spectrogramGenerationSequence = 0;
+
+type ActiveSpectrogramRequest = {
+  request: SpectrogramJobRequest;
+  signature: string;
+  submitted: boolean;
+  buffered: boolean;
+};
 
 export function useTuningPanel(
   waveformSynthesisNotice: Accessor<WaveformSynthesisNotice | null>,
@@ -45,8 +61,6 @@ export function useTuningPanel(
     getLastCachedSpectrogram,
     cacheSpectrogram,
     clearSpectrogramCache,
-    beginSpectrogramRequest,
-    isLatestSpectrogramRequest,
   } = useSpectrogramStore()!;
 
   const scale = () => config.ui?.bottom_scale ?? DEFAULT_BOTTOM_SCALE;
@@ -105,25 +119,133 @@ export function useTuningPanel(
   );
   const [spectrogramStale, setSpectrogramStale] = createSignal(false);
   let mounted = true;
+  let activeSpectrogramRequest: ActiveSpectrogramRequest | null = null;
+  let lastSpectrogramSignature: string | null = null;
+  let unlistenSpectrogram: (() => void) | undefined;
 
-  const refreshSpectrogram = async (
+  const cancelSpectrogramRequest = (
+    activeRequest: ActiveSpectrogramRequest | null,
+  ) => {
+    if (!activeRequest?.submitted) return;
+    void commands
+      .cancelSpectrogramPreview(
+        activeRequest.request.blockId,
+        activeRequest.request.generationId,
+      )
+      .then((result) => {
+        if (result.status === "error") {
+          console.error("Failed to cancel spectrogram preview:", result.error);
+        }
+      });
+  };
+
+  const submitSpectrogramRequest = async (
+    request: SpectrogramJobRequest,
+    activeRequest: ActiveSpectrogramRequest,
+  ) => {
+    if (!mounted || activeSpectrogramRequest !== activeRequest) return;
+    activeRequest.submitted = true;
+    try {
+      const result = await commands.requestSpectrogramPreview(request);
+      if (!mounted || activeSpectrogramRequest !== activeRequest) {
+        if (result.status === "ok") {
+          void commands.cancelSpectrogramPreview(
+            request.blockId,
+            request.generationId,
+          );
+        }
+        return;
+      }
+      if (result.status === "error") {
+        activeSpectrogramRequest = null;
+        console.error("Failed to queue spectrogram preview:", result.error);
+      }
+    } catch (error) {
+      if (activeSpectrogramRequest === activeRequest) {
+        activeSpectrogramRequest = null;
+      }
+      console.error("Failed to queue spectrogram preview:", error);
+    }
+  };
+
+  let scheduledSpectrogramRefresh:
+    | Scheduled<[SpectrogramJobRequest, ActiveSpectrogramRequest]>
+    | undefined;
+  const clearScheduledSpectrogramRefresh = () => {
+    scheduledSpectrogramRefresh?.clear();
+    scheduledSpectrogramRefresh = undefined;
+  };
+  const startSpectrogramRequest = (
     blockId: string,
     audioQuery: AudioQuery,
     speakerId: number,
+    buffered: boolean,
   ) => {
-    const request = beginSpectrogramRequest(blockId);
-    const requestKey = getCacheKey(audioQuery, speakerId);
+    clearScheduledSpectrogramRefresh();
+    cancelSpectrogramRequest(activeSpectrogramRequest);
+    const { hash, signature } = renderRequestFingerprint(audioQuery, speakerId);
+    spectrogramGenerationSequence += 1;
+    const request: SpectrogramJobRequest = {
+      blockId,
+      generationId: spectrogramGenerationSequence,
+      audioQuery,
+      speakerId,
+      hash,
+    };
+    const activeRequest: ActiveSpectrogramRequest = {
+      request,
+      signature: `${blockId}:${signature}`,
+      submitted: false,
+      buffered,
+    };
+    activeSpectrogramRequest = activeRequest;
+    lastSpectrogramSignature = activeRequest.signature;
     if (currentText()?.id === blockId) {
       setSpectrogramStale(spectrogram() !== null);
     }
-    try {
-      const result = await commands.getSpectrogramPreview(
-        audioQuery,
-        speakerId,
-      );
-      if (!isLatestSpectrogramRequest(blockId, request)) return;
-      if (result.status === "ok") {
-        cacheSpectrogram(blockId, audioQuery, speakerId, result.data);
+
+    if (!buffered) {
+      void submitSpectrogramRequest(request, activeRequest);
+      return;
+    }
+    const configuredDelay =
+      config.ui.synthesis_delay_ms ?? DEFAULT_SYNTHESIS_DELAY_MS;
+    const delay = Math.min(
+      Math.max(Math.trunc(configuredDelay), 0),
+      MAX_SYNTHESIS_DELAY_MS,
+    );
+    scheduledSpectrogramRefresh = debounce(submitSpectrogramRequest, delay);
+    scheduledSpectrogramRefresh(request, activeRequest);
+  };
+
+  onMount(() => {
+    void events.spectrogramJobEvent
+      .listen(({ payload }) => {
+        const activeRequest = activeSpectrogramRequest;
+        if (
+          activeRequest === null ||
+          payload.blockId !== activeRequest.request.blockId ||
+          payload.generationId !== activeRequest.request.generationId ||
+          payload.hash !== activeRequest.request.hash
+        ) {
+          return;
+        }
+        if (payload.state === "Failed") {
+          activeSpectrogramRequest = null;
+          console.error("Failed to create spectrogram preview:", payload.error);
+          return;
+        }
+        if (payload.state !== "Completed") return;
+        activeSpectrogramRequest = null;
+        if (payload.preview === null) {
+          console.error(
+            "Failed to create spectrogram preview:",
+            "completed job returned no preview",
+          );
+          return;
+        }
+        const { blockId, audioQuery, speakerId } = activeRequest.request;
+        cacheSpectrogram(blockId, audioQuery, speakerId, payload.preview);
         const currentQuery = currentModifiedQuery();
         const preset = currentPreset();
         if (
@@ -131,50 +253,21 @@ export function useTuningPanel(
           currentText()?.id === blockId &&
           currentQuery !== null &&
           preset !== null &&
-          getCacheKey(currentQuery, preset.style_id) === requestKey
+          getCacheKey(currentQuery, preset.style_id) ===
+            getCacheKey(audioQuery, speakerId)
         ) {
-          setSpectrogram(result.data);
+          setSpectrogram(payload.preview);
           setSpectrogramStale(false);
         }
-      } else {
-        console.error("Failed to create spectrogram preview:", result.error);
-      }
-    } catch (error) {
-      console.error("Failed to create spectrogram preview:", error);
-    }
-  };
-
-  let scheduledSpectrogramRefresh:
-    | Scheduled<[string, AudioQuery, number]>
-    | undefined;
-  const clearScheduledSpectrogramRefresh = () => {
-    scheduledSpectrogramRefresh?.clear();
-    scheduledSpectrogramRefresh = undefined;
-  };
-  const scheduleSpectrogramRefresh = (
-    blockId: string,
-    audioQuery: AudioQuery,
-    speakerId: number,
-  ) => {
-    clearScheduledSpectrogramRefresh();
-    const configuredDelay =
-      config.ui.synthesis_delay_ms ?? DEFAULT_SYNTHESIS_DELAY_MS;
-    const delay = Math.min(
-      Math.max(Math.trunc(configuredDelay), 0),
-      MAX_SYNTHESIS_DELAY_MS,
-    );
-    scheduledSpectrogramRefresh = debounce(
-      (scheduledBlockId, scheduledQuery, scheduledSpeakerId) => {
-        void refreshSpectrogram(
-          scheduledBlockId,
-          scheduledQuery,
-          scheduledSpeakerId,
-        );
-      },
-      delay,
-    );
-    scheduledSpectrogramRefresh(blockId, audioQuery, speakerId);
-  };
+      })
+      .then((unlisten) => {
+        if (!mounted) unlisten();
+        else unlistenSpectrogram = unlisten;
+      })
+      .catch((error) => {
+        console.error("Failed to listen for spectrogram events:", error);
+      });
+  });
 
   createEffect(() => {
     const block = currentText();
@@ -182,17 +275,32 @@ export function useTuningPanel(
     const preset = currentPreset();
     const bufferRender = config.ui.buffer_render;
     const previewEnabled = spectrogramPreviewEnabled();
-    clearScheduledSpectrogramRefresh();
     if (!previewEnabled) {
+      clearScheduledSpectrogramRefresh();
+      cancelSpectrogramRequest(activeSpectrogramRequest);
+      activeSpectrogramRequest = null;
+      lastSpectrogramSignature = null;
       setSpectrogram(null);
       setSpectrogramStale(false);
       clearSpectrogramCache();
       return;
     }
-    if (block === null) {
+    if (block === null || query === null || preset === null) {
+      clearScheduledSpectrogramRefresh();
+      cancelSpectrogramRequest(activeSpectrogramRequest);
+      activeSpectrogramRequest = null;
+      lastSpectrogramSignature = null;
       setSpectrogram(null);
       setSpectrogramStale(false);
       return;
+    }
+    const { signature } = renderRequestFingerprint(query, preset.style_id);
+    const blockSignature = `${block.id}:${signature}`;
+    if (blockSignature !== lastSpectrogramSignature) {
+      clearScheduledSpectrogramRefresh();
+      cancelSpectrogramRequest(activeSpectrogramRequest);
+      activeSpectrogramRequest = null;
+      lastSpectrogramSignature = blockSignature;
     }
     const cachedSpectrogram = getCurrentSpectrogram();
     if (cachedSpectrogram !== null) {
@@ -203,8 +311,16 @@ export function useTuningPanel(
     const lastSpectrogram = getLastCachedSpectrogram(block.id);
     setSpectrogram(lastSpectrogram);
     setSpectrogramStale(lastSpectrogram !== null);
-    if (bufferRender && query !== null && preset !== null) {
-      scheduleSpectrogramRefresh(block.id, query, preset.style_id);
+    if (!bufferRender) {
+      if (activeSpectrogramRequest?.buffered) {
+        clearScheduledSpectrogramRefresh();
+        cancelSpectrogramRequest(activeSpectrogramRequest);
+        activeSpectrogramRequest = null;
+      }
+      return;
+    }
+    if (activeSpectrogramRequest === null) {
+      startSpectrogramRequest(block.id, query, preset.style_id, true);
     }
   });
 
@@ -217,10 +333,11 @@ export function useTuningPanel(
       ) {
         return;
       }
-      void refreshSpectrogram(
+      startSpectrogramRequest(
         notice.blockId,
         notice.audioQuery,
         notice.speakerId,
+        false,
       );
     }),
   );
@@ -348,6 +465,9 @@ export function useTuningPanel(
   onCleanup(() => {
     mounted = false;
     clearScheduledSpectrogramRefresh();
+    cancelSpectrogramRequest(activeSpectrogramRequest);
+    activeSpectrogramRequest = null;
+    unlistenSpectrogram?.();
     if (scrollAreaRef) {
       setUIStore("bottom_scroll_pos", scrollAreaRef.scrollLeft);
     }

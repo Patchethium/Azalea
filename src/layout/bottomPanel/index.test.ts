@@ -1,4 +1,9 @@
-import { commands } from "$binding";
+import {
+  commands,
+  events,
+  type SpectrogramJobRequest,
+  type SpectrogramPreview,
+} from "$binding";
 import {
   renderCanvas,
   renderPanel,
@@ -10,6 +15,19 @@ import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { describe, expect, it, vi } from "vitest";
 import { audioQuery, mora, preset, spectrogram } from "../../test/fixtures";
+
+const emitCompletedSpectrogram = (
+  request: SpectrogramJobRequest,
+  preview: SpectrogramPreview,
+) =>
+  events.spectrogramJobEvent.emit({
+    blockId: request.blockId,
+    generationId: request.generationId,
+    hash: request.hash,
+    state: "Completed",
+    error: null,
+    preview,
+  });
 
 describe("SpectrogramCanvas", () => {
   it("crops configured silence while retaining timeline display width", () => {
@@ -882,18 +900,9 @@ describe("BottomPanel playback", () => {
       status: "ok",
       data: null,
     });
-    let resolveReplacement!: (
-      value: Awaited<ReturnType<typeof commands.getSpectrogramPreview>>,
-    ) => void;
-    const replacement = new Promise<
-      Awaited<ReturnType<typeof commands.getSpectrogramPreview>>
-    >((resolve) => {
-      resolveReplacement = resolve;
-    });
-    const getPreview = vi
-      .spyOn(commands, "getSpectrogramPreview")
-      .mockResolvedValueOnce({ status: "ok", data: spectrogram })
-      .mockReturnValueOnce(replacement);
+    const requestPreview = vi
+      .spyOn(commands, "requestSpectrogramPreview")
+      .mockResolvedValue({ status: "ok", data: null });
     const { container, getConfigStore, getTextStore } = renderPanel({
       buffer_render: false,
     });
@@ -902,26 +911,36 @@ describe("BottomPanel playback", () => {
     fireEvent.click(
       await screen.findByRole("button", { name: "Play selected cell" }),
     );
-    await waitFor(() => expect(getPreview).toHaveBeenCalledOnce());
+    await waitFor(() => expect(requestPreview).toHaveBeenCalledOnce());
+    await emitCompletedSpectrogram(
+      requestPreview.mock.calls[0][0],
+      spectrogram,
+    );
     await waitFor(() =>
       expect(container.querySelector("canvas")).toBeInTheDocument(),
     );
     expect(container.querySelector("canvas")).not.toHaveClass("opacity-55");
 
     await emit("audio-playback-finished");
-    getTextStore().setTextStore(0, "query", "speedScale", 1.25);
+    getTextStore().setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      0,
+      "moras",
+      0,
+      "pitch",
+      5.25,
+    );
     fireEvent.click(
       await screen.findByRole("button", { name: "Play selected cell" }),
     );
-    await waitFor(() => expect(getPreview).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(requestPreview).toHaveBeenCalledTimes(2));
     expect(container.querySelector("canvas")).toHaveClass("opacity-55");
 
-    resolveReplacement({
-      status: "ok",
-      data: {
-        ...spectrogram,
-        values: [255, 128, 64, 0],
-      },
+    await emitCompletedSpectrogram(requestPreview.mock.calls[1][0], {
+      ...spectrogram,
+      values: [255, 128, 64, 0],
     });
     await waitFor(() =>
       expect(container.querySelector("canvas")).not.toHaveClass("opacity-55"),
@@ -937,52 +956,52 @@ describe("BottomPanel playback", () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
-    type PreviewResult = Awaited<
-      ReturnType<typeof commands.getSpectrogramPreview>
-    >;
-    let resolveFirst!: (value: PreviewResult) => void;
-    let resolveSecond!: (value: PreviewResult) => void;
-    const first = new Promise<PreviewResult>((resolve) => {
-      resolveFirst = resolve;
-    });
-    const second = new Promise<PreviewResult>((resolve) => {
-      resolveSecond = resolve;
-    });
-    const getPreview = vi
-      .spyOn(commands, "getSpectrogramPreview")
-      .mockReturnValueOnce(first)
-      .mockReturnValueOnce(second);
+    const requestPreview = vi
+      .spyOn(commands, "requestSpectrogramPreview")
+      .mockResolvedValue({ status: "ok", data: null });
+    const cancelPreview = vi
+      .spyOn(commands, "cancelSpectrogramPreview")
+      .mockResolvedValue({ status: "ok", data: null });
     const { container, getTextStore } = renderPanel({
       buffer_render: true,
       synthesis_delay_ms: 0,
     });
 
     fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-    await waitFor(() => expect(getPreview).toHaveBeenCalledOnce());
-    getTextStore().setTextStore(0, "query", "speedScale", 1.25);
-    await waitFor(() => expect(getPreview).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(requestPreview).toHaveBeenCalledOnce());
+    const firstRequest = requestPreview.mock.calls[0][0];
+    getTextStore().setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      0,
+      "moras",
+      0,
+      "pitch",
+      5.25,
+    );
+    await waitFor(() => expect(requestPreview).toHaveBeenCalledTimes(2));
+    expect(cancelPreview).toHaveBeenCalledWith(
+      firstRequest.blockId,
+      firstRequest.generationId,
+    );
+    const secondRequest = requestPreview.mock.calls[1][0];
 
-    resolveSecond({
-      status: "ok",
-      data: {
-        values: [0, 64, 128, 128, 192, 255],
-        frameCount: 3,
-        melBins: 2,
-        durationSeconds: 1,
-      },
+    await emitCompletedSpectrogram(secondRequest, {
+      values: [0, 64, 128, 128, 192, 255],
+      frameCount: 3,
+      melBins: 2,
+      durationSeconds: 1,
     });
     await waitFor(() =>
       expect(container.querySelector("canvas")?.width).toBe(3),
     );
 
-    resolveFirst({
-      status: "ok",
-      data: {
-        values: [255, 0],
-        frameCount: 1,
-        melBins: 2,
-        durationSeconds: 1,
-      },
+    await emitCompletedSpectrogram(firstRequest, {
+      values: [255, 0],
+      frameCount: 1,
+      melBins: 2,
+      durationSeconds: 1,
     });
     await Promise.resolve();
     expect(container.querySelector("canvas")?.width).toBe(3);
@@ -1419,25 +1438,37 @@ describe("BottomPanel playback", () => {
       shouldMockEvents: true,
     });
     vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const getPreview = vi
-      .spyOn(commands, "getSpectrogramPreview")
+    const requestPreview = vi
+      .spyOn(commands, "requestSpectrogramPreview")
       .mockResolvedValueOnce({ status: "error", error: "preview failed" })
       .mockRejectedValueOnce(new Error("preview threw"))
-      .mockResolvedValue({ status: "ok", data: spectrogram });
+      .mockResolvedValue({ status: "ok", data: null });
+    const cancelPreview = vi
+      .spyOn(commands, "cancelSpectrogramPreview")
+      .mockResolvedValue({ status: "ok", data: null });
     const { getConfigStore, getTextStore, setNotice } = renderTuningHook({
       buffer_render: true,
       synthesis_delay_ms: -10,
     });
 
-    await waitFor(() => expect(getPreview).toHaveBeenCalledOnce());
+    await waitFor(() => expect(requestPreview).toHaveBeenCalledOnce());
     expect(console.error).toHaveBeenCalledWith(
-      "Failed to create spectrogram preview:",
+      "Failed to queue spectrogram preview:",
       "preview failed",
     );
-    getTextStore().setTextStore(0, "query", "speedScale", 1.25);
-    await waitFor(() => expect(getPreview).toHaveBeenCalledTimes(2));
+    getTextStore().setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      0,
+      "moras",
+      0,
+      "pitch",
+      5.25,
+    );
+    await waitFor(() => expect(requestPreview).toHaveBeenCalledTimes(2));
     expect(console.error).toHaveBeenCalledWith(
-      "Failed to create spectrogram preview:",
+      "Failed to queue spectrogram preview:",
       expect.any(Error),
     );
 
@@ -1447,15 +1478,49 @@ describe("BottomPanel playback", () => {
       audioQuery: audioQuery(),
       speakerId: 1,
     });
-    await waitFor(() => expect(getPreview).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(requestPreview).toHaveBeenCalledTimes(3));
+    const playbackRequest = requestPreview.mock.calls[2][0];
     getConfigStore().setSpectrogramPreviewEnabled(false);
+    await waitFor(() =>
+      expect(cancelPreview).toHaveBeenCalledWith(
+        playbackRequest.blockId,
+        playbackRequest.generationId,
+      ),
+    );
     setNotice({
       blockId: "first-block",
       audioQuery: audioQuery({ speedScale: 1.5 }),
       speakerId: 1,
     });
     await Promise.resolve();
-    expect(getPreview).toHaveBeenCalledTimes(3);
+    expect(requestPreview).toHaveBeenCalledTimes(3);
+  });
+
+  it("reports failures from the spectrogram worker event", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const requestPreview = vi
+      .spyOn(commands, "requestSpectrogramPreview")
+      .mockResolvedValue({ status: "ok", data: null });
+    renderTuningHook({ buffer_render: true, synthesis_delay_ms: 0 });
+
+    await waitFor(() => expect(requestPreview).toHaveBeenCalledOnce());
+    const request = requestPreview.mock.calls[0][0];
+    await events.spectrogramJobEvent.emit({
+      blockId: request.blockId,
+      generationId: request.generationId,
+      hash: request.hash,
+      state: "Failed",
+      error: "worker failed",
+      preview: null,
+    });
+
+    expect(console.error).toHaveBeenCalledWith(
+      "Failed to create spectrogram preview:",
+      "worker failed",
+    );
   });
 
   it("edits pitch and duration and plays while the pitch slider stays focused", async () => {

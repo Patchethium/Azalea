@@ -16,7 +16,7 @@ import {
 import { useUIStore } from "@contexts/ui";
 import { getModifiedQuery } from "$utils";
 
-export { synthesisRequestFingerprint } from "@components/textBlock/useSynthesis";
+export { renderRequestFingerprint as synthesisRequestFingerprint } from "$utils";
 
 function TextBlock(props: { index: number }) {
   const {

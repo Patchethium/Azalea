@@ -1,16 +1,18 @@
 use super::utils::state_mut;
+use crate::async_job::run_cancellable;
 use crate::config::CoreConfig;
+use crate::spectrogram::{
+  create_spectrogram_preview, validate_spectrogram_request, SpectrogramJob, SpectrogramJobEvent,
+  SpectrogramJobRequest,
+};
 use crate::synthesis::{
   eviction_events, SynthesisBackend, SynthesisJob, SynthesisJobEvent, SynthesisJobRequest,
   SynthesisJobState, WaveformCacheEntry, WaveformCacheOwner,
 };
 use crate::AppState;
-use crate::{audio::spectal::MelSpec, audio::AudioPlayer, core::Core};
+use crate::{audio::AudioPlayer, core::Core};
 
-use futures_util::future::{select, Either};
-use ndarray::Array1;
-use rodio::Source;
-use serde::Serialize;
+#[cfg(test)]
 use std::io::Cursor;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
@@ -322,6 +324,8 @@ pub fn start_synthesis_worker(app: AppHandle) {
         let state = app.state::<AppState>();
         state.synthesis_queue.next().await
       };
+      let cancellation = job.cancellation;
+      let job = job.job;
       emit_synthesis_events(&app, [job.identity.event(SynthesisJobState::Running, None)]);
 
       let result = {
@@ -347,15 +351,7 @@ pub fn start_synthesis_worker(app: AppHandle) {
             );
             match job.backend {
               SynthesisBackend::Blocking => Some(synthesis.await),
-              SynthesisBackend::Nonblocking => {
-                let cancellation = job.cancellation.clone();
-                let result =
-                  match select(Box::pin(cancellation.cancelled()), Box::pin(synthesis)).await {
-                    Either::Left(_) => None,
-                    Either::Right((result, _)) => Some(result),
-                  };
-                result
-              }
+              SynthesisBackend::Nonblocking => run_cancellable(&cancellation, synthesis).await,
             }
           }
         }
@@ -377,82 +373,105 @@ pub fn start_synthesis_worker(app: AppHandle) {
   });
 }
 
-#[derive(Debug, specta::Type, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SpectrogramPreview {
-  pub values: Vec<u8>,
-  pub frame_count: usize,
-  pub mel_bins: usize,
-  pub duration_seconds: f64,
-}
-
-fn create_spectrogram_preview(wav: Vec<u8>) -> Result<SpectrogramPreview, String> {
-  const FFT_SIZE: usize = 1024;
-  const MEL_BINS: usize = 96;
-  const HOP_LENGTH: usize = 256;
-  const DYNAMIC_RANGE_DB: f64 = 80.;
-
-  let decoder = rodio::Decoder::new_wav(Cursor::new(wav))
-    .map_err(|e| format!("Failed to decode WAV audio for spectrogram: {e}"))?;
-  let channels = decoder.channels() as usize;
-  let sample_rate = decoder.sample_rate() as usize;
-  if channels == 0 || sample_rate == 0 {
-    return Err("Invalid WAV channel count or sample rate".into());
-  }
-
-  let interleaved = decoder.collect::<Vec<i16>>();
-  let mono = interleaved
-    .chunks(channels)
-    .map(|frame| {
-      frame.iter().map(|sample| *sample as f64).sum::<f64>()
-        / (frame.len() as f64 * i16::MAX as f64)
-    })
-    .collect::<Array1<_>>();
-  let duration_seconds = mono.len() as f64 / sample_rate as f64;
-
-  let mut extractor = MelSpec::new(FFT_SIZE, MEL_BINS, HOP_LENGTH, sample_rate);
-  let spectrogram = extractor.process(mono);
-  let frame_count = spectrogram.ncols();
-  let max_db = spectrogram
-    .iter()
-    .copied()
-    .fold(f64::NEG_INFINITY, f64::max);
-  let floor_db = max_db - DYNAMIC_RANGE_DB;
-  let values = spectrogram
-    .iter()
-    .map(|db| (((db - floor_db) / DYNAMIC_RANGE_DB).clamp(0., 1.) * u8::MAX as f64).round() as u8)
-    .collect();
-
-  Ok(SpectrogramPreview {
-    values,
-    frame_count,
-    mel_bins: MEL_BINS,
-    duration_seconds,
-  })
+#[tauri::command]
+#[specta::specta]
+/// Queues a cancellable spectrogram request backed by the shared waveform cache.
+pub async fn request_spectrogram_preview(
+  app: AppHandle,
+  state: State<'_, AppState>,
+  request: SpectrogramJobRequest,
+) -> Result<(), String> {
+  validate_spectrogram_request(&request)?;
+  let query_key = serde_json::to_string(&request.audio_query).map_err(|e| e.to_string())?;
+  let events = state
+    .spectrogram_queue
+    .enqueue(SpectrogramJob::new(request, query_key));
+  emit_spectrogram_events(&app, events);
+  Ok(())
 }
 
 #[tauri::command]
 #[specta::specta]
-/// Gets a compact mel spectrogram from the same cached waveform used for playback.
-pub async fn get_spectrogram_preview(
+pub async fn cancel_spectrogram_preview(
   app: AppHandle,
   state: State<'_, AppState>,
-  audio_query: AudioQuery,
-  speaker_id: StyleId,
-) -> Result<SpectrogramPreview, String> {
-  let wav = synthesize_cached(
-    &app,
-    &state,
-    audio_query,
-    speaker_id,
-    None,
-    SynthesisBackend::Blocking,
-  )
-  .await?;
+  block_id: String,
+  generation_id: Option<u64>,
+) -> Result<(), String> {
+  let events = state.spectrogram_queue.cancel(&block_id, generation_id);
+  emit_spectrogram_events(&app, events);
+  Ok(())
+}
 
-  tauri::async_runtime::spawn_blocking(move || create_spectrogram_preview(wav))
-    .await
-    .map_err(|e| format!("Spectrogram task failed: {e}"))?
+fn emit_spectrogram_events(app: &AppHandle, events: impl IntoIterator<Item = SpectrogramJobEvent>) {
+  for event in events {
+    if let Err(error) = event.emit(app) {
+      eprintln!("Failed to emit spectrogram job event: {error}");
+    }
+  }
+}
+
+pub fn start_spectrogram_worker(app: AppHandle) {
+  tauri::async_runtime::spawn(async move {
+    loop {
+      let queued = {
+        let state = app.state::<AppState>();
+        state.spectrogram_queue.next().await
+      };
+      let cancellation = queued.cancellation;
+      let job = queued.job;
+      emit_spectrogram_events(
+        &app,
+        [job.identity.event(SynthesisJobState::Running, None, None)],
+      );
+
+      let result = {
+        let state = app.state::<AppState>();
+        match prepare_nonblocking_synthesis_task(&state, job.request.speaker_id).await {
+          Err(error) => Some(Err(error)),
+          Ok(()) => {
+            let synthesis = synthesize_cached(
+              &app,
+              &state,
+              job.request.audio_query,
+              job.request.speaker_id,
+              None,
+              SynthesisBackend::Nonblocking,
+            );
+            match run_cancellable(&cancellation, synthesis).await {
+              None => None,
+              Some(Err(error)) => Some(Err(error)),
+              Some(Ok(wav)) => {
+                let extraction = async move {
+                  tauri::async_runtime::spawn_blocking(move || create_spectrogram_preview(wav))
+                    .await
+                    .map_err(|e| format!("Spectrogram task failed: {e}"))?
+                };
+                run_cancellable(&cancellation, extraction).await
+              }
+            }
+          }
+        }
+      };
+
+      let is_current = {
+        let state = app.state::<AppState>();
+        state.spectrogram_queue.finish(&job.identity)
+      };
+      if !is_current {
+        continue;
+      }
+      let event = match result.expect("an uncancelled spectrogram job must have a result") {
+        Ok(preview) => job
+          .identity
+          .event(SynthesisJobState::Completed, None, Some(preview)),
+        Err(error) => job
+          .identity
+          .event(SynthesisJobState::Failed, Some(error), None),
+      };
+      emit_spectrogram_events(&app, [event]);
+    }
+  });
 }
 
 /// Synthesizes or retrieves a waveform without holding the shared cache lock during inference.
