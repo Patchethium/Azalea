@@ -89,7 +89,7 @@ export function AccentPhraseItem(props: {
           </Slider.Track>
         </div>
       </Slider>
-      <div class="relative flex flex-row">
+      <div class="relative flex flex-row h-24">
         <For each={props.phrase.moras}>
           {(mora, index) => {
             const isHigh = (moraIndex: number) =>

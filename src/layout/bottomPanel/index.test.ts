@@ -1308,6 +1308,37 @@ describe("BottomPanel playback", () => {
     expect(await screen.findByRole("textbox")).toHaveValue("コンニチワ");
   });
 
+  it("keeps accent phrase bars aligned regardless of mora count", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { getTextStore } = renderPanel();
+    await screen.findByText("コ");
+    getTextStore().setTextStore(0, "query", "accent_phrases", [
+      {
+        moras: [{ ...mora }],
+        accent: 1,
+        pause_mora: null,
+        is_interrogative: false,
+      },
+      {
+        moras: [
+          { ...mora, text: "ト" },
+          { ...mora, text: "ン" },
+        ],
+        accent: 2,
+        pause_mora: null,
+        is_interrogative: false,
+      },
+    ]);
+
+    const singleRow = screen.getByText("コ").parentElement!.parentElement!;
+    const multiRow = screen.getByText("ト").parentElement!.parentElement!;
+    expect(singleRow).toHaveClass("h-24");
+    expect(multiRow).toHaveClass("h-24");
+  });
+
   it("splits, combines, and adds a pause to accent phrases", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
