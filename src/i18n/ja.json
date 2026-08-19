@@ -111,7 +111,7 @@
     "truncation_len": "最大ファイル名の長さ",
     "no_truncation": "無制限",
     "cpu_num_threads": "CPUスレッド数",
-    "reinitialize_core": "コアを再初期化",
+    "reinitialize_core": "変更を適用するにはコアを再初期化",
     "auto": "自動"
   },
   "titlebar": {

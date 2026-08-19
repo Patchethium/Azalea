@@ -103,7 +103,7 @@
     "truncation_len": "File name truncation length",
     "no_truncation": "No truncation",
     "cpu_num_threads": "CPU threads",
-    "reinitialize_core": "Reinitialize core",
+    "reinitialize_core": "Reinitialize the core to apply changes",
     "auto": "Auto"
   },
   "titlebar": {

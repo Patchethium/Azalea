@@ -275,20 +275,20 @@ function CPUThreadSetting() {
 
   return (
     <div class="flex items-center gap-2">
-      <IconButton
-        icon={
-          status() === "loading"
-            ? "i-lucide:loader-circle animate-spin"
-            : status() === "error"
-              ? "i-lucide:triangle-alert text-red-6 dark:text-red-4"
-              : "i-lucide:refresh-cw"
-        }
-        label={t1("config.reinitialize_core")}
-        disabled={
-          status() === "loading" || config.core === null || !threadsChanged()
-        }
-        onClick={() => void reinit()}
-      />
+      <Show when={threadsChanged()}>
+        <IconButton
+          icon={
+            status() === "loading"
+              ? "i-lucide:loader-circle animate-spin"
+              : status() === "error"
+                ? "i-lucide:triangle-alert text-red-6 dark:text-red-4"
+                : "i-lucide:refresh-cw"
+          }
+          label={t1("config.reinitialize_core")}
+          disabled={status() === "loading"}
+          onClick={() => void reinit()}
+        />
+      </Show>
       <NumberField
         minValue={0}
         maxValue={65535}

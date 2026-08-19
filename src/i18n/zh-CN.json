@@ -103,7 +103,7 @@
     "truncation_len": "文件名截断长度",
     "no_truncation": "不截断",
     "cpu_num_threads": "CPU线程数",
-    "reinitialize_core": "重新初始化核心",
+    "reinitialize_core": "应用更改需重新初始化核心",
     "auto": "自动"
   },
   "titlebar": {

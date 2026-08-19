@@ -492,14 +492,18 @@ describe("ConfigPage", () => {
     const threads = await screen.findByRole("spinbutton", {
       name: "CPU threads",
     });
-    const reinitButton = screen.getByRole("button", {
-      name: "Reinitialize core",
-    });
-    expect(reinitButton).toBeDisabled();
+    expect(
+      screen.queryByRole("button", {
+        name: "Reinitialize the core to apply changes",
+      }),
+    ).not.toBeInTheDocument();
 
     fireEvent.input(threads, { target: { value: "8" } });
     fireEvent.change(threads, { target: { value: "8" } });
     expect(appConfig.config.core?.cpu_num_threads).toBe(8);
+    const reinitButton = screen.getByRole("button", {
+      name: "Reinitialize the core to apply changes",
+    });
     expect(reinitButton).toBeEnabled();
 
     fireEvent.click(reinitButton);
@@ -511,7 +515,13 @@ describe("ConfigPage", () => {
       cache_size: 128,
       cpu_num_threads: 8,
     });
-    await waitFor(() => expect(reinitButton).toBeDisabled());
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", {
+          name: "Reinitialize the core to apply changes",
+        }),
+      ).not.toBeInTheDocument(),
+    );
   });
 
   it("ignores invalid CPU thread input and shows a failed reinitialization", async () => {
@@ -573,15 +583,18 @@ describe("ConfigPage", () => {
     fireEvent.input(threads, { target: { value: "" } });
     fireEvent.change(threads, { target: { value: "" } });
     expect(appConfig.config.core?.cpu_num_threads).toBe(4);
-
-    const reinitButton = screen.getByRole("button", {
-      name: "Reinitialize core",
-    });
-    expect(reinitButton).toBeDisabled();
+    expect(
+      screen.queryByRole("button", {
+        name: "Reinitialize the core to apply changes",
+      }),
+    ).not.toBeInTheDocument();
 
     fireEvent.input(threads, { target: { value: "8" } });
     fireEvent.change(threads, { target: { value: "8" } });
     expect(appConfig.config.core?.cpu_num_threads).toBe(8);
+    const reinitButton = screen.getByRole("button", {
+      name: "Reinitialize the core to apply changes",
+    });
     expect(reinitButton).toBeEnabled();
 
     fireEvent.click(reinitButton);
@@ -601,7 +614,7 @@ describe("ConfigPage", () => {
     expect(reinitButton).toBeEnabled();
   });
 
-  it("disables reinitialization and ignores edits without a core config", async () => {
+  it("hides reinitialization and ignores edits without a core config", async () => {
     vi.spyOn(commands, "getAssetsSize").mockResolvedValue({
       status: "ok",
       data: 0,
@@ -638,10 +651,10 @@ describe("ConfigPage", () => {
     fireEvent.input(threads, { target: { value: "8" } });
     fireEvent.change(threads, { target: { value: "8" } });
     expect(appConfig.config.core).toBeNull();
-
-    const reinitButton = screen.getByRole("button", {
-      name: "Reinitialize core",
-    });
-    expect(reinitButton).toBeDisabled();
+    expect(
+      screen.queryByRole("button", {
+        name: "Reinitialize the core to apply changes",
+      }),
+    ).not.toBeInTheDocument();
   });
 });
