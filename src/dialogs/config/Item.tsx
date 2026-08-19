@@ -12,7 +12,7 @@ export function ConfigItem(props: ConfigItemProps) {
   const { t1 } = usei18n()!;
   return (
     <div
-      class="wfull items-center justify-center flex flex-row p2 b-b b-slate-2 dark:b-slate-7 select-none cursor-default"
+      class="wfull items-center justify-center flex flex-row p2 b-b b-slate-2 dark:b-slate-7 cursor-default"
       classList={{ "pl-6": props.nested }}
     >
       {props.nested && (
