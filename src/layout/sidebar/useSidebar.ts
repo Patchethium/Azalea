@@ -19,11 +19,13 @@ import { useMetaStore } from "@contexts/meta";
 import { useSystemStore } from "@contexts/system";
 import {
   createPresetId,
+  createTextBlock,
   findPresetById,
   findPresetStyle,
   useTextStore,
 } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
+import { parseSrt } from "$utils";
 import {
   isApplicationShortcutAllowed,
   matchesShortcut,
@@ -34,6 +36,7 @@ export function useSidebar() {
   const { availableStyleIds, metas } = useMetaStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
   const {
+    textStore,
     setTextStore,
     projectPresetStore,
     setProjectPresetStore,
@@ -234,6 +237,34 @@ export function useSidebar() {
     });
   };
 
+  const importSrt = async () => {
+    const path = await openDialog({
+      title: t1("menu.import_srt"),
+      filters: [{ name: "SRT Subtitle Files", extensions: ["srt"] }],
+    });
+    if (path === null) return;
+    const result = await commands.readTextFile(path);
+    if (result.status === "error") {
+      console.error(result.error);
+      return;
+    }
+    const texts = parseSrt(result.data);
+    if (texts.length === 0) return;
+    const presetId =
+      currentText()?.preset_id ?? projectPresetStore[0]?.id ?? null;
+    const startIndex = textStore.length;
+    batch(() => {
+      setTextStore(
+        produce((blocks) => {
+          for (const text of texts) {
+            blocks.push(createTextBlock(presetId, text));
+          }
+        }),
+      );
+      setUIStore("selectedTextBlockIndex", startIndex);
+    });
+  };
+
   const scheduledSave = createScheduled((fn) => throttle(fn, 500));
   createEffect(() => {
     JSON.stringify(project);
@@ -297,6 +328,7 @@ export function useSidebar() {
     newProject,
     loadProject,
     saveProject,
+    importSrt,
   };
 }
 

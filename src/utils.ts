@@ -47,3 +47,27 @@ export const useSideEffect = <Args extends unknown[], Return>(
     return result;
   };
 };
+
+/**
+ * Parses an SRT subtitle document into a list of cue texts, preserving cue
+ * order. Each cue becomes one entry; inline formatting tags are stripped and
+ * multi-line cues are joined with a space.
+ */
+export const parseSrt = (content: string): string[] => {
+  const normalized = content.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
+  const cues: string[] = [];
+  for (const block of normalized.split(/\n{2,}/)) {
+    const lines = block.split("\n").map((line) => line.trim());
+    const timestampIndex = lines.findIndex((line) => line.includes("-->"));
+    const textLines =
+      timestampIndex === -1 ? lines : lines.slice(timestampIndex + 1);
+    const text = textLines
+      .filter((line) => line !== "")
+      .join(" ")
+      .replace(/<[^>]*>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (text !== "") cues.push(text);
+  }
+  return cues;
+};

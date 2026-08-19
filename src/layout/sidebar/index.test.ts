@@ -180,6 +180,86 @@ describe("Sidebar project lifecycle", () => {
   });
 });
 
+describe("Sidebar SRT import", () => {
+  it("appends subtitle cues as text blocks, tolerating cancel and read errors", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    mockIPC((cmd, args) => {
+      if (cmd === "get_os") return "Linux";
+      if (cmd === "read_text_file") {
+        if ((args as { path?: string }).path === "/tmp/missing.srt") {
+          throw "file not found";
+        }
+        return "1\n00:00:00,000 --> 00:00:02,000\nFirst cue\n\n2\n00:00:02,500 --> 00:00:05,000\n<i>Second</i> cue";
+      }
+      return null;
+    });
+    dialogs.open
+      .mockResolvedValueOnce("/tmp/subtitles.srt")
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce("/tmp/missing.srt");
+    const errorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    let text!: NonNullable<ReturnType<typeof useTextStore>>;
+    renderSidebar(({ config: appConfig, meta, text: textStore }) => {
+      text = textStore;
+      batch(() => {
+        appConfig.setConfig(config({ auto_save: false }));
+        meta.setMetas(metas);
+        text.setProjectPresetStore([preset()]);
+        text.replaceTextBlocks([
+          {
+            id: "current-block",
+            text: "Current block",
+            query: audioQuery(),
+            query_is_modified: false,
+            preset_id: "preset-1",
+          },
+        ]);
+      });
+    });
+
+    await screen.findByText("Default");
+    await user.click(
+      await screen.findByRole("button", { name: "Project actions" }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Import SRT" }),
+    );
+    expect(dialogs.open).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Import SRT" }),
+    );
+    await waitFor(() => expect(text.textStore).toHaveLength(3));
+    expect(text.textStore.map((block) => block.text)).toEqual([
+      "Current block",
+      "First cue",
+      "Second cue",
+    ]);
+    expect(text.textStore[1].preset_id).toBe("preset-1");
+    expect(text.selectedTextBlockIndex()).toBe(1);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Project actions" }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Import SRT" }),
+    );
+    expect(text.textStore).toHaveLength(3);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Project actions" }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Import SRT" }),
+    );
+    await waitFor(() =>
+      expect(errorSpy).toHaveBeenCalledWith("file not found"),
+    );
+    expect(text.textStore).toHaveLength(3);
+    errorSpy.mockRestore();
+  });
+});
+
 describe("Sidebar controls", () => {
   it("handles preset controller edge cases", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));

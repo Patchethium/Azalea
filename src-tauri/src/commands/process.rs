@@ -54,6 +54,12 @@ pub fn home_dir() -> Option<String> {
   dirs::home_dir().map(|path| path.to_string_lossy().to_string())
 }
 
+#[tauri::command]
+#[specta::specta]
+pub fn read_text_file(path: String) -> Result<String, String> {
+  std::fs::read_to_string(path).map_err(|error| error.to_string())
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -86,5 +92,27 @@ mod tests {
       home_dir(),
       dirs::home_dir().map(|p| p.to_string_lossy().to_string())
     );
+  }
+
+  #[test]
+  fn read_text_file_round_trips_utf8_contents() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("script.srt");
+    let contents = "1\n00:00:00,000 --> 00:00:01,000\nこんにちは\n";
+    std::fs::write(&path, contents).unwrap();
+    assert_eq!(
+      read_text_file(path.to_string_lossy().to_string()),
+      Ok(contents.to_string())
+    );
+  }
+
+  #[test]
+  fn read_text_file_reports_missing_or_invalid_files() {
+    assert!(read_text_file("/definitely/not/a/real/path.srt".into()).is_err());
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("invalid.srt");
+    std::fs::write(&path, [0xff, 0xfe, 0x00]).unwrap();
+    assert!(read_text_file(path.to_string_lossy().to_string()).is_err());
   }
 }

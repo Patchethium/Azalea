@@ -122,6 +122,7 @@
     "new_project": "New Project",
     "load_project": "Load Project",
     "save_project": "Save Project",
+    "import_srt": "Import SRT",
     "auto_save": "Auto Save",
     "about": "About"
   },

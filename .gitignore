@@ -8,3 +8,4 @@ config_dev/assets/
 .DS_Store
 coverage/
 logs/
+docs/

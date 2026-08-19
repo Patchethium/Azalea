@@ -289,6 +289,14 @@ async parentPath(p: string) : Promise<string | null> {
 async homeDir() : Promise<string | null> {
     return await TAURI_INVOKE("home_dir");
 },
+async readTextFile(path: string) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("read_text_file", { path }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async quit() : Promise<void> {
     await TAURI_INVOKE("quit");
 },

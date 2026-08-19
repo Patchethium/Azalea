@@ -44,6 +44,12 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
               >
                 {t1("menu.save_project")}
               </DropdownMenu.Item>
+              <DropdownMenu.Item
+                class={style.menu_item}
+                onClick={controls.importSrt}
+              >
+                {t1("menu.import_srt")}
+              </DropdownMenu.Item>
               <DropdownMenu.Separator class="mx-2 my-1" />
               <DropdownMenu.CheckboxItem
                 checked={controls.autoSave()}

@@ -122,6 +122,7 @@
     "new_project": "新建项目",
     "load_project": "加载项目",
     "save_project": "保存项目",
+    "import_srt": "导入 SRT",
     "auto_save": "自动保存",
     "about": "关于"
   },

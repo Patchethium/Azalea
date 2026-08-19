@@ -72,6 +72,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
       join_path,
       parent_path,
       home_dir,
+      read_text_file,
       quit,
       save_project,
       load_project,
