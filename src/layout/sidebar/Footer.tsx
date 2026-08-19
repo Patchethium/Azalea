@@ -25,7 +25,7 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Arrow size={8} />
-            <DropdownMenu.Content class="bg-white dark:bg-slate-8 p-1 outline-none shadow-md rounded-md b b-slate-2 dark:b-slate-6">
+            <DropdownMenu.Content class="bg-slate-1 dark:bg-slate-7 p-1 outline-none rounded-md ring-1 ring-slate-3 dark:ring-slate-5 shadow-xl shadow-slate-9/25 dark:shadow-slate-1/15">
               <DropdownMenu.Item
                 class={style.menu_item}
                 onClick={controls.newProject}
