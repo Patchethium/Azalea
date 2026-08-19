@@ -48,7 +48,7 @@ export function ConfigPage() {
         class="w-[min(90vw,32rem)]"
       >
         <div class="flex-1 overflow-auto px3 pb3">
-          <ConfigSectionTitle label={t1("config.general")} />
+          <ConfigSectionTitle label={t1("config.ui")} />
           <ConfigItem label={t1("config.lang")}>
             <I18NSelect />
           </ConfigItem>
@@ -88,6 +88,7 @@ export function ConfigPage() {
           <ConfigItem label={t1("config.primary_color")}>
             <PrimaryColorPicker />
           </ConfigItem>
+          <ConfigSectionTitle label={t1("config.audio_export")} />
           <ConfigItem label={t1("config.default_export_dir")}>
             <Switch
               checked={config.ui.default_export_dir_enabled ?? false}
