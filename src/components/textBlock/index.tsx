@@ -141,7 +141,14 @@ function TextBlock(props: { index: number }) {
             : `+${(fileName.length - truncationLength).toString()}`,
       });
     }
-    const lastSavedDir = config.ui.last_exported_dir ?? ".";
+    const pinnedDir = config.ui.default_export_dir_enabled
+      ? config.ui.default_export_dir
+      : undefined;
+    let lastSavedDir = pinnedDir ?? config.ui.last_exported_dir;
+    if (lastSavedDir == null) {
+      const home = await commands.homeDir();
+      lastSavedDir = home ?? ".";
+    }
     const targetPath = await commands.joinPath(lastSavedDir, fileName);
     let path = await saveDialog({
       title: "Save Audio",

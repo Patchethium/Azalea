@@ -85,6 +85,8 @@ export const config = (
     spectrogram_preview: DEFAULT_SPECTROGRAM_PREVIEW,
     playback_timeline: DEFAULT_PLAYBACK_TIMELINE,
     name_truncation_len: 0,
+    default_export_dir: null,
+    default_export_dir_enabled: false,
     last_exported_dir: null,
     shortcuts: {},
     ...overrides,

@@ -91,6 +91,10 @@ pub struct UIConfig {
   #[serde(default = "name_truncation_len_default")]
   pub name_truncation_len: usize,
   #[serde(default)]
+  pub default_export_dir: Option<String>,
+  #[serde(default)]
+  pub default_export_dir_enabled: bool,
+  #[serde(default)]
   pub last_exported_dir: Option<String>,
   #[serde(default)]
   pub shortcuts: KeyboardShortcuts,
@@ -113,6 +117,8 @@ impl Default for UIConfig {
       spectrogram_preview: spectrogram_preview_default(),
       playback_timeline: playback_timeline_default(),
       name_truncation_len: name_truncation_len_default(),
+      default_export_dir: None,
+      default_export_dir_enabled: false,
       last_exported_dir: None,
       shortcuts: Default::default(),
     }
@@ -291,6 +297,9 @@ mod tests {
     assert_eq!(config.synthesis_delay_ms, 600);
     assert!(!config.nonblocking_synthesis);
     assert!(config.custom_titlebar);
+    assert!(config.default_export_dir.is_none());
+    assert!(!config.default_export_dir_enabled);
+    assert!(config.last_exported_dir.is_none());
     assert_eq!(
       config.shortcuts.toggle_playback,
       KeyboardShortcut::new("Space", false, false)

@@ -3,6 +3,7 @@ import { ConfigPage } from "@dialogs/config";
 import { AssetCacheSetting } from "@dialogs/config/AssetCacheSetting";
 import { MultiProvider } from "@solid-primitives/context";
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import userEvent from "@testing-library/user-event";
 import { batch, type Component, createSignal, onMount } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -11,6 +12,10 @@ import { i18nProvider } from "@contexts/i18n";
 import { MetaProvider, useMetaStore } from "@contexts/meta";
 import { UIProvider, useUIStore } from "@contexts/ui";
 import { config } from "../../test/fixtures";
+
+vi.mock("@tauri-apps/plugin-dialog", () => ({
+  open: vi.fn(),
+}));
 
 describe("ConfigPage", () => {
   afterEach(() => {
@@ -179,6 +184,140 @@ describe("ConfigPage", () => {
     await user.click(screen.getByRole("button", { name: /Language/ }));
     await user.click(await screen.findByText(/日本語/));
     expect(appConfig.config.ui.locale).toBe("Ja");
+  });
+
+  it("pins and toggles the default export directory", async () => {
+    vi.spyOn(commands, "getAssetsSize").mockResolvedValue({
+      status: "ok",
+      data: 0,
+    });
+    let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
+    const Harness: Component = () => {
+      appConfig = useConfigStore()!;
+      const ui = useUIStore()!;
+      onMount(() => {
+        batch(() => {
+          appConfig.setConfig(config());
+          ui.setUIStore("page", "config");
+        });
+      });
+      return <ConfigPage />;
+    };
+
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [i18nProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+
+    expect(
+      await screen.findByRole("dialog", { name: "Config" }),
+    ).toBeInTheDocument();
+    const toggle = screen.getByRole("switch", {
+      name: "Enable default export directory",
+    });
+    expect(toggle).not.toBeChecked();
+    expect(screen.queryByText("Directory")).not.toBeInTheDocument();
+    expect(screen.queryByText("Not set")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Choose export directory" }),
+    ).not.toBeInTheDocument();
+    vi.mocked(openDialog).mockResolvedValue("/exports");
+
+    fireEvent.click(toggle);
+    expect(appConfig.config.ui.default_export_dir_enabled).toBe(true);
+    expect(screen.getByText("Directory")).toBeInTheDocument();
+    expect(screen.getByText("Not set")).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Choose export directory" }),
+    );
+    await waitFor(() =>
+      expect(appConfig.config.ui.default_export_dir).toBe("/exports"),
+    );
+    expect(openDialog).toHaveBeenCalledWith({
+      directory: true,
+      multiple: false,
+      defaultPath: undefined,
+    });
+    expect(screen.queryByText("Not set")).not.toBeInTheDocument();
+    expect(screen.getByText("/exports")).toBeInTheDocument();
+    expect(toggle).toBeChecked();
+
+    fireEvent.click(toggle);
+    expect(appConfig.config.ui.default_export_dir_enabled).toBe(false);
+    expect(appConfig.config.ui.default_export_dir).toBe("/exports");
+    expect(toggle).not.toBeChecked();
+    expect(screen.queryByText("Directory")).not.toBeInTheDocument();
+    expect(screen.queryByText("/exports")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Choose export directory" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(appConfig.config.ui.default_export_dir_enabled).toBe(true);
+    expect(screen.getByText("/exports")).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Choose export directory" }),
+    );
+    await waitFor(() =>
+      expect(appConfig.config.ui.default_export_dir).toBe("/exports"),
+    );
+    expect(openDialog).toHaveBeenLastCalledWith({
+      directory: true,
+      multiple: false,
+      defaultPath: "/exports",
+    });
+  });
+
+  it("ignores a cancelled export directory picker", async () => {
+    vi.spyOn(commands, "getAssetsSize").mockResolvedValue({
+      status: "ok",
+      data: 0,
+    });
+    vi.mocked(openDialog).mockResolvedValue(null);
+    let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
+    const Harness: Component = () => {
+      appConfig = useConfigStore()!;
+      const ui = useUIStore()!;
+      onMount(() => {
+        batch(() => {
+          appConfig.setConfig(config());
+          ui.setUIStore("page", "config");
+        });
+      });
+      return <ConfigPage />;
+    };
+
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [i18nProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+
+    await screen.findByRole("dialog", { name: "Config" });
+    fireEvent.click(
+      screen.getByRole("switch", { name: "Enable default export directory" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Choose export directory" }),
+    );
+    await waitFor(() => expect(openDialog).toHaveBeenCalledOnce());
+    expect(appConfig.config.ui.default_export_dir).toBeNull();
   });
 
   it("shows the saved asset size and refreshes it after clearing", async () => {

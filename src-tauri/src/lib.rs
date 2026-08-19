@@ -71,6 +71,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
       get_os,
       join_path,
       parent_path,
+      home_dir,
       quit,
       save_project,
       load_project,
@@ -205,7 +206,7 @@ mod tests {
   #[test]
   fn mock_runtime_dispatches_registered_path_commands() {
     let app = mock_builder()
-      .invoke_handler(tauri::generate_handler![join_path, parent_path])
+      .invoke_handler(tauri::generate_handler![join_path, parent_path, home_dir])
       .build(mock_context(noop_assets()))
       .unwrap();
     let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())

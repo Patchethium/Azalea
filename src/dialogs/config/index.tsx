@@ -7,9 +7,11 @@ import {
 } from "@dialogs/config/Basics";
 import { ConfigItem } from "@dialogs/config/Item";
 import { IconButton } from "@components/iconButton";
+import { Tooltip } from "@components/tooltip";
 import { Dialog } from "@kobalte/core/dialog";
 import { NumberField } from "@kobalte/core/number-field";
 import { Switch } from "@kobalte/core/switch";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import _ from "lodash";
 import { createSignal, Show } from "solid-js";
 import {
@@ -86,6 +88,26 @@ export function ConfigPage() {
           <ConfigItem label={t1("config.primary_color")}>
             <PrimaryColorPicker />
           </ConfigItem>
+          <ConfigItem label={t1("config.default_export_dir")}>
+            <Switch
+              checked={config.ui.default_export_dir_enabled ?? false}
+              onChange={(v) => setConfig("ui", "default_export_dir_enabled", v)}
+              class="inline-flex items-center select-none cursor-pointer justify-center"
+            >
+              <Switch.Input
+                aria-label={t1("config.enable_export_dir")}
+                class="outline-2px"
+              />
+              <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
+                <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
+              </Switch.Control>
+            </Switch>
+          </ConfigItem>
+          <Show when={config.ui.default_export_dir_enabled}>
+            <ConfigItem label={t1("config.export_dir_path")} nested>
+              <DefaultExportDirSetting />
+            </ConfigItem>
+          </Show>
           <ConfigItem label={t1("config.truncation_len")}>
             <NumberField
               minValue={0}
@@ -185,6 +207,51 @@ export function ConfigPage() {
         </div>
       </AppDialogContent>
     </Dialog>
+  );
+}
+
+function DefaultExportDirSetting() {
+  const { config, setConfig } = useConfigStore()!;
+  const { t1 } = usei18n()!;
+  const [picking, setPicking] = createSignal(false);
+  const dir = () => config.ui.default_export_dir;
+
+  const pick = async () => {
+    setPicking(true);
+    const selected = await openDialog({
+      directory: true,
+      multiple: false,
+      defaultPath: dir() ?? undefined,
+    });
+    setPicking(false);
+    if (typeof selected === "string") {
+      setConfig("ui", "default_export_dir", selected);
+      setConfig("ui", "default_export_dir_enabled", true);
+    }
+  };
+
+  return (
+    <div class="flex min-w-0 items-center gap-1">
+      <Tooltip
+        content={dir() ?? ""}
+        class="max-w-40 min-w-0"
+        onlyWhenOverflowing
+      >
+        <span class="max-w-40 truncate text-sm text-slate-5 dark:text-slate-4">
+          {dir() ?? t1("config.no_default_export_dir")}
+        </span>
+      </Tooltip>
+      <IconButton
+        icon={
+          picking()
+            ? "i-lucide:loader-circle animate-spin"
+            : "i-lucide:folder-open"
+        }
+        label={t1("config.pick_export_dir")}
+        disabled={picking()}
+        onClick={() => void pick()}
+      />
+    </div>
   );
 }
 

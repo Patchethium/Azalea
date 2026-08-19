@@ -286,6 +286,9 @@ async joinPath(p1: string, p2: string) : Promise<string> {
 async parentPath(p: string) : Promise<string | null> {
     return await TAURI_INVOKE("parent_path", { p });
 },
+async homeDir() : Promise<string | null> {
+    return await TAURI_INVOKE("home_dir");
+},
 async quit() : Promise<void> {
     await TAURI_INVOKE("quit");
 },
@@ -703,7 +706,7 @@ export type SynthesisJobRequest = { blockId: string; generationId: number; audio
 export type SynthesisJobState = "Queued" | "Running" | "Completed" | "Failed" | "Cancelled" | "Evicted"
 export type TextBlockProps = { id: string; text: string; query: AudioQuery | null; query_is_modified: boolean; preset_id: string | null }
 export type ThemeMode = "System" | "Light" | "Dark"
-export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; custom_titlebar?: boolean; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; side_width?: number; buffer_render?: boolean; nonblocking_synthesis?: boolean; synthesis_delay_ms?: number; spectrogram_preview?: boolean; playback_timeline?: boolean; name_truncation_len?: number; last_exported_dir?: string | null; shortcuts?: KeyboardShortcuts }
+export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; custom_titlebar?: boolean; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; side_width?: number; buffer_render?: boolean; nonblocking_synthesis?: boolean; synthesis_delay_ms?: number; spectrogram_preview?: boolean; playback_timeline?: boolean; name_truncation_len?: number; default_export_dir?: string | null; default_export_dir_enabled?: boolean; last_exported_dir?: string | null; shortcuts?: KeyboardShortcuts }
 
 /** tauri-specta globals **/
 

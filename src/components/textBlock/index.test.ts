@@ -564,6 +564,111 @@ describe("TextBlock", () => {
     );
   });
 
+  it("prefers the pinned default export directory over the last exported one", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    vi.spyOn(commands, "audioQuery").mockResolvedValue({
+      status: "ok",
+      data: audioQuery(),
+    });
+    const joinPath = vi
+      .spyOn(commands, "joinPath")
+      .mockResolvedValue("/pinned/hello");
+    vi.mocked(saveDialog).mockResolvedValue("/pinned/rendered.wav");
+    const saveAudio = vi
+      .spyOn(commands, "saveAudio")
+      .mockResolvedValue({ status: "ok", data: "/pinned/rendered.wav" });
+    vi.spyOn(commands, "parentPath").mockResolvedValue("/pinned");
+
+    const { getConfigStore } = renderBlock(false);
+    const saveButton = await screen.findByRole("button", {
+      name: "Save audio",
+    });
+    await waitFor(() => expect(saveButton).toBeEnabled());
+    getConfigStore().setConfig("ui", "default_export_dir", "/pinned");
+    getConfigStore().setConfig("ui", "default_export_dir_enabled", true);
+    getConfigStore().setConfig("ui", "last_exported_dir", "/last");
+    fireEvent.click(saveButton);
+
+    await waitFor(() => expect(saveAudio).toHaveBeenCalledOnce());
+    expect(joinPath).toHaveBeenCalledWith("/pinned", "hello");
+    expect(saveAudio.mock.calls[0]).toMatchObject([
+      "/pinned/rendered.wav",
+      expect.any(Object),
+      1,
+    ]);
+  });
+
+  it("ignores the pinned default export directory when the toggle is off", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    vi.spyOn(commands, "audioQuery").mockResolvedValue({
+      status: "ok",
+      data: audioQuery(),
+    });
+    const joinPath = vi
+      .spyOn(commands, "joinPath")
+      .mockResolvedValue("/last/hello");
+    vi.mocked(saveDialog).mockResolvedValue("/last/rendered.wav");
+    const saveAudio = vi
+      .spyOn(commands, "saveAudio")
+      .mockResolvedValue({ status: "ok", data: "/last/rendered.wav" });
+    vi.spyOn(commands, "parentPath").mockResolvedValue("/last");
+
+    const { getConfigStore } = renderBlock(false);
+    const saveButton = await screen.findByRole("button", {
+      name: "Save audio",
+    });
+    await waitFor(() => expect(saveButton).toBeEnabled());
+    getConfigStore().setConfig("ui", "default_export_dir", "/pinned");
+    getConfigStore().setConfig("ui", "default_export_dir_enabled", false);
+    getConfigStore().setConfig("ui", "last_exported_dir", "/last");
+    fireEvent.click(saveButton);
+
+    await waitFor(() => expect(saveAudio).toHaveBeenCalledOnce());
+    expect(joinPath).toHaveBeenCalledWith("/last", "hello");
+    expect(saveAudio.mock.calls[0]).toMatchObject([
+      "/last/rendered.wav",
+      expect.any(Object),
+      1,
+    ]);
+  });
+
+  it("falls back to the home directory when no export directory is configured", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    vi.spyOn(commands, "audioQuery").mockResolvedValue({
+      status: "ok",
+      data: audioQuery(),
+    });
+    const homeDir = vi
+      .spyOn(commands, "homeDir")
+      .mockResolvedValue("/home/user");
+    const joinPath = vi
+      .spyOn(commands, "joinPath")
+      .mockResolvedValue("/home/user/hello");
+    vi.mocked(saveDialog).mockResolvedValue("/home/user/rendered.wav");
+    const saveAudio = vi
+      .spyOn(commands, "saveAudio")
+      .mockResolvedValue({ status: "ok", data: "/home/user/rendered.wav" });
+    vi.spyOn(commands, "parentPath").mockResolvedValue("/home/user");
+
+    const { getConfigStore } = renderBlock(false);
+    const saveButton = await screen.findByRole("button", {
+      name: "Save audio",
+    });
+    await waitFor(() => expect(saveButton).toBeEnabled());
+    expect(getConfigStore().config.ui.last_exported_dir).toBeNull();
+    expect(getConfigStore().config.ui.default_export_dir).toBeNull();
+    fireEvent.click(saveButton);
+
+    await waitFor(() => expect(saveAudio).toHaveBeenCalledOnce());
+    expect(homeDir).toHaveBeenCalledOnce();
+    expect(joinPath).toHaveBeenCalledWith("/home/user", "hello");
+    expect(saveAudio.mock.calls[0]).toMatchObject([
+      "/home/user/rendered.wav",
+      expect.any(Object),
+      1,
+    ]);
+  });
+
   it("handles export cancellation, existing extensions, and backend errors", async () => {
     mockIPC(() => null, { shouldMockEvents: true });
     vi.spyOn(console, "error").mockImplementation(() => undefined);

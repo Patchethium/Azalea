@@ -48,6 +48,12 @@ pub fn parent_path(p: String) -> Option<String> {
   }
 }
 
+#[tauri::command]
+#[specta::specta]
+pub fn home_dir() -> Option<String> {
+  dirs::home_dir().map(|path| path.to_string_lossy().to_string())
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -72,5 +78,13 @@ mod tests {
       "windows" => assert!(matches!(os, OS::Windows)),
       other => panic!("unsupported test target: {other}"),
     }
+  }
+
+  #[test]
+  fn home_dir_matches_dirs_home_dir() {
+    assert_eq!(
+      home_dir(),
+      dirs::home_dir().map(|p| p.to_string_lossy().to_string())
+    );
   }
 }
