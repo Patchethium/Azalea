@@ -3,7 +3,14 @@ import { useTextBlockSynthesis } from "@components/textBlock/useSynthesis";
 import { TextBlockView } from "@components/textBlock/View";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import _ from "lodash";
-import { batch, createEffect, createMemo, on, onCleanup } from "solid-js";
+import {
+  batch,
+  createEffect,
+  createMemo,
+  createSignal,
+  on,
+  onCleanup,
+} from "solid-js";
 import { produce, unwrap } from "solid-js/store";
 import { useConfigStore } from "@contexts/config";
 import { useMetaStore } from "@contexts/meta";
@@ -30,6 +37,7 @@ function TextBlock(props: { index: number }) {
   const { setUIStore } = useUIStore()!;
   const { config, setConfig } = useConfigStore()!;
   const currentText = createMemo(() => textStore[props.index]);
+  const [caretOffset, setCaretOffset] = createSignal<number | null>(null);
   const currentQuery = createMemo(() => currentText().query);
   const currentPreset = createMemo(() => {
     const preset = findPresetById(projectPresetStore, currentText().preset_id);
@@ -188,6 +196,33 @@ function TextBlock(props: { index: number }) {
     }
   };
 
+  const splitDisabled = createMemo(() => {
+    const text = currentText().text;
+    if (text === "") return true;
+    const offset = caretOffset();
+    if (offset === null) return true;
+    const clamped = Math.min(Math.max(Math.trunc(offset), 0), text.length);
+    return clamped === 0 || clamped === text.length;
+  });
+
+  const splitText = () => {
+    const text = currentText().text;
+    const offset = caretOffset() ?? text.length;
+    const clamped = Math.min(Math.max(Math.trunc(offset), 0), text.length);
+    batch(() => {
+      setTextStore(props.index, {
+        ...currentText(),
+        text: text.slice(0, clamped),
+        query_is_modified: false,
+      });
+      const nextIndex = insertTextBlockBelow(props.index);
+      setTextStore(nextIndex, {
+        ...textStore[nextIndex],
+        text: text.slice(clamped),
+      });
+    });
+  };
+
   const remove = () => {
     if (textStore.length === 1) {
       setTextStore(0, { text: "" });
@@ -239,10 +274,13 @@ function TextBlock(props: { index: number }) {
       setText={setText}
       setSelected={() => setSelected()}
       addTextBelow={() => insertTextBlockBelow(props.index)}
+      splitDisabled={splitDisabled()}
+      splitText={splitText}
       saveAudio={saveAudio}
       moveUp={moveUp}
       moveDown={moveDown}
       remove={remove}
+      onCaretChange={setCaretOffset}
       synthState={synthState()}
       synthStateText={synthStateText}
       synthStateIcon={synthStateIcon}

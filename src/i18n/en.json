@@ -51,6 +51,7 @@
     "input_label": "Text to synthesize",
     "controls": {
       "add_below": "Add text cell below",
+      "split": "Split text cell",
       "save_audio": "Save audio",
       "move_up": "Move text cell up",
       "move_down": "Move text cell down",

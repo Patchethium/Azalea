@@ -51,6 +51,7 @@
     "input_label": "待合成文本",
     "controls": {
       "add_below": "在下方添加文本单元格",
+      "split": "拆分文本单元格",
       "save_audio": "保存音频",
       "move_up": "上移文本单元格",
       "move_down": "下移文本单元格",

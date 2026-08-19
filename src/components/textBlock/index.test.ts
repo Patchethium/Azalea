@@ -49,6 +49,61 @@ describe("TextBlock", () => {
     expect(setText).toHaveBeenCalledWith("");
   });
 
+  it("reports caret offsets from selection and key events", () => {
+    const onCaretChange = vi.fn();
+    render(() =>
+      createComponent(AutogrowInput, {
+        text: "hello",
+        setText: vi.fn(),
+        focused: false,
+        placeholder: "Placeholder",
+        "aria-label": "Caret editor",
+        onCaretChange,
+      }),
+    );
+    const editor = screen.getByLabelText("Caret editor");
+    const textNode = editor.ownerDocument.createTextNode("hello");
+    editor.appendChild(textNode);
+    const selection = editor.ownerDocument.getSelection();
+    const range = editor.ownerDocument.createRange();
+    range.setStart(textNode, 2);
+    range.collapse(true);
+    selection!.removeAllRanges();
+    selection!.addRange(range);
+    fireEvent.keyUp(editor);
+    expect(onCaretChange).toHaveBeenCalledWith(2);
+  });
+
+  it("ignores missing selections and selections outside the editor", () => {
+    const onCaretChange = vi.fn();
+    render(() =>
+      createComponent(AutogrowInput, {
+        text: "hello",
+        setText: vi.fn(),
+        focused: false,
+        placeholder: "Placeholder",
+        "aria-label": "Caret editor 2",
+        onCaretChange,
+      }),
+    );
+    const editor = screen.getByLabelText("Caret editor 2");
+
+    vi.spyOn(document, "getSelection").mockReturnValue(null);
+    fireEvent.input(editor);
+    expect(onCaretChange).not.toHaveBeenCalled();
+
+    vi.spyOn(document, "getSelection").mockRestore();
+    const outside = editor.ownerDocument.createElement("div");
+    editor.ownerDocument.body.appendChild(outside);
+    const selection = editor.ownerDocument.getSelection();
+    const range = editor.ownerDocument.createRange();
+    range.selectNodeContents(outside);
+    selection!.removeAllRanges();
+    selection!.addRange(range);
+    fireEvent.mouseUp(editor);
+    expect(onCaretChange).not.toHaveBeenCalled();
+  });
+
   it("places the caret at the end when another cell is focused programmatically", async () => {
     mockIPC(() => null, { shouldMockEvents: true });
     vi.spyOn(commands, "audioQuery").mockResolvedValue({
@@ -167,6 +222,74 @@ describe("TextBlock", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete text cell" }));
     expect(getTextStore().textStore).toHaveLength(1);
     expect(getTextStore().textStore[0]).toMatchObject({ text: "" });
+  });
+
+  it("splits a text cell at the caret position into the cell below", async () => {
+    mockIPC((cmd) => (cmd === "audio_query" ? audioQuery() : null), {
+      shouldMockEvents: true,
+    });
+    const { getTextStore, getUiStore } = renderBlock(false);
+    const editor = await screen.findByLabelText("Text to synthesize");
+    const splitButton = screen.getByRole("button", {
+      name: "Split text cell",
+    });
+    expect(splitButton).toBeDisabled();
+
+    const textNode = editor.ownerDocument.createTextNode("hello");
+    editor.appendChild(textNode);
+    const selection = editor.ownerDocument.getSelection();
+    const range = editor.ownerDocument.createRange();
+    range.setStart(textNode, 2);
+    range.collapse(true);
+    selection!.removeAllRanges();
+    selection!.addRange(range);
+    fireEvent.select(editor);
+
+    expect(splitButton).toBeEnabled();
+    fireEvent.click(splitButton);
+
+    expect(getTextStore().textStore.map((block) => block.text)).toEqual([
+      "he",
+      "llo",
+    ]);
+    expect(getTextStore().textStore[1]).toMatchObject({
+      preset_id: "preset-1",
+      query: null,
+      query_is_modified: false,
+    });
+    expect(getTextStore().textStore[1].id).not.toBe("text-block");
+    expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(1);
+  });
+
+  it("keeps the split button disabled when the caret cannot split any text", async () => {
+    mockIPC((cmd) => (cmd === "audio_query" ? audioQuery() : null), {
+      shouldMockEvents: true,
+    });
+    const { getTextStore } = renderBlock(false);
+    const editor = await screen.findByLabelText("Text to synthesize");
+    const splitButton = screen.getByRole("button", {
+      name: "Split text cell",
+    });
+
+    const textNode = editor.ownerDocument.createTextNode("hello");
+    editor.appendChild(textNode);
+    const placeCaret = (offset: number) => {
+      const selection = editor.ownerDocument.getSelection();
+      const range = editor.ownerDocument.createRange();
+      range.setStart(textNode, offset);
+      range.collapse(true);
+      selection!.removeAllRanges();
+      selection!.addRange(range);
+      fireEvent.select(editor);
+    };
+
+    placeCaret(0);
+    expect(splitButton).toBeDisabled();
+    placeCaret(editor.innerText.length);
+    expect(splitButton).toBeDisabled();
+
+    getTextStore().setTextStore(0, "text", "");
+    expect(splitButton).toBeDisabled();
   });
 
   it("submits buffered synthesis, filters stale events, and cancels on disable", async () => {

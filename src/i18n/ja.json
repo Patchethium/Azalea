@@ -51,6 +51,7 @@
     "input_label": "読み上げるテキスト",
     "controls": {
       "add_below": "下にテキストセルを追加",
+      "split": "テキストセルを分割",
       "save_audio": "音声を保存",
       "move_up": "テキストセルを上へ移動",
       "move_down": "テキストセルを下へ移動",

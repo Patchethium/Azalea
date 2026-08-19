@@ -18,10 +18,13 @@ export function TextBlockView(props: {
   setText: (text: string) => void;
   setSelected: () => void;
   addTextBelow: () => void;
+  splitDisabled: boolean;
+  splitText: () => void;
   saveAudio: () => void;
   moveUp: () => void;
   moveDown: () => void;
   remove: () => void;
+  onCaretChange?: (offset: number) => void;
   synthState: SynthesisJobState | "Idle";
   synthStateText: () => string;
   synthStateIcon: () => string;
@@ -55,6 +58,12 @@ export function TextBlockView(props: {
                 icon="i-lucide:plus"
                 label={t1("text_block.controls.add_below")}
                 onClick={props.addTextBelow}
+              />
+              <IconButton
+                icon="i-lucide:square-split-vertical"
+                label={t1("text_block.controls.split")}
+                disabled={props.splitDisabled}
+                onClick={props.splitText}
               />
               <IconButton
                 icon="i-lucide:save"
@@ -94,6 +103,7 @@ export function TextBlockView(props: {
             placeholder={t1("text_block.input_label")}
             aria-label={t1("text_block.input_label")}
             onFocus={props.setSelected}
+            onCaretChange={props.onCaretChange}
           />
         </div>
         <div class="flex flex-row flex-1 w-full" onClick={props.setSelected}>
