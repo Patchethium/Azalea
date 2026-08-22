@@ -92,7 +92,6 @@ export function useSidebar() {
   const [presetManagerOpen, setPresetManagerOpen] = createSignal(false);
   const [speakerSelectionOpen, setSpeakerSelectionOpen] = createSignal(false);
   const [aboutOpen, setAboutOpen] = createSignal(false);
-  const [dictionaryOpen, setDictionaryOpen] = createSignal(false);
 
   const currentPreset = createMemo(() =>
     findPresetById(projectPresetStore, currentText()?.preset_id),
@@ -322,8 +321,6 @@ export function useSidebar() {
     setSpeakerSelectionOpen,
     aboutOpen,
     setAboutOpen,
-    dictionaryOpen,
-    setDictionaryOpen,
     actionMenuOpen,
     setActionMenuOpen,
     autoSave,

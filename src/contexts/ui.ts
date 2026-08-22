@@ -1,7 +1,7 @@
 import { createContextProvider } from "@solid-primitives/context";
 import { createStore } from "solid-js/store";
 
-type PageType = "config" | null; // null means main page. TODO: make it consistent with other pages
+type PageType = "config" | "dictionary" | "shortcuts" | null; // null means main page
 type BottomPanelType = "accent" | "tuning";
 
 type UIStoreType = {

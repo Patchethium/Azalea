@@ -15,7 +15,12 @@ import {
   shortcutSignature,
 } from "../shortcuts";
 
-export function ShortcutReferenceDialog() {
+interface ShortcutReferenceDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function ShortcutReferenceDialog(props: ShortcutReferenceDialogProps) {
   const { t1 } = usei18n()!;
   const { config, setConfig } = useConfigStore()!;
   const { systemStore } = useSystemStore()!;
@@ -84,14 +89,13 @@ export function ShortcutReferenceDialog() {
   };
 
   return (
-    <Dialog onOpenChange={(open) => !open && resetEditor()}>
-      <Dialog.Trigger
-        class="group size-8 p1 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-primary-5 data-[expanded]:bg-primary-5 transition-transform outline-none"
-        title={t1("shortcuts.open")}
-        aria-label={t1("shortcuts.open")}
-      >
-        <div class="i-lucide:keyboard bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white group-data-[expanded]:!bg-white" />
-      </Dialog.Trigger>
+    <Dialog
+      open={props.open}
+      onOpenChange={(open) => {
+        if (!open) resetEditor();
+        props.onOpenChange(open);
+      }}
+    >
       <AppDialogContent
         title={t1("shortcuts.title")}
         closeLabel={t1("shortcuts.close")}

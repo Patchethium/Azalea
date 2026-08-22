@@ -6,7 +6,7 @@ import { Dialog } from "@kobalte/core/dialog";
 import { MultiProvider } from "@solid-primitives/context";
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { mockIPC } from "@tauri-apps/api/mocks";
-import { batch, type Component, onMount } from "solid-js";
+import { batch, createSignal, type Component, onMount } from "solid-js";
 import { describe, expect, it } from "vitest";
 import { ConfigProvider, useConfigStore } from "@contexts/config";
 import { i18nProvider } from "@contexts/i18n";
@@ -186,8 +186,9 @@ describe("ShortcutReferenceDialog", () => {
     let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
     const Harness: Component = () => {
       appConfig = useConfigStore()!;
+      const [open, setOpen] = createSignal(true);
       onMount(() => appConfig.setConfig(config()));
-      return <ShortcutReferenceDialog />;
+      return <ShortcutReferenceDialog open={open()} onOpenChange={setOpen} />;
     };
 
     render(() => (
@@ -204,11 +205,6 @@ describe("ShortcutReferenceDialog", () => {
       </MultiProvider>
     ));
 
-    fireEvent.click(
-      await screen.findByRole("button", {
-        name: "Show keyboard shortcuts",
-      }),
-    );
     const saveShortcut = await screen.findByRole("button", {
       name: "Save project: Ctrl + S",
     });

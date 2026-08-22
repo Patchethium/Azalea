@@ -109,6 +109,7 @@
   },
   "config": {
     "title": "Config",
+    "open": "Open config",
     "close": "Close config",
     "sidebar_desp": "This space will be used for indexing in future versions.",
     "ui": "UI",

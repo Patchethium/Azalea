@@ -1,6 +1,7 @@
 import { AboutDialog } from "@dialogs/About";
 import { DictionaryDialog } from "@dialogs/Dictionary";
 import { ShortcutReferenceDialog } from "@dialogs/ShortcutReference";
+import { Tooltip } from "@components/tooltip";
 import { DropdownMenu } from "@kobalte/core/dropdown-menu";
 import { ToggleGroup } from "@kobalte/core/toggle-group";
 import style from "@layout/sidebar/sidebar.module.css";
@@ -73,26 +74,38 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
           </DropdownMenu.Portal>
         </DropdownMenu>
         <div class="flex items-center justify-start p-2 pl-0 gap-1">
-          <button
-            type="button"
-            aria-label={t1("dictionary.open")}
-            class="group size-8 p1 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-primary-5 transition-transform outline-none"
-            onClick={() => controls.setDictionaryOpen(true)}
-          >
-            <div class="i-lucide:notebook-tabs bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white" />
-          </button>
-          <ShortcutReferenceDialog />
           <ToggleGroup
             class="flex items-center"
             value={controls.uiStore.page}
             onChange={(page) => controls.setUIStore("page", page as PageType)}
           >
-            <ToggleGroup.Item
-              value="config"
-              class="group size-8 p1 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-primary-5 ui-pressed:bg-primary-5 transition-transform"
-            >
-              <div class="i-lucide:cog bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white ui-pressed:!bg-white" />
-            </ToggleGroup.Item>
+            <Tooltip content={t1("dictionary.open")}>
+              <ToggleGroup.Item
+                value="dictionary"
+                aria-label={t1("dictionary.open")}
+                class="group size-8 p1 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-primary-5 ui-pressed:bg-primary-5 transition-transform outline-none"
+              >
+                <div class="i-lucide:notebook-tabs bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white ui-pressed:!bg-white" />
+              </ToggleGroup.Item>
+            </Tooltip>
+            <Tooltip content={t1("shortcuts.open")}>
+              <ToggleGroup.Item
+                value="shortcuts"
+                aria-label={t1("shortcuts.open")}
+                class="group size-8 p1 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-primary-5 ui-pressed:bg-primary-5 transition-transform outline-none"
+              >
+                <div class="i-lucide:keyboard bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white ui-pressed:!bg-white" />
+              </ToggleGroup.Item>
+            </Tooltip>
+            <Tooltip content={t1("config.open")}>
+              <ToggleGroup.Item
+                value="config"
+                aria-label={t1("config.open")}
+                class="group size-8 p1 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-primary-5 ui-pressed:bg-primary-5 transition-transform outline-none"
+              >
+                <div class="i-lucide:cog bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white ui-pressed:!bg-white" />
+              </ToggleGroup.Item>
+            </Tooltip>
           </ToggleGroup>
         </div>
       </div>
@@ -101,8 +114,16 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
         onOpenChange={controls.setAboutOpen}
       />
       <DictionaryDialog
-        open={controls.dictionaryOpen()}
-        onOpenChange={controls.setDictionaryOpen}
+        open={controls.uiStore.page === "dictionary"}
+        onOpenChange={(open) =>
+          controls.setUIStore("page", open ? "dictionary" : null)
+        }
+      />
+      <ShortcutReferenceDialog
+        open={controls.uiStore.page === "shortcuts"}
+        onOpenChange={(open) =>
+          controls.setUIStore("page", open ? "shortcuts" : null)
+        }
       />
     </>
   );
