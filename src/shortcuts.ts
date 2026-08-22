@@ -6,6 +6,7 @@ import {
 
 export const shortcutActions = [
   "save_project",
+  "export_audio",
   "toggle_playback",
   "play_current",
   "play_next",
@@ -27,6 +28,13 @@ export const defaultKeyboardShortcuts: Record<
 > = {
   save_project: {
     key: "S",
+    primary: true,
+    secondary: false,
+    shift: false,
+    alt: false,
+  },
+  export_audio: {
+    key: "E",
     primary: true,
     secondary: false,
     shift: false,

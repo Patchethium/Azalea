@@ -35,6 +35,7 @@
     "reset": "恢复默认快捷键",
     "reset_all": "全部恢复默认",
     "save_project": "保存项目",
+    "export_audio": "导出选中单元格的音频",
     "toggle_playback": "播放或停止选中的单元格",
     "play_current": "播放选中的单元格",
     "play_next": "播放选中的单元格并移至下一个"

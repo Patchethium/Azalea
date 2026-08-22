@@ -7,6 +7,7 @@ import { ConfigProvider, useConfigStore } from "@contexts/config";
 import { i18nProvider } from "@contexts/i18n";
 import { MetaProvider, useMetaStore } from "@contexts/meta";
 import { SpectrogramProvider } from "@contexts/spectrogram";
+import { SystemProvider } from "@contexts/system";
 import { TextProvider, useTextStore } from "@contexts/text";
 import { UIProvider, useUIStore } from "@contexts/ui";
 import { audioQuery, config, metas, preset } from "../../test/fixtures";
@@ -72,6 +73,7 @@ export const renderBlock = (
         [MetaProvider, []],
         [UIProvider, null],
         [SpectrogramProvider, null],
+        [SystemProvider, null],
         [ConfigProvider, null],
         [i18nProvider, null],
         [TextProvider, null],

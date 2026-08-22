@@ -687,6 +687,32 @@ describe("TextBlock", () => {
     );
   });
 
+  it("exports the selected text cell with Ctrl+E", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    vi.spyOn(commands, "audioQuery").mockResolvedValue({
+      status: "ok",
+      data: audioQuery(),
+    });
+    vi.spyOn(commands, "joinPath").mockResolvedValue("/exports/hello");
+    vi.mocked(saveDialog).mockResolvedValue("/exports/rendered.wav");
+    const saveAudio = vi
+      .spyOn(commands, "saveAudio")
+      .mockResolvedValue({ status: "ok", data: "/exports/rendered.wav" });
+    vi.spyOn(commands, "parentPath").mockResolvedValue("/exports");
+
+    renderBlock(false);
+    const editor = await screen.findByLabelText("Text to synthesize");
+    fireEvent.focus(editor);
+    fireEvent.keyDown(window, { key: "e", ctrlKey: true });
+
+    await waitFor(() => expect(saveAudio).toHaveBeenCalledOnce());
+    expect(saveAudio).toHaveBeenCalledWith(
+      "/exports/rendered.wav",
+      expect.any(Object),
+      1,
+    );
+  });
+
   it("prefers the pinned default export directory over the last exported one", async () => {
     mockIPC(() => null, { shouldMockEvents: true });
     vi.spyOn(commands, "audioQuery").mockResolvedValue({

@@ -35,6 +35,7 @@
     "reset": "Restore default shortcut",
     "reset_all": "Restore all defaults",
     "save_project": "Save project",
+    "export_audio": "Export selected cell audio",
     "toggle_playback": "Play or stop selected cell",
     "play_current": "Play selected cell",
     "play_next": "Play selected cell and advance"

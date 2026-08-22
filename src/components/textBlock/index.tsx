@@ -10,10 +10,12 @@ import {
   createSignal,
   on,
   onCleanup,
+  onMount,
 } from "solid-js";
 import { produce, unwrap } from "solid-js/store";
 import { useConfigStore } from "@contexts/config";
 import { useMetaStore } from "@contexts/meta";
+import { useSystemStore } from "@contexts/system";
 import {
   findPresetById,
   findPresetStyle,
@@ -22,6 +24,11 @@ import {
 } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
 import { getModifiedQuery } from "$utils";
+import {
+  isApplicationShortcutAllowed,
+  matchesShortcut,
+  resolveShortcut,
+} from "../../shortcuts";
 
 export { renderRequestFingerprint as synthesisRequestFingerprint } from "$utils";
 
@@ -34,6 +41,7 @@ function TextBlock(props: { index: number }) {
     insertTextBlockBelow,
   } = useTextStore()!;
   const { metas } = useMetaStore()!;
+  const { systemStore } = useSystemStore()!;
   const { setUIStore } = useUIStore()!;
   const { config, setConfig } = useConfigStore()!;
   const currentText = createMemo(() => textStore[props.index]);
@@ -177,6 +185,27 @@ function TextBlock(props: { index: number }) {
       console.error(result.error);
     }
   };
+
+  onMount(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        !selected() ||
+        !saveable() ||
+        !isApplicationShortcutAllowed(event) ||
+        !matchesShortcut(
+          event,
+          resolveShortcut(config.ui.shortcuts, "export_audio"),
+          systemStore.os,
+        )
+      ) {
+        return;
+      }
+      event.preventDefault();
+      void saveAudio();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    onCleanup(() => window.removeEventListener("keydown", handleKeyDown));
+  });
 
   const moveUp = () => {
     if (props.index > 0) {

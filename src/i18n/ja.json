@@ -35,6 +35,7 @@
     "reset": "既定のショートカットに戻す",
     "reset_all": "すべて既定に戻す",
     "save_project": "プロジェクトを保存",
+    "export_audio": "選択したセルの音声を書き出す",
     "toggle_playback": "選択したセルを再生または停止",
     "play_current": "選択したセルを再生",
     "play_next": "選択したセルを再生して次へ移動"
