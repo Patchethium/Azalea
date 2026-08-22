@@ -58,8 +58,6 @@
     "move_down": "Move word down",
     "empty": "No words have been registered yet.",
     "loading": "Loading dictionary…",
-    "new_entry": "New word",
-    "edit_entry": "Edit word",
     "surface": "Word",
     "surface_placeholder": "Azalea",
     "pronunciation": "Pronunciation",
@@ -77,8 +75,6 @@
     "accent_hint": "0 is flat; otherwise choose the mora where the pitch falls (maximum: {{count}}).",
     "priority": "Priority",
     "priority_hint": "Higher values take precedence (0–10).",
-    "save": "Save",
-    "saving": "Saving…",
     "delete": "Delete word",
     "load_error": "The user dictionary could not be loaded.",
     "operation_error": "The dictionary entry could not be saved. Check the word, katakana pronunciation, and accent position."

@@ -58,8 +58,6 @@
     "move_down": "下移词语",
     "empty": "尚未添加任何词语。",
     "loading": "正在加载词典…",
-    "new_entry": "新词语",
-    "edit_entry": "编辑词语",
     "surface": "词语",
     "surface_placeholder": "Azalea",
     "pronunciation": "读音",
@@ -77,8 +75,6 @@
     "accent_hint": "0 表示平板型，否则请选择音高下降的音拍位置（最大：{{count}}）。",
     "priority": "优先级",
     "priority_hint": "数值越大优先级越高（0–10）。",
-    "save": "保存",
-    "saving": "正在保存…",
     "delete": "删除词语",
     "load_error": "无法加载用户词典。",
     "operation_error": "无法保存词典条目。请检查词语、片假名读音和重音位置。"

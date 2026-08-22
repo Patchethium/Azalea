@@ -9,6 +9,7 @@ import { Dialog } from "@kobalte/core/dialog";
 import { TextField } from "@kobalte/core/text-field";
 import { OptionSelector, PresetNumField } from "@layout/sidebar/preset/Fields";
 import { ListToolbar } from "@layout/sidebar/preset/Toolbar";
+import { debounce } from "@solid-primitives/scheduled";
 import { countJapaneseMoras, toHalfWidthAscii } from "$utils";
 import {
   createEffect,
@@ -22,6 +23,7 @@ import {
 import { createStore } from "solid-js/store";
 import { usei18n } from "@contexts/i18n";
 import { useTextStore } from "@contexts/text";
+import { useUIStore } from "@contexts/ui";
 
 interface DictionaryDialogProps {
   open: boolean;
@@ -44,16 +46,33 @@ const emptyEntry = (): DictionaryEntryInput => ({
   priority: 5,
 });
 
+const DICTIONARY_AUTOSAVE_DELAY_MS = 300;
+
+interface PendingAutosave {
+  editorRevision: number;
+  id: string | null;
+  entry: DictionaryEntryInput;
+}
+
 export function DictionaryDialog(props: DictionaryDialogProps) {
   const { t1, t2 } = usei18n()!;
   const { refreshGeneratedQueries } = useTextStore()!;
+  const { uiStore, setUIStore } = useUIStore()!;
   const [entries, setEntries] = createSignal<DictionaryEntry[]>([]);
-  const [selectedId, setSelectedId] = createSignal<string | null>(null);
   const [draft, setDraft] = createStore<DictionaryEntryInput>(emptyEntry());
   const [loading, setLoading] = createSignal(false);
   const [saving, setSaving] = createSignal(false);
+  const [actionPending, setActionPending] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   let requestRevision = 0;
+  let editorRevision = 0;
+  let pendingAutosave: PendingAutosave | null = null;
+  let autosaveReady = false;
+  let autosaveRunning = false;
+
+  const selectedId = () => uiStore.selectedDictionaryEntryId;
+  const setSelectedId = (id: string | null) =>
+    setUIStore("selectedDictionaryEntryId", id);
 
   const selectedIndex = createMemo(() => {
     const id = selectedId();
@@ -61,9 +80,108 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
   });
   const moraCount = createMemo(() => countJapaneseMoras(draft.pronunciation));
 
+  const validEntry = (entry: DictionaryEntryInput) =>
+    entry.surface.trim().length > 0 && entry.pronunciation.trim().length > 0;
+
+  const mergeEntry = (entry: DictionaryEntry) => {
+    setEntries((current) => {
+      const index = current.findIndex((item) => item.id === entry.id);
+      if (index === -1) return [...current, entry];
+      return current.map((item) => (item.id === entry.id ? entry : item));
+    });
+  };
+
+  const assignCreatedEntryId = (revision: number, id: string) => {
+    const pending = pendingAutosave;
+    if (pending?.editorRevision === revision && pending.id === null) {
+      pendingAutosave = { ...pending, id };
+    }
+  };
+
+  async function drainAutosave() {
+    if (autosaveRunning || !autosaveReady || pendingAutosave === null) return;
+    autosaveRunning = true;
+    try {
+      while (autosaveReady && pendingAutosave !== null) {
+        const request: PendingAutosave = pendingAutosave;
+        pendingAutosave = null;
+        autosaveReady = false;
+        try {
+          const result =
+            request.id === null
+              ? await commands.addDictionaryEntry(request.entry)
+              : await commands.updateDictionaryEntry(request.id, request.entry);
+          if (result.status === "error") {
+            console.error(result.error);
+            setError(t1("dictionary.operation_error"));
+            continue;
+          }
+          mergeEntry(result.data);
+          if (request.id === null) {
+            assignCreatedEntryId(request.editorRevision, result.data.id);
+            if (
+              editorRevision === request.editorRevision &&
+              selectedId() === null
+            ) {
+              setSelectedId(result.data.id);
+            }
+          }
+          setError(null);
+          refreshGeneratedQueries();
+        } catch (saveError) {
+          console.error(saveError);
+          setError(t1("dictionary.operation_error"));
+        }
+      }
+    } finally {
+      autosaveRunning = false;
+      if (pendingAutosave === null) setSaving(false);
+      else if (autosaveReady) void drainAutosave();
+    }
+  }
+
+  const scheduledAutosave = debounce(() => {
+    autosaveReady = true;
+    void drainAutosave();
+  }, DICTIONARY_AUTOSAVE_DELAY_MS);
+
+  const flushAutosave = () => {
+    if (pendingAutosave === null) return;
+    scheduledAutosave.clear();
+    autosaveReady = true;
+    void drainAutosave();
+  };
+
+  const queueAutosave = () => {
+    const entry = { ...draft };
+    if (!validEntry(entry)) {
+      if (pendingAutosave?.editorRevision === editorRevision) {
+        pendingAutosave = null;
+        autosaveReady = false;
+        scheduledAutosave.clear();
+        if (!autosaveRunning) setSaving(false);
+      }
+      return;
+    }
+    pendingAutosave = {
+      editorRevision,
+      id: selectedId(),
+      entry,
+    };
+    autosaveReady = false;
+    setSaving(true);
+    setError(null);
+    scheduledAutosave();
+  };
+
+  const editDraft = (update: Partial<DictionaryEntryInput>) => {
+    setDraft(update);
+    queueAutosave();
+  };
+
   createEffect(() => {
     const maximum = moraCount();
-    if (draft.accent_type > maximum) setDraft("accent_type", maximum);
+    if (draft.accent_type > maximum) editDraft({ accent_type: maximum });
   });
 
   const wordTypeLabel = (type: DictionaryWordType) => {
@@ -82,6 +200,8 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
   };
 
   const selectEntry = (entry: DictionaryEntry) => {
+    flushAutosave();
+    editorRevision += 1;
     setSelectedId(entry.id);
     setDraft({
       surface: entry.surface,
@@ -94,6 +214,8 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
   };
 
   const startNewEntry = () => {
+    flushAutosave();
+    editorRevision += 1;
     setSelectedId(null);
     setDraft(emptyEntry());
     setError(null);
@@ -112,7 +234,11 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
         return;
       }
       setEntries(result.data);
-      if (result.data[0]) selectEntry(result.data[0]);
+      const rememberedEntry = result.data.find(
+        (entry) => entry.id === selectedId(),
+      );
+      if (rememberedEntry) selectEntry(rememberedEntry);
+      else if (result.data[0]) selectEntry(result.data[0]);
       else startNewEntry();
     } catch (loadError) {
       if (revision !== requestRevision) return;
@@ -128,54 +254,24 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
       () => props.open,
       (open) => {
         if (open) void loadEntries();
-        else requestRevision += 1;
+        else {
+          flushAutosave();
+          requestRevision += 1;
+        }
       },
     ),
   );
   onCleanup(() => {
+    scheduledAutosave.clear();
+    pendingAutosave = null;
     requestRevision += 1;
+    editorRevision += 1;
   });
-
-  const formValid = () =>
-    draft.surface.trim().length > 0 && draft.pronunciation.trim().length > 0;
-
-  const save = async () => {
-    if (!formValid() || saving()) return;
-    setSaving(true);
-    setError(null);
-    const entry = { ...draft };
-    const id = selectedId();
-    try {
-      const result =
-        id === null
-          ? await commands.addDictionaryEntry(entry)
-          : await commands.updateDictionaryEntry(id, entry);
-      if (result.status === "error") {
-        console.error(result.error);
-        setError(t1("dictionary.operation_error"));
-        return;
-      }
-      setEntries((current) => {
-        const index = current.findIndex((item) => item.id === result.data.id);
-        if (index === -1) return [...current, result.data];
-        return current.map((item) =>
-          item.id === result.data.id ? result.data : item,
-        );
-      });
-      selectEntry(result.data);
-      refreshGeneratedQueries();
-    } catch (saveError) {
-      console.error(saveError);
-      setError(t1("dictionary.operation_error"));
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const remove = async () => {
     const id = selectedId();
-    if (id === null || loading() || saving()) return;
-    setSaving(true);
+    if (id === null || loading() || saving() || actionPending()) return;
+    setActionPending(true);
     setError(null);
     try {
       const result = await commands.deleteDictionaryEntry(id);
@@ -193,14 +289,14 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
       console.error(removeError);
       setError(t1("dictionary.operation_error"));
     } finally {
-      setSaving(false);
+      setActionPending(false);
     }
   };
 
   const move = async (direction: -1 | 1) => {
     const id = selectedId();
-    if (id === null || loading() || saving()) return;
-    setSaving(true);
+    if (id === null || loading() || saving() || actionPending()) return;
+    setActionPending(true);
     setError(null);
     try {
       const result = await commands.moveDictionaryEntry(id, direction);
@@ -215,9 +311,11 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
       console.error(moveError);
       setError(t1("dictionary.operation_error"));
     } finally {
-      setSaving(false);
+      setActionPending(false);
     }
   };
+
+  const controlsBusy = () => loading() || saving() || actionPending();
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
@@ -228,28 +326,24 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
       >
         <div class="flex min-h-0 flex-1">
           <aside class="flex w-2/5 min-w-48 flex-col b-r b-slate-2 bg-slate-1 p3 dark:b-slate-6 dark:bg-slate-9">
-            <h3 class="min-w-0 truncate font-semibold">
-              {t1("dictionary.entries")}
-            </h3>
             <ListToolbar
-              class="my2"
+              class="mb2"
               createLabel={t1("dictionary.add")}
               onCreate={startNewEntry}
-              createDisabled={loading() || saving()}
+              createDisabled={controlsBusy()}
               moveUpLabel={t1("dictionary.move_up")}
               onMoveUp={() => void move(-1)}
-              moveUpDisabled={loading() || saving() || selectedIndex() <= 0}
+              moveUpDisabled={controlsBusy() || selectedIndex() <= 0}
               moveDownLabel={t1("dictionary.move_down")}
               onMoveDown={() => void move(1)}
               moveDownDisabled={
-                loading() ||
-                saving() ||
+                controlsBusy() ||
                 selectedIndex() === -1 ||
                 selectedIndex() === entries().length - 1
               }
               deleteLabel={t1("dictionary.delete")}
               onDelete={() => void remove()}
-              deleteDisabled={loading() || saving() || selectedId() === null}
+              deleteDisabled={controlsBusy() || selectedId() === null}
             />
             <div
               class="flex min-h-0 flex-1 flex-col gap1 overflow-y-auto"
@@ -295,25 +389,14 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
             </div>
           </aside>
 
-          <form
-            class="flex min-w-0 flex-1 flex-col overflow-y-auto p4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void save();
-            }}
-          >
-            <h3 class="mb4 font-semibold">
-              {selectedId() === null
-                ? t1("dictionary.new_entry")
-                : t1("dictionary.edit_entry")}
-            </h3>
+          <div class="flex min-w-0 flex-1 flex-col overflow-y-auto p4">
             <fieldset
               class="flex flex-col gap3"
-              disabled={loading() || saving()}
+              disabled={loading() || actionPending()}
             >
               <TextField
                 value={draft.surface}
-                onChange={(value) => setDraft("surface", value)}
+                onChange={(value) => editDraft({ surface: value })}
                 class="flex flex-col gap1"
               >
                 <TextField.Label class="text-sm font-medium">
@@ -326,7 +409,7 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
               </TextField>
               <TextField
                 value={draft.pronunciation}
-                onChange={(value) => setDraft("pronunciation", value)}
+                onChange={(value) => editDraft({ pronunciation: value })}
                 class="flex flex-col gap1"
               >
                 <TextField.Label class="text-sm font-medium">
@@ -348,14 +431,14 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
                   wordTypeLabel(value as DictionaryWordType)
                 }
                 onChange={(value) =>
-                  setDraft("word_type", value as DictionaryWordType)
+                  editDraft({ word_type: value as DictionaryWordType })
                 }
               />
               <div class="grid grid-cols-2 gap3">
                 <PresetNumField
                   label={t1("dictionary.accent_type")}
                   value={draft.accent_type}
-                  setValue={(value) => setDraft("accent_type", value)}
+                  setValue={(value) => editDraft({ accent_type: value })}
                   min={0}
                   max={moraCount()}
                   step={1}
@@ -366,7 +449,7 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
                 <PresetNumField
                   label={t1("dictionary.priority")}
                   value={draft.priority}
-                  setValue={(value) => setDraft("priority", value)}
+                  setValue={(value) => editDraft({ priority: value })}
                   min={0}
                   max={10}
                   step={1}
@@ -385,17 +468,7 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
                 </div>
               )}
             </Show>
-            <div class="flex-1" />
-            <div class="mt4 flex justify-end gap2 b-t b-slate-2 pt3 dark:b-slate-6">
-              <button
-                type="submit"
-                class="rounded-md bg-primary-5 px4 py2 text-white hover:bg-primary-6 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={loading() || saving() || !formValid()}
-              >
-                {saving() ? t1("dictionary.saving") : t1("dictionary.save")}
-              </button>
-            </div>
-          </form>
+          </div>
         </div>
       </AppDialogContent>
     </Dialog>

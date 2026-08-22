@@ -129,6 +129,11 @@ describe("DictionaryDialog", () => {
     expect(
       screen.getByLabelText("Dictionary entries").parentElement,
     ).toHaveClass("bg-slate-1", "dark:bg-slate-9");
+    expect(screen.queryByText("Dictionary entries")).not.toBeInTheDocument();
+    expect(screen.queryByText("Edit word")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Save" }),
+    ).not.toBeInTheDocument();
     const existingCard = screen.getByText("既存").parentElement;
     expect(existingCard).toHaveClass(
       "dark:bg-slate-8",
@@ -172,8 +177,6 @@ describe("DictionaryDialog", () => {
     fireEvent.input(screen.getByRole("spinbutton", { name: "Priority" }), {
       target: { value: "8" },
     });
-    await user.click(screen.getByRole("button", { name: "Save" }));
-
     await waitFor(() =>
       expect(
         invocations.filter(({ cmd }) => cmd === "add_dictionary_entry"),
@@ -196,6 +199,11 @@ describe("DictionaryDialog", () => {
       query: { speedScale: 1.25 },
     });
 
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Move word up" }),
+      ).toBeEnabled(),
+    );
     await user.click(screen.getByRole("button", { name: "Move word up" }));
     await waitFor(() =>
       expect(
@@ -230,7 +238,6 @@ describe("DictionaryDialog", () => {
     const word = screen.getByRole("textbox", { name: "Word" });
     await user.clear(word);
     await user.type(word, "Updated");
-    await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() =>
       expect(
         invocations.filter(({ cmd }) => cmd === "update_dictionary_entry"),
@@ -240,6 +247,9 @@ describe("DictionaryDialog", () => {
       "Updated",
     );
 
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Delete word" })).toBeEnabled(),
+    );
     await user.click(screen.getByRole("button", { name: "Delete word" }));
     await waitFor(() =>
       expect(
@@ -288,6 +298,82 @@ describe("DictionaryDialog", () => {
     expect(screen.getByText(/pitch falls \(maximum: 3\)/)).toBeInTheDocument();
   });
 
+  it("keeps the latest draft while the first autosave creates an entry", async () => {
+    const creation = deferred<DictionaryEntry>();
+    let addedInput: Omit<DictionaryEntry, "id"> | undefined;
+    const updates: Array<{
+      id: string;
+      entry: Omit<DictionaryEntry, "id">;
+    }> = [];
+    mockIPC((cmd, args) => {
+      if (cmd === "get_dictionary_entries") return [];
+      if (cmd === "add_dictionary_entry") {
+        addedInput = (args as { entry: Omit<DictionaryEntry, "id"> }).entry;
+        return creation.promise;
+      }
+      if (cmd === "update_dictionary_entry") {
+        const update = args as {
+          id: string;
+          entry: Omit<DictionaryEntry, "id">;
+        };
+        updates.push(update);
+        return { ...update.entry, id: update.id };
+      }
+      return null;
+    });
+    renderDictionary();
+
+    expect(
+      await screen.findByText("No words have been registered yet."),
+    ).toBeVisible();
+    fireEvent.input(screen.getByRole("textbox", { name: "Word" }), {
+      target: { value: "Azalea" },
+    });
+    fireEvent.input(screen.getByRole("textbox", { name: "Pronunciation" }), {
+      target: { value: "アザレア" },
+    });
+    await waitFor(() => expect(addedInput).toBeDefined());
+
+    fireEvent.input(screen.getByRole("textbox", { name: "Word" }), {
+      target: { value: "Azalea Bloom" },
+    });
+    creation.resolve({
+      ...addedInput!,
+      id: "55555555-5555-4555-8555-555555555555",
+      surface: "Ａｚａｌｅａ",
+    });
+
+    await waitFor(() => expect(updates).toHaveLength(1));
+    expect(updates[0]).toMatchObject({
+      id: "55555555-5555-4555-8555-555555555555",
+      entry: { surface: "Azalea Bloom", pronunciation: "アザレア" },
+    });
+    expect(screen.getByRole("textbox", { name: "Word" })).toHaveValue(
+      "Azalea Bloom",
+    );
+  });
+
+  it("cancels a queued autosave when the draft becomes incomplete", async () => {
+    let updateCalls = 0;
+    mockIPC((cmd) => {
+      if (cmd === "get_dictionary_entries") return [existingEntry];
+      if (cmd === "update_dictionary_entry") updateCalls += 1;
+      return null;
+    });
+    renderDictionary();
+
+    expect(await screen.findByDisplayValue("既存")).toBeInTheDocument();
+    fireEvent.input(screen.getByRole("textbox", { name: "Word" }), {
+      target: { value: "Changed" },
+    });
+    fireEvent.input(screen.getByRole("textbox", { name: "Pronunciation" }), {
+      target: { value: "" },
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    expect(updateCalls).toBe(0);
+  });
+
   it("reports load and validation failures without discarding the editor", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     mockIPC((cmd) => {
@@ -299,7 +385,9 @@ describe("DictionaryDialog", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "The user dictionary could not be loaded.",
     );
-    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "Save" }),
+    ).not.toBeInTheDocument();
     rejected.unmount();
 
     mockIPC((cmd) => {
@@ -349,26 +437,101 @@ describe("DictionaryDialog", () => {
     renderDictionary();
 
     expect(await screen.findByDisplayValue("既存")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.input(screen.getByRole("textbox", { name: "Word" }), {
+      target: { value: "Changed" },
+    });
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "The dictionary entry could not be saved.",
     );
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.input(screen.getByRole("textbox", { name: "Word" }), {
+      target: { value: "Changed again" },
+    });
     await waitFor(() => expect(updateCalls).toBe(2));
 
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Move word down" }),
+      ).toBeEnabled(),
+    );
     await user.click(screen.getByRole("button", { name: "Move word down" }));
     await waitFor(() => expect(moveCalls).toBe(1));
-    expect(screen.getByDisplayValue("既存")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Changed again")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Move word down" }),
+      ).toBeEnabled(),
+    );
     await user.click(screen.getByRole("button", { name: "Move word down" }));
     await waitFor(() => expect(moveCalls).toBe(2));
-    expect(screen.getByDisplayValue("既存")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Changed again")).toBeInTheDocument();
 
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Delete word" })).toBeEnabled(),
+    );
     await user.click(screen.getByRole("button", { name: "Delete word" }));
     await waitFor(() => expect(deleteCalls).toBe(1));
-    expect(screen.getByDisplayValue("既存")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Changed again")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Delete word" })).toBeEnabled(),
+    );
     await user.click(screen.getByRole("button", { name: "Delete word" }));
     await waitFor(() => expect(deleteCalls).toBe(2));
-    expect(screen.getByDisplayValue("既存")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Changed again")).toBeInTheDocument();
+  });
+
+  it("restores the last selected entry and falls back when it is unavailable", async () => {
+    const rememberedEntry = {
+      ...existingEntry,
+      id: "66666666-6666-4666-8666-666666666666",
+      surface: "別の単語",
+    };
+    let availableEntries = [existingEntry, rememberedEntry];
+    let loadCalls = 0;
+    mockIPC((cmd) => {
+      if (cmd !== "get_dictionary_entries") return null;
+      loadCalls += 1;
+      return availableEntries;
+    });
+    let setOpen!: (open: boolean) => void;
+    const Harness: Component = () => {
+      const [open, setDialogOpen] = createSignal(true);
+      setOpen = setDialogOpen;
+      return <DictionaryDialog open={open()} onOpenChange={setDialogOpen} />;
+    };
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, config()],
+          [i18nProvider, null],
+          [TextProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+
+    expect(await screen.findByDisplayValue("既存")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("別の単語"));
+    expect(screen.getByRole("textbox", { name: "Word" })).toHaveValue(
+      "別の単語",
+    );
+
+    setOpen(false);
+    availableEntries = [
+      existingEntry,
+      { ...rememberedEntry, surface: "記憶した単語" },
+    ];
+    setOpen(true);
+    await waitFor(() => expect(loadCalls).toBe(2));
+    expect(await screen.findByDisplayValue("記憶した単語")).toBeInTheDocument();
+
+    setOpen(false);
+    availableEntries = [existingEntry];
+    setOpen(true);
+    await waitFor(() => expect(loadCalls).toBe(3));
+    expect(await screen.findByDisplayValue("既存")).toBeInTheDocument();
   });
 
   it("ignores a stale load after the dialog is closed and reopened", async () => {

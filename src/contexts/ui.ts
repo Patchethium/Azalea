@@ -6,6 +6,7 @@ type BottomPanelType = "accent" | "tuning";
 
 type UIStoreType = {
   selectedTextBlockIndex: number;
+  selectedDictionaryEntryId: string | null;
   coreInitialized: boolean;
   page: PageType;
   bottomPanel: BottomPanelType;
@@ -15,6 +16,7 @@ type UIStoreType = {
 const [UIProvider, useUIStore] = createContextProvider(() => {
   const [uiStore, setUIStore] = createStore<UIStoreType>({
     selectedTextBlockIndex: 0,
+    selectedDictionaryEntryId: null,
     coreInitialized: false,
     page: null,
     bottomPanel: "accent",
