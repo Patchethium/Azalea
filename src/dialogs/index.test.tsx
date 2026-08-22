@@ -220,6 +220,9 @@ describe("ShortcutReferenceDialog", () => {
     expect(
       screen.queryByRole("button", { name: /Stop playback:/ }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Restore default shortcut" }),
+    ).not.toBeInTheDocument();
     fireEvent.click(saveShortcut);
     fireEvent.keyDown(saveShortcut, {
       key: "S",
@@ -231,6 +234,9 @@ describe("ShortcutReferenceDialog", () => {
       primary: true,
       shift: true,
     });
+    expect(
+      screen.getByRole("button", { name: "Restore default shortcut" }),
+    ).toBeInTheDocument();
 
     const playShortcut = screen.getByRole("button", {
       name: "Play selected cell: Ctrl + Enter",
@@ -270,6 +276,9 @@ describe("ShortcutReferenceDialog", () => {
       primary: true,
       shift: false,
     });
+    expect(
+      screen.queryByRole("button", { name: "Restore default shortcut" }),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(
       screen.getByRole("button", { name: "Save project: Ctrl + S" }),

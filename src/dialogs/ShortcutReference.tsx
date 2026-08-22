@@ -153,18 +153,19 @@ export function ShortcutReferenceDialog() {
                     </Show>
                   </button>
                   <span class="flex-1">{t1(`shortcuts.${action}`)}</span>
-                  <button
-                    type="button"
-                    disabled={isDefault()}
-                    title={t1("shortcuts.reset")}
-                    aria-label={t1("shortcuts.reset")}
-                    onClick={() =>
-                      assignShortcut(action, defaultKeyboardShortcuts[action])
-                    }
-                    class="size-8 shrink-0 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-slate-1 disabled:(cursor-not-allowed opacity-30) focus-visible:(ring-2 ring-primary-2) dark:hover:bg-slate-7"
-                  >
-                    <div class="i-lucide:rotate-ccw size-4" />
-                  </button>
+                  <Show when={!isDefault()}>
+                    <button
+                      type="button"
+                      title={t1("shortcuts.reset")}
+                      aria-label={t1("shortcuts.reset")}
+                      onClick={() =>
+                        assignShortcut(action, defaultKeyboardShortcuts[action])
+                      }
+                      class="size-8 shrink-0 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) dark:hover:bg-slate-7"
+                    >
+                      <div class="i-lucide:rotate-ccw size-4" />
+                    </button>
+                  </Show>
                 </div>
               );
             }}
