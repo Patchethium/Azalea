@@ -125,7 +125,7 @@ export function ShortcutReferenceDialog() {
                     onBlur={() => {
                       if (recording() === action) setRecording(null);
                     }}
-                    class="group min-w-40 h-9 flex items-center justify-center gap1 rounded-md bg-transparent px2 outline-none focus-visible:ring-2 focus-visible:ring-primary-2"
+                    class="group min-w-40 h-9 grid grid-cols-[repeat(9,max-content)] items-center justify-center gap1 rounded-md bg-transparent px2 outline-none focus-visible:ring-2 focus-visible:ring-primary-2"
                     classList={{
                       "ring-2 ring-primary-2": recording() === action,
                     }}
@@ -141,11 +141,14 @@ export function ShortcutReferenceDialog() {
                       <For each={keys()}>
                         {(key, index) => (
                           <>
-                            <kbd class="min-w-7 px2 py1 text-center text-sm font-mono group-hover:text-primary-5 transition-colors">
+                            <kbd class="min-w-7 rounded-md bg-slate-1 px2 py1 text-center text-sm font-mono group-hover:text-primary-5 transition-colors dark:bg-slate-9">
                               {key}
                             </kbd>
                             <Show when={index() < keys().length - 1}>
-                              <span class="text-slate-5">+</span>
+                              <div
+                                aria-hidden="true"
+                                class="i-lucide:plus size-4 text-slate-5"
+                              />
                             </Show>
                           </>
                         )}
