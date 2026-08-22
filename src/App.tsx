@@ -26,6 +26,7 @@ import {
 import { useConfigStore } from "@contexts/config";
 import { usei18n } from "@contexts/i18n";
 import { useMetaStore } from "@contexts/meta";
+import { useSystemStore } from "@contexts/system";
 import { useTextStore } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
 
@@ -42,6 +43,7 @@ function App() {
   } = useConfigStore()!;
   const { setMetas, availableStyleIds } = useMetaStore()!;
   const { t1 } = usei18n()!;
+  const { systemStore } = useSystemStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
   const { newProject } = useTextStore()!;
 
@@ -169,7 +171,13 @@ function App() {
   });
 
   return (
-    <main class="absolute h-full w-full left-0 top-0 flex flex-col bg-slate-1 text-slate-9 dark:(bg-slate-9 text-slate-1)">
+    <main
+      class="absolute h-full w-full left-0 top-0 flex flex-col bg-slate-1 text-slate-9 dark:(bg-slate-9 text-slate-1)"
+      classList={{
+        [style.macOSCustomTitlebar]:
+          customTitlebarVisible() && systemStore.os === "MacOS",
+      }}
+    >
       <Show when={customTitlebarVisible()}>
         <TitleBar />
       </Show>

@@ -5,6 +5,11 @@
   background-size: 20px 20px; /* size of grid spacing */
 }
 
+.macOSCustomTitlebar {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
 :global(.dark) .canvas {
   background-color: #0f172a;
   background-image: radial-gradient(#334155, 1px, transparent 0);
