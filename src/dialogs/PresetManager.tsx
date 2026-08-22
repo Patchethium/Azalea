@@ -45,7 +45,7 @@ export function PresetManagerDialog(props: PresetManagerDialogProps) {
       <AppDialogContent
         title={t1("preset_manager.title")}
         closeLabel={t1("preset_manager.close")}
-        class="max-w-4xl w-full h-[60%]"
+        class="w-[min(90vw,34rem)]"
       >
         <div class="flex flex-row gap-4 flex-1 overflow-hidden min-h-0 p4">
           {/* Project Presets Column */}
