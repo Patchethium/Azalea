@@ -258,6 +258,55 @@ describe("Sidebar SRT import", () => {
     expect(text.textStore).toHaveLength(3);
     errorSpy.mockRestore();
   });
+
+  it("ignores empty files and resolves preset fallbacks without a selection", async () => {
+    mockIPC((cmd, args) => {
+      if (cmd === "get_os") return "Linux";
+      if (cmd === "read_text_file") {
+        return (args as { path?: string }).path === "/tmp/empty.srt"
+          ? ""
+          : "1\n00:00:00,000 --> 00:00:02,000\nImported cue";
+      }
+      return null;
+    });
+    dialogs.open
+      .mockResolvedValueOnce("/tmp/empty.srt")
+      .mockResolvedValueOnce("/tmp/preset-fallback.srt")
+      .mockResolvedValueOnce("/tmp/no-preset.srt");
+    let text!: NonNullable<ReturnType<typeof useTextStore>>;
+    const { getControls } = renderSidebarHook(
+      ({ config: appConfig, meta, text: textStore }) => {
+        text = textStore;
+        batch(() => {
+          appConfig.setConfig(config());
+          meta.setMetas(metas);
+          text.setProjectPresetStore([preset()]);
+          text.setTextStore([]);
+        });
+      },
+    );
+    await Promise.resolve();
+    const controls = getControls();
+
+    await controls.importSrt();
+    expect(text.textStore).toHaveLength(0);
+
+    await controls.importSrt();
+    expect(text.textStore).toHaveLength(1);
+    expect(text.textStore[0]).toMatchObject({
+      text: "Imported cue",
+      preset_id: "preset-1",
+    });
+
+    text.setTextStore([]);
+    text.setProjectPresetStore([]);
+    await controls.importSrt();
+    expect(text.textStore).toHaveLength(1);
+    expect(text.textStore[0]).toMatchObject({
+      text: "Imported cue",
+      preset_id: null,
+    });
+  });
 });
 
 describe("Sidebar controls", () => {
@@ -321,6 +370,7 @@ describe("Sidebar controls", () => {
     controls.setStyleByName("Missing");
     controls.setStyleId(1);
     expect(text.textStore[0].query_is_modified).toBe(true);
+    controls.selectSpeakerByName("Speaker");
     controls.setStyleByName("Happy");
     expect(text.projectPresetStore[0]).toMatchObject({
       style_id: 2,
@@ -679,8 +729,13 @@ describe("Sidebar dictionary", () => {
     await user.click(
       await screen.findByRole("button", { name: "Manage user dictionary" }),
     );
-    expect(
-      await screen.findByRole("dialog", { name: "User Dictionary" }),
-    ).toBeInTheDocument();
+    const dialog = await screen.findByRole("dialog", {
+      name: "User Dictionary",
+    });
+    expect(dialog).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Close user dictionary" }),
+    );
+    expect(dialog).toHaveAttribute("data-closed");
   });
 });
