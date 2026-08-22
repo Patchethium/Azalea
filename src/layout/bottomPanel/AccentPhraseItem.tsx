@@ -16,6 +16,7 @@ type AccentPhraseItemProps = {
   phrase: AccentPhrase;
   setPhrase: (phrase: AccentPhrase) => void;
   label?: string;
+  mutedMoraIndex?: number;
 } & (
   | {
       mode?: "full";
@@ -130,6 +131,8 @@ export function AccentPhraseItem(props: AccentPhraseItemProps) {
                   classList={{
                     "mt-10": !high(),
                     "mb-10": high(),
+                    "text-slate-5 dark:text-slate-4":
+                      props.mutedMoraIndex === index(),
                     "b b-primary-3":
                       props.mode !== "accent" && phonemeHovered(),
                     "cursor-pointer": props.mode !== "accent",

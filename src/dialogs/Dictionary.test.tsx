@@ -326,6 +326,7 @@ describe("DictionaryDialog", () => {
     expect(accentContainer.firstElementChild).toHaveClass("mx-auto");
     const firstMoraAtFlatAccent = screen.getAllByText("ア")[0];
     const appendedMora = screen.getByText("ガ");
+    expect(appendedMora).toHaveClass("text-slate-5", "dark:text-slate-4");
     expect(firstMoraAtFlatAccent).toHaveClass("mt-10");
     expect(appendedMora).toHaveClass("mb-10");
 

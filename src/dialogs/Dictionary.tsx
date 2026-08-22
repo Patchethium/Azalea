@@ -498,6 +498,7 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
                         mode="accent"
                         label={t1("dictionary.accent_type")}
                         phrase={accentPhrase()}
+                        mutedMoraIndex={moraCount()}
                         setPhrase={(phrase) => {
                           const accentType =
                             phrase.accent === phrase.moras.length
