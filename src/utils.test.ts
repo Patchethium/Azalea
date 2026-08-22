@@ -1,6 +1,28 @@
 import { describe, expect, it, vi } from "vitest";
 import { audioQuery, preset } from "./test/fixtures";
-import { getModifiedQuery, parseSrt, useSideEffect } from "$utils";
+import {
+  countJapaneseMoras,
+  getModifiedQuery,
+  parseSrt,
+  toHalfWidthAscii,
+  useSideEffect,
+} from "$utils";
+
+describe("countJapaneseMoras", () => {
+  it("matches VOICEVOX compound-katakana mora rules", () => {
+    expect(countJapaneseMoras("アザレア")).toBe(4);
+    expect(countJapaneseMoras("キャット")).toBe(3);
+    expect(countJapaneseMoras("ティー")).toBe(2);
+    expect(countJapaneseMoras("ヴョデェグヮ")).toBe(3);
+    expect(countJapaneseMoras("")).toBe(0);
+  });
+});
+
+describe("toHalfWidthAscii", () => {
+  it("narrows full-width ASCII without changing Japanese text", () => {
+    expect(toHalfWidthAscii("Ａｚａｌｅａ　Ｖ２！辞書")).toBe("Azalea V2!辞書");
+  });
+});
 
 describe("getModifiedQuery", () => {
   it("applies every preset parameter without mutating the source query", () => {

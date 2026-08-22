@@ -135,6 +135,8 @@ Tier meanings:
 
 - [ ] Add global and project-specific OpenJTalk dictionary entries.
 - [ ] Support create, edit, delete, search, and pronunciation preview.
+- [ ] Support multi-word dictionary entries with a separate pronunciation and
+      accent position for each word while managing them as one phrase.
 - [ ] Import and export dictionary entries.
 - [ ] Indicate which project blocks depend on a project dictionary entry.
 

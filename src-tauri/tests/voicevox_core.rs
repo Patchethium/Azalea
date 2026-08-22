@@ -9,7 +9,7 @@ use std::{
 use azalea_lib::{audio::spectal::MelSpec, core::Core};
 use hound::{SampleFormat, WavSpec};
 use ndarray::Array1;
-use voicevox_core::{AccentPhrase, Mora, StyleId, StyleType};
+use voicevox_core::{blocking::UserDict, AccentPhrase, Mora, StyleId, StyleType, UserDictWord};
 
 mod common;
 
@@ -196,6 +196,55 @@ fn real_core_normalizes_mixed_kana_pronunciations() {
       .collect::<String>();
     assert_eq!(pronunciation, expected, "unexpected reading for {input}");
   }
+}
+
+#[test]
+fn real_core_applies_and_clears_user_dictionary_entries() {
+  let core = test_core();
+  let style_id = first_talk_style_id(&core);
+  let pronunciation = |phrases: Vec<AccentPhrase>| {
+    phrases
+      .iter()
+      .flat_map(|phrase| &phrase.moras)
+      .map(|mora| mora.text.as_str())
+      .collect::<String>()
+  };
+  let original = pronunciation(
+    core
+      .accent_phrases("Azalea", style_id)
+      .expect("accent phrase generation failed"),
+  );
+  let dictionary = UserDict::new();
+  dictionary
+    .add_word(
+      UserDictWord::builder()
+        .build("Azalea", "テスト".into(), 1)
+        .expect("test dictionary word is invalid"),
+    )
+    .expect("failed to add dictionary word");
+
+  core
+    .use_user_dictionary(&dictionary)
+    .expect("failed to apply user dictionary");
+  for surface in ["azalea", "Azalea", "AZALEA"] {
+    let registered = pronunciation(
+      core
+        .accent_phrases(surface, style_id)
+        .expect("accent phrase generation with dictionary failed"),
+    );
+    assert_eq!(registered, "テスト", "dictionary missed {surface}");
+    assert_ne!(registered, original);
+  }
+
+  core
+    .use_user_dictionary(&UserDict::new())
+    .expect("failed to clear user dictionary");
+  let cleared = pronunciation(
+    core
+      .accent_phrases("Azalea", style_id)
+      .expect("accent phrase generation after clearing dictionary failed"),
+  );
+  assert_eq!(cleared, original);
 }
 
 #[test]

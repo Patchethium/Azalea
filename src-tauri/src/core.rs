@@ -1,10 +1,10 @@
 use voicevox_core::{
-  blocking::{Onnxruntime, OpenJtalk, Synthesizer, VoiceModelFile},
+  blocking::{Onnxruntime, OpenJtalk, Synthesizer, UserDict, VoiceModelFile},
   nonblocking::{
     Onnxruntime as NonblockingOnnxruntime, Synthesizer as NonblockingSynthesizer,
     VoiceModelFile as NonblockingVoiceModelFile,
   },
-  AccentPhrase, AudioQuery, StyleId, StyleType, VoiceModelId, VoiceModelMeta,
+  AccentPhrase, AudioQuery, StyleId, StyleType, UserDictWord, VoiceModelId, VoiceModelMeta,
 };
 
 use crate::config::types::{cache_size_default, cpu_num_threads_default};
@@ -56,6 +56,58 @@ pub struct Core {
   nonblocking_synthesizer: NonblockingSynthesizer<()>,
   pub metas: HashMap<String, VoiceModelMeta>,
   pub speaker_to_vvm: HashMap<StyleId, VoiceModelId>,
+}
+
+fn is_english_letter(character: char) -> bool {
+  character.is_ascii_alphabetic()
+    || matches!(character, '\u{ff21}'..='\u{ff3a}' | '\u{ff41}'..='\u{ff5a}')
+}
+
+fn pascal_case_english(surface: &str) -> String {
+  let mut capitalized = false;
+  let mut result = String::with_capacity(surface.len());
+  for character in surface.to_lowercase().chars() {
+    if !capitalized && is_english_letter(character) {
+      result.extend(character.to_uppercase());
+      capitalized = true;
+    } else {
+      result.push(character);
+    }
+  }
+  result
+}
+
+fn dictionary_with_english_case_variants(dictionary: &UserDict) -> Result<UserDict> {
+  let runtime_dictionary = UserDict::new();
+  let words = dictionary.with_words(|words| words.clone());
+  runtime_dictionary.with_words(|runtime_words| runtime_words.extend(words.clone()));
+  let mut surfaces = words
+    .values()
+    .map(|word| word.surface().to_string())
+    .collect::<HashSet<_>>();
+
+  for word in words.values() {
+    for surface in [
+      word.surface().to_lowercase(),
+      pascal_case_english(word.surface()),
+      word.surface().to_uppercase(),
+    ] {
+      if !surfaces.insert(surface.clone()) {
+        continue;
+      }
+      let variant = UserDictWord::builder()
+        .word_type(word.word_type())
+        .priority(word.priority())
+        .build(
+          &surface,
+          word.pronunciation().to_string(),
+          word.accent_type(),
+        )?;
+      runtime_dictionary.add_word(variant)?;
+    }
+  }
+
+  Ok(runtime_dictionary)
 }
 
 impl Core {
@@ -170,6 +222,15 @@ impl Core {
       self.load_speaker(speaker_id)?;
     }
     Ok(self.synthesizer.create_accent_phrases(text, speaker_id)?)
+  }
+
+  pub fn use_user_dictionary(&self, dictionary: &UserDict) -> Result<()> {
+    let runtime_dictionary = dictionary_with_english_case_variants(dictionary)?;
+    self
+      .synthesizer
+      .text_analyzer()
+      .use_user_dict(&runtime_dictionary)?;
+    Ok(())
   }
 
   /// Useful for accent phrase manipulation
@@ -295,6 +356,37 @@ impl Core {
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn user_dictionary_expands_english_case_variants_without_mutating_saved_entries() {
+    let dictionary = UserDict::new();
+    dictionary
+      .add_word(
+        UserDictWord::builder()
+          .build("aZaLeA", "アザレア".into(), 0)
+          .unwrap(),
+      )
+      .unwrap();
+
+    let runtime_dictionary = dictionary_with_english_case_variants(&dictionary).unwrap();
+    let surfaces = runtime_dictionary.with_words(|words| {
+      words
+        .values()
+        .map(|word| word.surface().to_string())
+        .collect::<HashSet<_>>()
+    });
+
+    assert_eq!(dictionary.with_words(|words| words.len()), 1);
+    assert_eq!(
+      surfaces,
+      HashSet::from([
+        "ａＺａＬｅＡ".to_string(),
+        "ａｚａｌｅａ".to_string(),
+        "Ａｚａｌｅａ".to_string(),
+        "ＡＺＡＬＥＡ".to_string(),
+      ])
+    );
+  }
 
   fn ort_name() -> &'static str {
     #[cfg(target_os = "linux")]

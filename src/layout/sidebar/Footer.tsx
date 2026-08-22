@@ -1,4 +1,5 @@
 import { AboutDialog } from "@dialogs/About";
+import { DictionaryDialog } from "@dialogs/Dictionary";
 import { ShortcutReferenceDialog } from "@dialogs/ShortcutReference";
 import { DropdownMenu } from "@kobalte/core/dropdown-menu";
 import { ToggleGroup } from "@kobalte/core/toggle-group";
@@ -72,6 +73,14 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
           </DropdownMenu.Portal>
         </DropdownMenu>
         <div class="flex items-center justify-start p-2 pl-0 gap-1">
+          <button
+            type="button"
+            aria-label={t1("dictionary.open")}
+            class="group size-8 p1 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-primary-5 transition-transform outline-none"
+            onClick={() => controls.setDictionaryOpen(true)}
+          >
+            <div class="i-lucide:notebook-tabs bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white" />
+          </button>
           <ShortcutReferenceDialog />
           <ToggleGroup
             class="flex items-center"
@@ -90,6 +99,10 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
       <AboutDialog
         open={controls.aboutOpen()}
         onOpenChange={controls.setAboutOpen}
+      />
+      <DictionaryDialog
+        open={controls.dictionaryOpen()}
+        onOpenChange={controls.setDictionaryOpen}
       />
     </>
   );

@@ -114,6 +114,46 @@ async getRange() : Promise<Result<Partial<{ [key in StyleId]: [number, number] }
     else return { status: "error", error: e  as any };
 }
 },
+async getDictionaryEntries() : Promise<Result<DictionaryEntry[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_dictionary_entries") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async addDictionaryEntry(entry: DictionaryEntryInput) : Promise<Result<DictionaryEntry, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("add_dictionary_entry", { entry }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async updateDictionaryEntry(id: string, entry: DictionaryEntryInput) : Promise<Result<DictionaryEntry, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("update_dictionary_entry", { id, entry }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async moveDictionaryEntry(id: string, direction: number) : Promise<Result<DictionaryEntry[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("move_dictionary_entry", { id, direction }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async deleteDictionaryEntry(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_dictionary_entry", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 /**
  * Encodes text into audio query
  */
@@ -540,6 +580,9 @@ export type CoreConfig = {
  * the path should be `/home/user/VOICEVOX/vv-engine`.
  */
 ort_path: string; ojt_dir: string; vvm_dir: string; cache_size?: number; cpu_num_threads?: number }
+export type DictionaryEntry = { id: string; surface: string; pronunciation: string; accent_type: number; word_type: DictionaryWordType; priority: number }
+export type DictionaryEntryInput = { surface: string; pronunciation: string; accent_type: number; word_type: DictionaryWordType; priority: number }
+export type DictionaryWordType = "PROPER_NOUN" | "COMMON_NOUN" | "VERB" | "ADJECTIVE" | "SUFFIX"
 export type FrontendReadyEvent = null
 export type InitializationEvent = { config: AzaleaConfig | null; core_initialized: boolean; metas: CharacterMeta[] | null; range: ([StyleId, [number, number]])[]; error: string | null }
 export type KeyboardShortcut = { key: string; primary?: boolean; secondary?: boolean; shift?: boolean; alt?: boolean }

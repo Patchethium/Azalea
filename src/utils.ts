@@ -1,6 +1,21 @@
 import type { AudioQuery, Preset } from "$binding";
 import _ from "lodash";
 
+// Keep this in sync with voicevox_core's katakana::count_moras. Compound
+// katakana such as キャ count as one mora, while ッ and ー each count as one.
+const japaneseMoraPattern =
+  /(?:イェ|ヴ[ャュョ]|[トド]ゥ|[テデ][ィャュョ]|デェ|[クグ]ヮ|[キシチニヒミリギジビピ][ェャュョ]|[ツフヴ]ァ|[ウスツフヴズ]ィ|[ウツフヴ][ェォ]|[ァ-ヴー])/gu;
+
+export const countJapaneseMoras = (pronunciation: string) =>
+  pronunciation.match(japaneseMoraPattern)?.length ?? 0;
+
+export const toHalfWidthAscii = (value: string) =>
+  value
+    .replace(/[！-～]/gu, (character) =>
+      String.fromCodePoint(character.codePointAt(0)! - 0xfee0),
+    )
+    .replace(/　/gu, " ");
+
 export function getModifiedQuery(
   query: AudioQuery,
   preset: Preset,

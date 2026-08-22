@@ -12,8 +12,11 @@ export function OptionSelector(props: {
   options: string[];
   value: string;
   onChange: (value: string) => void;
+  getOptionLabel?: (value: string) => string;
   action?: JSX.Element;
 }) {
+  const optionLabel = (value: string) => props.getOptionLabel?.(value) ?? value;
+
   return (
     <Select
       options={props.options}
@@ -26,7 +29,9 @@ export function OptionSelector(props: {
           item={itemProps.item}
           class="p1 flex flex-row items-center justify-between rounded-md ui-highlighted:(bg-primary-5 text-white) cursor-pointer"
         >
-          <Select.ItemLabel>{itemProps.item.rawValue}</Select.ItemLabel>
+          <Select.ItemLabel>
+            {optionLabel(itemProps.item.rawValue)}
+          </Select.ItemLabel>
           <Select.ItemIndicator class="size-6 flex items-center justify-center">
             <div class="i-lucide:check" />
           </Select.ItemIndicator>
@@ -38,7 +43,7 @@ export function OptionSelector(props: {
       </Select.Label>
       <div class="flex w-full items-center gap1">
         <Tooltip
-          content={props.value}
+          content={optionLabel(props.value)}
           class="min-w-0 flex-1"
           onlyWhenOverflowing
         >
@@ -48,7 +53,7 @@ export function OptionSelector(props: {
                           hover:(bg-slate-1 dark:bg-slate-7) dark:border-slate-6"
           >
             <Select.Value<string> class="min-w-0 truncate">
-              {(state) => state.selectedOption()}
+              {(state) => optionLabel(state.selectedOption())}
             </Select.Value>
             <Select.Icon class="shrink-0">
               <div class="size-4 i-lucide:chevrons-up-down" />
@@ -58,7 +63,7 @@ export function OptionSelector(props: {
         {props.action}
       </div>
       <Select.Portal>
-        <Select.Content class="bg-white dark:bg-slate-8 w-full rounded-lg border border-slate-2 dark:border-slate-6 overflow-y-auto max-h-[50vh]">
+        <Select.Content class="z-60 bg-white dark:bg-slate-8 w-full rounded-lg border border-slate-2 dark:border-slate-6 overflow-y-auto max-h-[50vh] outline-none">
           <Select.Listbox class="bg-white dark:bg-slate-8 flex flex-col p1 overflow-y-hidden" />
         </Select.Content>
       </Select.Portal>
@@ -123,20 +128,47 @@ export function PauseNumField(props: {
   value?: number;
   setValue: (value: number) => void;
 }) {
+  return (
+    <PresetNumField
+      label={props.label}
+      value={props.value}
+      setValue={props.setValue}
+      min={0}
+      max={1500}
+      step={100}
+      title="in millisecond"
+    />
+  );
+}
+
+export function PresetNumField(props: {
+  label: string;
+  value?: number;
+  setValue: (value: number) => void;
+  min: number;
+  max: number;
+  step: number;
+  title?: string;
+  description?: string;
+}) {
   const { t2 } = usei18n()!;
   return (
     <NumberField
-      minValue={0}
-      maxValue={1500}
+      minValue={props.min}
+      maxValue={props.max}
       value={props.value}
-      step={100}
-      onChange={(value) => props.setValue(Number.parseInt(value, 10))}
+      step={props.step}
+      onChange={(value) => {
+        const parsed = Number.parseInt(value, 10);
+        if (Number.isNaN(parsed)) return;
+        props.setValue(Math.min(props.max, Math.max(props.min, parsed)));
+      }}
       changeOnWheel={true}
       format={false}
-      title="in millisecond"
+      title={props.title}
       class="w-full"
     >
-      <NumberField.Label>{props.label}</NumberField.Label>
+      <NumberField.Label class="text-sm">{props.label}</NumberField.Label>
       <div class="flex flex-row gap-1 items-center">
         <NumberField.Input class="h-8 w-full outline-none rounded-lg b b-slate-2 dark:(b-slate-6 bg-slate-7) focus:b-primary-3 px-1" />
         <div class="flex flex-col">
@@ -154,6 +186,11 @@ export function PauseNumField(props: {
           />
         </div>
       </div>
+      <Show when={props.description}>
+        <NumberField.Description class="text-xs text-slate-5 dark:text-slate-4">
+          {props.description}
+        </NumberField.Description>
+      </Show>
     </NumberField>
   );
 }

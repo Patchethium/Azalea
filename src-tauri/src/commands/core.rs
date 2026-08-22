@@ -1,5 +1,6 @@
 use super::utils::state_mut;
 use crate::async_job::run_cancellable;
+use crate::config::manager::user_dictionary_path;
 use crate::config::CoreConfig;
 use crate::spectrogram::{
   create_spectrogram_preview, validate_spectrogram_request, SpectrogramJob, SpectrogramJobEvent,
@@ -44,6 +45,13 @@ pub async fn initialize_core(
       .await
       .map_err(|e| format!("Core initialization task failed: {e}"))?
       .map_err(|e| e.to_string())?;
+    let dictionary_path = user_dictionary_path();
+    let core = tauri::async_runtime::spawn_blocking(move || {
+      super::dictionary::apply_saved_dictionary(&core, &dictionary_path)?;
+      Ok::<_, String>(core)
+    })
+    .await
+    .map_err(|e| format!("Dictionary initialization task failed: {e}"))??;
     state.core.write().await.replace(Arc::new(core));
   } else {
     return Err("Core already loaded".into());
@@ -96,6 +104,13 @@ pub async fn reinitialize_core(
     .await
     .map_err(|e| format!("Core initialization task failed: {e}"))?
     .map_err(|e| e.to_string())?;
+  let dictionary_path = user_dictionary_path();
+  let core = tauri::async_runtime::spawn_blocking(move || {
+    super::dictionary::apply_saved_dictionary(&core, &dictionary_path)?;
+    Ok::<_, String>(core)
+  })
+  .await
+  .map_err(|e| format!("Dictionary initialization task failed: {e}"))??;
   state.core.write().await.replace(Arc::new(core));
   Ok(())
 }

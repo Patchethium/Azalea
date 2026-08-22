@@ -659,3 +659,28 @@ describe("Sidebar controls", () => {
     expect(text.projectPresetStore).toHaveLength(1);
   });
 });
+
+describe("Sidebar dictionary", () => {
+  it("opens the dictionary manager from the footer button", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    mockIPC((cmd) => {
+      if (cmd === "get_os") return "Linux";
+      if (cmd === "get_dictionary_entries") return [];
+      return null;
+    });
+    renderSidebar(({ config: appConfig, meta, text }) => {
+      batch(() => {
+        appConfig.setConfig(config());
+        meta.setMetas(metas);
+        text.setProjectPresetStore([preset()]);
+      });
+    });
+
+    await user.click(
+      await screen.findByRole("button", { name: "Manage user dictionary" }),
+    );
+    expect(
+      await screen.findByRole("dialog", { name: "User Dictionary" }),
+    ).toBeInTheDocument();
+  });
+});

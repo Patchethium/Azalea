@@ -4,6 +4,7 @@ vendor/
 .env
 config_dev/config.json
 config_dev/config.toml
+config_dev/user_dictionary.json
 config_dev/assets/
 .DS_Store
 coverage/

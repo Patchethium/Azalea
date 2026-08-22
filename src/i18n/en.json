@@ -48,6 +48,41 @@
     "version": "Version",
     "license": "Open source license"
   },
+  "dictionary": {
+    "title": "User Dictionary",
+    "open": "Manage user dictionary",
+    "close": "Close user dictionary",
+    "entries": "Dictionary entries",
+    "add": "Add word",
+    "move_up": "Move word up",
+    "move_down": "Move word down",
+    "empty": "No words have been registered yet.",
+    "loading": "Loading dictionary…",
+    "new_entry": "New word",
+    "edit_entry": "Edit word",
+    "surface": "Word",
+    "surface_placeholder": "Azalea",
+    "pronunciation": "Pronunciation",
+    "pronunciation_placeholder": "アザレア",
+    "pronunciation_hint": "Enter the pronunciation in katakana.",
+    "word_type": "Word type",
+    "word_types": {
+      "proper_noun": "Proper noun",
+      "common_noun": "Common noun",
+      "verb": "Verb",
+      "adjective": "Adjective",
+      "suffix": "Suffix"
+    },
+    "accent_type": "Accent position",
+    "accent_hint": "0 is flat; otherwise choose the mora where the pitch falls (maximum: {{count}}).",
+    "priority": "Priority",
+    "priority_hint": "Higher values take precedence (0–10).",
+    "save": "Save",
+    "saving": "Saving…",
+    "delete": "Delete word",
+    "load_error": "The user dictionary could not be loaded.",
+    "operation_error": "The dictionary entry could not be saved. Check the word, katakana pronunciation, and accent position."
+  },
   "text_block": {
     "input_label": "Text to synthesize",
     "controls": {

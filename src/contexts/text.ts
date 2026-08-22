@@ -117,6 +117,7 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
   );
 
   const [projectPath, setProjectPath] = createSignal<string | null>(null);
+  const [queryRefreshVersion, setQueryRefreshVersion] = createSignal(0);
 
   const insertTextBlockBelow = (index: number) => {
     const sourceIndex = clampTextBlockIndex(index, textStore.length);
@@ -182,6 +183,19 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     if (query !== null && query !== undefined) {
       setTextStore(index, "query_is_modified", true);
     }
+  };
+
+  const refreshGeneratedQueries = () => {
+    batch(() => {
+      setTextStore(
+        produce((blocks) => {
+          for (const block of blocks) {
+            if (!block.query_is_modified) block.query = null;
+          }
+        }),
+      );
+      setQueryRefreshVersion((version) => version + 1);
+    });
   };
 
   const selectedTextBlockIndex = () =>
@@ -250,6 +264,8 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     selectedTextBlockIndex,
     createFirstTextBlock,
     markQueryModified,
+    queryRefreshVersion,
+    refreshGeneratedQueries,
     replaceTextBlocks,
     removeProjectPreset,
     newProject,

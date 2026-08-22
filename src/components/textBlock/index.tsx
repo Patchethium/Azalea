@@ -39,6 +39,7 @@ function TextBlock(props: { index: number }) {
     projectPresetStore,
     selectedTextBlockIndex,
     insertTextBlockBelow,
+    queryRefreshVersion,
   } = useTextStore()!;
   const { metas } = useMetaStore()!;
   const { systemStore } = useSystemStore()!;
@@ -112,15 +113,15 @@ function TextBlock(props: { index: number }) {
         () => currentText().id,
         () => currentText().text,
         () => currentPresetStyle()?.style.id,
+        queryRefreshVersion,
       ],
-      ([blockId, text, styleId], previousInput) => {
+      ([, text, styleId]) => {
         const sourceBlock = currentText();
         const requestRevision = ++queryRequestRevision;
         if (text === "") {
           fetchAudioQuery.cancel();
           setQuery(null);
         } else if (
-          (previousInput === undefined || previousInput[0] !== blockId) &&
           sourceBlock.query_is_modified &&
           sourceBlock.query !== null
         ) {

@@ -29,6 +29,10 @@ pub(crate) fn assets_dir() -> PathBuf {
   CONFIG_DIR.join("assets")
 }
 
+pub(crate) fn user_dictionary_path() -> PathBuf {
+  CONFIG_DIR.join("user_dictionary.json")
+}
+
 /// This struct serves the purpose of serializing/deserializing it to/from a file.
 /// It also saves a in-memory copy of the config.
 pub struct ConfigManager {

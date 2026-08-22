@@ -48,6 +48,41 @@
     "version": "バージョン",
     "license": "オープンソースライセンス"
   },
+  "dictionary": {
+    "title": "ユーザー辞書",
+    "open": "ユーザー辞書を管理",
+    "close": "ユーザー辞書を閉じる",
+    "entries": "登録単語",
+    "add": "単語を追加",
+    "move_up": "単語を上へ移動",
+    "move_down": "単語を下へ移動",
+    "empty": "登録されている単語はありません。",
+    "loading": "辞書を読み込み中…",
+    "new_entry": "新しい単語",
+    "edit_entry": "単語を編集",
+    "surface": "単語",
+    "surface_placeholder": "Azalea",
+    "pronunciation": "読み",
+    "pronunciation_placeholder": "アザレア",
+    "pronunciation_hint": "読みをカタカナで入力してください。",
+    "word_type": "品詞",
+    "word_types": {
+      "proper_noun": "固有名詞",
+      "common_noun": "普通名詞",
+      "verb": "動詞",
+      "adjective": "形容詞",
+      "suffix": "接尾辞"
+    },
+    "accent_type": "アクセント位置",
+    "accent_hint": "0は平板型、それ以外は音が下がるモーラを指定します（最大：{{count}}）。",
+    "priority": "優先度",
+    "priority_hint": "数値が大きいほど優先されます（0～10）。",
+    "save": "保存",
+    "saving": "保存中…",
+    "delete": "単語を削除",
+    "load_error": "ユーザー辞書を読み込めませんでした。",
+    "operation_error": "辞書を保存できませんでした。単語、カタカナの読み、アクセント位置を確認してください。"
+  },
   "text_block": {
     "input_label": "読み上げるテキスト",
     "controls": {
