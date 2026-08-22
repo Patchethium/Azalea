@@ -149,7 +149,7 @@ export function PresetNumField(props: {
   max: number;
   step: number;
   title?: string;
-  description?: string;
+  info?: string;
 }) {
   const { t2 } = usei18n()!;
   return (
@@ -168,7 +168,19 @@ export function PresetNumField(props: {
       title={props.title}
       class="w-full"
     >
-      <NumberField.Label class="text-sm">{props.label}</NumberField.Label>
+      <div class="flex items-center gap1">
+        <NumberField.Label class="text-sm">{props.label}</NumberField.Label>
+        <Show when={props.info}>
+          {(info) => (
+            <IconButton
+              type="button"
+              icon="i-lucide:info"
+              label={info()}
+              size="xs"
+            />
+          )}
+        </Show>
+      </div>
       <div class="flex flex-row gap-1 items-center">
         <NumberField.Input class="h-8 w-full outline-none rounded-lg b b-slate-2 dark:(b-slate-6 bg-slate-7) focus:b-primary-3 px-1" />
         <div class="flex flex-col">
@@ -186,11 +198,6 @@ export function PresetNumField(props: {
           />
         </div>
       </div>
-      <Show when={props.description}>
-        <NumberField.Description class="text-xs text-slate-5 dark:text-slate-4">
-          {props.description}
-        </NumberField.Description>
-      </Show>
     </NumberField>
   );
 }

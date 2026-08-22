@@ -4,6 +4,7 @@ import {
   countJapaneseMoras,
   getModifiedQuery,
   parseSrt,
+  splitJapaneseMoras,
   toHalfWidthAscii,
   useSideEffect,
 } from "$utils";
@@ -15,6 +16,7 @@ describe("countJapaneseMoras", () => {
     expect(countJapaneseMoras("ティー")).toBe(2);
     expect(countJapaneseMoras("ヴョデェグヮ")).toBe(3);
     expect(countJapaneseMoras("")).toBe(0);
+    expect(splitJapaneseMoras("キャット")).toEqual(["キャ", "ッ", "ト"]);
   });
 });
 

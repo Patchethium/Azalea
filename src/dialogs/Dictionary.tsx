@@ -1,16 +1,20 @@
 import {
+  type AccentPhrase,
   commands,
   type DictionaryEntry,
   type DictionaryEntryInput,
   type DictionaryWordType,
+  type Mora,
 } from "$binding";
 import { AppDialogContent } from "@dialogs/AppContent";
+import { IconButton } from "@components/iconButton";
 import { Dialog } from "@kobalte/core/dialog";
 import { TextField } from "@kobalte/core/text-field";
+import { AccentPhraseItem } from "@layout/bottomPanel/AccentPhraseItem";
 import { OptionSelector, PresetNumField } from "@layout/sidebar/preset/Fields";
 import { ListToolbar } from "@layout/sidebar/preset/Toolbar";
 import { debounce } from "@solid-primitives/scheduled";
-import { countJapaneseMoras, toHalfWidthAscii } from "$utils";
+import { splitJapaneseMoras, toHalfWidthAscii } from "$utils";
 import {
   createEffect,
   createMemo,
@@ -78,7 +82,35 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
     const id = selectedId();
     return id === null ? -1 : entries().findIndex((entry) => entry.id === id);
   });
-  const moraCount = createMemo(() => countJapaneseMoras(draft.pronunciation));
+  const pronunciationMoras = createMemo<Mora[]>(() =>
+    splitJapaneseMoras(draft.pronunciation).map((text) => ({
+      text,
+      consonant: null,
+      consonant_length: null,
+      vowel: "",
+      vowel_length: 0,
+      pitch: 0,
+    })),
+  );
+  const moraCount = () => pronunciationMoras().length;
+  const accentPhraseMoras = createMemo<Mora[]>(() => [
+    ...pronunciationMoras(),
+    {
+      text: "ガ",
+      consonant: null,
+      consonant_length: null,
+      vowel: "",
+      vowel_length: 0,
+      pitch: 0,
+    },
+  ]);
+  const accentPhrase = createMemo<AccentPhrase>(() => ({
+    moras: accentPhraseMoras(),
+    accent:
+      draft.accent_type === 0 ? accentPhraseMoras().length : draft.accent_type,
+    pause_mora: null,
+    is_interrogative: false,
+  }));
 
   const validEntry = (entry: DictionaryEntryInput) =>
     entry.surface.trim().length > 0 && entry.pronunciation.trim().length > 0;
@@ -423,28 +455,17 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
                   {t1("dictionary.pronunciation_hint")}
                 </TextField.Description>
               </TextField>
-              <OptionSelector
-                name={t1("dictionary.word_type")}
-                options={wordTypes}
-                value={draft.word_type}
-                getOptionLabel={(value) =>
-                  wordTypeLabel(value as DictionaryWordType)
-                }
-                onChange={(value) =>
-                  editDraft({ word_type: value as DictionaryWordType })
-                }
-              />
               <div class="grid grid-cols-2 gap3">
-                <PresetNumField
-                  label={t1("dictionary.accent_type")}
-                  value={draft.accent_type}
-                  setValue={(value) => editDraft({ accent_type: value })}
-                  min={0}
-                  max={moraCount()}
-                  step={1}
-                  description={t2("dictionary.accent_hint", {
-                    count: moraCount(),
-                  })}
+                <OptionSelector
+                  name={t1("dictionary.word_type")}
+                  options={wordTypes}
+                  value={draft.word_type}
+                  getOptionLabel={(value) =>
+                    wordTypeLabel(value as DictionaryWordType)
+                  }
+                  onChange={(value) =>
+                    editDraft({ word_type: value as DictionaryWordType })
+                  }
                 />
                 <PresetNumField
                   label={t1("dictionary.priority")}
@@ -453,8 +474,39 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
                   min={0}
                   max={10}
                   step={1}
-                  description={t1("dictionary.priority_hint")}
+                  info={t1("dictionary.priority_hint")}
                 />
+              </div>
+              <div class="flex flex-col gap1">
+                <div class="flex items-center gap1">
+                  <span class="text-sm">{t1("dictionary.accent_type")}</span>
+                  <IconButton
+                    type="button"
+                    icon="i-lucide:info"
+                    label={t2("dictionary.accent_hint", {
+                      count: moraCount(),
+                    })}
+                    size="xs"
+                  />
+                </div>
+                <Show when={moraCount() > 0}>
+                  <div class="h-32 overflow-x-auto overflow-y-hidden">
+                    <div class="mx-auto h-full w-max min-w-20">
+                      <AccentPhraseItem
+                        mode="accent"
+                        label={t1("dictionary.accent_type")}
+                        phrase={accentPhrase()}
+                        setPhrase={(phrase) => {
+                          const accentType =
+                            phrase.accent === phrase.moras.length
+                              ? 0
+                              : phrase.accent;
+                          editDraft({ accent_type: accentType });
+                        }}
+                      />
+                    </div>
+                  </div>
+                </Show>
               </div>
             </fieldset>
 

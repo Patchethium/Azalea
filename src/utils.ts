@@ -6,8 +6,11 @@ import _ from "lodash";
 const japaneseMoraPattern =
   /(?:イェ|ヴ[ャュョ]|[トド]ゥ|[テデ][ィャュョ]|デェ|[クグ]ヮ|[キシチニヒミリギジビピ][ェャュョ]|[ツフヴ]ァ|[ウスツフヴズ]ィ|[ウツフヴ][ェォ]|[ァ-ヴー])/gu;
 
+export const splitJapaneseMoras = (pronunciation: string) =>
+  pronunciation.match(japaneseMoraPattern) ?? [];
+
 export const countJapaneseMoras = (pronunciation: string) =>
-  pronunciation.match(japaneseMoraPattern)?.length ?? 0;
+  splitJapaneseMoras(pronunciation).length;
 
 export const toHalfWidthAscii = (value: string) =>
   value

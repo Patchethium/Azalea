@@ -1375,11 +1375,21 @@ describe("BottomPanel playback", () => {
       "stroke-dasharray",
       "4 2",
     );
+    fireEvent.mouseLeave(connection.parentElement!);
+    expect(connection.firstElementChild).toHaveAttribute(
+      "stroke-dasharray",
+      "0",
+    );
     fireEvent.click(connection.parentElement!);
     expect(getTextStore().textStore[0].query?.accent_phrases).toHaveLength(2);
     await waitFor(() => expect(replaceMora).toHaveBeenCalledOnce());
 
     const firstMora = screen.getByText("コ");
+    expect(firstMora).toHaveClass("select-none");
+    fireEvent.mouseEnter(firstMora);
+    expect(firstMora).toHaveClass("b", "b-primary-3");
+    fireEvent.mouseLeave(firstMora);
+    expect(firstMora).not.toHaveClass("b", "b-primary-3");
     const combineTarget = firstMora.nextElementSibling as HTMLElement;
     fireEvent.click(combineTarget);
     expect(getTextStore().textStore[0].query?.accent_phrases).toHaveLength(1);
@@ -1391,6 +1401,10 @@ describe("BottomPanel playback", () => {
     expect(
       getTextStore().textStore[0].query?.accent_phrases[0].pause_mora?.vowel,
     ).toBe("pau");
+    fireEvent.click(pauseTarget);
+    expect(
+      getTextStore().textStore[0].query?.accent_phrases[0].pause_mora,
+    ).toBeNull();
 
     const accentSlider = screen
       .getAllByRole("slider")

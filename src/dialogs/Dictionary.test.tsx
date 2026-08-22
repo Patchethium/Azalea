@@ -76,6 +76,11 @@ function renderDictionary(
   return { ...result, getText: () => text };
 }
 
+const getAccentSlider = () =>
+  screen
+    .getAllByRole("slider", { name: "Accent position" })
+    .find((element) => element.tagName === "SPAN")!;
+
 describe("DictionaryDialog", () => {
   it("adds, edits, and deletes entries while refreshing only generated queries", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
@@ -159,22 +164,37 @@ describe("DictionaryDialog", () => {
     expect(
       screen.getByRole("button", { name: "Word type Verb" }),
     ).toBeInTheDocument();
-    fireEvent.input(
-      screen.getByRole("spinbutton", { name: "Accent position" }),
-      {
-        target: { value: "" },
-      },
+    const accentSlider = getAccentSlider();
+    expect(accentSlider).toHaveAttribute("aria-valuemin", "1");
+    expect(accentSlider).toHaveAttribute("aria-valuemax", "5");
+    fireEvent.keyDown(accentSlider, { key: "ArrowLeft" });
+    fireEvent.keyDown(accentSlider, { key: "ArrowLeft" });
+    fireEvent.keyDown(accentSlider, { key: "ArrowLeft" });
+    const priority = screen.getByRole("spinbutton", { name: "Priority" });
+    const wordOptionsRow = wordType.closest(".grid");
+    expect(wordOptionsRow).toHaveClass("grid-cols-2");
+    expect(priority.closest(".grid")).toBe(wordOptionsRow);
+    const accentInfo = screen.getByRole("button", {
+      name: /0 is flat.*maximum: 4/,
+    });
+    const priorityInfo = screen.getByRole("button", {
+      name: "Higher values take precedence (0–10).",
+    });
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    accentInfo.focus();
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      /0 is flat.*maximum: 4/,
     );
-    fireEvent.input(
-      screen.getByRole("spinbutton", { name: "Accent position" }),
-      {
-        target: { value: "2" },
-      },
+    priorityInfo.focus();
+    await waitFor(() =>
+      expect(screen.getByRole("tooltip")).toHaveTextContent(
+        "Higher values take precedence (0–10).",
+      ),
     );
-    fireEvent.input(screen.getByRole("spinbutton", { name: "Priority" }), {
+    fireEvent.input(priority, {
       target: { value: "" },
     });
-    fireEvent.input(screen.getByRole("spinbutton", { name: "Priority" }), {
+    fireEvent.input(priority, {
       target: { value: "8" },
     });
     await waitFor(() =>
@@ -285,17 +305,59 @@ describe("DictionaryDialog", () => {
       name: "Pronunciation",
     });
     fireEvent.input(pronunciation, { target: { value: "アザレア" } });
-    const accent = screen.getByRole("spinbutton", {
-      name: "Accent position",
-    });
-    fireEvent.input(accent, { target: { value: "4" } });
-    await waitFor(() => expect(accent).toHaveValue("4"));
+    const accent = getAccentSlider();
+    expect(accent).toHaveAttribute("aria-valuemin", "1");
+    expect(accent).toHaveAttribute("aria-valuemax", "5");
+    expect(accent).toHaveAttribute("aria-valuenow", "5");
+    const accentContainer = accent.closest(".h-32")!;
+    expect(accentContainer).toHaveClass("overflow-y-hidden");
+    expect(accentContainer.firstElementChild).toHaveClass("mx-auto");
+    const firstMoraAtFlatAccent = screen.getAllByText("ア")[0];
+    const appendedMora = screen.getByText("ガ");
+    expect(firstMoraAtFlatAccent).toHaveClass("mt-10");
+    expect(appendedMora).toHaveClass("mb-10");
+
+    for (let index = 0; index < 4; index += 1) {
+      fireEvent.keyDown(accent, { key: "ArrowLeft" });
+    }
+    await waitFor(() => expect(accent).toHaveAttribute("aria-valuenow", "1"));
+    expect(firstMoraAtFlatAccent).toHaveClass("mb-10");
+    expect(appendedMora).toHaveClass("mt-10");
+    for (let index = 0; index < 4; index += 1) {
+      fireEvent.keyDown(accent, { key: "ArrowRight" });
+    }
+    await waitFor(() => expect(accent).toHaveAttribute("aria-valuenow", "5"));
+    expect(firstMoraAtFlatAccent).toHaveClass("mt-10");
+    expect(appendedMora).toHaveClass("mb-10");
+    fireEvent.keyDown(accent, { key: "ArrowLeft" });
+    await waitFor(() => expect(accent).toHaveAttribute("aria-valuenow", "4"));
 
     fireEvent.input(pronunciation, { target: { value: "キャット" } });
 
-    await waitFor(() => expect(accent).toHaveValue("3"));
-    expect(accent).toHaveAttribute("aria-valuemax", "3");
-    expect(screen.getByText(/pitch falls \(maximum: 3\)/)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(getAccentSlider()).toHaveAttribute("aria-valuenow", "3"),
+    );
+    expect(getAccentSlider()).toHaveAttribute("aria-valuemax", "4");
+    const firstMora = screen.getByText("キャ");
+    expect(firstMora).toHaveClass("cursor-default", "select-none");
+    expect(screen.getByText("ッ")).toBeInTheDocument();
+    expect(screen.getByText("ト")).toBeInTheDocument();
+    expect(screen.getAllByRole("textbox")).toHaveLength(2);
+    fireEvent.mouseEnter(firstMora);
+    fireEvent.mouseLeave(firstMora);
+    fireEvent.click(firstMora);
+    expect(screen.getAllByRole("textbox")).toHaveLength(2);
+    const connection = screen.getAllByLabelText("Accent connection line")[0];
+    expect(connection.parentElement).not.toHaveClass("cursor-pointer");
+    fireEvent.mouseEnter(connection.parentElement!);
+    fireEvent.mouseLeave(connection.parentElement!);
+    fireEvent.click(connection.parentElement!);
+    expect(screen.getAllByLabelText("Accent connection line")).toHaveLength(3);
+    expect(
+      screen.getByRole("button", {
+        name: /pitch falls \(maximum: 3\)/,
+      }),
+    ).toBeInTheDocument();
   });
 
   it("keeps the latest draft while the first autosave creates an entry", async () => {
