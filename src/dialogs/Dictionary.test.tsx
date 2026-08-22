@@ -174,6 +174,7 @@ describe("DictionaryDialog", () => {
     const wordOptionsRow = wordType.closest(".grid");
     expect(wordOptionsRow).toHaveClass("grid-cols-2");
     expect(priority.closest(".grid")).toBe(wordOptionsRow);
+    expect(priority.closest(".mt-1")).toBeInTheDocument();
     const accentInfo = screen.getByRole("button", {
       name: /0 is flat.*maximum: 4/,
     });

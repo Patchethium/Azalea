@@ -467,15 +467,17 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
                     editDraft({ word_type: value as DictionaryWordType })
                   }
                 />
-                <PresetNumField
-                  label={t1("dictionary.priority")}
-                  value={draft.priority}
-                  setValue={(value) => editDraft({ priority: value })}
-                  min={0}
-                  max={10}
-                  step={1}
-                  info={t1("dictionary.priority_hint")}
-                />
+                <div class="mt-1">
+                  <PresetNumField
+                    label={t1("dictionary.priority")}
+                    value={draft.priority}
+                    setValue={(value) => editDraft({ priority: value })}
+                    min={0}
+                    max={10}
+                    step={1}
+                    info={t1("dictionary.priority_hint")}
+                  />
+                </div>
               </div>
               <div class="flex flex-col gap1">
                 <div class="flex items-center gap1">
