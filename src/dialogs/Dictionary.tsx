@@ -359,7 +359,7 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
         <div class="flex min-h-0 flex-1">
           <aside class="flex w-2/5 min-w-48 flex-col b-r b-slate-2 bg-slate-1 p3 dark:b-slate-6 dark:bg-slate-9">
             <ListToolbar
-              class="mb2"
+              class="mb2 !shadow-none b b-slate-2 dark:b-slate-6"
               createLabel={t1("dictionary.add")}
               onCreate={startNewEntry}
               createDisabled={controlsBusy()}
@@ -401,10 +401,10 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
                     {(entry) => (
                       <div class="p1 group" onClick={() => selectEntry(entry)}>
                         <div
-                          class="items-start rounded-r-md p1 group-hover:bg-slate-2 dark:group-hover:bg-slate-7 overflow-hidden bg-white dark:bg-slate-8 border-l-2 border-slate-1 dark:border-slate-7
+                          class="items-start rounded-r-md b b-slate-2 dark:b-slate-6 border-l-2 p1 pl3 group-hover:bg-slate-2 dark:group-hover:bg-slate-7 overflow-hidden bg-white dark:bg-slate-8
                           cursor-default select-none w-full min-h-[fit-content] group-active:bg-white dark:group-active:bg-slate-8 flex flex-col"
                           classList={{
-                            "shadow-md group-hover:bg-white dark:group-hover:bg-slate-8 !border-primary-5":
+                            "shadow-md group-hover:bg-white dark:group-hover:bg-slate-8 !border-t-transparent !border-r-transparent !border-b-transparent !border-l-primary-5":
                               selectedId() === entry.id,
                           }}
                         >

@@ -134,6 +134,10 @@ describe("DictionaryDialog", () => {
     expect(
       screen.getByLabelText("Dictionary entries").parentElement,
     ).toHaveClass("bg-slate-1", "dark:bg-slate-9");
+    expect(
+      screen.getByLabelText("Dictionary entries").parentElement
+        ?.firstElementChild,
+    ).toHaveClass("!shadow-none", "b", "b-slate-2", "dark:b-slate-6");
     expect(screen.queryByText("Dictionary entries")).not.toBeInTheDocument();
     expect(screen.queryByText("Edit word")).not.toBeInTheDocument();
     expect(
@@ -143,7 +147,14 @@ describe("DictionaryDialog", () => {
     expect(existingCard).toHaveClass(
       "dark:bg-slate-8",
       "dark:group-hover:bg-slate-8",
-      "!border-primary-5",
+      "!border-t-transparent",
+      "!border-r-transparent",
+      "!border-b-transparent",
+      "!border-l-primary-5",
+      "b",
+      "b-slate-2",
+      "dark:b-slate-6",
+      "pl3",
       "shadow-md",
     );
     await user.click(screen.getByRole("button", { name: "Add word" }));
