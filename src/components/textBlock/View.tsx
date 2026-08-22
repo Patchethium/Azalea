@@ -49,13 +49,14 @@ export function TextBlockView(props: {
         >
           <Show when={props.selected || hovered() || toolbarHovered()}>
             <div
-              class="absolute right-0 flex p1 rounded-lg bg-white dark:bg-slate-7 shadow-md -top-5 pointer-events-auto z-10"
+              class="absolute right-0 flex p1 pl-0.5 rounded-lg bg-white dark:bg-slate-7 shadow-md -top-5 pointer-events-auto z-10"
               classList={{
                 "opacity-50": hovered() && !props.selected && !toolbarHovered(),
               }}
             >
               <IconButton
                 icon="i-lucide:plus"
+                class="translate-x-0.5" // add a slight offset to align them visually with the other buttons
                 label={t1("text_block.controls.add_below")}
                 onClick={props.addTextBelow}
               />
