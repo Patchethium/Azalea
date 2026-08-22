@@ -125,3 +125,9 @@ Recent commits use short imperative, Conventional Commit-style prefixes such as 
 ## Git Guidelines
 
 Prefer using `git add .` than `git add file1 file2 ...` to make review easier for the user.
+
+When source code from another repository is useful as a reference, agents may
+clone it under the ignored `vendor/` directory. Always use a shallow clone such
+as `git clone --depth 1 <repository-url> vendor/<repository-name>` so the
+repository history does not consume unnecessary disk space. Do not commit
+these reference clones.
