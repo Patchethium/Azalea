@@ -34,6 +34,20 @@ describe("shortcut normalization and display", () => {
   });
 
   it("uses defaults and normalizes configured keys", () => {
+    expect(resolveShortcut(undefined, "undo")).toEqual({
+      key: "Z",
+      primary: true,
+      secondary: false,
+      shift: false,
+      alt: false,
+    });
+    expect(resolveShortcut(undefined, "redo")).toEqual({
+      key: "Z",
+      primary: true,
+      secondary: false,
+      shift: true,
+      alt: false,
+    });
     expect(resolveShortcut(undefined, "save_project")).toBe(
       defaultKeyboardShortcuts.save_project,
     );

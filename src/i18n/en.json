@@ -34,6 +34,8 @@
     "conflict": "That shortcut is already assigned.",
     "reset": "Restore default shortcut",
     "reset_all": "Restore all defaults",
+    "undo": "Undo text edit",
+    "redo": "Redo text edit",
     "save_project": "Save project",
     "export_audio": "Export selected cell audio",
     "toggle_playback": "Play or stop selected cell",

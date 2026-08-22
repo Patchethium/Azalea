@@ -1,5 +1,8 @@
 import { commands, events } from "$binding";
-import { AutogrowInput } from "@components/textBlock/AutogrowInput";
+import {
+  AutogrowInput,
+  TEXT_HISTORY_DEBOUNCE_MS,
+} from "@components/textBlock/AutogrowInput";
 import { renderBlock } from "@components/textBlock/testUtils";
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { mockIPC } from "@tauri-apps/api/mocks";
@@ -7,7 +10,14 @@ import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { createComponent } from "solid-js";
 import { produce } from "solid-js/store";
 import { describe, expect, it, vi } from "vitest";
+import { defaultKeyboardShortcuts } from "../../shortcuts";
 import { audioQuery, preset } from "../../test/fixtures";
+
+const textHistoryShortcutProps = {
+  undoShortcut: defaultKeyboardShortcuts.undo,
+  redoShortcut: defaultKeyboardShortcuts.redo,
+  os: "Linux" as const,
+};
 
 vi.mock("@solid-primitives/scheduled", () => ({
   debounce: <Args extends unknown[]>(
@@ -36,6 +46,8 @@ describe("TextBlock", () => {
     const setText = vi.fn();
     render(() =>
       createComponent(AutogrowInput, {
+        historyKey: "direct-editor",
+        ...textHistoryShortcutProps,
         text: "",
         setText,
         focused: true,
@@ -53,6 +65,8 @@ describe("TextBlock", () => {
     const onCaretChange = vi.fn();
     render(() =>
       createComponent(AutogrowInput, {
+        historyKey: "caret-editor",
+        ...textHistoryShortcutProps,
         text: "hello",
         setText: vi.fn(),
         focused: false,
@@ -78,6 +92,8 @@ describe("TextBlock", () => {
     const onCaretChange = vi.fn();
     render(() =>
       createComponent(AutogrowInput, {
+        historyKey: "caret-editor-2",
+        ...textHistoryShortcutProps,
         text: "hello",
         setText: vi.fn(),
         focused: false,
@@ -102,6 +118,90 @@ describe("TextBlock", () => {
     selection!.addRange(range);
     fireEvent.mouseUp(editor);
     expect(onCaretChange).not.toHaveBeenCalled();
+  });
+
+  it("undoes and redoes whole-text snapshots at debounced boundaries", async () => {
+    vi.useFakeTimers();
+    const setText = vi.fn();
+    render(() =>
+      createComponent(AutogrowInput, {
+        historyKey: "history-editor",
+        ...textHistoryShortcutProps,
+        text: "hello",
+        setText,
+        focused: false,
+        placeholder: "Placeholder",
+        "aria-label": "History editor",
+      }),
+    );
+    const editor = screen.getByLabelText("History editor");
+
+    fireEvent.keyDown(editor, { key: "z" });
+    fireEvent.keyDown(editor, { key: "z", ctrlKey: true });
+    expect(setText).not.toHaveBeenCalled();
+
+    editor.innerText = "hello, ";
+    fireEvent.input(editor);
+    await vi.advanceTimersByTimeAsync(TEXT_HISTORY_DEBOUNCE_MS / 2);
+    editor.innerText = "hello, world";
+    fireEvent.input(editor);
+    await vi.advanceTimersByTimeAsync(TEXT_HISTORY_DEBOUNCE_MS);
+    editor.innerText = "hello, world!";
+    fireEvent.input(editor);
+    await vi.advanceTimersByTimeAsync(TEXT_HISTORY_DEBOUNCE_MS);
+
+    fireEvent.keyDown(editor, { key: "z", ctrlKey: true });
+    expect(setText).toHaveBeenLastCalledWith("hello, world");
+    expect(editor.innerText).toBe("hello, world");
+
+    fireEvent.keyDown(editor, { key: "z", ctrlKey: true });
+    expect(setText).toHaveBeenLastCalledWith("hello");
+
+    fireEvent.keyDown(editor, { key: "Z", ctrlKey: true, shiftKey: true });
+    expect(setText).toHaveBeenLastCalledWith("hello, world");
+
+    fireEvent.keyDown(editor, { key: "z", ctrlKey: true, shiftKey: true });
+    expect(setText).toHaveBeenLastCalledWith("hello, world!");
+  });
+
+  it("uses configured shortcuts, includes pending input, and clears redo", () => {
+    vi.useFakeTimers();
+    const setText = vi.fn();
+    render(() =>
+      createComponent(AutogrowInput, {
+        historyKey: "pending-history-editor",
+        ...textHistoryShortcutProps,
+        undoShortcut: {
+          ...defaultKeyboardShortcuts.undo,
+          key: "U",
+        },
+        redoShortcut: {
+          ...defaultKeyboardShortcuts.redo,
+          key: "R",
+          shift: false,
+        },
+        text: "start",
+        setText,
+        focused: false,
+        placeholder: "Placeholder",
+        "aria-label": "Pending history editor",
+      }),
+    );
+    const editor = screen.getByLabelText("Pending history editor");
+
+    editor.innerText = "pending";
+    fireEvent.input(editor);
+    const pendingCallCount = setText.mock.calls.length;
+    fireEvent.keyDown(editor, { key: "z", ctrlKey: true });
+    expect(setText).toHaveBeenCalledTimes(pendingCallCount);
+    fireEvent.keyDown(editor, { key: "u", ctrlKey: true });
+    expect(setText).toHaveBeenLastCalledWith("start");
+
+    editor.innerText = "replacement";
+    fireEvent.input(editor);
+    const callCount = setText.mock.calls.length;
+    fireEvent.keyDown(editor, { key: "r", ctrlKey: true });
+    expect(setText).toHaveBeenCalledTimes(callCount);
   });
 
   it("places the caret at the end when another cell is focused programmatically", async () => {

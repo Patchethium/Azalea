@@ -34,6 +34,8 @@
     "conflict": "该快捷键已被占用。",
     "reset": "恢复默认快捷键",
     "reset_all": "全部恢复默认",
+    "undo": "撤销文本编辑",
+    "redo": "重做文本编辑",
     "save_project": "保存项目",
     "export_audio": "导出选中单元格的音频",
     "toggle_playback": "播放或停止选中的单元格",

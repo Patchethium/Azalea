@@ -5,6 +5,8 @@ import {
 } from "$binding";
 
 export const shortcutActions = [
+  "undo",
+  "redo",
   "save_project",
   "export_audio",
   "toggle_playback",
@@ -26,6 +28,20 @@ export const defaultKeyboardShortcuts: Record<
   ShortcutAction,
   ResolvedKeyboardShortcut
 > = {
+  undo: {
+    key: "Z",
+    primary: true,
+    secondary: false,
+    shift: false,
+    alt: false,
+  },
+  redo: {
+    key: "Z",
+    primary: true,
+    secondary: false,
+    shift: true,
+    alt: false,
+  },
   save_project: {
     key: "S",
     primary: true,

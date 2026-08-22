@@ -212,6 +212,24 @@ describe("ShortcutReferenceDialog", () => {
     const saveShortcut = await screen.findByRole("button", {
       name: "Save project: Ctrl + S",
     });
+    const undoShortcut = screen.getByRole("button", {
+      name: "Undo text edit: Ctrl + Z",
+    });
+    expect(undoShortcut.parentElement).toHaveClass("grid");
+    expect(undoShortcut.closest(".overflow-y-auto")).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: "Keyboard Shortcuts" }),
+    ).toHaveClass("max-h-[80vh]");
+    expect(
+      screen
+        .getByRole("button", { name: "Restore all defaults" })
+        .closest(".overflow-y-auto"),
+    ).toBeNull();
+    expect(
+      screen.getByRole("button", {
+        name: "Redo text edit: Ctrl + Shift + Z",
+      }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("button", {
         name: "Play or stop selected cell: Space",

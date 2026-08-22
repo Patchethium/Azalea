@@ -192,6 +192,10 @@ impl KeyboardShortcut {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Type)]
 pub struct KeyboardShortcuts {
+  #[serde(default = "undo_shortcut_default")]
+  pub undo: KeyboardShortcut,
+  #[serde(default = "redo_shortcut_default")]
+  pub redo: KeyboardShortcut,
   #[serde(default = "save_project_shortcut_default")]
   pub save_project: KeyboardShortcut,
   #[serde(default = "export_audio_shortcut_default")]
@@ -207,6 +211,8 @@ pub struct KeyboardShortcuts {
 impl Default for KeyboardShortcuts {
   fn default() -> Self {
     Self {
+      undo: undo_shortcut_default(),
+      redo: redo_shortcut_default(),
       save_project: save_project_shortcut_default(),
       export_audio: export_audio_shortcut_default(),
       toggle_playback: toggle_playback_shortcut_default(),
@@ -214,6 +220,14 @@ impl Default for KeyboardShortcuts {
       play_next: play_next_shortcut_default(),
     }
   }
+}
+
+fn undo_shortcut_default() -> KeyboardShortcut {
+  KeyboardShortcut::new("Z", true, false)
+}
+
+fn redo_shortcut_default() -> KeyboardShortcut {
+  KeyboardShortcut::new("Z", true, true)
 }
 
 fn save_project_shortcut_default() -> KeyboardShortcut {
@@ -312,6 +326,14 @@ mod tests {
       KeyboardShortcut::new("Space", false, false)
     );
     assert_eq!(
+      config.shortcuts.undo,
+      KeyboardShortcut::new("Z", true, false)
+    );
+    assert_eq!(
+      config.shortcuts.redo,
+      KeyboardShortcut::new("Z", true, true)
+    );
+    assert_eq!(
       config.shortcuts.export_audio,
       KeyboardShortcut::new("E", true, false)
     );
@@ -352,6 +374,14 @@ mod tests {
     assert_eq!(
       config.shortcuts.toggle_playback,
       KeyboardShortcut::new("Space", false, false)
+    );
+    assert_eq!(
+      config.shortcuts.undo,
+      KeyboardShortcut::new("Z", true, false)
+    );
+    assert_eq!(
+      config.shortcuts.redo,
+      KeyboardShortcut::new("Z", true, true)
     );
     assert_eq!(
       config.shortcuts.export_audio,
@@ -424,5 +454,7 @@ mod tests {
       restored.shortcuts.toggle_playback,
       config.shortcuts.toggle_playback
     );
+    assert_eq!(restored.shortcuts.undo, config.shortcuts.undo);
+    assert_eq!(restored.shortcuts.redo, config.shortcuts.redo);
   }
 }
