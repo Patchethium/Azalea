@@ -219,6 +219,79 @@ Tier meanings:
 - [ ] Add more locales, theme presets, speaker artwork, and visualization
       customization.
 
+## Milestone: First Public Release
+
+This milestone is the gate for an explicitly early, pre-1.0 public release,
+not for a fully mature product. Azalea is ready when a new user can install it,
+complete its main workflow, recover from common mistakes, and uninstall it
+without help. Validate the gate with packaged release builds from clean
+environments; development machines are not sufficient evidence.
+
+### Core workflow and data safety
+
+- [ ] On a fresh configuration, launch Azalea, configure a compatible VOICEVOX
+      Core, enter and organize text, choose speakers and presets, tune speech,
+      synthesize and play audio, export WAV files, and save and reopen an
+      `.azp` project end to end.
+- [ ] Repeat the primary workflow at least 20 times in a release build without
+      an unexplained crash, corrupted project, lost edit, or incorrect output.
+- [ ] Resolve every known realistic path that can overwrite unrelated files,
+      silently lose or corrupt projects or configuration, delete the wrong
+      data, or execute unintended input; any such issue blocks release.
+- [ ] Confirm that interrupted or failed saves leave the previous project
+      recoverable and that closing Azalea during active work cannot corrupt
+      persistent state.
+
+### Clean installation and upgrade
+
+- [ ] Test the packaged artifact on a clean machine or VM for every advertised
+      target: Windows, macOS Apple Silicon, and at least one supported Linux
+      distribution.
+- [ ] On each target, verify installation, first launch, VOICEVOX Core setup,
+      filesystem permissions, non-ASCII user and project paths, and complete
+      uninstallation without relying on developer tools or pre-existing caches.
+- [ ] Install a previous release, create realistic settings and projects, then
+      upgrade in place and verify that settings, projects, Core paths, and model
+      identities survive and obsolete or malformed configuration cannot crash
+      startup.
+
+### Failures, recovery, and diagnostics
+
+- [ ] Exercise missing and incompatible Core assets, a failed Core process,
+      invalid or unsupported projects, corrupted configuration, inaccessible
+      and read-only output directories, low disk space, interrupted operations,
+      a second application launch, and closing while work is running.
+- [ ] Present actionable user-facing errors for those cases, including the
+      failing path or component and a recovery or retry action where possible;
+      do not expose a panic or require console inspection for ordinary failure.
+- [ ] Document how to locate and reset configuration and caches, select or
+      reinstall Core assets, find logs, and reinstall Azalea without deleting
+      unrelated user data or projects.
+- [ ] Add a copyable diagnostic report containing the Azalea version, OS and
+      architecture, Tauri and WebView/WebKitGTK versions where available,
+      VOICEVOX Core version, relevant paths, and useful recent errors or logs.
+
+### Stability, responsiveness, and resources
+
+- [ ] Complete a one-to-two-hour release-build soak test covering repeated
+      synthesis, rapid edits and selection changes, cancellation, project and
+      window reopening, sleep and wake, and Core termination and recovery.
+- [ ] Verify that ordinary interaction remains responsive enough not to appear
+      hung; document known platform-specific limitations such as slower Linux
+      rendering when they are acceptable for an early release.
+- [ ] Measure memory, model and waveform caches, GPU memory where practical,
+      temporary files, and child processes during the soak test, and resolve
+      unbounded growth or resources that remain leaked after work completes.
+
+### Release provenance
+
+- [ ] Build and test the final artifacts from a clean checkout after all
+      required frontend and Rust checks pass.
+- [ ] Synchronize release and license metadata, create a versioned Git tag, and
+      verify that every published artifact corresponds exactly to that tag.
+- [ ] Smoke-test the actual downloadable artifacts on every advertised target
+      before publishing the release or announcing it publicly.
+
 ## Recommended Implementation Order
 
 1. Empty-project invariants, project recovery, and visible errors.
