@@ -19,7 +19,7 @@ export function showSuccessToast(message: string, closeLabel: string) {
     <Toast.Root
       toastId={props.toastId}
       priority="high"
-      class="relative flex items-center gap3 overflow-hidden rounded-lg bg-white p3 pr2 shadow-lg outline-none dark:bg-slate-8"
+      class="relative flex items-center gap3 overflow-hidden rounded-lg border border-slate-2 bg-white p3 pr2 shadow-lg outline-none dark:bg-slate-8"
     >
       <Toast.Title class="min-w-0 flex-1 text-sm font-medium">
         {message}
