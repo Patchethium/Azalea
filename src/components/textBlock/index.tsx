@@ -1,4 +1,5 @@
 import { type AudioQuery, commands } from "$binding";
+import { showSuccessToast } from "@components/toast";
 import { useTextBlockSynthesis } from "@components/textBlock/useSynthesis";
 import { TextBlockView } from "@components/textBlock/View";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
@@ -14,6 +15,7 @@ import {
 } from "solid-js";
 import { produce, unwrap } from "solid-js/store";
 import { useConfigStore } from "@contexts/config";
+import { usei18n } from "@contexts/i18n";
 import { useMetaStore } from "@contexts/meta";
 import { useSystemStore } from "@contexts/system";
 import {
@@ -45,6 +47,7 @@ function TextBlock(props: { index: number }) {
   const { systemStore } = useSystemStore()!;
   const { setUIStore } = useUIStore()!;
   const { config, setConfig } = useConfigStore()!;
+  const { t1 } = usei18n()!;
   const currentText = createMemo(() => textStore[props.index]);
   const [caretOffset, setCaretOffset] = createSignal<number | null>(null);
   const currentQuery = createMemo(() => currentText().query);
@@ -161,26 +164,46 @@ function TextBlock(props: { index: number }) {
     const pinnedDir = config.ui.default_export_dir_enabled
       ? config.ui.default_export_dir
       : undefined;
-    let lastSavedDir = pinnedDir ?? config.ui.last_exported_dir;
-    if (lastSavedDir == null) {
-      const home = await commands.homeDir();
-      lastSavedDir = home ?? ".";
+    const silentExportDir = config.ui.silent_save ? pinnedDir : undefined;
+    const preventOverwrite = config.ui.prevent_overwrite === true;
+    const preventOverwriteOnSave = silentExportDir != null && preventOverwrite;
+    let path: string;
+    if (silentExportDir != null) {
+      path = await commands.joinPath(silentExportDir, fileName);
+    } else {
+      let lastSavedDir = pinnedDir ?? config.ui.last_exported_dir;
+      if (lastSavedDir == null) {
+        const home = await commands.homeDir();
+        lastSavedDir = home ?? ".";
+      }
+      let targetPath = await commands.joinPath(lastSavedDir, fileName);
+      if (!targetPath.endsWith(".wav")) targetPath = targetPath.concat(".wav");
+      if (preventOverwrite) {
+        const resolvedPath = await commands.resolveAudioSavePath(targetPath);
+        if (resolvedPath.status === "ok") {
+          targetPath = resolvedPath.data;
+        } else {
+          console.error(resolvedPath.error);
+        }
+      }
+      const selectedPath = await saveDialog({
+        title: "Save Audio",
+        filters: [{ name: "Audio", extensions: ["wav"] }],
+        defaultPath: targetPath,
+      });
+      if (selectedPath === null) return;
+      path = selectedPath;
     }
-    const targetPath = await commands.joinPath(lastSavedDir, fileName);
-    let path = await saveDialog({
-      title: "Save Audio",
-      filters: [{ name: "Audio", extensions: ["wav"] }],
-      defaultPath: targetPath,
-    });
-    if (path === null) return;
     if (!path.endsWith(".wav")) path = path.concat(".wav");
     const result = await commands.saveAudio(
       path,
       getModifiedQuery(unwrap(currentText().query!), preset),
       preset.style_id,
+      preventOverwriteOnSave,
     );
     if (result.status === "ok") {
-      const parent = await commands.parentPath(path);
+      showSuccessToast(t1("toast.audio_exported"), t1("toast.close"));
+      const parent = await commands.parentPath(result.data);
       setConfig("ui", "last_exported_dir", parent);
     } else {
       console.error(result.error);

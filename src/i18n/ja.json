@@ -9,6 +9,11 @@
     "later.button": "ええで"
   },
   "loading": "ローディング中",
+  "toast": {
+    "notifications": "通知",
+    "close": "通知を閉じる",
+    "audio_exported": "音声を書き出しました"
+  },
   "bottom": {
     "no_query": "テキストを入力してください",
     "no_block": "テキストセルが選択されていません",
@@ -149,6 +154,8 @@
     "spectrogram_preview": "スペクトログラムプレビュー",
     "default_export_dir": "デフォルトの書き出し先",
     "export_dir_path": "ディレクトリ",
+    "silent_save": "サイレント保存",
+    "prevent_overwrite": "上書きを防止",
     "no_default_export_dir": "未設定",
     "pick_export_dir": "書き出し先を選択",
     "enable_export_dir": "デフォルトの書き出し先を有効にする",

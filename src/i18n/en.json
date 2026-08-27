@@ -9,6 +9,11 @@
     "later.button": "Okay"
   },
   "loading": "Loading",
+  "toast": {
+    "notifications": "Notifications",
+    "close": "Close notification",
+    "audio_exported": "Audio exported successfully"
+  },
   "bottom": {
     "no_query": "No Query",
     "no_block": "No text cell selected",
@@ -140,6 +145,8 @@
     "spectrogram_preview": "Spectrogram Preview",
     "default_export_dir": "Default export directory",
     "export_dir_path": "Directory",
+    "silent_save": "Silent save",
+    "prevent_overwrite": "Prevent overwrite",
     "no_default_export_dir": "Not set",
     "pick_export_dir": "Choose export directory",
     "enable_export_dir": "Enable default export directory",

@@ -9,6 +9,11 @@
     "later.button": "好的"
   },
   "loading": "加载中",
+  "toast": {
+    "notifications": "通知",
+    "close": "关闭通知",
+    "audio_exported": "音频导出成功"
+  },
   "bottom": {
     "no_query": "尚无查询",
     "no_block": "未选择文本单元格",
@@ -140,6 +145,8 @@
     "spectrogram_preview": "频谱图预览",
     "default_export_dir": "默认导出目录",
     "export_dir_path": "目录",
+    "silent_save": "静默保存",
+    "prevent_overwrite": "防止覆盖",
     "no_default_export_dir": "未设置",
     "pick_export_dir": "选择导出目录",
     "enable_export_dir": "启用默认导出目录",

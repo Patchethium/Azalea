@@ -1,6 +1,7 @@
 import { events } from "$binding";
 import Resizable from "@corvu/resizable";
 import ConfigPage from "@dialogs/config";
+import { AppToastRegion } from "@components/toast";
 import { TitleBar } from "@components/titleBar";
 import InitPage from "@layout/InitPage";
 import MainPage from "@layout/MainPage";
@@ -226,6 +227,7 @@ function App() {
           </Show>
         </Show>
       </div>
+      <AppToastRegion />
     </main>
   );
 }

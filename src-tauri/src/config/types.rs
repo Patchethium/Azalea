@@ -95,6 +95,10 @@ pub struct UIConfig {
   #[serde(default)]
   pub default_export_dir_enabled: bool,
   #[serde(default)]
+  pub silent_save: bool,
+  #[serde(default)]
+  pub prevent_overwrite: bool,
+  #[serde(default)]
   pub last_exported_dir: Option<String>,
   #[serde(default)]
   pub shortcuts: KeyboardShortcuts,
@@ -119,6 +123,8 @@ impl Default for UIConfig {
       name_truncation_len: name_truncation_len_default(),
       default_export_dir: None,
       default_export_dir_enabled: false,
+      silent_save: false,
+      prevent_overwrite: false,
       last_exported_dir: None,
       shortcuts: Default::default(),
     }
@@ -320,6 +326,8 @@ mod tests {
     assert!(config.custom_titlebar);
     assert!(config.default_export_dir.is_none());
     assert!(!config.default_export_dir_enabled);
+    assert!(!config.silent_save);
+    assert!(!config.prevent_overwrite);
     assert!(config.last_exported_dir.is_none());
     assert_eq!(
       config.shortcuts.toggle_playback,

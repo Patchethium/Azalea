@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@solidjs/testing-library";
 import { clearMocks } from "@tauri-apps/api/mocks";
+import { toaster } from "@kobalte/core/toast";
 import { afterEach, beforeEach, vi } from "vitest";
 
 class ResizeObserverMock {
@@ -65,6 +66,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  toaster.clear();
   clearMocks();
   vi.unstubAllEnvs();
   vi.useRealTimers();

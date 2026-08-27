@@ -108,7 +108,38 @@ export function ConfigPage() {
             <ConfigItem label={t1("config.export_dir_path")} nested>
               <DefaultExportDirSetting />
             </ConfigItem>
+            <ConfigItem label={t1("config.silent_save")} nested>
+              <Switch
+                checked={config.ui.silent_save ?? false}
+                disabled={config.ui.default_export_dir == null}
+                onChange={(value) => setConfig("ui", "silent_save", value)}
+                class="inline-flex cursor-pointer select-none items-center justify-center ui-disabled:(cursor-not-allowed opacity-50)"
+              >
+                <Switch.Input
+                  aria-label={t1("config.silent_save")}
+                  class="outline-2px"
+                />
+                <Switch.Control class="h-6 w-12 rounded-full bg-slate-3 p1 ui-checked:bg-primary-5 dark:bg-slate-6 dark:ui-checked:bg-primary-5">
+                  <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:translate-x-6" />
+                </Switch.Control>
+              </Switch>
+            </ConfigItem>
           </Show>
+          <ConfigItem label={t1("config.prevent_overwrite")}>
+            <Switch
+              checked={config.ui.prevent_overwrite ?? false}
+              onChange={(value) => setConfig("ui", "prevent_overwrite", value)}
+              class="inline-flex cursor-pointer select-none items-center justify-center"
+            >
+              <Switch.Input
+                aria-label={t1("config.prevent_overwrite")}
+                class="outline-2px"
+              />
+              <Switch.Control class="h-6 w-12 rounded-full bg-slate-3 p1 ui-checked:bg-primary-5 dark:bg-slate-6 dark:ui-checked:bg-primary-5">
+                <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:translate-x-6" />
+              </Switch.Control>
+            </Switch>
+          </ConfigItem>
           <ConfigItem label={t1("config.truncation_len")}>
             <NumberField
               minValue={0}

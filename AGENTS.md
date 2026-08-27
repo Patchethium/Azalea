@@ -34,6 +34,29 @@ unversioned files, and rejection of unsupported versions. A disk-wrapper-only
 change does not require regenerating `src/binding.ts`; changes to registered
 command signatures or shared Rust command types do.
 
+## Audio File Export
+
+The default export directory controls the initial directory shown by the
+native save dialog. `UIConfig.silent_save` is effective only when that default
+directory is enabled and set; silent exports skip the dialog and write the
+audio there using the generated default `.wav` filename.
+
+`UIConfig.prevent_overwrite` is independent of the default export directory.
+For dialog-based exports, resolve the next available default path through the
+Rust `resolve_audio_save_path` command before opening the dialog so the user
+sees a suffix such as `(2)` in the suggested filename. Once the native dialog
+returns a path, treat that path as authoritative and do not apply overwrite
+prevention again during the write: the user may have confirmed an overwrite in
+the native dialog.
+
+For silent exports, where no native confirmation is possible, keep overwrite
+prevention in Rust. Create the output file exclusively and retry with `(n)`
+before the extension, beginning with `(2)`, until an available path is found.
+Return the actual saved path to the frontend and use it when remembering the
+export directory. Show the success toast only after the write succeeds. Cover
+the dialog default-path behavior in frontend tests and the exclusive numbered
+write behavior with Rust temporary-directory tests.
+
 ## Spectrogram Preview
 
 The pitch-tuning panel in `src/components/BottomPanel.tsx` renders a mel spectrogram on a canvas behind the pitch controls. Do not show it in the accent panel. Its width follows the editable mora-duration timeline; configured leading and trailing silence is cropped from the preview so the image remains aligned with that timeline.

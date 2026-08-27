@@ -16,7 +16,9 @@ use crate::{audio::AudioPlayer, core::Core};
 use std::future::Future;
 #[cfg(test)]
 use std::io::Cursor;
+use std::io::Write;
 use std::num::NonZeroUsize;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -716,7 +718,83 @@ pub async fn stop_audio(state: State<'_, AppState>) -> std::result::Result<(), S
   Ok(())
 }
 
-/// Save the audio waveform to a file
+fn numbered_audio_path(path: &Path, number: usize) -> PathBuf {
+  let mut file_name = path
+    .file_stem()
+    .unwrap_or_else(|| path.as_os_str())
+    .to_os_string();
+  file_name.push(format!("({number})"));
+  if let Some(extension) = path.extension() {
+    file_name.push(".");
+    file_name.push(extension);
+  }
+  path.with_file_name(file_name)
+}
+
+fn next_available_audio_path(path: &Path) -> Result<PathBuf, String> {
+  if !path.exists() {
+    return Ok(path.to_path_buf());
+  }
+
+  let mut number = 2usize;
+  loop {
+    let candidate = numbered_audio_path(path, number);
+    if !candidate.exists() {
+      return Ok(candidate);
+    }
+    number = number
+      .checked_add(1)
+      .ok_or("Could not find an available audio filename")?;
+  }
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn resolve_audio_save_path(path: String) -> Result<String, String> {
+  Ok(
+    next_available_audio_path(Path::new(&path))?
+      .to_string_lossy()
+      .into_owned(),
+  )
+}
+
+fn write_audio_file(
+  path: &Path,
+  waveform: &[u8],
+  prevent_overwrite: bool,
+) -> Result<PathBuf, String> {
+  if !prevent_overwrite {
+    std::fs::write(path, waveform).map_err(|e| e.to_string())?;
+    return Ok(path.to_path_buf());
+  }
+
+  let mut number = 1usize;
+  loop {
+    let candidate = if number == 1 {
+      path.to_path_buf()
+    } else {
+      numbered_audio_path(path, number)
+    };
+    match std::fs::OpenOptions::new()
+      .write(true)
+      .create_new(true)
+      .open(&candidate)
+    {
+      Ok(mut file) => {
+        file.write_all(waveform).map_err(|e| e.to_string())?;
+        return Ok(candidate);
+      }
+      Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+        number = number
+          .checked_add(1)
+          .ok_or("Could not find an available audio filename")?;
+      }
+      Err(error) => return Err(error.to_string()),
+    }
+  }
+}
+
+/// Save the audio waveform to a file.
 #[tauri::command]
 #[specta::specta]
 pub async fn save_audio(
@@ -725,6 +803,7 @@ pub async fn save_audio(
   path: String,
   audio_query: AudioQuery,
   speaker_id: StyleId,
+  prevent_overwrite: bool,
 ) -> std::result::Result<String, String> {
   let waveform = synthesize_cached(
     &app,
@@ -735,8 +814,8 @@ pub async fn save_audio(
     SynthesisBackend::Blocking,
   )
   .await?;
-  std::fs::write(&path, waveform).map_err(|e| e.to_string())?;
-  Ok(path)
+  let saved_path = write_audio_file(Path::new(&path), &waveform, prevent_overwrite)?;
+  Ok(saved_path.to_string_lossy().into_owned())
 }
 
 #[tauri::command]
@@ -874,6 +953,35 @@ mod tests {
       Err("hash must not be empty".into())
     );
     assert!(validate_synthesis_request(&synthesis_request("block", "hash")).is_ok());
+  }
+
+  #[test]
+  fn prevent_overwrite_uses_numbered_audio_paths() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("voice.sample.wav");
+
+    let first = write_audio_file(&path, b"first", true).unwrap();
+    assert_eq!(
+      next_available_audio_path(&path).unwrap(),
+      directory.path().join("voice.sample(2).wav")
+    );
+    let second = write_audio_file(&path, b"second", true).unwrap();
+    assert_eq!(
+      next_available_audio_path(&path).unwrap(),
+      directory.path().join("voice.sample(3).wav")
+    );
+    let third = write_audio_file(&path, b"third", true).unwrap();
+
+    assert_eq!(first, path);
+    assert_eq!(second, directory.path().join("voice.sample(2).wav"));
+    assert_eq!(third, directory.path().join("voice.sample(3).wav"));
+    assert_eq!(std::fs::read(&first).unwrap(), b"first");
+    assert_eq!(std::fs::read(&second).unwrap(), b"second");
+    assert_eq!(std::fs::read(&third).unwrap(), b"third");
+
+    let overwritten = write_audio_file(&path, b"replacement", false).unwrap();
+    assert_eq!(overwritten, path);
+    assert_eq!(std::fs::read(overwritten).unwrap(), b"replacement");
   }
 
   #[test]

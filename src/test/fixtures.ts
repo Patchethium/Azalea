@@ -87,6 +87,8 @@ export const config = (
     name_truncation_len: 0,
     default_export_dir: null,
     default_export_dir_enabled: false,
+    silent_save: false,
+    prevent_overwrite: false,
     last_exported_dir: null,
     shortcuts: {},
     ...overrides,

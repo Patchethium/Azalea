@@ -242,12 +242,28 @@ describe("ConfigPage", () => {
     expect(
       screen.queryByRole("button", { name: "Choose export directory" }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("switch", { name: "Silent save" }),
+    ).not.toBeInTheDocument();
+    appConfig.setConfig("ui", "prevent_overwrite", undefined);
+    const preventOverwrite = screen.getByRole("switch", {
+      name: "Prevent overwrite",
+    });
+    expect(preventOverwrite).toBeEnabled();
+    expect(preventOverwrite).not.toBeChecked();
+    expect(preventOverwrite.closest(".pl-6")).toBeNull();
+    fireEvent.click(preventOverwrite);
+    expect(preventOverwrite).toBeChecked();
+    expect(appConfig.config.ui.prevent_overwrite).toBe(true);
     vi.mocked(openDialog).mockResolvedValue("/exports");
 
     fireEvent.click(toggle);
     expect(appConfig.config.ui.default_export_dir_enabled).toBe(true);
     expect(screen.getByText("Directory")).toBeInTheDocument();
     expect(screen.getByText("Not set")).toBeInTheDocument();
+    const silentSave = screen.getByRole("switch", { name: "Silent save" });
+    expect(silentSave).toBeDisabled();
+    expect(silentSave).not.toBeChecked();
 
     fireEvent.click(
       screen.getByRole("button", { name: "Choose export directory" }),
@@ -263,6 +279,10 @@ describe("ConfigPage", () => {
     expect(screen.queryByText("Not set")).not.toBeInTheDocument();
     expect(screen.getByText("/exports")).toBeInTheDocument();
     expect(toggle).toBeChecked();
+    expect(silentSave).toBeEnabled();
+    fireEvent.click(silentSave);
+    expect(silentSave).toBeChecked();
+    expect(appConfig.config.ui.silent_save).toBe(true);
 
     fireEvent.click(toggle);
     expect(appConfig.config.ui.default_export_dir_enabled).toBe(false);
@@ -273,10 +293,19 @@ describe("ConfigPage", () => {
     expect(
       screen.queryByRole("button", { name: "Choose export directory" }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("switch", { name: "Silent save" }),
+    ).not.toBeInTheDocument();
+    expect(preventOverwrite).toBeInTheDocument();
+    expect(preventOverwrite).toBeChecked();
 
     fireEvent.click(toggle);
     expect(appConfig.config.ui.default_export_dir_enabled).toBe(true);
     expect(screen.getByText("/exports")).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Silent save" })).toBeChecked();
+    expect(
+      screen.getByRole("switch", { name: "Prevent overwrite" }),
+    ).toBeChecked();
     fireEvent.click(
       screen.getByRole("button", { name: "Choose export directory" }),
     );

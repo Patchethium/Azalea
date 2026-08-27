@@ -306,12 +306,20 @@ async stopAudio() : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
-/**
- * Save the audio waveform to a file
- */
-async saveAudio(path: string, audioQuery: AudioQuery, speakerId: StyleId) : Promise<Result<string, string>> {
+async resolveAudioSavePath(path: string) : Promise<Result<string, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("save_audio", { path, audioQuery, speakerId }) };
+    return { status: "ok", data: await TAURI_INVOKE("resolve_audio_save_path", { path }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Save the audio waveform to a file.
+ */
+async saveAudio(path: string, audioQuery: AudioQuery, speakerId: StyleId, preventOverwrite: boolean) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_audio", { path, audioQuery, speakerId, preventOverwrite }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -757,7 +765,7 @@ export type SynthesisJobRequest = { blockId: string; generationId: number; audio
 export type SynthesisJobState = "Queued" | "Running" | "Completed" | "Failed" | "Cancelled" | "Evicted"
 export type TextBlockProps = { id: string; text: string; query: AudioQuery | null; query_is_modified: boolean; preset_id: string | null }
 export type ThemeMode = "System" | "Light" | "Dark"
-export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; custom_titlebar?: boolean; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; side_width?: number; buffer_render?: boolean; nonblocking_synthesis?: boolean; synthesis_delay_ms?: number; spectrogram_preview?: boolean; playback_timeline?: boolean; name_truncation_len?: number; default_export_dir?: string | null; default_export_dir_enabled?: boolean; last_exported_dir?: string | null; shortcuts?: KeyboardShortcuts }
+export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; custom_titlebar?: boolean; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; side_width?: number; buffer_render?: boolean; nonblocking_synthesis?: boolean; synthesis_delay_ms?: number; spectrogram_preview?: boolean; playback_timeline?: boolean; name_truncation_len?: number; default_export_dir?: string | null; default_export_dir_enabled?: boolean; silent_save?: boolean; prevent_overwrite?: boolean; last_exported_dir?: string | null; shortcuts?: KeyboardShortcuts }
 
 /** tauri-specta globals **/
 

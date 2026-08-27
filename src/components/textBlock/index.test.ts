@@ -228,6 +228,9 @@ describe("TextBlock", () => {
 
   it("refreshes queries after editing and reflects buffered synthesis state", async () => {
     mockIPC(() => null, { shouldMockEvents: true });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
     const query = vi
       .spyOn(commands, "audioQuery")
       .mockImplementation(async (text) => ({
@@ -256,6 +259,14 @@ describe("TextBlock", () => {
     getConfigStore().setConfig("ui", "buffer_render", false);
     await waitFor(() =>
       expect(screen.queryByRole("status")).not.toBeInTheDocument(),
+    );
+
+    query.mockResolvedValueOnce({ status: "error", error: "query failed" });
+    editor.innerText = "broken";
+    fireEvent.input(editor);
+    await waitFor(
+      () => expect(consoleError).toHaveBeenCalledWith("query failed"),
+      { timeout: 1_500 },
     );
   });
 
@@ -781,10 +792,25 @@ describe("TextBlock", () => {
         postPhonemeLength: 0.2,
       },
       1,
+      false,
     ]);
     await waitFor(() =>
       expect(getConfigStore().config.ui.last_exported_dir).toBe("/exports"),
     );
+    const successToast = await screen.findByRole("status", {
+      name: "Audio exported successfully",
+    });
+    expect(successToast).toHaveClass(
+      "rounded-lg",
+      "border",
+      "border-slate-2",
+      "shadow-lg",
+    );
+    const progressTrack = successToast.querySelector('[role="presentation"]');
+    expect(progressTrack).toHaveClass("bg-primary-2");
+    expect(progressTrack?.firstElementChild).toHaveClass("bg-primary-5");
+    fireEvent.click(screen.getByRole("button", { name: "Close notification" }));
+    expect(successToast).toHaveAttribute("data-closed");
   });
 
   it("exports the selected text cell with Ctrl+E", async () => {
@@ -810,6 +836,7 @@ describe("TextBlock", () => {
       "/exports/rendered.wav",
       expect.any(Object),
       1,
+      false,
     );
   });
 
@@ -844,10 +871,63 @@ describe("TextBlock", () => {
       "/pinned/rendered.wav",
       expect.any(Object),
       1,
+      false,
     ]);
   });
 
-  it("ignores the pinned default export directory when the toggle is off", async () => {
+  it("silently saves with the default name and forwards overwrite prevention", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    vi.spyOn(commands, "audioQuery").mockResolvedValue({
+      status: "ok",
+      data: audioQuery(),
+    });
+    const joinPath = vi
+      .spyOn(commands, "joinPath")
+      .mockResolvedValue("/pinned/hello");
+    const saveAudio = vi
+      .spyOn(commands, "saveAudio")
+      .mockResolvedValueOnce({ status: "ok", data: "/pinned/hello.wav" })
+      .mockResolvedValueOnce({ status: "ok", data: "/pinned/hello(2).wav" });
+    const parentPath = vi
+      .spyOn(commands, "parentPath")
+      .mockResolvedValue("/pinned");
+
+    const { getConfigStore } = renderBlock(false);
+    const saveButton = await screen.findByRole("button", {
+      name: "Save audio",
+    });
+    await waitFor(() => expect(saveButton).toBeEnabled());
+    getConfigStore().setConfig("ui", "default_export_dir", "/pinned");
+    getConfigStore().setConfig("ui", "default_export_dir_enabled", true);
+    getConfigStore().setConfig("ui", "silent_save", true);
+    fireEvent.click(saveButton);
+
+    await waitFor(() => expect(saveAudio).toHaveBeenCalledOnce());
+    expect(saveDialog).not.toHaveBeenCalled();
+    expect(joinPath).toHaveBeenCalledWith("/pinned", "hello");
+    expect(saveAudio).toHaveBeenNthCalledWith(
+      1,
+      "/pinned/hello.wav",
+      expect.any(Object),
+      1,
+      false,
+    );
+
+    getConfigStore().setConfig("ui", "prevent_overwrite", true);
+    fireEvent.click(saveButton);
+
+    await waitFor(() => expect(saveAudio).toHaveBeenCalledTimes(2));
+    expect(saveAudio).toHaveBeenNthCalledWith(
+      2,
+      "/pinned/hello.wav",
+      expect.any(Object),
+      1,
+      true,
+    );
+    expect(parentPath).toHaveBeenCalledWith("/pinned/hello(2).wav");
+  });
+
+  it("uses the save dialog and overwrite prevention when the default directory is off", async () => {
     mockIPC(() => null, { shouldMockEvents: true });
     vi.spyOn(commands, "audioQuery").mockResolvedValue({
       status: "ok",
@@ -856,10 +936,13 @@ describe("TextBlock", () => {
     const joinPath = vi
       .spyOn(commands, "joinPath")
       .mockResolvedValue("/last/hello");
-    vi.mocked(saveDialog).mockResolvedValue("/last/rendered.wav");
+    const resolveAudioSavePath = vi
+      .spyOn(commands, "resolveAudioSavePath")
+      .mockResolvedValue({ status: "ok", data: "/last/hello(2).wav" });
+    vi.mocked(saveDialog).mockResolvedValue("/last/hello.wav");
     const saveAudio = vi
       .spyOn(commands, "saveAudio")
-      .mockResolvedValue({ status: "ok", data: "/last/rendered.wav" });
+      .mockResolvedValue({ status: "ok", data: "/last/hello.wav" });
     vi.spyOn(commands, "parentPath").mockResolvedValue("/last");
 
     const { getConfigStore } = renderBlock(false);
@@ -869,15 +952,25 @@ describe("TextBlock", () => {
     await waitFor(() => expect(saveButton).toBeEnabled());
     getConfigStore().setConfig("ui", "default_export_dir", "/pinned");
     getConfigStore().setConfig("ui", "default_export_dir_enabled", false);
+    getConfigStore().setConfig("ui", "silent_save", true);
+    getConfigStore().setConfig("ui", "prevent_overwrite", true);
     getConfigStore().setConfig("ui", "last_exported_dir", "/last");
     fireEvent.click(saveButton);
 
     await waitFor(() => expect(saveAudio).toHaveBeenCalledOnce());
     expect(joinPath).toHaveBeenCalledWith("/last", "hello");
+    expect(resolveAudioSavePath).toHaveBeenCalledWith("/last/hello.wav");
+    expect(saveDialog).toHaveBeenCalledWith({
+      title: "Save Audio",
+      filters: [{ name: "Audio", extensions: ["wav"] }],
+      defaultPath: "/last/hello(2).wav",
+    });
+    expect(saveDialog).toHaveBeenCalledOnce();
     expect(saveAudio.mock.calls[0]).toMatchObject([
-      "/last/rendered.wav",
+      "/last/hello.wav",
       expect.any(Object),
       1,
+      false,
     ]);
   });
 
@@ -915,6 +1008,7 @@ describe("TextBlock", () => {
       "/home/user/rendered.wav",
       expect.any(Object),
       1,
+      false,
     ]);
   });
 
@@ -928,6 +1022,12 @@ describe("TextBlock", () => {
     const joinPath = vi
       .spyOn(commands, "joinPath")
       .mockResolvedValue("/custom/hello");
+    const resolveAudioSavePath = vi
+      .spyOn(commands, "resolveAudioSavePath")
+      .mockResolvedValue({
+        status: "error",
+        error: "path resolution failed",
+      });
     vi.mocked(saveDialog)
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce("/custom/rendered.wav");
@@ -942,6 +1042,7 @@ describe("TextBlock", () => {
     await waitFor(() => expect(saveButton).toBeEnabled());
 
     getConfigStore().setConfig("ui", "last_exported_dir", "/custom");
+    getConfigStore().setConfig("ui", "prevent_overwrite", true);
     getConfigStore().setConfig("ui", "name_truncation_len", 4);
     fireEvent.click(saveButton);
     await waitFor(() => expect(saveDialog).toHaveBeenCalledOnce());
@@ -951,12 +1052,25 @@ describe("TextBlock", () => {
     fireEvent.click(saveButton);
     await waitFor(() => expect(saveAudio).toHaveBeenCalledOnce());
     expect(joinPath).toHaveBeenLastCalledWith("/custom", "hello");
+    expect(resolveAudioSavePath).toHaveBeenLastCalledWith("/custom/hello.wav");
+    expect(saveDialog).toHaveBeenLastCalledWith({
+      title: "Save Audio",
+      filters: [{ name: "Audio", extensions: ["wav"] }],
+      defaultPath: "/custom/hello.wav",
+    });
     expect(saveAudio).toHaveBeenCalledWith(
       "/custom/rendered.wav",
       expect.any(Object),
       1,
+      false,
     );
+    expect(console.error).toHaveBeenCalledWith("path resolution failed");
     expect(console.error).toHaveBeenCalledWith("export failed");
+    expect(
+      screen.queryByRole("status", {
+        name: "Audio exported successfully",
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it("moves and removes cells while keeping selection on the same content", async () => {

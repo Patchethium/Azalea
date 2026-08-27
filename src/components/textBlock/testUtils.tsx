@@ -1,4 +1,5 @@
 import TextBlock from "@components/textBlock";
+import { AppToastRegion } from "@components/toast";
 import type { AzaleaConfig } from "$binding";
 import { MultiProvider } from "@solid-primitives/context";
 import { render } from "@solidjs/testing-library";
@@ -59,12 +60,17 @@ export const renderBlock = (
         );
       });
     });
-    return renderAllBlocks ? (
-      <For each={text.textStore}>
-        {(_, index) => <TextBlock index={index()} />}
-      </For>
-    ) : (
-      <TextBlock index={0} />
+    return (
+      <>
+        <AppToastRegion />
+        {renderAllBlocks ? (
+          <For each={text.textStore}>
+            {(_, index) => <TextBlock index={index()} />}
+          </For>
+        ) : (
+          <TextBlock index={0} />
+        )}
+      </>
     );
   };
   const result = render(() => (
