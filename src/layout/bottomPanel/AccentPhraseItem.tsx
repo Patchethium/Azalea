@@ -88,30 +88,32 @@ export function AccentPhraseItem(props: AccentPhraseItemProps) {
 
   return (
     <div class="flex flex-col h-full items-center justify-center">
-      <Slider
-        class="relative flex flex-col w-full select-none items-center py1"
-        classList={{ pr12: props.mode !== "accent" }}
-        minValue={1}
-        maxValue={props.phrase.moras.length}
-        step={1}
-        value={[props.phrase.accent]}
-        onChange={(value) => setAccent(value[0])}
-        onChangeEnd={() => {
-          if (props.mode !== "accent") props.refreshMoraData();
-        }}
-      >
-        <Show when={props.label}>
-          <Slider.Label class="sr-only">{props.label}</Slider.Label>
-        </Show>
-        <div class="w-full flex p1">
-          <Slider.Track class="w-full h-2 bg-slate-2 dark:bg-slate-6 rounded-full relative ui-disabled:cursor-not-allowed">
-            <Slider.Fill class="absolute bg-primary-5 rounded-full h-full ui-disabled:bg-primary-2" />
-            <Slider.Thumb class="block w-2 h-4 bg-primary-5 ui-disabled:bg-primary-2 rounded-sm -top-1 outline-none">
-              <Slider.Input />
-            </Slider.Thumb>
-          </Slider.Track>
-        </div>
-      </Slider>
+      <Show when={props.phrase.moras.length > 1}>
+        <Slider
+          class="relative flex flex-col w-full select-none items-center py1"
+          classList={{ pr12: props.mode !== "accent" }}
+          minValue={1}
+          maxValue={props.phrase.moras.length}
+          step={1}
+          value={[props.phrase.accent]}
+          onChange={(value) => setAccent(value[0])}
+          onChangeEnd={() => {
+            if (props.mode !== "accent") props.refreshMoraData();
+          }}
+        >
+          <Show when={props.label}>
+            <Slider.Label class="sr-only">{props.label}</Slider.Label>
+          </Show>
+          <div class="w-full flex p1">
+            <Slider.Track class="w-full h-2 bg-slate-2 dark:bg-slate-6 rounded-full relative ui-disabled:cursor-not-allowed">
+              <Slider.Fill class="absolute bg-primary-5 rounded-full h-full ui-disabled:bg-primary-2" />
+              <Slider.Thumb class="block w-2 h-4 bg-primary-5 ui-disabled:bg-primary-2 rounded-sm -top-1 outline-none">
+                <Slider.Input />
+              </Slider.Thumb>
+            </Slider.Track>
+          </div>
+        </Slider>
+      </Show>
       <div class="relative flex flex-row h-24">
         <For each={props.phrase.moras}>
           {(mora, index) => {
@@ -129,8 +131,8 @@ export function AccentPhraseItem(props: AccentPhraseItemProps) {
                 <div
                   class="size-8 bg-primary-1 dark:bg-primary-9 items-center justify-center flex rounded-md text-sm select-none"
                   classList={{
-                    "mt-10": !high(),
-                    "mb-10": high(),
+                    "mt-10": props.phrase.moras.length > 1 && !high(),
+                    "mb-10": props.phrase.moras.length > 1 && high(),
                     "text-slate-5 dark:text-slate-4":
                       props.mutedMoraIndex === index(),
                     "b b-primary-3":

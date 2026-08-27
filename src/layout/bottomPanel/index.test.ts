@@ -1669,7 +1669,7 @@ describe("BottomPanel playback", () => {
     expect(durationTargets).toHaveLength(2);
     fireEvent.mouseDown(durationTargets[0], { clientX: 10 });
     fireEvent.mouseDown(durationTargets[1], { clientX: 20 });
-    expect(container.querySelectorAll('[role="slider"]')).toHaveLength(2);
+    expect(container.querySelectorAll('[role="slider"]')).toHaveLength(1);
   });
 
   it("handles spectrogram failures and playback-triggered refreshes", async () => {
