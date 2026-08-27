@@ -133,8 +133,10 @@ the suite instead of silently skipping the real-core test.
 90% statement, branch, function, and line coverage.
 
 Install [`cargo-llvm-cov`](https://github.com/taiki-e/cargo-llvm-cov), then run
-`pnpm test:coverage:rust` for an informational Rust coverage report. The Rust
-coverage suite runs every Rust test but does not enforce a threshold.
+`pnpm test:coverage:rust` for an informational Rust coverage report, including
+branch coverage. The Rust coverage suite runs every Rust test but does not
+enforce a threshold. `cargo-llvm-cov` currently marks branch coverage as
+unstable.
 
 ### Pitch Range
 
