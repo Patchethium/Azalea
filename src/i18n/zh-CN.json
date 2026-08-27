@@ -123,6 +123,7 @@
     "custom_titlebar": "自定义标题栏",
     "playback_timeline": "播放时间线",
     "primary_color": "主色调",
+    "reset_primary_color": "恢复默认主色调",
     "hue_saturation": "色相和饱和度",
     "normalize": "标准化",
     "storage": "存储",

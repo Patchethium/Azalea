@@ -132,6 +132,7 @@
     "custom_titlebar": "カスタムタイトルバー",
     "playback_timeline": "再生タイムライン",
     "primary_color": "メインカラー",
+    "reset_primary_color": "既定のメインカラーに戻す",
     "hue_saturation": "色相と彩度",
     "normalize": "標準化",
     "storage": "ストレージ",

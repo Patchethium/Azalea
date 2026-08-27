@@ -1,4 +1,5 @@
 import { commands } from "$binding";
+import { DEFAULT_PRIMARY_COLOR } from "$constants";
 import { ConfigPage } from "@dialogs/config";
 import { AssetCacheSetting } from "@dialogs/config/AssetCacheSetting";
 import { MultiProvider } from "@solid-primitives/context";
@@ -170,6 +171,18 @@ describe("ConfigPage", () => {
     expect(playbackTimeline).toBeChecked();
     await user.click(playbackTimeline);
     expect(appConfig.playbackTimelineEnabled()).toBe(false);
+
+    const resetPrimaryColor = screen.getByRole("button", {
+      name: "Restore default primary color",
+    });
+    expect(resetPrimaryColor.nextElementSibling).toHaveAccessibleName(
+      "Primary color",
+    );
+    await user.click(resetPrimaryColor);
+    expect(appConfig.config.ui.primary_color).toBe(DEFAULT_PRIMARY_COLOR);
+    expect(
+      screen.queryByRole("button", { name: "Restore default primary color" }),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Primary color" }));
     await user.click(await screen.findByText("Normalize"));

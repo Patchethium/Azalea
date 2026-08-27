@@ -123,6 +123,7 @@
     "custom_titlebar": "Custom title bar",
     "playback_timeline": "Playback timeline",
     "primary_color": "Primary color",
+    "reset_primary_color": "Restore default primary color",
     "hue_saturation": "Hue and saturation",
     "normalize": "Normalize",
     "storage": "Storage",
