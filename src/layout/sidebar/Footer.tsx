@@ -73,9 +73,9 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu>
-        <div class="flex items-center justify-start p-2 pl-0 gap-1">
+        <div class="flex items-center">
           <ToggleGroup
-            class="flex items-center"
+            class="flex items-center justify-start p-2 pl-0 gap-1"
             value={controls.uiStore.page}
             onChange={(page) => controls.setUIStore("page", page as PageType)}
           >
