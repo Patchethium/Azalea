@@ -6,6 +6,7 @@ import { type Component, onMount } from "solid-js";
 import { ConfigProvider, useConfigStore } from "@contexts/config";
 import { i18nProvider } from "@contexts/i18n";
 import { MetaProvider, useMetaStore } from "@contexts/meta";
+import { ShortcutsProvider } from "@contexts/shortcuts";
 import { SystemProvider } from "@contexts/system";
 import { TextProvider, useTextStore } from "@contexts/text";
 import { UIProvider } from "@contexts/ui";
@@ -34,6 +35,7 @@ export function renderSidebar(setup: (stores: SidebarTestStores) => void) {
           [UIProvider, null],
           [ConfigProvider, null],
           [SystemProvider, null],
+          [ShortcutsProvider, null],
           [i18nProvider, null],
           [TextProvider, null],
         ]}
@@ -63,6 +65,7 @@ export function renderSidebarHook(setup: (stores: SidebarTestStores) => void) {
         [UIProvider, null],
         [ConfigProvider, null],
         [SystemProvider, null],
+        [ShortcutsProvider, null],
         [i18nProvider, null],
         [TextProvider, null],
       ]}

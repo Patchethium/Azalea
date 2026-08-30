@@ -16,7 +16,7 @@ import { produce } from "solid-js/store";
 import { useConfigStore } from "@contexts/config";
 import { usei18n } from "@contexts/i18n";
 import { useMetaStore } from "@contexts/meta";
-import { useSystemStore } from "@contexts/system";
+import { useShortcutsStore } from "@contexts/shortcuts";
 import {
   createPresetId,
   createTextBlock,
@@ -26,11 +26,6 @@ import {
 } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
 import { parseSrt } from "$utils";
-import {
-  isApplicationShortcutAllowed,
-  matchesShortcut,
-  resolveShortcut,
-} from "$shortcuts";
 
 export function useSidebar() {
   const { availableStyleIds, metas } = useMetaStore()!;
@@ -50,7 +45,8 @@ export function useSidebar() {
     newProject,
   } = useTextStore()!;
   const { config, setConfig } = useConfigStore()!;
-  const { systemStore } = useSystemStore()!;
+  const { isApplicationShortcutAllowed, matchesShortcut } =
+    useShortcutsStore()!;
   const { t1 } = usei18n()!;
   const currentText = selectedTextBlock;
 
@@ -203,11 +199,7 @@ export function useSidebar() {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
         !isApplicationShortcutAllowed(event) ||
-        !matchesShortcut(
-          event,
-          resolveShortcut(config.ui.shortcuts, "save_project"),
-          systemStore.os,
-        )
+        !matchesShortcut(event, "save_project")
       ) {
         return;
       }

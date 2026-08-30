@@ -8,6 +8,7 @@ import App from "./App";
 import { ConfigProvider } from "@contexts/config";
 import { i18nProvider } from "@contexts/i18n";
 import { MetaProvider } from "@contexts/meta";
+import { ShortcutsProvider } from "@contexts/shortcuts";
 import { SpectrogramProvider } from "@contexts/spectrogram";
 import { SystemProvider } from "@contexts/system";
 import { TextProvider, useTextStore } from "@contexts/text";
@@ -28,6 +29,7 @@ const renderApp = () => {
         [SpectrogramProvider, null],
         [ConfigProvider, null],
         [SystemProvider, null],
+        [ShortcutsProvider, null],
         [i18nProvider, null],
         [TextProvider, null],
       ]}

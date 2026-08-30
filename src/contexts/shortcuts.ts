@@ -1,8 +1,4 @@
-import type {
-  KeyboardShortcut,
-  KeyboardShortcuts,
-  OS,
-} from "$binding";
+import type { KeyboardShortcut, KeyboardShortcuts, OS } from "$binding";
 import { createContextProvider } from "@solid-primitives/context";
 import { useConfigStore } from "@contexts/config";
 import { useSystemStore } from "@contexts/system";

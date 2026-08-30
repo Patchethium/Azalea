@@ -8,10 +8,7 @@ import {
   SpectrogramProvider,
   useSpectrogramStore,
 } from "@contexts/spectrogram";
-import {
-  ShortcutsProvider,
-  useShortcutsStore,
-} from "@contexts/shortcuts";
+import { ShortcutsProvider, useShortcutsStore } from "@contexts/shortcuts";
 import { SystemProvider } from "@contexts/system";
 import { TextProvider, useTextStore } from "@contexts/text";
 import { UIProvider, useUIStore } from "@contexts/ui";

@@ -5,9 +5,7 @@ import { Tooltip } from "@components/tooltip";
 import { createSignal, Show } from "solid-js";
 import { useConfigStore } from "@contexts/config";
 import { usei18n } from "@contexts/i18n";
-import { useSystemStore } from "@contexts/system";
 import type { TextBlockProps } from "@contexts/text";
-import { resolveShortcut } from "$shortcuts";
 
 export function TextBlockView(props: {
   index: number;
@@ -33,7 +31,6 @@ export function TextBlockView(props: {
 }) {
   const { config } = useConfigStore()!;
   const { t1 } = usei18n()!;
-  const { systemStore } = useSystemStore()!;
   const [hovered, setHovered] = createSignal(false);
   const [toolbarHovered, setToolbarHovered] = createSignal(false);
 
@@ -102,9 +99,6 @@ export function TextBlockView(props: {
         >
           <AutogrowInput
             historyKey={props.currentText.id}
-            undoShortcut={resolveShortcut(config.ui.shortcuts, "undo")}
-            redoShortcut={resolveShortcut(config.ui.shortcuts, "redo")}
-            os={systemStore.os}
             text={props.currentText.text}
             setText={props.setText}
             focused={props.selected}

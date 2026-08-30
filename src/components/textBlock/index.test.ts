@@ -1,23 +1,16 @@
 import { commands, events } from "$binding";
+import { TEXT_HISTORY_DEBOUNCE_MS } from "@components/textBlock/AutogrowInput";
 import {
-  AutogrowInput,
-  TEXT_HISTORY_DEBOUNCE_MS,
-} from "@components/textBlock/AutogrowInput";
-import { renderBlock } from "@components/textBlock/testUtils";
-import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
+  renderAutogrowInput,
+  renderBlock,
+} from "@components/textBlock/testUtils";
+import { fireEvent, screen, waitFor } from "@solidjs/testing-library";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
-import { createComponent } from "solid-js";
 import { produce } from "solid-js/store";
 import { describe, expect, it, vi } from "vitest";
-import { defaultKeyboardShortcuts } from "$shortcuts";
+import { defaultKeyboardShortcuts } from "@contexts/shortcuts";
 import { audioQuery, preset } from "../../test/fixtures";
-
-const textHistoryShortcutProps = {
-  undoShortcut: defaultKeyboardShortcuts.undo,
-  redoShortcut: defaultKeyboardShortcuts.redo,
-  os: "Linux" as const,
-};
 
 vi.mock("@solid-primitives/scheduled", () => ({
   debounce: <Args extends unknown[]>(
@@ -44,17 +37,14 @@ describe("TextBlock", () => {
   it("normalizes blank editable input without requiring a selection", () => {
     vi.spyOn(document, "getSelection").mockReturnValue(null);
     const setText = vi.fn();
-    render(() =>
-      createComponent(AutogrowInput, {
-        historyKey: "direct-editor",
-        ...textHistoryShortcutProps,
-        text: "",
-        setText,
-        focused: true,
-        placeholder: "Placeholder",
-        "aria-label": "Direct editor",
-      }),
-    );
+    renderAutogrowInput({
+      historyKey: "direct-editor",
+      text: "",
+      setText,
+      focused: true,
+      placeholder: "Placeholder",
+      "aria-label": "Direct editor",
+    });
     const editor = screen.getByLabelText("Direct editor");
     editor.innerText = "\n";
     fireEvent.input(editor);
@@ -63,18 +53,15 @@ describe("TextBlock", () => {
 
   it("reports caret offsets from selection and key events", () => {
     const onCaretChange = vi.fn();
-    render(() =>
-      createComponent(AutogrowInput, {
-        historyKey: "caret-editor",
-        ...textHistoryShortcutProps,
-        text: "hello",
-        setText: vi.fn(),
-        focused: false,
-        placeholder: "Placeholder",
-        "aria-label": "Caret editor",
-        onCaretChange,
-      }),
-    );
+    renderAutogrowInput({
+      historyKey: "caret-editor",
+      text: "hello",
+      setText: vi.fn(),
+      focused: false,
+      placeholder: "Placeholder",
+      "aria-label": "Caret editor",
+      onCaretChange,
+    });
     const editor = screen.getByLabelText("Caret editor");
     const textNode = editor.ownerDocument.createTextNode("hello");
     editor.appendChild(textNode);
@@ -90,18 +77,15 @@ describe("TextBlock", () => {
 
   it("ignores missing selections and selections outside the editor", () => {
     const onCaretChange = vi.fn();
-    render(() =>
-      createComponent(AutogrowInput, {
-        historyKey: "caret-editor-2",
-        ...textHistoryShortcutProps,
-        text: "hello",
-        setText: vi.fn(),
-        focused: false,
-        placeholder: "Placeholder",
-        "aria-label": "Caret editor 2",
-        onCaretChange,
-      }),
-    );
+    renderAutogrowInput({
+      historyKey: "caret-editor-2",
+      text: "hello",
+      setText: vi.fn(),
+      focused: false,
+      placeholder: "Placeholder",
+      "aria-label": "Caret editor 2",
+      onCaretChange,
+    });
     const editor = screen.getByLabelText("Caret editor 2");
 
     vi.spyOn(document, "getSelection").mockReturnValue(null);
@@ -123,17 +107,14 @@ describe("TextBlock", () => {
   it("undoes and redoes whole-text snapshots at debounced boundaries", async () => {
     vi.useFakeTimers();
     const setText = vi.fn();
-    render(() =>
-      createComponent(AutogrowInput, {
-        historyKey: "history-editor",
-        ...textHistoryShortcutProps,
-        text: "hello",
-        setText,
-        focused: false,
-        placeholder: "Placeholder",
-        "aria-label": "History editor",
-      }),
-    );
+    renderAutogrowInput({
+      historyKey: "history-editor",
+      text: "hello",
+      setText,
+      focused: false,
+      placeholder: "Placeholder",
+      "aria-label": "History editor",
+    });
     const editor = screen.getByLabelText("History editor");
 
     fireEvent.keyDown(editor, { key: "z" });
@@ -167,25 +148,26 @@ describe("TextBlock", () => {
   it("uses configured shortcuts, includes pending input, and clears redo", () => {
     vi.useFakeTimers();
     const setText = vi.fn();
-    render(() =>
-      createComponent(AutogrowInput, {
+    renderAutogrowInput(
+      {
         historyKey: "pending-history-editor",
-        ...textHistoryShortcutProps,
-        undoShortcut: {
-          ...defaultKeyboardShortcuts.undo,
-          key: "U",
-        },
-        redoShortcut: {
-          ...defaultKeyboardShortcuts.redo,
-          key: "R",
-          shift: false,
-        },
         text: "start",
         setText,
         focused: false,
         placeholder: "Placeholder",
         "aria-label": "Pending history editor",
-      }),
+      },
+      {
+        undo: {
+          ...defaultKeyboardShortcuts.undo,
+          key: "U",
+        },
+        redo: {
+          ...defaultKeyboardShortcuts.redo,
+          key: "R",
+          shift: false,
+        },
+      },
     );
     const editor = screen.getByLabelText("Pending history editor");
 

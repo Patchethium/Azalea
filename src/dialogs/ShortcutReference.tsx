@@ -1,19 +1,13 @@
 import { AppDialogContent } from "@dialogs/AppContent";
 import { Dialog } from "@kobalte/core/dialog";
 import { createSignal, For, Show } from "solid-js";
-import { useConfigStore } from "@contexts/config";
 import { usei18n } from "@contexts/i18n";
-import { useSystemStore } from "@contexts/system";
 import {
-  defaultKeyboardShortcuts,
-  formatShortcut,
   type ResolvedKeyboardShortcut,
-  resolveShortcut,
   type ShortcutAction,
   shortcutActions,
-  shortcutFromKeyboardEvent,
-  shortcutSignature,
-} from "../shortcuts";
+  useShortcutsStore,
+} from "@contexts/shortcuts";
 
 interface ShortcutReferenceDialogProps {
   open: boolean;
@@ -22,38 +16,24 @@ interface ShortcutReferenceDialogProps {
 
 export function ShortcutReferenceDialog(props: ShortcutReferenceDialogProps) {
   const { t1 } = usei18n()!;
-  const { config, setConfig } = useConfigStore()!;
-  const { systemStore } = useSystemStore()!;
+  const {
+    assignShortcut,
+    formatShortcut,
+    isDefaultShortcut,
+    resetAllShortcuts,
+    resetShortcut,
+    shortcutFromKeyboardEvent,
+  } = useShortcutsStore()!;
   const [recording, setRecording] = createSignal<ShortcutAction | null>(null);
   const [conflict, setConflict] = createSignal(false);
 
-  const setShortcut = (
+  const tryAssignShortcut = (
     action: ShortcutAction,
     shortcut: ResolvedKeyboardShortcut,
   ) => {
-    setConfig("ui", "shortcuts", {
-      ...config.ui.shortcuts,
-      [action]: shortcut,
-    });
-  };
-
-  const assignShortcut = (
-    action: ShortcutAction,
-    shortcut: ResolvedKeyboardShortcut,
-  ) => {
-    const duplicate = shortcutActions.some(
-      (candidate) =>
-        candidate !== action &&
-        shortcutSignature(resolveShortcut(config.ui.shortcuts, candidate)) ===
-          shortcutSignature(shortcut),
-    );
-    if (duplicate) {
-      setConflict(true);
-      return false;
-    }
-    setShortcut(action, shortcut);
-    setConflict(false);
-    return true;
+    const assigned = assignShortcut(action, shortcut);
+    setConflict(!assigned);
+    return assigned;
   };
 
   const recordShortcut = (action: ShortcutAction, event: KeyboardEvent) => {
@@ -72,13 +52,13 @@ export function ShortcutReferenceDialog(props: ShortcutReferenceDialogProps) {
       return;
     }
 
-    const shortcut = shortcutFromKeyboardEvent(event, systemStore.os);
-    if (shortcut === null || !assignShortcut(action, shortcut)) return;
+    const shortcut = shortcutFromKeyboardEvent(event);
+    if (shortcut === null || !tryAssignShortcut(action, shortcut)) return;
     setRecording(null);
   };
 
-  const resetAllShortcuts = () => {
-    setConfig("ui", "shortcuts", { ...defaultKeyboardShortcuts });
+  const resetAll = () => {
+    resetAllShortcuts();
     setRecording(null);
     setConflict(false);
   };
@@ -108,12 +88,7 @@ export function ShortcutReferenceDialog(props: ShortcutReferenceDialogProps) {
           <div class="px4 pt2">
             <For each={shortcutActions}>
               {(action) => {
-                const shortcut = () =>
-                  resolveShortcut(config.ui.shortcuts, action);
-                const keys = () => formatShortcut(shortcut(), systemStore.os);
-                const isDefault = () =>
-                  shortcutSignature(shortcut()) ===
-                  shortcutSignature(defaultKeyboardShortcuts[action]);
+                const keys = () => formatShortcut(action);
                 return (
                   <div class="grid grid-cols-[minmax(12rem,3fr)_minmax(0,2fr)_2rem] items-center gap3 py3 b-b b-slate-2 dark:b-slate-6 last:b-b-0">
                     <button
@@ -163,17 +138,12 @@ export function ShortcutReferenceDialog(props: ShortcutReferenceDialogProps) {
                     <span class="min-w-0 text-left">
                       {t1(`shortcuts.${action}`)}
                     </span>
-                    <Show when={!isDefault()}>
+                    <Show when={!isDefaultShortcut(action)}>
                       <button
                         type="button"
                         title={t1("shortcuts.reset")}
                         aria-label={t1("shortcuts.reset")}
-                        onClick={() =>
-                          assignShortcut(
-                            action,
-                            defaultKeyboardShortcuts[action],
-                          )
-                        }
+                        onClick={() => setConflict(!resetShortcut(action))}
                         class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) dark:hover:bg-slate-7"
                       >
                         <div class="i-lucide:rotate-ccw size-4" />
@@ -193,7 +163,7 @@ export function ShortcutReferenceDialog(props: ShortcutReferenceDialogProps) {
         <div class="shrink-0 flex justify-end px4 py3 b-t b-slate-2 dark:b-slate-6">
           <button
             type="button"
-            onClick={resetAllShortcuts}
+            onClick={resetAll}
             class="h-8 rounded-md b b-slate-2 bg-transparent px3 text-sm outline-none hover:(bg-slate-1 dark:bg-slate-7) focus-visible:(b-primary-5 ring-2 ring-primary-2) dark:b-slate-6"
           >
             {t1("shortcuts.reset_all")}

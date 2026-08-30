@@ -15,7 +15,6 @@ export default defineConfig(async () => ({
       "$binding": attachViteBase("./src/binding.ts"),
       "$constants": attachViteBase("./src/constants.ts"),
       "$utils": attachViteBase("./src/utils.ts"),
-      "$shortcuts": attachViteBase("./src/shortcuts.ts"),
       "@contexts": attachViteBase("./src/contexts"),
       "@dialogs": attachViteBase("./src/dialogs"),
       "@layout": attachViteBase("./src/layout"),

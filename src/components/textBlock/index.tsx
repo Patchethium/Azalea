@@ -17,7 +17,7 @@ import { produce, unwrap } from "solid-js/store";
 import { useConfigStore } from "@contexts/config";
 import { usei18n } from "@contexts/i18n";
 import { useMetaStore } from "@contexts/meta";
-import { useSystemStore } from "@contexts/system";
+import { useShortcutsStore } from "@contexts/shortcuts";
 import {
   findPresetById,
   findPresetStyle,
@@ -26,11 +26,6 @@ import {
 } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
 import { getModifiedQuery } from "$utils";
-import {
-  isApplicationShortcutAllowed,
-  matchesShortcut,
-  resolveShortcut,
-} from "$shortcuts";
 
 export { renderRequestFingerprint as synthesisRequestFingerprint } from "$utils";
 
@@ -44,7 +39,8 @@ function TextBlock(props: { index: number }) {
     queryRefreshVersion,
   } = useTextStore()!;
   const { metas } = useMetaStore()!;
-  const { systemStore } = useSystemStore()!;
+  const { isApplicationShortcutAllowed, matchesShortcut } =
+    useShortcutsStore()!;
   const { setUIStore } = useUIStore()!;
   const { config, setConfig } = useConfigStore()!;
   const { t1 } = usei18n()!;
@@ -216,11 +212,7 @@ function TextBlock(props: { index: number }) {
         !selected() ||
         !saveable() ||
         !isApplicationShortcutAllowed(event) ||
-        !matchesShortcut(
-          event,
-          resolveShortcut(config.ui.shortcuts, "export_audio"),
-          systemStore.os,
-        )
+        !matchesShortcut(event, "export_audio")
       ) {
         return;
       }

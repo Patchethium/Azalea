@@ -15,15 +15,9 @@ import {
 import { unwrap } from "solid-js/store";
 import { useConfigStore } from "@contexts/config";
 import { useMetaStore } from "@contexts/meta";
-import { useSystemStore } from "@contexts/system";
+import { useShortcutsStore } from "@contexts/shortcuts";
 import { findPresetById, findPresetStyle, useTextStore } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
-import {
-  isPlaybackShortcutAllowed,
-  isPlaybackToggleAllowed,
-  matchesShortcut,
-  resolveShortcut,
-} from "$shortcuts";
 import { getModifiedQuery } from "$utils";
 
 export function usePlaybackControls(
@@ -38,8 +32,12 @@ export function usePlaybackControls(
   } = useTextStore()!;
   const { metas } = useMetaStore()!;
   const { setUIStore } = useUIStore()!;
-  const { config, playbackTimelineEnabled } = useConfigStore()!;
-  const { systemStore } = useSystemStore()!;
+  const { playbackTimelineEnabled } = useConfigStore()!;
+  const {
+    isPlaybackShortcutAllowed,
+    isPlaybackToggleAllowed,
+    matchesShortcut,
+  } = useShortcutsStore()!;
   const [isPlaying, setIsPlaying] = createSignal(false);
   const [playRequestPending, setPlayRequestPending] = createSignal(false);
   const [playbackAnchorIndex, setPlaybackAnchorIndexSignal] = createSignal<
@@ -269,24 +267,10 @@ export function usePlaybackControls(
       const playbackShortcutAllowed = isPlaybackShortcutAllowed(event);
       const playbackToggleAllowed = isPlaybackToggleAllowed(event);
       if (!playbackShortcutAllowed && !playbackToggleAllowed) return;
-      const shortcuts = config.ui.shortcuts;
       const togglePlaybackShortcut =
-        playbackToggleAllowed &&
-        matchesShortcut(
-          event,
-          resolveShortcut(shortcuts, "toggle_playback"),
-          systemStore.os,
-        );
-      const playAndStay = matchesShortcut(
-        event,
-        resolveShortcut(shortcuts, "play_current"),
-        systemStore.os,
-      );
-      const playAndAdvance = matchesShortcut(
-        event,
-        resolveShortcut(shortcuts, "play_next"),
-        systemStore.os,
-      );
+        playbackToggleAllowed && matchesShortcut(event, "toggle_playback");
+      const playAndStay = matchesShortcut(event, "play_current");
+      const playAndAdvance = matchesShortcut(event, "play_next");
       if (togglePlaybackShortcut) {
         if (!isPlaying() && !canPlay()) return;
         event.preventDefault();

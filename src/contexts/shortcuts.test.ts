@@ -117,9 +117,9 @@ describe("ShortcutsProvider normalization and display", () => {
     expect(shortcuts.resetShortcut("save_project")).toBe(true);
     expect(shortcuts.isDefaultShortcut("save_project")).toBe(true);
 
-    expect(
-      shortcuts.assignShortcut("undo", { ...customSave, key: "U" }),
-    ).toBe(true);
+    expect(shortcuts.assignShortcut("undo", { ...customSave, key: "U" })).toBe(
+      true,
+    );
     expect(shortcuts.isDefaultShortcut("undo")).toBe(false);
     shortcuts.resetAllShortcuts();
     expect(shortcuts.getShortcut("undo")).toEqual(
@@ -270,9 +270,7 @@ describe("ShortcutsProvider focus safety", () => {
       expect(shortcuts.isPlaybackShortcutAllowed(keyboardEvent(" "))).toBe(
         false,
       );
-      expect(shortcuts.isPlaybackToggleAllowed(keyboardEvent(" "))).toBe(
-        false,
-      );
+      expect(shortcuts.isPlaybackToggleAllowed(keyboardEvent(" "))).toBe(false);
       surface.remove();
     }
 
@@ -305,9 +303,7 @@ describe("ShortcutsProvider focus safety", () => {
       expect(shortcuts.isPlaybackShortcutAllowed(keyboardEvent(" "))).toBe(
         true,
       );
-      expect(shortcuts.isPlaybackToggleAllowed(keyboardEvent(" "))).toBe(
-        true,
-      );
+      expect(shortcuts.isPlaybackToggleAllowed(keyboardEvent(" "))).toBe(true);
     } finally {
       delete (document as unknown as { activeElement?: Element }).activeElement;
     }

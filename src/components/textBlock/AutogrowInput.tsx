@@ -1,19 +1,11 @@
 import { debounce } from "@solid-primitives/scheduled";
 import { createEffect, JSX, on, onCleanup, Show, splitProps } from "solid-js";
-import type { OS } from "$binding";
-import {
-  isApplicationShortcutAllowed,
-  matchesShortcut,
-  type ResolvedKeyboardShortcut,
-} from "$shortcuts";
+import { useShortcutsStore } from "@contexts/shortcuts";
 
 export const TEXT_HISTORY_DEBOUNCE_MS = 500;
 
 interface AutogrowInputProps extends JSX.HTMLAttributes<HTMLDivElement> {
   historyKey: string;
-  undoShortcut: ResolvedKeyboardShortcut;
-  redoShortcut: ResolvedKeyboardShortcut;
-  os: OS;
   text: string;
   setText: (text: string) => void;
   focused: boolean;
@@ -22,11 +14,10 @@ interface AutogrowInputProps extends JSX.HTMLAttributes<HTMLDivElement> {
 }
 
 export function AutogrowInput(props: AutogrowInputProps) {
+  const { isApplicationShortcutAllowed, matchesShortcut } =
+    useShortcutsStore()!;
   const [local, inputProps] = splitProps(props, [
     "historyKey",
-    "undoShortcut",
-    "redoShortcut",
-    "os",
     "text",
     "setText",
     "focused",
@@ -160,8 +151,8 @@ export function AutogrowInput(props: AutogrowInputProps) {
 
   const handleKeyDown = (event: KeyboardEvent) => {
     if (!isApplicationShortcutAllowed(event)) return;
-    const isUndo = matchesShortcut(event, local.undoShortcut, local.os);
-    const isRedo = matchesShortcut(event, local.redoShortcut, local.os);
+    const isUndo = matchesShortcut(event, "undo");
+    const isRedo = matchesShortcut(event, "redo");
     if (!isUndo && !isRedo) return;
     event.preventDefault();
     if (isUndo) undo();

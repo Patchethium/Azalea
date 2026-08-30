@@ -1,17 +1,47 @@
 import TextBlock from "@components/textBlock";
+import { AutogrowInput } from "@components/textBlock/AutogrowInput";
 import { AppToastRegion } from "@components/toast";
-import type { AzaleaConfig } from "$binding";
+import type { AzaleaConfig, KeyboardShortcuts } from "$binding";
 import { MultiProvider } from "@solid-primitives/context";
 import { render } from "@solidjs/testing-library";
+import { mockIPC } from "@tauri-apps/api/mocks";
 import { batch, type Component, For, onMount } from "solid-js";
 import { ConfigProvider, useConfigStore } from "@contexts/config";
 import { i18nProvider } from "@contexts/i18n";
 import { MetaProvider, useMetaStore } from "@contexts/meta";
+import { ShortcutsProvider } from "@contexts/shortcuts";
 import { SpectrogramProvider } from "@contexts/spectrogram";
 import { SystemProvider } from "@contexts/system";
 import { TextProvider, useTextStore } from "@contexts/text";
 import { UIProvider, useUIStore } from "@contexts/ui";
 import { audioQuery, config, metas, preset } from "../../test/fixtures";
+
+type ContextOwnedShortcutInputProps = Parameters<typeof AutogrowInput>[0];
+
+export const renderAutogrowInput = (
+  props: ContextOwnedShortcutInputProps,
+  shortcuts: KeyboardShortcuts = {},
+) => {
+  mockIPC((command) => (command === "get_os" ? "Linux" : null));
+  const Harness: Component = () => {
+    const appConfig = useConfigStore()!;
+    onMount(() => appConfig.setConfig("ui", "shortcuts", shortcuts));
+    return <AutogrowInput {...props} />;
+  };
+  return render(() => (
+    <MultiProvider
+      values={[
+        [MetaProvider, []],
+        [UIProvider, null],
+        [ConfigProvider, null],
+        [SystemProvider, null],
+        [ShortcutsProvider, null],
+      ]}
+    >
+      <Harness />
+    </MultiProvider>
+  ));
+};
 
 export const renderBlock = (
   bufferRender: boolean,
@@ -81,6 +111,7 @@ export const renderBlock = (
         [SpectrogramProvider, null],
         [SystemProvider, null],
         [ConfigProvider, null],
+        [ShortcutsProvider, null],
         [i18nProvider, null],
         [TextProvider, null],
       ]}
