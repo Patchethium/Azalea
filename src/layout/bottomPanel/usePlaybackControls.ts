@@ -23,7 +23,7 @@ import {
   isPlaybackToggleAllowed,
   matchesShortcut,
   resolveShortcut,
-} from "../../shortcuts";
+} from "$shortcuts";
 import { getModifiedQuery } from "$utils";
 
 export function usePlaybackControls(

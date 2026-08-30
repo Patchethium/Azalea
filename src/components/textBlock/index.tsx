@@ -30,7 +30,7 @@ import {
   isApplicationShortcutAllowed,
   matchesShortcut,
   resolveShortcut,
-} from "../../shortcuts";
+} from "$shortcuts";
 
 export { renderRequestFingerprint as synthesisRequestFingerprint } from "$utils";
 

@@ -5,7 +5,7 @@ import {
   isApplicationShortcutAllowed,
   matchesShortcut,
   type ResolvedKeyboardShortcut,
-} from "../../shortcuts";
+} from "$shortcuts";
 
 export const TEXT_HISTORY_DEBOUNCE_MS = 500;
 

@@ -10,7 +10,7 @@ import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { createComponent } from "solid-js";
 import { produce } from "solid-js/store";
 import { describe, expect, it, vi } from "vitest";
-import { defaultKeyboardShortcuts } from "../../shortcuts";
+import { defaultKeyboardShortcuts } from "$shortcuts";
 import { audioQuery, preset } from "../../test/fixtures";
 
 const textHistoryShortcutProps = {

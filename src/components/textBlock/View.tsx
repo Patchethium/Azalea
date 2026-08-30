@@ -7,7 +7,7 @@ import { useConfigStore } from "@contexts/config";
 import { usei18n } from "@contexts/i18n";
 import { useSystemStore } from "@contexts/system";
 import type { TextBlockProps } from "@contexts/text";
-import { resolveShortcut } from "../../shortcuts";
+import { resolveShortcut } from "$shortcuts";
 
 export function TextBlockView(props: {
   index: number;

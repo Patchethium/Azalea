@@ -30,7 +30,7 @@ import {
   isApplicationShortcutAllowed,
   matchesShortcut,
   resolveShortcut,
-} from "../../shortcuts";
+} from "$shortcuts";
 
 export function useSidebar() {
   const { availableStyleIds, metas } = useMetaStore()!;
