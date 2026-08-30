@@ -8,6 +8,11 @@ import {
   SpectrogramProvider,
   useSpectrogramStore,
 } from "@contexts/spectrogram";
+import {
+  ShortcutsProvider,
+  useShortcutsStore,
+} from "@contexts/shortcuts";
+import { SystemProvider } from "@contexts/system";
 import { TextProvider, useTextStore } from "@contexts/text";
 import { UIProvider, useUIStore } from "@contexts/ui";
 
@@ -57,6 +62,30 @@ export function renderConfigStore() {
     </MultiProvider>
   ));
   return store;
+}
+
+export function renderShortcutsStore() {
+  let shortcuts!: NonNullable<ReturnType<typeof useShortcutsStore>>;
+  let config!: NonNullable<ReturnType<typeof useConfigStore>>;
+  const Probe: Component = () => {
+    shortcuts = useShortcutsStore()!;
+    config = useConfigStore()!;
+    return null;
+  };
+  const rendered = render(() => (
+    <MultiProvider
+      values={[
+        [MetaProvider, []],
+        [UIProvider, null],
+        [ConfigProvider, null],
+        [SystemProvider, null],
+        [ShortcutsProvider, null],
+      ]}
+    >
+      <Probe />
+    </MultiProvider>
+  ));
+  return { ...rendered, shortcuts, config };
 }
 
 export function renderTextStores() {
