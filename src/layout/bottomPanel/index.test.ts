@@ -10,7 +10,7 @@ import {
   renderPlaybackHook,
   renderTuningHook,
 } from "@layout/bottomPanel/testUtils";
-import { fireEvent, screen, waitFor } from "@solidjs/testing-library";
+import { fireEvent, screen, waitFor, within } from "@solidjs/testing-library";
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { describe, expect, it, vi } from "vitest";
@@ -1667,9 +1667,134 @@ describe("BottomPanel playback", () => {
     expect(await screen.findAllByText("ア")).toHaveLength(2);
     const durationTargets = container.querySelectorAll("div.invisible");
     expect(durationTargets).toHaveLength(2);
+    expect(durationTargets[1].parentElement).toHaveClass("h-full");
     fireEvent.mouseDown(durationTargets[0], { clientX: 10 });
     fireEvent.mouseDown(durationTargets[1], { clientX: 20 });
+    fireEvent.mouseMove(container.querySelector("[data-tuning-virtualizer]")!, {
+      clientX: 56,
+    });
+    expect(
+      getTextStore().textStore[0].query?.accent_phrases[0].pause_mora
+        ?.vowel_length,
+    ).toBeCloseTo(0.4);
     expect(container.querySelectorAll('[role="slider"]')).toHaveLength(1);
+  });
+
+  it("mounts only tuning items near the horizontal viewport", async () => {
+    const resizeObservers = new Map<
+      Element,
+      {
+        callback: ResizeObserverCallback;
+        observer: ResizeObserver;
+      }
+    >();
+    class ResizeObserverTestMock {
+      constructor(callback: ResizeObserverCallback) {
+        this.callback = callback;
+      }
+
+      private readonly callback: ResizeObserverCallback;
+
+      observe(target: Element) {
+        resizeObservers.set(target, {
+          callback: this.callback,
+          observer: this as unknown as ResizeObserver,
+        });
+      }
+
+      unobserve(target: Element) {
+        resizeObservers.delete(target);
+      }
+
+      disconnect() {}
+    }
+    Object.defineProperty(globalThis, "ResizeObserver", {
+      configurable: true,
+      value: ResizeObserverTestMock,
+    });
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const { container, getConfigStore, getTextStore } = renderPanel({
+      spectrogram_preview: false,
+    });
+    await screen.findByText("コ");
+    getTextStore().setTextStore(
+      0,
+      "query",
+      audioQuery({
+        accent_phrases: [
+          {
+            moras: Array.from({ length: 100 }, (_, index) => ({
+              ...mora,
+              text: `mora-${index}`,
+              consonant: null,
+              consonant_length: null,
+              vowel_length: 0.1,
+            })),
+            accent: 1,
+            pause_mora: null,
+            is_interrogative: false,
+          },
+        ],
+      }),
+    );
+
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    const tuningPanel = container.querySelector<HTMLElement>(
+      '[data-bottom-panel-scroll="tuning"]',
+    )!;
+    const virtualTimeline = tuningPanel.querySelector<HTMLElement>(
+      "[data-tuning-virtualizer]",
+    )!;
+
+    expect(within(tuningPanel).getByText("mora-0")).toBeInTheDocument();
+    expect(within(tuningPanel).queryByText("mora-99")).not.toBeInTheDocument();
+    expect(
+      tuningPanel.querySelectorAll("[data-tuning-item]").length,
+    ).toBeLessThan(100);
+    expect(virtualTimeline).toHaveStyle({ width: "3600px" });
+
+    const resizeObserver = resizeObservers.get(tuningPanel)!;
+    resizeObserver.callback(
+      [
+        {
+          target: tuningPanel,
+          borderBoxSize: [{ inlineSize: 360, blockSize: 120 }],
+        } as unknown as ResizeObserverEntry,
+      ],
+      resizeObserver.observer,
+    );
+    await waitFor(() =>
+      expect(
+        tuningPanel.querySelectorAll("[data-tuning-item]").length,
+      ).toBeGreaterThan(6),
+    );
+
+    tuningPanel.scrollLeft = 3300;
+    fireEvent.scroll(tuningPanel);
+    await waitFor(() =>
+      expect(within(tuningPanel).queryByText("mora-0")).not.toBeInTheDocument(),
+    );
+    expect(within(tuningPanel).getByText("mora-99")).toBeInTheDocument();
+
+    getConfigStore().setConfig("ui", "bottom_scale", 720);
+    await waitFor(() =>
+      expect(virtualTimeline).toHaveStyle({ width: "7200px" }),
+    );
+    getTextStore().setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      0,
+      "moras",
+      0,
+      "vowel_length",
+      0.2,
+    );
+    await waitFor(() =>
+      expect(virtualTimeline).toHaveStyle({ width: "7272px" }),
+    );
   });
 
   it("handles spectrogram failures and playback-triggered refreshes", async () => {

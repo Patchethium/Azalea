@@ -26,6 +26,7 @@
     "@solid-primitives/context": "0.3.1",
     "@solid-primitives/i18n": "^2.2.1",
     "@solid-primitives/scheduled": "^1.5.3",
+    "@tanstack/solid-virtual": "^3.13.37",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-dialog": "^2.7.2",
     "@tauri-apps/plugin-shell": "^2.3.5",

@@ -1,3 +1,4 @@
+import type { Mora } from "$binding";
 import { usei18n } from "@contexts/i18n";
 import { Slider } from "@kobalte/core/slider";
 import {
@@ -9,18 +10,91 @@ import type {
   DraggingMode,
   WaveformSynthesisNotice,
 } from "@layout/bottomPanel/types";
-import { For, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  on,
+  Show,
+} from "solid-js";
+import { createVirtualizer, observeElementRect } from "@tanstack/solid-virtual";
+
+type TuningTimelineItem = {
+  mora: Mora;
+  phraseIndex: number;
+  moraIndex: number;
+  isPause: boolean;
+};
 
 export function TuningPanel(props: {
   waveformSynthesisNotice: WaveformSynthesisNotice | null;
 }) {
   const { t1 } = usei18n()!;
   const panel = useTuningPanel(() => props.waveformSynthesisNotice);
+  const [scrollElement, setScrollElement] = createSignal<HTMLDivElement | null>(
+    null,
+  );
+  const timelineItems = createMemo<TuningTimelineItem[]>(() =>
+    (panel.currentText()?.query?.accent_phrases ?? []).flatMap(
+      (phrase, phraseIndex) => [
+        ...phrase.moras.map((mora, moraIndex) => ({
+          mora,
+          phraseIndex,
+          moraIndex,
+          isPause: false,
+        })),
+        ...(phrase.pause_mora === null
+          ? []
+          : [
+              {
+                mora: phrase.pause_mora,
+                phraseIndex,
+                moraIndex: -1,
+                isPause: true,
+              },
+            ]),
+      ],
+    ),
+  );
+  const itemSizes = createMemo(() =>
+    timelineItems().map(
+      ({ mora }) =>
+        ((mora.consonant_length ?? 0) + mora.vowel_length) * panel.scale(),
+    ),
+  );
+  const virtualizer = createVirtualizer<HTMLDivElement, HTMLDivElement>({
+    get count() {
+      return timelineItems().length;
+    },
+    getScrollElement: scrollElement,
+    estimateSize: (index) => itemSizes()[index] ?? 0,
+    horizontal: true,
+    overscan: 5,
+    initialRect: { width: 1, height: 1 },
+    observeElementRect: (instance, callback) =>
+      observeElementRect(instance, (rect) => {
+        if (rect.width > 0) callback(rect);
+      }),
+  });
+
+  createEffect(
+    on(
+      itemSizes,
+      () => {
+        virtualizer.measure();
+      },
+      { defer: true },
+    ),
+  );
 
   return (
     <>
       <div
-        ref={panel.setScrollAreaRef}
+        ref={(element) => {
+          panel.setScrollAreaRef(element);
+          setScrollElement(element);
+        }}
         onWheel={panel.handleWheel}
         onScroll={panel.handleScroll}
         data-bottom-panel-scroll="tuning"
@@ -38,12 +112,16 @@ export function TuningPanel(props: {
           }
         >
           <div
-            class="flex flex-row flex-1 relative"
+            class="flex-1 relative"
             onMouseDown={(event) => panel.setStartX(event.clientX)}
             onMouseUp={panel.handleDragFinish}
             onMouseLeave={panel.handleDragFinish}
             onMouseMove={panel.handleDragging}
-            style={{ "min-width": "min-content" }}
+            style={{
+              width: `${virtualizer.getTotalSize()}px`,
+              "min-width": "100%",
+            }}
+            data-tuning-virtualizer
           >
             <Show when={panel.spectrogram()}>
               {(preview) => (
@@ -60,55 +138,61 @@ export function TuningPanel(props: {
                 />
               )}
             </Show>
-            <For each={panel.currentText()?.query?.accent_phrases}>
-              {(phrase, phraseIndex) => (
-                <>
-                  <For each={phrase.moras}>
-                    {(mora, moraIndex) => (
-                      <TuningItem
-                        mora={mora}
-                        startDraggingDur={(
-                          origin: number,
-                          mode: DraggingMode,
-                        ) => {
-                          panel.setDraggingData({
-                            apIndex: phraseIndex(),
-                            moraIndex: moraIndex(),
-                            originData: origin,
-                            mode,
-                          });
+            <For each={virtualizer.getVirtualItems()}>
+              {(virtualItem) => {
+                const item = () => timelineItems()[virtualItem.index];
+                return (
+                  <Show when={item()}>
+                    {(currentItem) => (
+                      <div
+                        class="absolute inset-y-0 left-0"
+                        style={{
+                          width: `${virtualItem.size}px`,
+                          transform: `translateX(${virtualItem.start}px)`,
                         }}
-                        setPitch={(pitch) => {
-                          if (panel.draggingData() === null) {
-                            panel.setPitch(phraseIndex(), moraIndex(), pitch);
+                        data-index={virtualItem.index}
+                        data-tuning-item
+                      >
+                        <TuningItem
+                          mora={currentItem().mora}
+                          startDraggingDur={(
+                            origin: number,
+                            mode: DraggingMode,
+                          ) => {
+                            panel.setDraggingData({
+                              apIndex: currentItem().phraseIndex,
+                              moraIndex: currentItem().moraIndex,
+                              originData: origin,
+                              mode: currentItem().isPause ? "pause" : mode,
+                            });
+                          }}
+                          setPitch={(pitch) => {
+                            if (currentItem().isPause) {
+                              panel.setPauseLength(
+                                currentItem().phraseIndex,
+                                pitch,
+                              );
+                            } else if (panel.draggingData() === null) {
+                              panel.setPitch(
+                                currentItem().phraseIndex,
+                                currentItem().moraIndex,
+                                pitch,
+                              );
+                            }
+                          }}
+                          minPitch={
+                            currentItem().isPause ? 0 : panel.minPitch()
                           }
-                        }}
-                        minPitch={panel.minPitch()}
-                        maxPitch={panel.maxPitch()}
-                      />
+                          maxPitch={
+                            currentItem().isPause ? 0 : panel.maxPitch()
+                          }
+                          isPause={currentItem().isPause}
+                        />
+                      </div>
                     )}
-                  </For>
-                  <Show when={phrase.pause_mora != null}>
-                    <TuningItem
-                      mora={phrase.pause_mora!}
-                      startDraggingDur={(origin) => {
-                        panel.setDraggingData({
-                          apIndex: phraseIndex(),
-                          moraIndex: -1,
-                          originData: origin,
-                          mode: "pause",
-                        });
-                      }}
-                      setPitch={(duration) =>
-                        panel.setPauseLength(phraseIndex(), duration)
-                      }
-                      minPitch={0}
-                      maxPitch={0}
-                      isPause
-                    />
                   </Show>
-                </>
-              )}
+                );
+              }}
             </For>
           </div>
         </Show>
