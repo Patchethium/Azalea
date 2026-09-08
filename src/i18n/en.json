@@ -123,6 +123,7 @@
     "title": "Config",
     "open": "Open config",
     "close": "Close config",
+    "open_config_dir": "Open config directory",
     "sidebar_desp": "This space will be used for indexing in future versions.",
     "ui": "UI",
     "audio_export": "Audio Export",

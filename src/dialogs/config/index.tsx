@@ -1,3 +1,4 @@
+import { commands } from "$binding";
 import { AppDialogContent } from "@dialogs/AppContent";
 import { AssetCacheSetting } from "@dialogs/config/AssetCacheSetting";
 import {
@@ -8,6 +9,7 @@ import {
 import { ConfigItem } from "@dialogs/config/Item";
 import { IconButton } from "@components/iconButton";
 import { Tooltip } from "@components/tooltip";
+import { Button } from "@kobalte/core/button";
 import { Dialog } from "@kobalte/core/dialog";
 import { NumberField } from "@kobalte/core/number-field";
 import { Switch } from "@kobalte/core/switch";
@@ -236,6 +238,16 @@ export function ConfigPage() {
               </Switch.Control>
             </Switch>
           </ConfigItem>
+        </div>
+        <div class="flex justify-end b-t b-slate-2 px3 py2 dark:b-slate-6">
+          <Button
+            type="button"
+            onClick={() => void commands.openConfigDir()}
+            class="flex items-center gap1 rounded-md bg-transparent px2 py1 text-sm outline-none hover:bg-slate-2 focus-visible:(ring-2 ring-primary-2) dark:hover:bg-slate-7"
+          >
+            <div class="i-lucide:folder-open size-4" />
+            {t1("config.open_config_dir")}
+          </Button>
         </div>
       </AppDialogContent>
     </Dialog>

@@ -122,6 +122,40 @@ describe("ConfigPage", () => {
     );
   });
 
+  it("opens the config directory from the footer button", async () => {
+    vi.spyOn(commands, "getAssetsSize").mockResolvedValue({
+      status: "ok",
+      data: 0,
+    });
+    const openConfigDir = vi
+      .spyOn(commands, "openConfigDir")
+      .mockResolvedValue({ status: "ok", data: null });
+    const Harness: Component = () => {
+      const ui = useUIStore()!;
+      onMount(() => ui.setUIStore("page", "config"));
+      return <ConfigPage />;
+    };
+
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [i18nProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+
+    await screen.findByRole("dialog", { name: "Config" });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open config directory" }),
+    );
+    await waitFor(() => expect(openConfigDir).toHaveBeenCalledTimes(1));
+  });
+
   it("updates general appearance settings", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     vi.spyOn(commands, "getAssetsSize").mockResolvedValue({

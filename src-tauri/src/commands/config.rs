@@ -103,3 +103,17 @@ pub async fn set_config(
 pub async fn get_range() -> std::result::Result<RangeMap, String> {
   Ok(_get_range())
 }
+
+#[tauri::command]
+#[specta::specta]
+#[allow(deprecated)]
+pub async fn open_config_dir() -> std::result::Result<(), String> {
+  tauri_plugin_shell::open::open(
+    None,
+    crate::config::manager::config_dir()
+      .to_string_lossy()
+      .to_string(),
+    None,
+  )
+  .map_err(|error| error.to_string())
+}

@@ -123,6 +123,7 @@
     "title": "设置",
     "open": "打开设置",
     "close": "关闭设置",
+    "open_config_dir": "打开配置目录",
     "sidebar_desp": "此区域将在未来版本中用于索引。",
     "ui": "界面",
     "audio_export": "音频导出",
