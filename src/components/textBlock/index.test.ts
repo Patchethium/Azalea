@@ -51,6 +51,23 @@ describe("TextBlock", () => {
     expect(setText).toHaveBeenCalledWith("");
   });
 
+  it("blurs the editor when Escape is pressed", async () => {
+    renderAutogrowInput({
+      historyKey: "escape-editor",
+      text: "hello",
+      setText: vi.fn(),
+      focused: true,
+      placeholder: "Placeholder",
+      "aria-label": "Escape editor",
+    });
+    const editor = screen.getByLabelText("Escape editor");
+    await waitFor(() => expect(editor).toHaveFocus());
+
+    fireEvent.keyDown(editor, { key: "Escape" });
+
+    expect(editor).not.toHaveFocus();
+  });
+
   it("reports caret offsets from selection and key events", () => {
     const onCaretChange = vi.fn();
     renderAutogrowInput({

@@ -151,6 +151,10 @@ export function AutogrowInput(props: AutogrowInputProps) {
 
   const handleKeyDown = (event: KeyboardEvent) => {
     if (!isApplicationShortcutAllowed(event)) return;
+    if (event.key === "Escape") {
+      inputRef?.blur();
+      return;
+    }
     const isUndo = matchesShortcut(event, "undo");
     const isRedo = matchesShortcut(event, "redo");
     if (!isUndo && !isRedo) return;

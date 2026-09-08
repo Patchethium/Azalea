@@ -233,7 +233,9 @@ export function AccentPhraseItem(props: AccentPhraseItemProps) {
               value={draftText()}
               onChange={setDraftText}
               onKeyDown={(event) => {
-                if (event.key === "Enter") setEditMode(false);
+                if (event.key === "Enter" || event.key === "Escape") {
+                  setEditMode(false);
+                }
               }}
               onClick={(event) => event.stopPropagation()}
             >

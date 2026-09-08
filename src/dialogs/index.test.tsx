@@ -27,6 +27,22 @@ describe("AppDialogContent", () => {
     ));
     expect(screen.getByRole("dialog", { name: "Bare dialog" })).toBeVisible();
   });
+
+  it("closes on Escape", async () => {
+    const [open, setOpen] = createSignal(true);
+    render(() => (
+      <Dialog open={open()} onOpenChange={setOpen}>
+        <AppDialogContent
+          title="Escape dialog"
+          closeLabel="Close escape dialog"
+        />
+      </Dialog>
+    ));
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    await waitFor(() => expect(open()).toBe(false));
+  });
 });
 
 describe("UnsavedChangesDialog", () => {

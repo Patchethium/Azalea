@@ -1,5 +1,5 @@
 import { AccentPhraseItem } from "@layout/bottomPanel/AccentPhraseItem";
-import { render, screen } from "@solidjs/testing-library";
+import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { describe, expect, it, vi } from "vitest";
 import { audioQuery } from "../../test/fixtures";
 
@@ -28,5 +28,31 @@ describe("AccentPhraseItem", () => {
     expect(
       screen.queryByRole("slider", { name: "Accent position" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("closes the phoneme editor on Escape", async () => {
+    const sourcePhrase = audioQuery().accent_phrases[0];
+
+    render(() => (
+      <AccentPhraseItem
+        mode="full"
+        phrase={sourcePhrase}
+        setPhrase={vi.fn()}
+        refreshMoraData={vi.fn()}
+        onSplit={vi.fn()}
+        onCombine={vi.fn()}
+        onEdit={vi.fn()}
+      />
+    ));
+
+    fireEvent.click(screen.getByText(sourcePhrase.moras[0].text));
+    const input = await screen.findByRole("textbox");
+    await waitFor(() => expect(input).toHaveFocus());
+
+    fireEvent.keyDown(input, { key: "Escape" });
+
+    await waitFor(() =>
+      expect(screen.queryByRole("textbox")).not.toBeInTheDocument(),
+    );
   });
 });
