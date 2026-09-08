@@ -45,7 +45,14 @@
     "export_audio": "選択したセルの音声を書き出す",
     "toggle_playback": "選択したセルを再生または停止",
     "play_current": "選択したセルを再生",
-    "play_next": "選択したセルを再生して次へ移動"
+    "play_next": "選択したセルを再生して次へ移動",
+    "tab_configurable": "変更可能",
+    "tab_fixed": "固定",
+    "fixed_hint": "変更不可",
+    "fixed_dismiss": "テキストセル、ダイアログ、音素エディターを閉じる",
+    "fixed_navigate_up": "前のテキストセルへ移動",
+    "fixed_navigate_down": "次のテキストセルへ移動",
+    "fixed_focus_block": "選択中のテキストセルにフォーカス"
   },
   "about": {
     "title": "Azaleaについて",

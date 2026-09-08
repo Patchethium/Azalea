@@ -45,7 +45,14 @@
     "export_audio": "导出选中单元格的音频",
     "toggle_playback": "播放或停止选中的单元格",
     "play_current": "播放选中的单元格",
-    "play_next": "播放选中的单元格并移至下一个"
+    "play_next": "播放选中的单元格并移至下一个",
+    "tab_configurable": "可更改",
+    "tab_fixed": "固定",
+    "fixed_hint": "不可更改",
+    "fixed_dismiss": "关闭文本框、对话框和音素编辑器",
+    "fixed_navigate_up": "移动到上一个文本框",
+    "fixed_navigate_down": "移动到下一个文本框",
+    "fixed_focus_block": "聚焦选中的文本框"
   },
   "about": {
     "title": "关于 Azalea",

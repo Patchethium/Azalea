@@ -15,6 +15,13 @@ export const shortcutActions = [
 
 export type ShortcutAction = (typeof shortcutActions)[number];
 
+export const fixedShortcuts = [
+  { id: "dismiss", keys: ["Esc"], label: "fixed_dismiss" },
+  { id: "navigate_up", keys: ["↑"], label: "fixed_navigate_up" },
+  { id: "navigate_down", keys: ["↓"], label: "fixed_navigate_down" },
+  { id: "focus_block", keys: ["Enter"], label: "fixed_focus_block" },
+] as const;
+
 export type ResolvedKeyboardShortcut = {
   key: string;
   primary: boolean;

@@ -45,7 +45,14 @@
     "export_audio": "Export selected cell audio",
     "toggle_playback": "Play or stop selected cell",
     "play_current": "Play selected cell",
-    "play_next": "Play selected cell and advance"
+    "play_next": "Play selected cell and advance",
+    "tab_configurable": "Configurable",
+    "tab_fixed": "Fixed",
+    "fixed_hint": "Not configurable",
+    "fixed_dismiss": "Dismiss text blocks, dialogs, and the phoneme editor",
+    "fixed_navigate_up": "Move to the previous text block",
+    "fixed_navigate_down": "Move to the next text block",
+    "fixed_focus_block": "Focus the selected text block"
   },
   "about": {
     "title": "About Azalea",

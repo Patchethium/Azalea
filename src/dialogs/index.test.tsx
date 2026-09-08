@@ -5,7 +5,13 @@ import { ShortcutReferenceDialog } from "@dialogs/ShortcutReference";
 import { UnsavedChangesDialog } from "@dialogs/UnsavedChanges";
 import { Dialog } from "@kobalte/core/dialog";
 import { MultiProvider } from "@solid-primitives/context";
-import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@solidjs/testing-library";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { batch, createSignal, type Component, onMount } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
@@ -403,5 +409,87 @@ describe("ShortcutReferenceDialog", () => {
         screen.getByRole("dialog", { name: "Keyboard Shortcuts" }),
       ).toHaveAttribute("data-closed"),
     );
+  });
+
+  it("lists the fixed shortcuts on the fixed tab", () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    const Harness: Component = () => {
+      const appConfig = useConfigStore()!;
+      onMount(() => appConfig.setConfig(config()));
+      return <ShortcutReferenceDialog open onOpenChange={() => {}} />;
+    };
+
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [SystemProvider, null],
+          [ShortcutsProvider, null],
+          [i18nProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+
+    fireEvent.click(screen.getByRole("tab", { name: "Fixed" }));
+
+    expect(screen.getByText("Not configurable")).toBeInTheDocument();
+    expect(
+      screen.getByText("Dismiss text blocks, dialogs, and the phoneme editor"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Move to the previous text block"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Move to the next text block")).toBeInTheDocument();
+    expect(
+      screen.getByText("Focus the selected text block"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: /Dismiss text blocks, dialogs, and the phoneme editor/,
+      }),
+    ).not.toBeInTheDocument();
+    const fixedList = screen
+      .getByText("Focus the selected text block")
+      .closest(".select-none") as HTMLElement;
+    expect(fixedList).not.toBeNull();
+    expect(screen.getByText("Focus the selected text block")).not.toHaveClass(
+      "opacity-60",
+    );
+    const fixedKey = within(fixedList).getByText("Enter");
+    expect(fixedKey).toHaveClass("opacity-60");
+    expect(fixedKey).toHaveClass("cursor-not-allowed");
+  });
+
+  it("sizes the content area to the tallest tab", () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(500);
+    const Harness: Component = () => {
+      const appConfig = useConfigStore()!;
+      onMount(() => appConfig.setConfig(config()));
+      return <ShortcutReferenceDialog open onOpenChange={() => {}} />;
+    };
+
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [SystemProvider, null],
+          [ShortcutsProvider, null],
+          [i18nProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+
+    expect(document.querySelector(".overflow-y-auto")).toHaveStyle({
+      height: "500px",
+    });
   });
 });
