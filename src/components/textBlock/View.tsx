@@ -27,7 +27,7 @@ export function TextBlockView(props: {
   remove: () => void;
   onCaretChange?: (offset: number) => void;
   onNavigate: (direction: "up" | "down") => void;
-  focusPlacement: "start" | "end" | null;
+  focusRequest: { placement: "start" | "end"; offset: number | null } | null;
   onFocusPlacementConsumed: () => void;
   synthState: SynthesisJobState | "Idle";
   synthStateText: () => string;
@@ -111,7 +111,7 @@ export function TextBlockView(props: {
             onFocus={props.setSelected}
             onCaretChange={props.onCaretChange}
             onNavigate={props.onNavigate}
-            focusPlacement={props.focusPlacement}
+            focusRequest={props.focusRequest}
             onFocusPlacementConsumed={props.onFocusPlacementConsumed}
           />
         </div>

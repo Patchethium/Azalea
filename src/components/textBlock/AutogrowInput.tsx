@@ -12,7 +12,7 @@ interface AutogrowInputProps extends JSX.HTMLAttributes<HTMLDivElement> {
   placeholder: string;
   onCaretChange?: (offset: number) => void;
   onNavigate?: (direction: "up" | "down") => void;
-  focusPlacement?: "start" | "end" | null;
+  focusRequest?: { placement: "start" | "end"; offset: number | null } | null;
   onFocusPlacementConsumed?: () => void;
 }
 
@@ -27,7 +27,7 @@ export function AutogrowInput(props: AutogrowInputProps) {
     "placeholder",
     "onCaretChange",
     "onNavigate",
-    "focusPlacement",
+    "focusRequest",
     "onFocusPlacementConsumed",
   ]);
   let inputRef: HTMLDivElement | undefined;
@@ -112,14 +112,15 @@ export function AutogrowInput(props: AutogrowInputProps) {
   );
 
   createEffect(() => {
+    const request = local.focusRequest ?? null;
     if (
       local.focused &&
       inputRef !== undefined &&
       inputRef.ownerDocument.activeElement !== inputRef
     ) {
-      const placement = local.focusPlacement ?? "end";
       inputRef.focus();
-      placeCaret(inputRef, placement);
+      if (request?.offset != null) placeCaretAtOffset(inputRef, request.offset);
+      else placeCaret(inputRef, request?.placement ?? "end");
       local.onFocusPlacementConsumed?.();
     }
   });
@@ -130,6 +131,37 @@ export function AutogrowInput(props: AutogrowInputProps) {
     const range = element.ownerDocument.createRange();
     range.selectNodeContents(element);
     range.collapse(placement === "start");
+    selection.removeAllRanges();
+    selection.addRange(range);
+    reportCaret(element);
+  };
+
+  const placeCaretAtOffset = (element: HTMLDivElement, offset: number) => {
+    const selection = element.ownerDocument.getSelection();
+    if (selection === null) return;
+    const range = element.ownerDocument.createRange();
+    const walker = element.ownerDocument.createTreeWalker(
+      element,
+      NodeFilter.SHOW_TEXT,
+    );
+    let remaining = Math.max(Math.trunc(offset), 0);
+    let node = walker.nextNode();
+    let placed = false;
+    while (node !== null) {
+      const length = node.textContent?.length ?? 0;
+      if (remaining <= length) {
+        range.setStart(node, remaining);
+        range.setEnd(node, remaining);
+        placed = true;
+        break;
+      }
+      remaining -= length;
+      node = walker.nextNode();
+    }
+    if (!placed) {
+      range.selectNodeContents(element);
+      range.collapse(false);
+    }
     selection.removeAllRanges();
     selection.addRange(range);
     reportCaret(element);

@@ -142,9 +142,13 @@ function TextBlock(props: { index: number }) {
   const focused = createMemo(
     () => selected() && suppressFocusBlockId() !== currentText().id,
   );
-  const focusPlacement = createMemo(() => {
+  const focusRequest = createMemo(() => {
     const pending = pendingFocusPlacement();
-    return pending?.blockId === currentText().id ? pending.placement : null;
+    if (pending?.blockId !== currentText().id) return null;
+    return {
+      placement: pending.placement,
+      offset: pending.offset ?? null,
+    };
   });
   const setSelected = (index = props.index) => {
     batch(() => {
@@ -152,6 +156,15 @@ function TextBlock(props: { index: number }) {
       setPendingFocusPlacement(null);
       setUIStore("selectedTextBlockIndex", index);
     });
+  };
+  const handleCaretChange = (offset: number) => {
+    setCaretOffset(offset);
+    if (selected()) {
+      setUIStore("lastFocusedCaret", {
+        blockId: currentText().id,
+        offset,
+      });
+    }
   };
   const navigateBlock = (direction: "up" | "down") => {
     const target = props.index + (direction === "up" ? -1 : 1);
@@ -356,9 +369,9 @@ function TextBlock(props: { index: number }) {
       moveUp={moveUp}
       moveDown={moveDown}
       remove={remove}
-      onCaretChange={setCaretOffset}
+      onCaretChange={handleCaretChange}
       onNavigate={navigateBlock}
-      focusPlacement={focusPlacement()}
+      focusRequest={focusRequest()}
       onFocusPlacementConsumed={() => setPendingFocusPlacement(null)}
       synthState={synthState()}
       synthStateText={synthStateText}

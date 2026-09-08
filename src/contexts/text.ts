@@ -169,6 +169,7 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
   const [pendingFocusPlacement, setPendingFocusPlacement] = createSignal<{
     blockId: string;
     placement: "start" | "end";
+    offset?: number;
   } | null>(null);
 
   const insertTextBlockBelow = (index: number) => {
@@ -279,7 +280,9 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
 
   onMount(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+      const isArrow = event.key === "ArrowUp" || event.key === "ArrowDown";
+      const isEnter = event.key === "Enter";
+      if (!isArrow && !isEnter) return;
       if (
         event.defaultPrevented ||
         event.repeat ||
@@ -293,6 +296,22 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
         return;
       }
       const current = selectedTextBlockIndex();
+      if (isEnter) {
+        const selectedBlock = textStore[current];
+        if (selectedBlock === undefined) return;
+        const saved = uiStore.lastFocusedCaret;
+        event.preventDefault();
+        batch(() => {
+          setSuppressFocusBlockId(null);
+          setPendingFocusPlacement({
+            blockId: selectedBlock.id,
+            placement: "end",
+            offset:
+              saved?.blockId === selectedBlock.id ? saved.offset : undefined,
+          });
+        });
+        return;
+      }
       const next = clampTextBlockIndex(
         current + (event.key === "ArrowUp" ? -1 : 1),
         textStore.length,
