@@ -111,6 +111,9 @@ pub fn run() {
   #[cfg(debug_assertions)]
   export_typescript_bindings(&builder);
 
+  let context = tauri::generate_context!();
+  config::manager::init_config_dir(&context.config().identifier);
+
   let app = tauri::Builder::default()
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_shell::init());
@@ -164,7 +167,7 @@ pub fn run() {
       });
       Ok(())
     })
-    .run(tauri::generate_context!())
+    .run(context)
     .expect("error while running tauri application");
 }
 

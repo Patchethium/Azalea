@@ -64,7 +64,7 @@ As long as these files share the same parent directory, Azalea should be able to
 
 The config file used in development is located in `config_dev/config.toml`. You can set the core path in the GUI launched by `pnpm tauri dev` and this file will be created automatically.
 
-In release builds, the config file is located at `{config_dir}/azalea/config.toml` according to the OS. See [here](https://codeberg.org/dirs/dirs-rs#features) for where the config directory is on each OS.
+In release builds, the config file is located at `{config_dir}/com.azalea.app/config.toml` according to the OS, using the bundle identifier from `tauri.conf.json`. See [here](https://codeberg.org/dirs/dirs-rs#features) for where the config directory is on each OS.
 
 ### Project files
 

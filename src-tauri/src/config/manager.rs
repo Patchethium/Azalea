@@ -2,35 +2,61 @@ use super::types::side_width_default;
 use anyhow::Result;
 use std::fs::{create_dir_all, File};
 use std::path::PathBuf;
-use std::sync::LazyLock;
+use std::sync::OnceLock;
 
 use super::AzaleaConfig;
 
-/// Use the config directory to store the config file in release mode.
-#[cfg(not(debug_assertions))]
-static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
-  use dirs::config_dir;
-  let mut config_dir = config_dir().expect("System config directory is not available");
-  config_dir.push("azalea");
-  config_dir
-});
+/// Resolved base directory for the config file, assets and user dictionary.
+static CONFIG_DIR: OnceLock<PathBuf> = OnceLock::new();
 
-/// for development, use the project directory to store the config file.
-#[cfg(debug_assertions)]
-static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
-  let config_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-  let config_dir = config_dir
-    .parent()
-    .expect("CARGO_MANIFEST_DIR has no parent directory");
-  config_dir.join("config_dev")
-});
+/// Base directory for the config file, assets and user dictionary.
+///
+/// During development this is the repository's `config_dev` directory. Release
+/// builds resolve it to `{config_dir}/{bundle_identifier}` and must be
+/// initialized with [`init_config_dir`] during startup.
+pub(crate) fn config_dir() -> &'static PathBuf {
+  CONFIG_DIR.get_or_init(|| {
+    #[cfg(debug_assertions)]
+    {
+      PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("CARGO_MANIFEST_DIR has no parent directory")
+        .join("config_dev")
+    }
+    #[cfg(not(debug_assertions))]
+    {
+      panic!("Config directory was not initialized from the bundle identifier")
+    }
+  })
+}
+
+/// Builds the release config directory `{config_dir}/{bundle_identifier}`.
+#[cfg_attr(debug_assertions, allow(dead_code))]
+fn app_config_dir(identifier: &str) -> PathBuf {
+  let mut config_dir = dirs::config_dir().expect("System config directory is not available");
+  config_dir.push(identifier);
+  config_dir
+}
+
+/// Records the bundle identifier declared in `tauri.conf.json` so release
+/// builds store their config under `{config_dir}/{identifier}`.
+pub(crate) fn init_config_dir(identifier: &str) {
+  #[cfg(not(debug_assertions))]
+  {
+    let _ = CONFIG_DIR.set(app_config_dir(identifier));
+  }
+  #[cfg(debug_assertions)]
+  {
+    let _ = identifier;
+  }
+}
 
 pub(crate) fn assets_dir() -> PathBuf {
-  CONFIG_DIR.join("assets")
+  config_dir().join("assets")
 }
 
 pub(crate) fn user_dictionary_path() -> PathBuf {
-  CONFIG_DIR.join("user_dictionary.json")
+  config_dir().join("user_dictionary.json")
 }
 
 /// This struct serves the purpose of serializing/deserializing it to/from a file.
@@ -42,7 +68,7 @@ pub struct ConfigManager {
 
 impl Default for ConfigManager {
   fn default() -> Self {
-    let config_path = CONFIG_DIR.join("config.toml");
+    let config_path = config_dir().join("config.toml");
     Self {
       config: AzaleaConfig::default(),
       config_path,
@@ -107,6 +133,17 @@ impl ConfigManager {
 mod tests {
   use super::*;
   use crate::config::types::{Locale, ThemeMode};
+
+  #[test]
+  fn app_config_dir_appends_bundle_identifier() {
+    let Some(base) = dirs::config_dir() else {
+      return;
+    };
+    assert_eq!(
+      app_config_dir("com.azalea.app"),
+      base.join("com.azalea.app")
+    );
+  }
 
   #[test]
   fn save_and_load_as_round_trip_all_settings() {
