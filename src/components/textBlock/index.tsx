@@ -37,6 +37,10 @@ function TextBlock(props: { index: number }) {
     selectedTextBlockIndex,
     insertTextBlockBelow,
     queryRefreshVersion,
+    suppressFocusBlockId,
+    setSuppressFocusBlockId,
+    pendingFocusPlacement,
+    setPendingFocusPlacement,
   } = useTextStore()!;
   const { metas } = useMetaStore()!;
   const { isApplicationShortcutAllowed, matchesShortcut } =
@@ -135,8 +139,32 @@ function TextBlock(props: { index: number }) {
   );
 
   const selected = createMemo(() => selectedTextBlockIndex() === props.index);
+  const focused = createMemo(
+    () => selected() && suppressFocusBlockId() !== currentText().id,
+  );
+  const focusPlacement = createMemo(() => {
+    const pending = pendingFocusPlacement();
+    return pending?.blockId === currentText().id ? pending.placement : null;
+  });
   const setSelected = (index = props.index) => {
-    setUIStore("selectedTextBlockIndex", index);
+    batch(() => {
+      setSuppressFocusBlockId(null);
+      setPendingFocusPlacement(null);
+      setUIStore("selectedTextBlockIndex", index);
+    });
+  };
+  const navigateBlock = (direction: "up" | "down") => {
+    const target = props.index + (direction === "up" ? -1 : 1);
+    if (target < 0 || target >= textStore.length) return;
+    const targetBlock = textStore[target];
+    batch(() => {
+      setSuppressFocusBlockId(null);
+      setPendingFocusPlacement({
+        blockId: targetBlock.id,
+        placement: direction === "up" ? "end" : "start",
+      });
+      setUIStore("selectedTextBlockIndex", target);
+    });
   };
   const saveable = createMemo(() => {
     const query = currentQuery();
@@ -289,6 +317,8 @@ function TextBlock(props: { index: number }) {
     );
     batch(() => {
       setTextStore(remainingBlocks);
+      setSuppressFocusBlockId(null);
+      setPendingFocusPlacement(null);
       setUIStore("selectedTextBlockIndex", nextSelectedIndex);
     });
   };
@@ -315,6 +345,7 @@ function TextBlock(props: { index: number }) {
       currentPreset={currentPreset()}
       presetAvailable={currentPresetStyle() !== null}
       selected={selected()}
+      focused={focused()}
       saveable={saveable()}
       setText={setText}
       setSelected={() => setSelected()}
@@ -326,6 +357,9 @@ function TextBlock(props: { index: number }) {
       moveDown={moveDown}
       remove={remove}
       onCaretChange={setCaretOffset}
+      onNavigate={navigateBlock}
+      focusPlacement={focusPlacement()}
+      onFocusPlacementConsumed={() => setPendingFocusPlacement(null)}
       synthState={synthState()}
       synthStateText={synthStateText}
       synthStateIcon={synthStateIcon}

@@ -5,7 +5,14 @@ import {
   TextBlockProps as ProjectTextBlockProps,
 } from "$binding";
 import { createContextProvider } from "@solid-primitives/context";
-import { batch, createEffect, createMemo, createSignal } from "solid-js";
+import {
+  batch,
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+  onMount,
+} from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { usei18n } from "@contexts/i18n";
 import { useMetaStore } from "@contexts/meta";
@@ -99,6 +106,15 @@ export const clampTextBlockIndex = (index: number, blockCount: number) => {
   return Math.min(Math.max(Math.trunc(index), 0), blockCount - 1);
 };
 
+const hasNoFocusedElement = () => {
+  const active = document.activeElement;
+  return (
+    active === null ||
+    active === document.body ||
+    active === document.documentElement
+  );
+};
+
 // Mirrors the fields persisted by `save_project`, ignoring regenerated queries
 // so that derived `AudioQuery` refreshes do not count as user edits.
 const serializeProject = (
@@ -147,6 +163,13 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
 
   const [projectPath, setProjectPath] = createSignal<string | null>(null);
   const [queryRefreshVersion, setQueryRefreshVersion] = createSignal(0);
+  const [suppressFocusBlockId, setSuppressFocusBlockId] = createSignal<
+    string | null
+  >(null);
+  const [pendingFocusPlacement, setPendingFocusPlacement] = createSignal<{
+    blockId: string;
+    placement: "start" | "end";
+  } | null>(null);
 
   const insertTextBlockBelow = (index: number) => {
     const sourceIndex = clampTextBlockIndex(index, textStore.length);
@@ -158,6 +181,8 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
           blocks.splice(nextIndex, 0, createTextBlock(presetId));
         }),
       );
+      setSuppressFocusBlockId(null);
+      setPendingFocusPlacement(null);
       setUIStore("selectedTextBlockIndex", nextIndex);
     });
     return nextIndex;
@@ -252,6 +277,39 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     }
   });
 
+  onMount(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+      if (
+        event.defaultPrevented ||
+        event.repeat ||
+        event.isComposing ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        !hasNoFocusedElement()
+      ) {
+        return;
+      }
+      const current = selectedTextBlockIndex();
+      const next = clampTextBlockIndex(
+        current + (event.key === "ArrowUp" ? -1 : 1),
+        textStore.length,
+      );
+      const nextBlock = textStore[next];
+      if (next === current || nextBlock === undefined) return;
+      event.preventDefault();
+      batch(() => {
+        setSuppressFocusBlockId(nextBlock.id);
+        setPendingFocusPlacement(null);
+        setUIStore("selectedTextBlockIndex", next);
+      });
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    onCleanup(() => window.removeEventListener("keydown", handleKeyDown));
+  });
+
   const createFirstTextBlock = () => {
     if (textStore.length > 0) {
       setUIStore("selectedTextBlockIndex", selectedTextBlockIndex());
@@ -259,6 +317,8 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     }
     batch(() => {
       setTextStore([createTextBlock(projectPresetStore[0]?.id ?? null)]);
+      setSuppressFocusBlockId(null);
+      setPendingFocusPlacement(null);
       setUIStore("selectedTextBlockIndex", 0);
     });
   };
@@ -267,6 +327,8 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     const presetId = createPresetId();
     batch(() => {
       setProjectPath(null);
+      setSuppressFocusBlockId(null);
+      setPendingFocusPlacement(null);
       setTextStore([
         createTextBlock(
           presetId,
@@ -314,6 +376,10 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     newProject,
     isProjectDirty,
     markProjectSaved,
+    suppressFocusBlockId,
+    setSuppressFocusBlockId,
+    pendingFocusPlacement,
+    setPendingFocusPlacement,
   };
 });
 

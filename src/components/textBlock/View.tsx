@@ -14,6 +14,7 @@ export function TextBlockView(props: {
   currentPreset: Preset | null;
   presetAvailable: boolean;
   selected: boolean;
+  focused: boolean;
   saveable: boolean;
   setText: (text: string) => void;
   setSelected: () => void;
@@ -25,6 +26,9 @@ export function TextBlockView(props: {
   moveDown: () => void;
   remove: () => void;
   onCaretChange?: (offset: number) => void;
+  onNavigate: (direction: "up" | "down") => void;
+  focusPlacement: "start" | "end" | null;
+  onFocusPlacementConsumed: () => void;
   synthState: SynthesisJobState | "Idle";
   synthStateText: () => string;
   synthStateIcon: () => string;
@@ -101,11 +105,14 @@ export function TextBlockView(props: {
             historyKey={props.currentText.id}
             text={props.currentText.text}
             setText={props.setText}
-            focused={props.selected}
+            focused={props.focused}
             placeholder={t1("text_block.input_label")}
             aria-label={t1("text_block.input_label")}
             onFocus={props.setSelected}
             onCaretChange={props.onCaretChange}
+            onNavigate={props.onNavigate}
+            focusPlacement={props.focusPlacement}
+            onFocusPlacementConsumed={props.onFocusPlacementConsumed}
           />
         </div>
         <div class="flex flex-row flex-1 w-full" onClick={props.setSelected}>

@@ -225,6 +225,106 @@ describe("TextBlock", () => {
     expect(caret.compareBoundaryPoints(Range.START_TO_START, textEnd)).toBe(0);
   });
 
+  it("moves the selection without focusing when no editor is focused", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    vi.spyOn(commands, "audioQuery").mockResolvedValue({
+      status: "ok",
+      data: audioQuery(),
+    });
+    const { getUiStore } = renderBlock(false, false, true);
+    const editors = await screen.findAllByLabelText("Text to synthesize");
+    await waitFor(() => expect(editors[0]).toHaveFocus());
+
+    editors[0].blur();
+    expect(editors[0]).not.toHaveFocus();
+
+    fireEvent.keyDown(window, { key: "ArrowDown" });
+    expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(1);
+    expect(editors[1]).not.toHaveFocus();
+
+    fireEvent.keyDown(window, { key: "ArrowUp" });
+    expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(0);
+    expect(editors[0]).not.toHaveFocus();
+  });
+
+  it("navigates between blocks with ArrowUp and ArrowDown at block boundaries", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    vi.spyOn(commands, "audioQuery").mockResolvedValue({
+      status: "ok",
+      data: audioQuery(),
+    });
+    const { getUiStore } = renderBlock(false, false, true);
+    const editors = await screen.findAllByLabelText("Text to synthesize");
+    await waitFor(() => expect(editors[0]).toHaveFocus());
+
+    const setCaret = (editor: HTMLElement, placement: "start" | "end") => {
+      const range = editor.ownerDocument.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(placement === "start");
+      const selection = editor.ownerDocument.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+    };
+    const expectCaretAt = (editor: HTMLElement, placement: "start" | "end") => {
+      const edge = editor.ownerDocument.createRange();
+      edge.selectNodeContents(editor);
+      edge.collapse(placement === "start");
+      expect(
+        editor.ownerDocument
+          .getSelection()!
+          .getRangeAt(0)
+          .compareBoundaryPoints(Range.START_TO_START, edge),
+      ).toBe(0);
+    };
+    editors[0].textContent = editors[0].innerText;
+    editors[1].textContent = editors[1].innerText;
+
+    setCaret(editors[0], "end");
+    fireEvent.keyDown(editors[0], { key: "ArrowDown" });
+    await waitFor(() => expect(editors[1]).toHaveFocus());
+    expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(1);
+    expectCaretAt(editors[1], "start");
+
+    setCaret(editors[1], "end");
+    fireEvent.keyDown(editors[1], { key: "ArrowUp" });
+    expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(1);
+    expect(editors[1]).toHaveFocus();
+
+    setCaret(editors[1], "start");
+    fireEvent.keyDown(editors[1], { key: "ArrowUp" });
+    await waitFor(() => expect(editors[0]).toHaveFocus());
+    expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(0);
+    expectCaretAt(editors[0], "end");
+  });
+
+  it("navigates down from the end of a multi-line block", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    vi.spyOn(commands, "audioQuery").mockResolvedValue({
+      status: "ok",
+      data: audioQuery(),
+    });
+    const { getTextStore, getUiStore } = renderBlock(false, false, true);
+    const editors = await screen.findAllByLabelText("Text to synthesize");
+    await waitFor(() => expect(editors[0]).toHaveFocus());
+
+    getTextStore().setTextStore(0, "text", "line1\nline2");
+    const doc = editors[0].ownerDocument;
+    const firstLine = doc.createTextNode("line1");
+    const secondLine = doc.createTextNode("line2");
+    editors[0].replaceChildren(firstLine, doc.createElement("br"), secondLine);
+    const range = doc.createRange();
+    range.setStart(secondLine, secondLine.length);
+    range.collapse(true);
+    const selection = doc.getSelection()!;
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    fireEvent.keyDown(editors[0], { key: "ArrowDown" });
+
+    await waitFor(() => expect(editors[1]).toHaveFocus());
+    expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(1);
+  });
+
   it("refreshes queries after editing and reflects buffered synthesis state", async () => {
     mockIPC(() => null, { shouldMockEvents: true });
     const consoleError = vi

@@ -46,6 +46,8 @@ export function useSidebar() {
     newProject,
     isProjectDirty,
     markProjectSaved,
+    setSuppressFocusBlockId,
+    setPendingFocusPlacement,
   } = useTextStore()!;
   const { config, setConfig } = useConfigStore()!;
   const { isApplicationShortcutAllowed, matchesShortcut } =
@@ -292,6 +294,8 @@ export function useSidebar() {
       setProjectPath(path);
       replaceTextBlocks(result.data.blocks);
       setProjectPresetStore(result.data.presets);
+      setSuppressFocusBlockId(null);
+      setPendingFocusPlacement(null);
       setUIStore("selectedTextBlockIndex", 0);
     });
     markProjectSaved();

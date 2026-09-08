@@ -11,6 +11,9 @@ interface AutogrowInputProps extends JSX.HTMLAttributes<HTMLDivElement> {
   focused: boolean;
   placeholder: string;
   onCaretChange?: (offset: number) => void;
+  onNavigate?: (direction: "up" | "down") => void;
+  focusPlacement?: "start" | "end" | null;
+  onFocusPlacementConsumed?: () => void;
 }
 
 export function AutogrowInput(props: AutogrowInputProps) {
@@ -23,6 +26,9 @@ export function AutogrowInput(props: AutogrowInputProps) {
     "focused",
     "placeholder",
     "onCaretChange",
+    "onNavigate",
+    "focusPlacement",
+    "onFocusPlacementConsumed",
   ]);
   let inputRef: HTMLDivElement | undefined;
   let trackedHistoryKey = local.historyKey;
@@ -65,6 +71,29 @@ export function AutogrowInput(props: AutogrowInputProps) {
     return preCaretRange.toString().length;
   };
 
+  // `caretOffset` relies on `Range.toString()`, which does not count line breaks
+  // the way `innerText` does. Compare against the element edges instead so
+  // multi-line blocks still detect the caret at the very start/end.
+  const caretAtStart = (element: HTMLDivElement) => {
+    const selection = element.ownerDocument.getSelection();
+    if (selection === null || selection.rangeCount === 0) return false;
+    const range = selection.getRangeAt(0);
+    if (!element.contains(range.startContainer)) return false;
+    const beforeCaret = range.cloneRange();
+    beforeCaret.setStart(element, 0);
+    return beforeCaret.toString() === "";
+  };
+
+  const caretAtEnd = (element: HTMLDivElement) => {
+    const selection = element.ownerDocument.getSelection();
+    if (selection === null || selection.rangeCount === 0) return false;
+    const range = selection.getRangeAt(0);
+    if (!element.contains(range.startContainer)) return false;
+    const afterCaret = range.cloneRange();
+    afterCaret.setEnd(element, element.childNodes.length);
+    return afterCaret.toString() === "";
+  };
+
   const reportCaret = (element: HTMLDivElement) => {
     if (local.onCaretChange === undefined) return;
     const offset = caretOffset(element);
@@ -88,28 +117,26 @@ export function AutogrowInput(props: AutogrowInputProps) {
       inputRef !== undefined &&
       inputRef.ownerDocument.activeElement !== inputRef
     ) {
+      const placement = local.focusPlacement ?? "end";
       inputRef.focus();
-      const selection = inputRef.ownerDocument.getSelection();
-      if (selection !== null) {
-        const range = inputRef.ownerDocument.createRange();
-        range.selectNodeContents(inputRef);
-        range.collapse(false);
-        selection.removeAllRanges();
-        selection.addRange(range);
-      }
+      placeCaret(inputRef, placement);
+      local.onFocusPlacementConsumed?.();
     }
   });
 
-  const moveCaretToEnd = (element: HTMLDivElement) => {
+  const placeCaret = (element: HTMLDivElement, placement: "start" | "end") => {
     const selection = element.ownerDocument.getSelection();
     if (selection === null) return;
     const range = element.ownerDocument.createRange();
     range.selectNodeContents(element);
-    range.collapse(false);
+    range.collapse(placement === "start");
     selection.removeAllRanges();
     selection.addRange(range);
     reportCaret(element);
   };
+
+  const moveCaretToEnd = (element: HTMLDivElement) =>
+    placeCaret(element, "end");
 
   const applyHistoryText = (text: string) => {
     trackedText = text;
@@ -153,6 +180,18 @@ export function AutogrowInput(props: AutogrowInputProps) {
     if (!isApplicationShortcutAllowed(event)) return;
     if (event.key === "Escape") {
       inputRef?.blur();
+      return;
+    }
+    if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+        return;
+      }
+      if (inputRef === undefined || local.onNavigate === undefined) return;
+      const atBoundary =
+        event.key === "ArrowUp" ? caretAtStart(inputRef) : caretAtEnd(inputRef);
+      if (!atBoundary) return;
+      event.preventDefault();
+      local.onNavigate(event.key === "ArrowUp" ? "up" : "down");
       return;
     }
     const isUndo = matchesShortcut(event, "undo");
