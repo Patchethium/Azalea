@@ -18,7 +18,7 @@
     "test:coverage:rust": "cargo llvm-cov --branch --locked --manifest-path src-tauri/Cargo.toml -- --test-threads=1",
     "test:all": "pnpm check && pnpm build && pnpm test:coverage && cargo test --locked --manifest-path src-tauri/Cargo.toml -- --test-threads=1"
   },
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "dependencies": {
     "@corvu/resizable": "^0.2.5",
     "@corvu/unocss": "^0.1.3",

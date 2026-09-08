@@ -1,8 +1,10 @@
 [package]
 name = "azalea"
 version = "0.2.3"
-description = "A Tauri App"
-authors = ["you"]
+description = "A lightweight, unofficial VOICEVOX GUI"
+authors = ["Patchethium"]
+license = "GPL-3.0-or-later"
+repository = "https://github.com/Patchethium/Azalea"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

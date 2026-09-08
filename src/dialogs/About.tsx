@@ -60,7 +60,7 @@ export function AboutDialog(props: AboutDialogProps) {
                   {t1("about.license")}
                 </span>
               </div>
-              <div class="text-lg font-semibold">GPLv3</div>
+              <div class="text-lg font-semibold">GPL-3.0-or-later</div>
             </div>
           </div>
           <Link
