@@ -6,21 +6,30 @@ import { describe, expect, it, vi } from "vitest";
 import { ConfigProvider } from "@contexts/config";
 import { i18nProvider } from "@contexts/i18n";
 import { MetaProvider } from "@contexts/meta";
+import { TextProvider, useTextStore } from "@contexts/text";
 import { UIProvider } from "@contexts/ui";
 
-const renderTitleBar = () =>
-  render(() => (
+const renderTitleBar = () => {
+  let text!: NonNullable<ReturnType<typeof useTextStore>>;
+  const Harness = () => {
+    text = useTextStore()!;
+    return <TitleBar />;
+  };
+  const result = render(() => (
     <MultiProvider
       values={[
         [MetaProvider, []],
         [UIProvider, null],
         [ConfigProvider, null],
         [i18nProvider, null],
+        [TextProvider, null],
       ]}
     >
-      <TitleBar />
+      <Harness />
     </MultiProvider>
   ));
+  return { ...result, getTextStore: () => text };
+};
 
 describe("TitleBar", () => {
   it("exposes a drag region and invokes all window controls", async () => {
@@ -72,5 +81,21 @@ describe("TitleBar", () => {
         expect.any(Error),
       ),
     );
+  });
+
+  it("indicates unsaved project changes", async () => {
+    mockIPC(() => null);
+    mockWindows("main");
+    const { getTextStore } = renderTitleBar();
+
+    expect(
+      screen.queryByRole("status", { name: "Unsaved changes" }),
+    ).not.toBeInTheDocument();
+
+    getTextStore().setTextStore(0, "text", "Changed text");
+
+    expect(
+      await screen.findByRole("status", { name: "Unsaved changes" }),
+    ).toBeInTheDocument();
   });
 });

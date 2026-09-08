@@ -1,7 +1,7 @@
 import { type CharacterMeta, commands } from "$binding";
 import { renderSidebar, renderSidebarHook } from "@layout/sidebar/testUtils";
 import { fireEvent, screen, waitFor } from "@solidjs/testing-library";
-import { mockIPC } from "@tauri-apps/api/mocks";
+import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import userEvent from "@testing-library/user-event";
 import { batch } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
@@ -737,5 +737,237 @@ describe("Sidebar dictionary", () => {
       screen.getByRole("button", { name: "Close user dictionary" }),
     );
     expect(dialog).toHaveAttribute("data-closed");
+  });
+});
+
+describe("Sidebar unsaved changes", () => {
+  const renderDirtySidebar = () => {
+    let text!: NonNullable<ReturnType<typeof useTextStore>>;
+    const result = renderSidebarHook(
+      ({ config: appConfig, meta, text: textStore }) => {
+        text = textStore;
+        batch(() => {
+          appConfig.setConfig(config({ auto_save: false }));
+          meta.setMetas(metas);
+          textStore.setProjectPresetStore([preset()]);
+          textStore.replaceTextBlocks([
+            {
+              id: "block",
+              text: "Original",
+              query: audioQuery(),
+              query_is_modified: false,
+              preset_id: "preset-1",
+            },
+          ]);
+        });
+        textStore.markProjectSaved();
+      },
+    );
+    return { ...result, getText: () => text };
+  };
+
+  it("keeps the project dirty after a failed save and records the path only after success", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    dialogs.save.mockResolvedValue("/tmp/unsaved.azp");
+    const saveProject = vi
+      .spyOn(commands, "saveProject")
+      .mockResolvedValue({ status: "error", error: "disk full" });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { getControls, getText } = renderDirtySidebar();
+    await Promise.resolve();
+    const controls = getControls();
+    const text = getText();
+
+    expect(text.isProjectDirty()).toBe(false);
+    text.setTextStore(0, "text", "Changed");
+    expect(text.isProjectDirty()).toBe(true);
+
+    expect(await controls.saveProject()).toBe(false);
+    expect(text.projectPath()).toBeNull();
+    expect(text.isProjectDirty()).toBe(true);
+
+    saveProject.mockResolvedValue({ status: "ok", data: null });
+    expect(await controls.saveProject()).toBe(true);
+    expect(text.projectPath()).toBe("/tmp/unsaved.azp");
+    expect(text.isProjectDirty()).toBe(false);
+  });
+
+  it("prompts before replacing a dirty project and resolves save, discard, and cancel", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    const saveProject = vi
+      .spyOn(commands, "saveProject")
+      .mockResolvedValue({ status: "ok", data: null });
+    dialogs.save.mockResolvedValue("/tmp/saved.azp");
+    const { getControls, getText } = renderDirtySidebar();
+    await Promise.resolve();
+    const controls = getControls();
+    const text = getText();
+
+    text.setTextStore(0, "text", "Edited");
+    text.setProjectPath("/tmp/saved.azp");
+
+    controls.requestProjectAction("new");
+    expect(controls.uiStore.pendingProjectAction).toBe("new");
+
+    await controls.resolveProjectAction("cancel");
+    expect(controls.uiStore.pendingProjectAction).toBeNull();
+    expect(text.textStore[0].text).toBe("Edited");
+
+    controls.requestProjectAction("new");
+    await controls.resolveProjectAction("save");
+    expect(saveProject).toHaveBeenCalledTimes(1);
+    expect(controls.uiStore.pendingProjectAction).toBeNull();
+    expect(text.projectPath()).toBeNull();
+    expect(text.textStore[0].text).not.toBe("Edited");
+  });
+
+  it("keeps the pending action and project when saving from the prompt fails", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    vi.spyOn(commands, "saveProject").mockResolvedValue({
+      status: "error",
+      error: "disk full",
+    });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { getControls, getText } = renderDirtySidebar();
+    await Promise.resolve();
+    const controls = getControls();
+    const text = getText();
+
+    text.setTextStore(0, "text", "Edited");
+    text.setProjectPath("/tmp/saved.azp");
+
+    controls.requestProjectAction("open");
+    expect(controls.uiStore.pendingProjectAction).toBe("open");
+
+    await controls.resolveProjectAction("save");
+    expect(controls.uiStore.pendingProjectAction).toBe("open");
+    expect(text.textStore[0].text).toBe("Edited");
+    expect(text.isProjectDirty()).toBe(true);
+  });
+
+  it("shows the unsaved changes dialog from the project menu", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    let text!: NonNullable<ReturnType<typeof useTextStore>>;
+    renderSidebar(({ config: appConfig, meta, text: textStore }) => {
+      text = textStore;
+      batch(() => {
+        appConfig.setConfig(config({ auto_save: false }));
+        meta.setMetas(metas);
+        textStore.setProjectPresetStore([preset()]);
+        textStore.replaceTextBlocks([
+          {
+            id: "block",
+            text: "Original",
+            query: audioQuery(),
+            query_is_modified: false,
+            preset_id: "preset-1",
+          },
+        ]);
+      });
+      textStore.markProjectSaved();
+    });
+
+    await screen.findByText("Default");
+    text.setTextStore(0, "text", "Edited");
+    await user.click(screen.getByRole("button", { name: "Project actions" }));
+    await user.click(await screen.findByText("Auto Save"));
+    await user.click(await screen.findByText("New Project"));
+    expect(
+      await screen.findByRole("dialog", { name: "Unsaved changes" }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Discard" }));
+    expect(text.textStore[0].text).not.toBe("Edited");
+  });
+
+  it("saves or cancels from the unsaved changes dialog", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    vi.spyOn(commands, "saveProject").mockResolvedValue({
+      status: "ok",
+      data: null,
+    });
+    dialogs.open.mockResolvedValue(null);
+    dialogs.save.mockResolvedValue("/tmp/saved.azp");
+    let text!: NonNullable<ReturnType<typeof useTextStore>>;
+    renderSidebar(({ config: appConfig, meta, text: textStore }) => {
+      text = textStore;
+      batch(() => {
+        appConfig.setConfig(config({ auto_save: false }));
+        meta.setMetas(metas);
+        textStore.setProjectPresetStore([preset()]);
+        textStore.replaceTextBlocks([
+          {
+            id: "block",
+            text: "Original",
+            query: audioQuery(),
+            query_is_modified: false,
+            preset_id: "preset-1",
+          },
+        ]);
+      });
+      textStore.markProjectSaved();
+    });
+
+    await screen.findByText("Default");
+    text.setTextStore(0, "text", "Edited");
+    text.setProjectPath("/tmp/saved.azp");
+
+    await user.click(screen.getByRole("button", { name: "Project actions" }));
+    await user.click(await screen.findByText("Quit"));
+    await screen.findByRole("dialog", { name: "Unsaved changes" });
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(text.textStore[0].text).toBe("Edited");
+
+    await user.click(screen.getByRole("button", { name: "Project actions" }));
+    await user.click(await screen.findByText("Load Project"));
+    await screen.findByRole("dialog", { name: "Unsaved changes" });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(commands.saveProject).toHaveBeenCalledTimes(1));
+  });
+
+  it("runs close and quit actions after discarding", async () => {
+    const calls: string[] = [];
+    mockIPC((cmd) => {
+      calls.push(cmd);
+      return cmd === "get_os" ? "Linux" : null;
+    });
+    mockWindows("main");
+    const quit = vi.spyOn(commands, "quit").mockResolvedValue();
+    const { getControls, getText } = renderDirtySidebar();
+    await Promise.resolve();
+    const controls = getControls();
+    const text = getText();
+    text.setTextStore(0, "text", "Edited");
+
+    controls.setUIStore("pendingProjectAction", "quit");
+    await controls.resolveProjectAction("discard");
+    expect(quit).toHaveBeenCalledTimes(1);
+
+    controls.setUIStore("pendingProjectAction", "close");
+    await controls.resolveProjectAction("discard");
+    expect(calls).toContain("plugin:window|destroy");
+  });
+
+  it("logs failures from project actions", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    mockWindows("main");
+    vi.spyOn(commands, "quit").mockRejectedValue(new Error("denied"));
+    const error = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const { getControls, getText } = renderDirtySidebar();
+    await Promise.resolve();
+    const controls = getControls();
+    getText().setTextStore(0, "text", "Edited");
+
+    controls.setUIStore("pendingProjectAction", "quit");
+    await controls.resolveProjectAction("discard");
+
+    expect(error).toHaveBeenCalledWith(
+      "Failed to run project action quit:",
+      expect.any(Error),
+    );
   });
 });

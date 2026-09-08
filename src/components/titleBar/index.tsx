@@ -1,8 +1,11 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { Show } from "solid-js";
 import { usei18n } from "@contexts/i18n";
+import { useTextStore } from "@contexts/text";
 
 export function TitleBar() {
   const { t1 } = usei18n()!;
+  const { isProjectDirty } = useTextStore()!;
   const appWindow = getCurrentWindow();
   const runWindowAction = (name: string, action: () => Promise<void>) => {
     void action().catch((error) => {
@@ -19,6 +22,15 @@ export function TitleBar() {
         <span data-tauri-drag-region class="truncate">
           Azalea
         </span>
+        <Show when={isProjectDirty()}>
+          <span
+            data-tauri-drag-region
+            role="status"
+            aria-label={t1("titlebar.unsaved")}
+            title={t1("titlebar.unsaved")}
+            class="ml2 size-1.5 shrink-0 rounded-full bg-primary-5"
+          />
+        </Show>
       </div>
       <div class="flex shrink-0">
         <button

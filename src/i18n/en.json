@@ -159,7 +159,16 @@
   "titlebar": {
     "minimize": "Minimize",
     "maximize": "Maximize or restore",
-    "close": "Close"
+    "close": "Close",
+    "unsaved": "Unsaved changes"
+  },
+  "unsaved": {
+    "title": "Unsaved changes",
+    "message": "Save changes to the current project before continuing?",
+    "save": "Save",
+    "saving": "Saving…",
+    "discard": "Discard",
+    "cancel": "Cancel"
   },
   "menu": {
     "project_actions": "Project actions",
@@ -168,6 +177,7 @@
     "save_project": "Save Project",
     "import_srt": "Import SRT",
     "auto_save": "Auto Save",
+    "quit": "Quit",
     "about": "About"
   },
   "preset": {

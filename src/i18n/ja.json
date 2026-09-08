@@ -119,6 +119,7 @@
     "save_project": "プロジェクト保存",
     "import_srt": "SRTをインポート",
     "auto_save": "自動保存",
+    "quit": "終了",
     "about": "このアプリについて"
   },
   "config": {
@@ -168,7 +169,16 @@
   "titlebar": {
     "minimize": "最小化",
     "maximize": "最大化または元に戻す",
-    "close": "閉じる"
+    "close": "閉じる",
+    "unsaved": "未保存の変更"
+  },
+  "unsaved": {
+    "title": "未保存の変更",
+    "message": "続行する前に現在のプロジェクトを保存しますか？",
+    "save": "保存",
+    "saving": "保存中…",
+    "discard": "破棄",
+    "cancel": "キャンセル"
   },
   "preset": {
     "title": "プリセット",

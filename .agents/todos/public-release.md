@@ -8,7 +8,7 @@ This is a source review, not a packaged-app runtime audit. The current commit's 
 
 **Fix before release**
 
-- [ ] **R01 · Add an unsaved-change indicator and Save / Discard / Cancel prompts.** Cover New, Open, window close, and Quit. Keep the project marked unsaved after a failed save; record a new project path only after the write succeeds.
+- [x] **R01 · Add an unsaved-change indicator and Save / Discard / Cancel prompts.** Cover New, Open, window close, and Quit. Keep the project marked unsaved after a failed save; record a new project path only after the write succeeds.
 - [ ] **R02 · Save projects and settings atomically, with a last-good backup.** Write a temporary sibling file, replace the destination only after a successful write, and retain a recoverable previous version.
 - [ ] **R03 · Autosave unnamed drafts and offer Restore Draft on launch.** Recover text, preset assignments, and manual tuning even when the project has never been saved to an .azp file.
 - [ ] **R04 · Add undo/redo for block operations, presets, and speech tuning.** Restore deleted/moved/split blocks, preset assignments and values, and accent/phoneme/pitch/duration edits. Treat one slider or pitch drag as one undo step.

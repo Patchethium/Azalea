@@ -350,6 +350,29 @@ describe("App initialization", () => {
     expect(bottomPanel).not.toHaveAttribute("data-collapsed");
   });
 
+  it("prompts to save before closing a dirty project", async () => {
+    mockIPC((cmd) => (cmd.includes("theme") ? "light" : null), {
+      shouldMockEvents: true,
+    });
+    mockWindows("main");
+    const { getTextStore } = renderApp();
+    await events.initializationEvent.emit({
+      config: config(),
+      core_initialized: true,
+      metas,
+      range: [],
+      error: null,
+    });
+
+    await screen.findByRole("button", { name: "Project actions" });
+    getTextStore().setTextStore(0, "text", "Changed");
+    await emit("tauri://close-requested", {});
+
+    expect(
+      await screen.findByRole("dialog", { name: "Unsaved changes" }),
+    ).toBeInTheDocument();
+  });
+
   it("tracks system theme changes and removes the listener on cleanup", async () => {
     vi.mocked(window.matchMedia).mockReturnValue({
       ...window.matchMedia(""),

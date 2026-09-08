@@ -3,6 +3,7 @@ import { createStore } from "solid-js/store";
 
 type PageType = "config" | "dictionary" | "shortcuts" | null; // null means main page
 type BottomPanelType = "accent" | "tuning";
+type PendingProjectAction = "new" | "open" | "close" | "quit";
 
 type UIStoreType = {
   selectedTextBlockIndex: number;
@@ -11,6 +12,7 @@ type UIStoreType = {
   page: PageType;
   bottomPanel: BottomPanelType;
   bottom_scroll_pos: number;
+  pendingProjectAction: PendingProjectAction | null;
 };
 
 const [UIProvider, useUIStore] = createContextProvider(() => {
@@ -21,6 +23,7 @@ const [UIProvider, useUIStore] = createContextProvider(() => {
     page: null,
     bottomPanel: "accent",
     bottom_scroll_pos: 0,
+    pendingProjectAction: null,
   });
   return {
     uiStore,
@@ -29,4 +32,4 @@ const [UIProvider, useUIStore] = createContextProvider(() => {
 });
 
 export { UIProvider, useUIStore };
-export type { PageType, BottomPanelType };
+export type { PageType, BottomPanelType, PendingProjectAction };

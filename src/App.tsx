@@ -46,7 +46,7 @@ function App() {
   const { t1 } = usei18n()!;
   const { systemStore } = useSystemStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
-  const { newProject } = useTextStore()!;
+  const { newProject, isProjectDirty } = useTextStore()!;
 
   const [initializing, setInitializing] = createSignal(true);
   const [customTitlebarVisible, setCustomTitlebarVisible] = createSignal(
@@ -111,6 +111,32 @@ function App() {
     onCleanup(() => {
       disposed = true;
       unlistenTheme?.();
+    });
+  });
+
+  onMount(() => {
+    let disposed = false;
+    let unlistenClose: (() => void) | undefined;
+
+    const initializeCloseListener = async () => {
+      try {
+        const unlisten = await appWindow.onCloseRequested((event) => {
+          if (isProjectDirty()) {
+            event.preventDefault();
+            setUIStore("pendingProjectAction", "close");
+          }
+        });
+        if (disposed) unlisten();
+        else unlistenClose = unlisten;
+      } catch (error) {
+        console.error("Failed to listen for window close requests:", error);
+      }
+    };
+
+    void initializeCloseListener();
+    onCleanup(() => {
+      disposed = true;
+      unlistenClose?.();
     });
   });
 

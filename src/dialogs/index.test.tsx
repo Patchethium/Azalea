@@ -2,12 +2,13 @@ import { AboutDialog } from "@dialogs/About";
 import { AppDialogContent } from "@dialogs/AppContent";
 import { PresetManagerDialog } from "@dialogs/PresetManager";
 import { ShortcutReferenceDialog } from "@dialogs/ShortcutReference";
+import { UnsavedChangesDialog } from "@dialogs/UnsavedChanges";
 import { Dialog } from "@kobalte/core/dialog";
 import { MultiProvider } from "@solid-primitives/context";
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { batch, createSignal, type Component, onMount } from "solid-js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ConfigProvider, useConfigStore } from "@contexts/config";
 import { i18nProvider } from "@contexts/i18n";
 import { MetaProvider } from "@contexts/meta";
@@ -25,6 +26,64 @@ describe("AppDialogContent", () => {
       </Dialog>
     ));
     expect(screen.getByRole("dialog", { name: "Bare dialog" })).toBeVisible();
+  });
+});
+
+describe("UnsavedChangesDialog", () => {
+  const renderDialog = (props: {
+    busy?: boolean;
+    onSave: () => void;
+    onDiscard: () => void;
+    onCancel: () => void;
+  }) =>
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [i18nProvider, null],
+        ]}
+      >
+        <UnsavedChangesDialog open busy={props.busy ?? false} {...props} />
+      </MultiProvider>
+    ));
+
+  it("offers save, discard, and cancel actions", () => {
+    const onSave = vi.fn();
+    const onDiscard = vi.fn();
+    const onCancel = vi.fn();
+    renderDialog({ onSave, onDiscard, onCancel });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "Discard" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(onSave).toHaveBeenCalledOnce();
+    expect(onDiscard).toHaveBeenCalledOnce();
+    expect(onCancel).toHaveBeenCalledOnce();
+  });
+
+  it("disables every action while saving", () => {
+    renderDialog({
+      busy: true,
+      onSave: () => {},
+      onDiscard: () => {},
+      onCancel: () => {},
+    });
+
+    expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Discard" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+  });
+
+  it("cancels when the dialog is dismissed", () => {
+    const onCancel = vi.fn();
+    renderDialog({ onSave: () => {}, onDiscard: () => {}, onCancel });
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(onCancel).toHaveBeenCalled();
   });
 });
 

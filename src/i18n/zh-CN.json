@@ -159,7 +159,16 @@
   "titlebar": {
     "minimize": "最小化",
     "maximize": "最大化或还原",
-    "close": "关闭"
+    "close": "关闭",
+    "unsaved": "有未保存的更改"
+  },
+  "unsaved": {
+    "title": "有未保存的更改",
+    "message": "在继续之前保存当前项目吗？",
+    "save": "保存",
+    "saving": "保存中…",
+    "discard": "丢弃",
+    "cancel": "取消"
   },
   "menu": {
     "project_actions": "项目操作",
@@ -168,6 +177,7 @@
     "save_project": "保存项目",
     "import_srt": "导入 SRT",
     "auto_save": "自动保存",
+    "quit": "退出",
     "about": "关于"
   },
   "preset": {

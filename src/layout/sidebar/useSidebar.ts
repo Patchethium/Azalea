@@ -4,6 +4,7 @@ import {
   open as openDialog,
   save as saveDialog,
 } from "@tauri-apps/plugin-dialog";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   batch,
   createEffect,
@@ -24,7 +25,7 @@ import {
   findPresetStyle,
   useTextStore,
 } from "@contexts/text";
-import { useUIStore } from "@contexts/ui";
+import { type PendingProjectAction, useUIStore } from "@contexts/ui";
 import { parseSrt } from "$utils";
 
 export function useSidebar() {
@@ -43,6 +44,8 @@ export function useSidebar() {
     replaceTextBlocks,
     removeProjectPreset,
     newProject,
+    isProjectDirty,
+    markProjectSaved,
   } = useTextStore()!;
   const { config, setConfig } = useConfigStore()!;
   const { isApplicationShortcutAllowed, matchesShortcut } =
@@ -188,11 +191,75 @@ export function useSidebar() {
         title: "Save Project",
         filters: [{ name: "Azalea Poject Files", extensions: ["azp"] }],
       });
-      if (path === null) return;
-      setProjectPath(path);
+      if (path === null) return false;
     }
     const result = await commands.saveProject(project, path, true);
-    if (result.status === "error") console.error(result.error);
+    if (result.status === "error") {
+      console.error(result.error);
+      return false;
+    }
+    batch(() => {
+      setProjectPath(path);
+      markProjectSaved();
+    });
+    return true;
+  };
+
+  const [resolvingProjectAction, setResolvingProjectAction] =
+    createSignal(false);
+
+  const runProjectAction = async (action: PendingProjectAction) => {
+    try {
+      switch (action) {
+        case "new":
+          newProject();
+          break;
+        case "open":
+          await loadProject();
+          break;
+        case "close":
+          await getCurrentWindow().destroy();
+          break;
+        case "quit":
+          await commands.quit();
+          break;
+      }
+    } catch (error) {
+      console.error(`Failed to run project action ${action}:`, error);
+    }
+  };
+
+  const requestProjectAction = (action: PendingProjectAction) => {
+    if (isProjectDirty()) {
+      setUIStore("pendingProjectAction", action);
+      return;
+    }
+    void runProjectAction(action);
+  };
+
+  const resolveProjectAction = async (
+    choice: "save" | "discard" | "cancel",
+  ) => {
+    const action = uiStore.pendingProjectAction;
+    if (action === null || resolvingProjectAction()) return;
+    if (choice === "cancel") {
+      setUIStore("pendingProjectAction", null);
+      return;
+    }
+    if (choice === "discard") {
+      setUIStore("pendingProjectAction", null);
+      await runProjectAction(action);
+      return;
+    }
+    setResolvingProjectAction(true);
+    try {
+      if (await saveProject()) {
+        setUIStore("pendingProjectAction", null);
+        await runProjectAction(action);
+      }
+    } finally {
+      setResolvingProjectAction(false);
+    }
   };
 
   onMount(() => {
@@ -227,6 +294,7 @@ export function useSidebar() {
       setProjectPresetStore(result.data.presets);
       setUIStore("selectedTextBlockIndex", 0);
     });
+    markProjectSaved();
   };
 
   const importSrt = async () => {
@@ -260,7 +328,12 @@ export function useSidebar() {
   const scheduledSave = createScheduled((fn) => throttle(fn, 500));
   createEffect(() => {
     JSON.stringify(project);
-    if (scheduledSave() && config.ui.auto_save && projectPath() !== null) {
+    if (
+      scheduledSave() &&
+      config.ui.auto_save &&
+      projectPath() !== null &&
+      isProjectDirty()
+    ) {
       void saveProject();
     }
   });
@@ -321,6 +394,9 @@ export function useSidebar() {
     loadProject,
     saveProject,
     importSrt,
+    requestProjectAction,
+    resolveProjectAction,
+    resolvingProjectAction,
   };
 }
 

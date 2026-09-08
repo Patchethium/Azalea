@@ -5,7 +5,7 @@ import {
   TextBlockProps as ProjectTextBlockProps,
 } from "$binding";
 import { createContextProvider } from "@solid-primitives/context";
-import { batch, createEffect, createSignal } from "solid-js";
+import { batch, createEffect, createMemo, createSignal } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { usei18n } from "@contexts/i18n";
 import { useMetaStore } from "@contexts/meta";
@@ -99,6 +99,35 @@ export const clampTextBlockIndex = (index: number, blockCount: number) => {
   return Math.min(Math.max(Math.trunc(index), 0), blockCount - 1);
 };
 
+// Mirrors the fields persisted by `save_project`, ignoring regenerated queries
+// so that derived `AudioQuery` refreshes do not count as user edits.
+const serializeProject = (
+  blocks: readonly TextBlockProps[],
+  presets: readonly Preset[],
+) =>
+  JSON.stringify({
+    blocks: blocks.map((block) => ({
+      id: block.id,
+      text: block.text,
+      query: block.query_is_modified ? block.query : null,
+      query_is_modified: block.query_is_modified,
+      preset_id: block.preset_id,
+    })),
+    presets: presets.map((preset) => ({
+      id: preset.id,
+      name: preset.name,
+      style_id: preset.style_id,
+      speed: preset.speed,
+      pitch: preset.pitch,
+      intonation: preset.intonation,
+      volume: preset.volume,
+      start_slience: preset.start_slience,
+      end_slience: preset.end_slience,
+      speaker_uuid: preset.speaker_uuid,
+      style_name: preset.style_name,
+    })),
+  });
+
 const [TextProvider, useTextStore] = createContextProvider(() => {
   const { availableStyleIds, metas } = useMetaStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
@@ -153,6 +182,19 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
       }
     });
   });
+
+  const resolvedProjectPresets = createMemo(() =>
+    projectPresetStore.map((preset) => resolvePresetIdentity(preset, metas)),
+  );
+  const projectSnapshot = createMemo(() =>
+    serializeProject(textStore, resolvedProjectPresets()),
+  );
+  const [savedProjectSnapshot, setSavedProjectSnapshot] =
+    createSignal(projectSnapshot());
+  const isProjectDirty = createMemo(
+    () => projectSnapshot() !== savedProjectSnapshot(),
+  );
+  const markProjectSaved = () => setSavedProjectSnapshot(projectSnapshot());
 
   const replaceTextBlocks = (blocks: ProjectTextBlockProps[]) => {
     setTextStore(blocks.map((block) => ({ ...block })));
@@ -248,6 +290,7 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
       ]);
       setUIStore("selectedTextBlockIndex", 0);
     });
+    markProjectSaved();
   };
 
   return {
@@ -269,6 +312,8 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     replaceTextBlocks,
     removeProjectPreset,
     newProject,
+    isProjectDirty,
+    markProjectSaved,
   };
 });
 

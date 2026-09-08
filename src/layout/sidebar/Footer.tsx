@@ -1,6 +1,7 @@
 import { AboutDialog } from "@dialogs/About";
 import { DictionaryDialog } from "@dialogs/Dictionary";
 import { ShortcutReferenceDialog } from "@dialogs/ShortcutReference";
+import { UnsavedChangesDialog } from "@dialogs/UnsavedChanges";
 import { Tooltip } from "@components/tooltip";
 import { DropdownMenu } from "@kobalte/core/dropdown-menu";
 import { ToggleGroup } from "@kobalte/core/toggle-group";
@@ -30,13 +31,13 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
             <DropdownMenu.Content class="bg-slate-1 dark:bg-slate-7 p-1 outline-none rounded-md ring-1 ring-slate-3 dark:ring-slate-5 shadow-xl shadow-slate-9/25 dark:shadow-slate-1/15">
               <DropdownMenu.Item
                 class={style.menu_item}
-                onClick={controls.newProject}
+                onClick={() => controls.requestProjectAction("new")}
               >
                 {t1("menu.new_project")}
               </DropdownMenu.Item>
               <DropdownMenu.Item
                 class={style.menu_item}
-                onClick={controls.loadProject}
+                onClick={() => controls.requestProjectAction("open")}
               >
                 {t1("menu.load_project")}
               </DropdownMenu.Item>
@@ -69,6 +70,12 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
                 onClick={() => controls.setAboutOpen(true)}
               >
                 {t1("menu.about")}
+              </DropdownMenu.Item>
+              <DropdownMenu.Item
+                class={style.menu_item}
+                onClick={() => controls.requestProjectAction("quit")}
+              >
+                {t1("menu.quit")}
               </DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
@@ -124,6 +131,13 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
         onOpenChange={(open) =>
           controls.setUIStore("page", open ? "shortcuts" : null)
         }
+      />
+      <UnsavedChangesDialog
+        open={controls.uiStore.pendingProjectAction !== null}
+        busy={controls.resolvingProjectAction()}
+        onSave={() => void controls.resolveProjectAction("save")}
+        onDiscard={() => void controls.resolveProjectAction("discard")}
+        onCancel={() => void controls.resolveProjectAction("cancel")}
       />
     </>
   );
