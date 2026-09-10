@@ -25,6 +25,46 @@ Pre-built binary is provided in [Releases](https://github.com/Patchethium/Azalea
 
 ## Development
 
+### Workspaces
+
+The desktop app and public landing page live in one pnpm workspace:
+
+| Path | Purpose |
+| --- | --- |
+| `src/` and `src-tauri/` | SolidJS frontend and Tauri desktop app |
+| `apps/landing/` | SolidJS landing page, built as a static Vite site |
+| `packages/theme/` | Primary color tokens and base CSS shared by both apps |
+
+`pnpm-workspace.yaml` keeps shared SolidJS, UnoCSS, Vite, and TypeScript
+versions in a catalog. Install once from the repository root. The desktop
+commands below continue to work from the root; the landing page needs only
+Node.js and pnpm, without Rust or VOICEVOX assets.
+
+```sh
+pnpm install --frozen-lockfile
+pnpm dev:landing      # http://localhost:4321
+pnpm check:landing    # lint, formatting, and TypeScript
+pnpm build:landing    # apps/landing/dist
+pnpm preview:landing  # serve the production site locally
+pnpm build:all        # build the desktop frontend and landing page
+```
+
+The landing page reuses the application artwork, Lucide icons, primary color
+palette, and light/dark styling. Its interactive editor illustration runs in
+the browser; voice synthesis remains in the desktop app.
+
+### GitHub Pages
+
+In the repository's **Settings → Pages → Build and deployment**, select
+**GitHub Actions** as the source. The `Landing page` workflow builds and checks
+the site on pull requests, then publishes changes on `master` to GitHub Pages.
+It can also be run manually from the Actions tab on `master`.
+
+The default project URL is `https://patchethium.github.io/Azalea/`. Vite emits
+relative asset URLs so the same output works under the repository subpath or
+a custom domain. Only `apps/landing/dist` is published; the desktop frontend
+and native runtime are built separately.
+
 ### Prerequisites
 
 - [Rust](https://rustup.rs)

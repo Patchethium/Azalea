@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#3b82f6" />
+    <meta
+      name="description"
+      content="Azalea is a lightweight, open-source VOICEVOX desktop app for Japanese speech. Shape voices with presets, pitch and timing. Available for Windows, macOS and Linux."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Azalea — Make every word your own" />
+    <meta
+      property="og:description"
+      content="A lightweight desktop app for Japanese speech, with expressive presets and detailed voice tuning."
+    />
+    <meta name="twitter:card" content="summary" />
+    <link rel="icon" type="image/png" href="../../icon/azalea.png" />
+    <title>Azalea — Make every word your own</title>
+    <script>
+      try {
+        const theme = localStorage.getItem("azalea-site-theme");
+        document.documentElement.classList.toggle(
+          "dark",
+          theme === "dark" ||
+            (theme !== "light" &&
+              matchMedia("(prefers-color-scheme: dark)").matches),
+        );
+      } catch {
+        document.documentElement.classList.toggle(
+          "dark",
+          matchMedia("(prefers-color-scheme: dark)").matches,
+        );
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript
+      >Azalea is a lightweight VOICEVOX desktop app for Japanese speech.
+      <a href="https://github.com/Patchethium/Azalea/releases/latest"
+        >Download the latest release</a
+      >
+      or
+      <a href="https://github.com/Patchethium/Azalea#setting-up-the-core"
+        >read the setup guide</a
+      >.</noscript
+    >
+    <script type="module" src="/src/index.tsx"></script>
+  </body>
+</html>
