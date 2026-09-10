@@ -49,7 +49,9 @@ function ThemeToggle() {
       apply(value);
     };
   });
-  let setPreference = (value: boolean) => setDark(value);
+  let setPreference = (value: boolean): void => {
+    setDark(value);
+  };
   const toggle = () => {
     const value = !dark();
     setPreference(value);
