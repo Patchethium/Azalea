@@ -4,6 +4,11 @@
 
 Azalea is a Tauri 2 desktop application. The SolidJS/TypeScript frontend lives in `src/`: reusable UI belongs in `components/`, pages in `layout/`, shared state in `contexts/`, and translations in `i18n/`. Styles use colocated CSS modules; UnoCSS is configured in `uno.config.ts`.
 
+The public landing page is a separate SolidJS/Vite workspace in
+`apps/landing/`. Both frontends use `packages/theme/` for primary color tokens
+and `pnpm-workspace.yaml` for shared dependency versions. Keep browser-only
+landing components independent of Tauri commands and application contexts.
+
 The Rust backend is under `src-tauri/`. Tauri commands are grouped in `src-tauri/src/commands/`, configuration handling in `config/`, and audio code in `audio/`. Rust integration tests and fixtures live in `src-tauri/tests/`. Application icons are in `src-tauri/icons/`; project artwork is in `icon/`. Treat `src/binding.ts` as generated bindings and avoid hand-editing it.
 
 ## Project Files
@@ -87,6 +92,10 @@ ID, and hash so stale async responses cannot replace newer previews.
 - `pnpm tauri dev` runs the complete desktop app with hot reload.
 - `pnpm dev` starts only the Vite frontend server.
 - `pnpm build` creates the frontend bundle with Vite.
+- `pnpm dev:landing` starts the public landing page on port 4321.
+- `pnpm check:landing` checks the landing page and shared theme.
+- `pnpm build:landing` builds the static site to `apps/landing/dist`.
+- `pnpm build:all` builds both frontends; run both when changing shared theme tokens.
 - `pnpm tauri build` creates a production desktop package.
 - `pnpm check` runs Biome linting and formatting checks on `src/`.
 - `pnpm test:run` runs the deterministic Vitest frontend suite once.
