@@ -13,7 +13,9 @@
   "dependencies": {
     "@azalea/theme": "workspace:*",
     "@unocss/reset": "catalog:",
-    "solid-js": "catalog:"
+    "solid-js": "catalog:",
+    "@kobalte/core": "^0.13.12",
+    "@tanstack/solid-virtual": "^3.13.37"
   },
   "devDependencies": {
     "@iconify-json/lucide": "catalog:",
@@ -21,6 +23,7 @@
     "typescript": "catalog:",
     "unocss": "catalog:",
     "vite": "catalog:",
-    "vite-plugin-solid": "catalog:"
+    "vite-plugin-solid": "catalog:",
+    "unocss-preset-primitives": "0.0.2-beta.1"
   }
 }

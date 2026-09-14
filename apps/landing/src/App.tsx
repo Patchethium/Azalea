@@ -1,6 +1,6 @@
 import { For, createSignal, onCleanup, onMount } from "solid-js";
 import azaleaLogo from "../../../icon/azalea.png";
-import { EditorPreview } from "./EditorPreview";
+import { TuningPreview } from "./TuningPreview";
 
 const repository = "https://github.com/Patchethium/Azalea";
 const features = [
@@ -133,7 +133,7 @@ export default function App() {
               macOS & Linux
             </p>
           </div>
-          <EditorPreview />
+          <TuningPreview />
         </section>
         <section
           class="feature-section container"

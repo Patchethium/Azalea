@@ -21,7 +21,8 @@
     "build:landing": "pnpm --filter @azalea/landing build",
     "preview:landing": "pnpm --filter @azalea/landing preview",
     "check:landing": "oxlint -c .oxlintrc.jsonc apps/landing/src packages/theme/src && oxfmt -c .oxfmtrc.jsonc --check apps/landing packages/theme && pnpm --filter @azalea/landing check",
-    "build:all": "pnpm build && pnpm build:landing"
+    "build:all": "pnpm build && pnpm build:landing",
+    "test:landing": "vitest run --config apps/landing/vitest.config.ts"
   },
   "license": "GPL-3.0-or-later",
   "dependencies": {

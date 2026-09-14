@@ -44,14 +44,16 @@ Node.js and pnpm, without Rust or VOICEVOX assets.
 pnpm install --frozen-lockfile
 pnpm dev:landing      # http://localhost:4321
 pnpm check:landing    # lint, formatting, and TypeScript
+pnpm test:landing     # tuning preview interactions
 pnpm build:landing    # apps/landing/dist
 pnpm preview:landing  # serve the production site locally
 pnpm build:all        # build the desktop frontend and landing page
 ```
 
 The landing page reuses the application artwork, Lucide icons, primary color
-palette, and light/dark styling. Its interactive editor illustration runs in
-the browser; voice synthesis remains in the desktop app.
+palette, and light/dark styling. Its full-width tuning demo uses copies of the desktop tuning components with
+local sample data. See [component provenance](apps/landing/src/demo/README.md)
+for the source mapping and pruned logic. Voice synthesis remains in the desktop app.
 
 ### GitHub Pages
 

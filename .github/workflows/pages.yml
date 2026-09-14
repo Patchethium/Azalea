@@ -48,6 +48,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Check landing page and shared theme
         run: pnpm check:landing
+      - name: Test tuning preview interactions
+        run: pnpm test:landing
       - name: Build landing page
         run: pnpm build:landing
       - name: Upload static site
