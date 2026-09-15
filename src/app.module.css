@@ -16,6 +16,7 @@
 }
 
 html {
+  --primary-color: #3b82f6;
   overscroll-behavior: none;
 }
 
