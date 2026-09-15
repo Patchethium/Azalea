@@ -130,7 +130,7 @@ A missing or invalid environment override and a missing development core fail
 the suite instead of silently skipping the real-core test.
 
 `pnpm test:coverage` produces a frontend coverage report and enforces at least
-90% statement, branch, function, and line coverage.
+90% statement, function, and line coverage and 80% branch coverage.
 
 Install [`cargo-llvm-cov`](https://github.com/taiki-e/cargo-llvm-cov), then run
 `pnpm test:coverage:rust` for an informational Rust coverage report, including

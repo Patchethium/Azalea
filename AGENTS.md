@@ -91,7 +91,7 @@ ID, and hash so stale async responses cannot replace newer previews.
 - `pnpm check` runs Biome linting and formatting checks on `src/`.
 - `pnpm test:run` runs the deterministic Vitest frontend suite once.
 - `pnpm test:coverage` runs the frontend suite with a V8 coverage report and
-  enforces at least 90% statements, branches, functions, and lines.
+  enforces at least 90% statements, functions, and lines and 80% branches.
 - `pnpm test:all` runs frontend checks, the frontend build, coverage-gated
   frontend tests, and every Rust test, including the real VOICEVOX pipeline.
 - `cd src-tauri && cargo test --locked -- --test-threads=1` runs
@@ -136,10 +136,11 @@ Do not ignore or feature-gate the real-core target. The complete suite must
 fail clearly when neither the environment override nor the development
 configuration supplies a valid core; do not silently skip it.
 
-Keep frontend statement, branch, function, and line coverage at or above 90%.
-`pnpm test:coverage` enforces these thresholds. Rust coverage is informational;
-`pnpm test:coverage:rust` does not enforce a threshold. Future Rust coverage
-enforcement is tracked in `.agents/todos/roadmap.md`.
+Keep frontend statement, function, and line coverage at or above 90%, and
+branch coverage at or above 80%. `pnpm test:coverage` enforces these thresholds.
+Rust coverage is informational; `pnpm test:coverage:rust` does not enforce a
+threshold. Future Rust coverage enforcement is tracked in
+`.agents/todos/roadmap.md`.
 
 ## Commit & Pull Request Guidelines
 
