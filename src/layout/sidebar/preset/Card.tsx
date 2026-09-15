@@ -23,7 +23,7 @@ export function PresetCard(props: PresetCardProps) {
   return (
     <div class="p1 group" {...props}>
       <div
-        class="items-start rounded-r-md p1 group-hover:bg-slate-2 dark:group-hover:bg-slate-7 overflow-hidden bg-white dark:bg-slate-8 border-l-2 border-slate-1 dark:border-slate-7
+        class="items-start rounded-r-md p1 pl2 group-hover:bg-slate-2 dark:group-hover:bg-slate-7 overflow-hidden bg-white dark:bg-slate-8 border-l-2 border-slate-1 dark:border-slate-7
         cursor-default select-none w-full min-h-[fit-content] group-active:bg-white dark:group-active:bg-slate-8 flex flex-col"
         classList={{
           "shadow-md group-hover:bg-white dark:group-hover:bg-slate-8 !border-primary-5":
