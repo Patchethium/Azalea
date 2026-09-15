@@ -10,6 +10,34 @@
   overflow: hidden;
 }
 
+@font-face {
+  font-family: "Azalea Noto Sans JP";
+  src: url("/fonts/NotoSansJP-VF.otf") format("opentype");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Azalea Noto Sans SC";
+  src: url("/fonts/NotoSansSC-VF.otf") format("opentype");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:global(html.embedded-font) {
+  font-family: "Azalea Noto Sans JP", sans-serif;
+}
+
+:global(html.embedded-font:lang(zh-CN)) {
+  font-family: "Azalea Noto Sans SC", sans-serif;
+}
+
+:global(html.embedded-font [lang="ja"]) {
+  font-family: "Azalea Noto Sans JP", sans-serif;
+}
+
 :global(.dark) .canvas {
   background-color: #0f172a;
   background-image: radial-gradient(#334155, 1px, transparent 0);

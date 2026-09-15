@@ -225,12 +225,13 @@ export function SpeakerSelectionDialog(props: SpeakerSelectionDialogProps) {
                 speaker.speaker_uuid === props.selectedSpeakerUuid;
               return (
                 <Tooltip
-                  content={speaker.name}
+                  content={<span lang="ja">{speaker.name}</span>}
                   class="min-w-0 w-full"
                   onlyWhenOverflowing
                 >
                   <Button
                     type="button"
+                    lang="ja"
                     disabled={style === undefined}
                     aria-pressed={selected()}
                     onClick={() => props.onSelect(speaker)}

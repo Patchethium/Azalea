@@ -19,6 +19,7 @@ import style from "./app.module.css";
 import {
   DEFAULT_PRIMARY_COLOR,
   DEFAULT_CUSTOM_TITLEBAR,
+  DEFAULT_LOCALE,
   DEFAULT_SIDEBAR_WIDTH,
   MIN_EDITOR_WIDTH,
   MIN_SIDEBAR_WIDTH,
@@ -195,6 +196,19 @@ function App() {
       ? configuredColor
       : DEFAULT_PRIMARY_COLOR;
     document.documentElement.style.setProperty("--primary-color", primaryColor);
+  });
+
+  createEffect(() => {
+    const locale = config.ui.locale ?? DEFAULT_LOCALE;
+    document.documentElement.lang = {
+      En: "en",
+      Ja: "ja",
+      ZhCn: "zh-CN",
+    }[locale];
+    document.documentElement.classList.toggle(
+      "embedded-font",
+      config.ui.embedded_font ?? false,
+    );
   });
 
   return (

@@ -34,6 +34,16 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 }));
 
 describe("TextBlock", () => {
+  it("marks synthesis text as Japanese", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    renderBlock(false);
+
+    expect(await screen.findByLabelText("Text to synthesize")).toHaveAttribute(
+      "lang",
+      "ja",
+    );
+  });
+
   it("normalizes blank editable input without requiring a selection", () => {
     vi.spyOn(document, "getSelection").mockReturnValue(null);
     const setText = vi.fn();

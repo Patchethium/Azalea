@@ -74,6 +74,7 @@ export const config = (
   ui: {
     locale: DEFAULT_LOCALE,
     theme_mode: DEFAULT_THEME_MODE,
+    embedded_font: false,
     custom_titlebar: DEFAULT_CUSTOM_TITLEBAR,
     primary_color: DEFAULT_PRIMARY_COLOR,
     bottom_scale: DEFAULT_BOTTOM_SCALE,

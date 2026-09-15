@@ -13,6 +13,7 @@ export function OptionSelector(props: {
   value: string;
   onChange: (value: string) => void;
   getOptionLabel?: (value: string) => string;
+  optionLang?: string;
   action?: JSX.Element;
 }) {
   const optionLabel = (value: string) => props.getOptionLabel?.(value) ?? value;
@@ -29,7 +30,7 @@ export function OptionSelector(props: {
           item={itemProps.item}
           class="p1 flex flex-row items-center justify-between rounded-md ui-highlighted:(bg-primary-5 text-white) cursor-pointer"
         >
-          <Select.ItemLabel>
+          <Select.ItemLabel lang={props.optionLang}>
             {optionLabel(itemProps.item.rawValue)}
           </Select.ItemLabel>
           <Select.ItemIndicator class="size-6 flex items-center justify-center">
@@ -43,7 +44,9 @@ export function OptionSelector(props: {
       </Select.Label>
       <div class="flex w-full items-center gap1">
         <Tooltip
-          content={optionLabel(props.value)}
+          content={
+            <span lang={props.optionLang}>{optionLabel(props.value)}</span>
+          }
           class="min-w-0 flex-1"
           onlyWhenOverflowing
         >
@@ -52,7 +55,10 @@ export function OptionSelector(props: {
                           h-8 bg-transparent border border-slate-2 rounded-md
                           hover:(bg-slate-1 dark:bg-slate-7) dark:border-slate-6"
           >
-            <Select.Value<string> class="min-w-0 truncate">
+            <Select.Value<string>
+              lang={props.optionLang}
+              class="min-w-0 truncate"
+            >
               {(state) => optionLabel(state.selectedOption())}
             </Select.Value>
             <Select.Icon class="shrink-0">

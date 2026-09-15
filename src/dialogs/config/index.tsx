@@ -2,6 +2,7 @@ import { commands } from "$binding";
 import { AppDialogContent } from "@dialogs/AppContent";
 import { AssetCacheSetting } from "@dialogs/config/AssetCacheSetting";
 import {
+  FontSelect,
   I18NSelect,
   PrimaryColorPicker,
   ThemeSelect,
@@ -53,6 +54,9 @@ export function ConfigPage() {
           <ConfigSectionTitle label={t1("config.ui")} />
           <ConfigItem label={t1("config.lang")}>
             <I18NSelect />
+          </ConfigItem>
+          <ConfigItem label={t1("config.font")}>
+            <FontSelect />
           </ConfigItem>
           <ConfigItem label={t1("config.theme")}>
             <ThemeSelect />

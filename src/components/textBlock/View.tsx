@@ -108,6 +108,7 @@ export function TextBlockView(props: {
             focused={props.focused}
             placeholder={t1("text_block.input_label")}
             aria-label={t1("text_block.input_label")}
+            lang="ja"
             onFocus={props.setSelected}
             onCaretChange={props.onCaretChange}
             onNavigate={props.onNavigate}

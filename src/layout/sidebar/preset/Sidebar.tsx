@@ -182,6 +182,7 @@ export function PresetSidebar(props: { controls: SidebarControls }) {
                     options={controls.availableSpeakerNames()}
                     value={controls.curMeta()?.name ?? ""}
                     onChange={controls.selectSpeakerByName}
+                    optionLang="ja"
                     action={
                       <IconButton
                         icon="i-lucide:layout-grid"
@@ -198,6 +199,7 @@ export function PresetSidebar(props: { controls: SidebarControls }) {
                     options={controls.availableStyleNames()}
                     value={controls.curStyle()?.name ?? ""}
                     onChange={controls.setStyleByName}
+                    optionLang="ja"
                   />
                   <PresetSlider
                     name={t1("preset.speed")}

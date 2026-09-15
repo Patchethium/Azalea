@@ -71,5 +71,6 @@ afterEach(() => {
   vi.unstubAllEnvs();
   vi.useRealTimers();
   document.documentElement.className = "";
+  document.documentElement.removeAttribute("lang");
   document.documentElement.removeAttribute("style");
 });

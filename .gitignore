@@ -1,5 +1,6 @@
 node_modules
 dist
+public/fonts/
 vendor/
 .env
 config_dev/config.json

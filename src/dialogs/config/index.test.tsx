@@ -192,6 +192,12 @@ describe("ConfigPage", () => {
     await user.click(await screen.findByText("Dark"));
     expect(appConfig.themeMode()).toBe("Dark");
 
+    const embeddedFont = screen.getByRole("button", { name: "Embedded" });
+    expect(embeddedFont).toHaveAttribute("aria-pressed", "false");
+    await user.click(embeddedFont);
+    expect(appConfig.config.ui.embedded_font).toBe(true);
+    expect(embeddedFont).toHaveAttribute("aria-pressed", "true");
+
     const customTitlebar = screen.getByRole("switch", {
       name: "Custom title bar",
     });

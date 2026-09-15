@@ -152,6 +152,7 @@ mod tests {
     let mut source = ConfigManager::default();
     source.config.ui.locale = Locale::Ja;
     source.config.ui.theme_mode = ThemeMode::Dark;
+    source.config.ui.embedded_font = true;
     source.config.ui.custom_titlebar = false;
     source.config.ui.primary_color = "#123456".into();
     source.config.ui.nonblocking_synthesis = true;
@@ -164,6 +165,7 @@ mod tests {
 
     assert!(matches!(loaded.config.ui.locale, Locale::Ja));
     assert!(matches!(loaded.config.ui.theme_mode, ThemeMode::Dark));
+    assert!(loaded.config.ui.embedded_font);
     assert!(!loaded.config.ui.custom_titlebar);
     assert_eq!(loaded.config.ui.primary_color, "#123456");
     assert!(loaded.config.ui.nonblocking_synthesis);

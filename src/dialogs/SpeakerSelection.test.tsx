@@ -157,6 +157,9 @@ describe("SpeakerSelectionDialog persistent icons", () => {
     expect(screen.getByRole("alert")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Engine Alias" }),
+    ).toHaveAttribute("lang", "ja");
+    expect(
+      screen.getByRole("button", { name: "Engine Alias" }),
     ).toHaveAttribute("aria-pressed", "true");
   });
 

@@ -4,6 +4,7 @@ import { ColorSwatch } from "@kobalte/core/color-swatch";
 import { parseColor } from "@kobalte/core/colors";
 import { Popover } from "@kobalte/core/popover";
 import { Select } from "@kobalte/core/select";
+import { ToggleGroup } from "@kobalte/core/toggle-group";
 import { createMemo, Show } from "solid-js";
 import { DEFAULT_PRIMARY_COLOR, PRIMARY_COLOR_PATTERN } from "$constants";
 import { useConfigStore } from "@contexts/config";
@@ -64,6 +65,36 @@ export function ThemeSelect() {
         </Select.Content>
       </Select.Portal>
     </Select>
+  );
+}
+
+export function FontSelect() {
+  const { config, setConfig } = useConfigStore()!;
+  const { t1 } = usei18n()!;
+  const itemClass =
+    "h-full px3 bg-transparent outline-none hover:bg-slate-1 active:bg-slate-1 focus-visible:(ring-2 ring-inset ring-primary-2) ui-pressed:(!bg-primary-5 !text-white) dark:hover:bg-slate-7 dark:active:bg-slate-7";
+
+  return (
+    <ToggleGroup
+      value={config.ui.embedded_font ? "embedded" : "native"}
+      onChange={(value) => {
+        if (value !== null) {
+          setConfig("ui", "embedded_font", value === "embedded");
+        }
+      }}
+      aria-label={t1("config.font")}
+      class="flex h-8 overflow-hidden rounded-md border border-slate-2 dark:border-slate-6"
+    >
+      <ToggleGroup.Item value="native" class={itemClass}>
+        {t1("config.font_native")}
+      </ToggleGroup.Item>
+      <ToggleGroup.Item
+        value="embedded"
+        class={`${itemClass} border-l border-slate-2 dark:border-slate-6`}
+      >
+        {t1("config.font_embedded")}
+      </ToggleGroup.Item>
+    </ToggleGroup>
   );
 }
 

@@ -95,6 +95,8 @@ describe("App initialization", () => {
 
     await events.initializationEvent.emit({
       config: config({
+        embedded_font: true,
+        locale: "ZhCn",
         theme_mode: "Dark",
         primary_color: "not-a-color",
       }),
@@ -105,17 +107,17 @@ describe("App initialization", () => {
     });
 
     expect(
-      await screen.findByText(
-        "Welcome to Azalea, an unofficial GUI for VOICEVOX",
-      ),
+      await screen.findByText("欢迎使用 Azalea，一款非官方 VOICEVOX 图形界面"),
     ).toBeInTheDocument();
     await waitFor(() => expect(document.documentElement).toHaveClass("dark"));
+    expect(document.documentElement).toHaveClass("embedded-font");
+    expect(document.documentElement).toHaveAttribute("lang", "zh-CN");
     expect(
       document.documentElement.style.getPropertyValue("--primary-color"),
     ).toBe("#3b82f6");
 
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    screen.getByRole("button", { name: "Pick it" }).click();
+    screen.getByRole("button", { name: "选择位置" }).click();
     await waitFor(() => expect(warn).toHaveBeenCalledOnce());
   });
 

@@ -609,6 +609,16 @@ describe("Sidebar controls", () => {
     ).toBeInTheDocument();
     await user.click(increaseStartSilence);
     expect(text.projectPresetStore[0].start_slience).toBe(200);
+    expect(
+      screen
+        .getByRole("button", { name: "Speaker Speaker" })
+        .querySelector('[lang="ja"]'),
+    ).toHaveTextContent("Speaker");
+    expect(
+      screen
+        .getByRole("button", { name: "Style Normal" })
+        .querySelector('[lang="ja"]'),
+    ).toHaveTextContent("Normal");
 
     const browseSpeakers = await screen.findByRole("button", {
       name: "Browse speakers",

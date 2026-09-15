@@ -66,6 +66,8 @@ pub struct UIConfig {
   pub locale: Locale,
   #[serde(default)]
   pub theme_mode: ThemeMode,
+  #[serde(default)]
+  pub embedded_font: bool,
   #[serde(default = "custom_titlebar_default")]
   pub custom_titlebar: bool,
   #[serde(default = "primary_color_default")]
@@ -111,6 +113,7 @@ impl Default for UIConfig {
     Self {
       locale: Default::default(),
       theme_mode: Default::default(),
+      embedded_font: false,
       custom_titlebar: custom_titlebar_default(),
       primary_color: primary_color_default(),
       bottom_scale: bottom_scale_default(),
@@ -330,6 +333,7 @@ mod tests {
     let config: UIConfig = toml::from_str("").unwrap();
     assert_eq!(config.synthesis_delay_ms, 600);
     assert!(!config.nonblocking_synthesis);
+    assert!(!config.embedded_font);
     assert!(config.custom_titlebar);
     assert!(config.default_export_dir.is_none());
     assert!(!config.default_export_dir_enabled);
