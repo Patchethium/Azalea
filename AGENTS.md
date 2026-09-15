@@ -108,6 +108,10 @@ Linux development also requires the Tauri prerequisites, `clang`, and `mold`. Th
 
 Use two-space indentation in both TypeScript and Rust, as configured by Biome and `rustfmt.toml`. Keep TypeScript strict and prefer focused Solid components. Name components and pages in `PascalCase.tsx`, context and utility modules in `camelCase.ts`, and CSS modules `*.module.css`. Rust modules, functions, and test files use `snake_case`; types use `PascalCase`. Run `pnpm check` and `cargo fmt` before submitting changes. Keep English, Japanese, and Simplified Chinese translation keys synchronized.
 
+Always ask user for clarification before making decisions on ambiguous instructions.
+
+Avoid using sub agents.
+
 ## Testing Guidelines
 
 Keep frontend tests colocated as `*.test.ts` or `*.test.tsx`; shared DOM,
