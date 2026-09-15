@@ -8,6 +8,7 @@ import type {
 import {
   DEFAULT_BOTTOM_RATIO,
   DEFAULT_BOTTOM_SCALE,
+  DEFAULT_BOTTOM_DURATION_HEIGHT,
   DEFAULT_CUSTOM_TITLEBAR,
   DEFAULT_PLAYBACK_TIMELINE,
   DEFAULT_LOCALE,
@@ -78,6 +79,7 @@ export const config = (
     bottom_scale: DEFAULT_BOTTOM_SCALE,
     auto_save: false,
     bottom_ratio: DEFAULT_BOTTOM_RATIO,
+    bottom_duration_height: DEFAULT_BOTTOM_DURATION_HEIGHT,
     side_width: DEFAULT_SIDEBAR_WIDTH,
     buffer_render: false,
     nonblocking_synthesis: false,

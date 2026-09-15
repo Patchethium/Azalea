@@ -23,6 +23,7 @@ import { SystemProvider } from "@contexts/system";
 import { findPresetById, TextProvider, useTextStore } from "@contexts/text";
 import { UIProvider, useUIStore } from "@contexts/ui";
 import { getModifiedQuery } from "$utils";
+import { DEFAULT_BOTTOM_DURATION_HEIGHT } from "$constants";
 import { audioQuery, config, metas, preset } from "../../test/fixtures";
 
 const BufferedWaveformJob: Component = () => {
@@ -62,6 +63,7 @@ export const renderCanvas = (
       <SpectrogramCanvas
         preview={preview}
         width={120}
+        durationHeight={DEFAULT_BOTTOM_DURATION_HEIGHT}
         preSilence={1}
         postSilence={1}
         stale={stale}

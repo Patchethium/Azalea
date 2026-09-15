@@ -16,6 +16,7 @@ export function TuningItem(props: {
   setPitch: (pitch: number) => void;
   minPitch: number;
   maxPitch: number;
+  durationHeight: number;
   isPause?: boolean;
 }) {
   const { config, spectrogramPreviewEnabled } = useConfigStore()!;
@@ -61,8 +62,9 @@ export function TuningItem(props: {
         </Show>
       </Show>
       <div
-        class="group relative flex flex-row bg-white dark:bg-slate-8"
-        classList={{ "h-full": whisper(), "h-12": !whisper() }}
+        class="group relative shrink-0 flex flex-row bg-white dark:bg-slate-8"
+        classList={{ "h-full": whisper() }}
+        style={{ height: whisper() ? undefined : `${props.durationHeight}px` }}
       >
         <div class="pointer-events-none absolute inset-0 flex items-center justify-center group-hover:invisible">
           {props.isPause ? "" : props.mora.text}
@@ -95,6 +97,7 @@ export function TuningItem(props: {
 export function SpectrogramCanvas(props: {
   preview: SpectrogramPreview;
   width: number;
+  durationHeight: number;
   preSilence: number;
   postSilence: number;
   stale: boolean;
@@ -166,7 +169,7 @@ export function SpectrogramCanvas(props: {
       classList={{ "opacity-55": props.stale }}
       style={{
         width: `${props.width}px`,
-        height: "calc(100% - 3rem)",
+        height: `calc(100% - ${props.durationHeight}px)`,
         filter: props.stale ? "grayscale(1)" : undefined,
       }}
     />

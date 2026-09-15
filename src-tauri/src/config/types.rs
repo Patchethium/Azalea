@@ -76,6 +76,8 @@ pub struct UIConfig {
   pub auto_save: bool,
   #[serde(default = "bottom_ratio_default")]
   pub bottom_ratio: f32,
+  #[serde(default = "bottom_duration_height_default")]
+  pub bottom_duration_height: u32,
   #[serde(default = "side_width_default")]
   pub side_width: u32,
   #[serde(default = "buffer_render_default")]
@@ -114,6 +116,7 @@ impl Default for UIConfig {
       bottom_scale: bottom_scale_default(),
       auto_save: Default::default(),
       bottom_ratio: bottom_ratio_default(),
+      bottom_duration_height: bottom_duration_height_default(),
       side_width: side_width_default(),
       buffer_render: buffer_render_default(),
       nonblocking_synthesis: false,
@@ -145,6 +148,10 @@ fn bottom_scale_default() -> usize {
 
 fn bottom_ratio_default() -> f32 {
   0.3
+}
+
+fn bottom_duration_height_default() -> u32 {
+  48
 }
 
 pub(super) fn side_width_default() -> u32 {
@@ -329,6 +336,7 @@ mod tests {
     assert!(!config.silent_save);
     assert!(!config.prevent_overwrite);
     assert!(config.last_exported_dir.is_none());
+    assert_eq!(config.bottom_duration_height, 48);
     assert_eq!(
       config.shortcuts.toggle_playback,
       KeyboardShortcut::new("Space", false, false)
@@ -433,8 +441,10 @@ mod tests {
   }
 
   #[test]
-  fn shortcut_round_trip_preserves_all_platform_modifiers() {
+  fn ui_config_round_trip_preserves_duration_height_and_shortcuts() {
     let input = r#"
+      bottom_duration_height = 72
+
       [shortcuts.save_project]
       key = "P"
       primary = true
@@ -450,6 +460,7 @@ mod tests {
     let serialized = toml::to_string(&config).unwrap();
     let restored: UIConfig = toml::from_str(&serialized).unwrap();
 
+    assert_eq!(restored.bottom_duration_height, 72);
     assert_eq!(
       restored.shortcuts.save_project,
       config.shortcuts.save_project

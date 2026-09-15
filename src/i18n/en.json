@@ -19,6 +19,7 @@
     "no_block": "No text cell selected",
     "accent": "Accent",
     "tuning": "Tuning",
+    "resize_duration": "Resize duration area",
     "previous": "Select previous text cell",
     "next": "Select next text cell",
     "play": "Play selected cell",

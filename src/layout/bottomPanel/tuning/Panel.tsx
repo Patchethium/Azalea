@@ -1,4 +1,6 @@
 import type { Mora } from "$binding";
+import { DEFAULT_BOTTOM_DURATION_HEIGHT } from "$constants";
+import { useConfigStore } from "@contexts/config";
 import { usei18n } from "@contexts/i18n";
 import { Slider } from "@kobalte/core/slider";
 import {
@@ -16,9 +18,14 @@ import {
   createSignal,
   For,
   on,
+  onCleanup,
   Show,
 } from "solid-js";
 import { createVirtualizer, observeElementRect } from "@tanstack/solid-virtual";
+
+const MIN_DURATION_HEIGHT = 24;
+const MIN_PITCH_HEIGHT = 48;
+const DURATION_RESIZE_STEP = 8;
 
 type TuningTimelineItem = {
   mora: Mora;
@@ -31,10 +38,54 @@ export function TuningPanel(props: {
   waveformSynthesisNotice: WaveformSynthesisNotice | null;
 }) {
   const { t1 } = usei18n()!;
+  const { config, setConfig } = useConfigStore()!;
   const panel = useTuningPanel(() => props.waveformSynthesisNotice);
   const [scrollElement, setScrollElement] = createSignal<HTMLDivElement | null>(
     null,
   );
+  const durationHeight = () =>
+    config.ui.bottom_duration_height ?? DEFAULT_BOTTOM_DURATION_HEIGHT;
+  const setDurationHeight = (height: number) =>
+    setConfig("ui", "bottom_duration_height", Math.round(height));
+  const [maxDurationHeight, setMaxDurationHeight] =
+    createSignal(durationHeight());
+  let timelineElement!: HTMLDivElement;
+  let resizingDuration = false;
+
+  const updateDurationBounds = () => {
+    if (timelineElement.clientHeight === 0) return maxDurationHeight();
+    const max = Math.max(
+      MIN_DURATION_HEIGHT,
+      timelineElement.clientHeight - MIN_PITCH_HEIGHT,
+    );
+    setMaxDurationHeight(max);
+    const height = Math.min(
+      Math.max(durationHeight(), MIN_DURATION_HEIGHT),
+      max,
+    );
+    if (height !== durationHeight()) setDurationHeight(height);
+    return max;
+  };
+
+  const resizeDuration = (clientY: number) => {
+    const max = updateDurationBounds();
+    setDurationHeight(
+      Math.min(
+        Math.max(
+          timelineElement.getBoundingClientRect().bottom - clientY,
+          MIN_DURATION_HEIGHT,
+        ),
+        max,
+      ),
+    );
+  };
+
+  createEffect(() => {
+    if (!panel.queryExists()) return;
+    const observer = new ResizeObserver(updateDurationBounds);
+    observer.observe(timelineElement);
+    onCleanup(() => observer.disconnect());
+  });
   const timelineItems = createMemo<TuningTimelineItem[]>(() =>
     (panel.currentText()?.query?.accent_phrases ?? []).flatMap(
       (phrase, phraseIndex) => [
@@ -112,6 +163,9 @@ export function TuningPanel(props: {
           }
         >
           <div
+            ref={(element) => {
+              timelineElement = element;
+            }}
             class="flex-1 relative"
             onMouseDown={(event) => panel.setStartX(event.clientX)}
             onMouseUp={panel.handleDragFinish}
@@ -128,6 +182,7 @@ export function TuningPanel(props: {
                 <SpectrogramCanvas
                   preview={preview()}
                   width={panel.timelineDuration() * panel.scale()}
+                  durationHeight={durationHeight()}
                   preSilence={
                     panel.currentModifiedQuery()?.prePhonemeLength ?? 0
                   }
@@ -186,6 +241,7 @@ export function TuningPanel(props: {
                           maxPitch={
                             currentItem().isPause ? 0 : panel.maxPitch()
                           }
+                          durationHeight={durationHeight()}
                           isPause={currentItem().isPause}
                         />
                       </div>
@@ -194,6 +250,57 @@ export function TuningPanel(props: {
                 );
               }}
             </For>
+            <button
+              type="button"
+              role="separator"
+              aria-label={t1("bottom.resize_duration")}
+              aria-orientation="vertical"
+              aria-valuemin={MIN_DURATION_HEIGHT}
+              aria-valuemax={maxDurationHeight()}
+              aria-valuenow={durationHeight()}
+              aria-valuetext={`${durationHeight()}px`}
+              data-duration-resize-handle
+              class="group absolute left-0 right-0 z-2 h-2 touch-none cursor-ns-resize flex items-center border-0 bg-transparent p-0"
+              style={{
+                bottom: `${durationHeight()}px`,
+                transform: "translateY(50%)",
+              }}
+              onPointerDown={(event) => {
+                if (event.button !== 0) return;
+                event.preventDefault();
+                event.stopPropagation();
+                resizingDuration = true;
+                event.currentTarget.setPointerCapture(event.pointerId);
+              }}
+              onPointerMove={(event) => {
+                if (!resizingDuration) return;
+                event.stopPropagation();
+                resizeDuration(event.clientY);
+              }}
+              onLostPointerCapture={() => {
+                resizingDuration = false;
+              }}
+              onKeyDown={(event) => {
+                const delta =
+                  event.key === "ArrowUp"
+                    ? DURATION_RESIZE_STEP
+                    : event.key === "ArrowDown"
+                      ? -DURATION_RESIZE_STEP
+                      : 0;
+                if (delta === 0) return;
+                event.preventDefault();
+                event.stopPropagation();
+                const max = updateDurationBounds();
+                setDurationHeight(
+                  Math.min(
+                    Math.max(durationHeight() + delta, MIN_DURATION_HEIGHT),
+                    max,
+                  ),
+                );
+              }}
+            >
+              <span class="block h-px w-full bg-transparent transition-colors group-hover:bg-primary-5 group-active:bg-primary-5 group-focus-visible:bg-primary-5" />
+            </button>
           </div>
         </Show>
       </div>

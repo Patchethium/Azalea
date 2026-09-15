@@ -19,6 +19,7 @@
     "no_block": "未选择文本单元格",
     "accent": "重音",
     "tuning": "调音",
+    "resize_duration": "调整时长编辑区域大小",
     "previous": "选择上一个文本单元格",
     "next": "选择下一个文本单元格",
     "play": "播放选中的单元格",

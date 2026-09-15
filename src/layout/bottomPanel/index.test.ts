@@ -42,7 +42,7 @@ describe("SpectrogramCanvas", () => {
     expect(canvas.width).toBe(2);
     expect(canvas.height).toBe(2);
     expect(canvas.style.width).toBe("120px");
-    expect(canvas.style.height).toBe("calc(100% - 3rem)");
+    expect(canvas.style.height).toBe("calc(100% - 48px)");
     expect(canvas).not.toHaveClass("opacity-55");
   });
 
@@ -1678,6 +1678,48 @@ describe("BottomPanel playback", () => {
         ?.vowel_length,
     ).toBeCloseTo(0.4);
     expect(container.querySelectorAll('[role="slider"]')).toHaveLength(1);
+  });
+
+  it("resizes the duration area by pointer and keyboard", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const { container, getConfigStore } = renderPanel({
+      spectrogram_preview: false,
+      bottom_duration_height: 64,
+    });
+
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    const handle = screen.getByRole("separator", {
+      name: "Resize duration area",
+    });
+    const timeline = container.querySelector<HTMLElement>(
+      "[data-tuning-virtualizer]",
+    )!;
+    Object.defineProperty(timeline, "clientHeight", { value: 200 });
+    vi.spyOn(timeline, "getBoundingClientRect").mockReturnValue({
+      bottom: 200,
+    } as DOMRect);
+    handle.setPointerCapture = vi.fn();
+
+    expect(screen.getByText("k").parentElement).toHaveStyle({ height: "64px" });
+
+    handle.dispatchEvent(
+      new MouseEvent("pointerdown", { bubbles: true, button: 0, clientY: 152 }),
+    );
+    handle.dispatchEvent(
+      new MouseEvent("pointermove", { bubbles: true, clientY: 120 }),
+    );
+    handle.dispatchEvent(new Event("lostpointercapture", { bubbles: true }));
+
+    expect(screen.getByText("k").parentElement).toHaveStyle({ height: "80px" });
+    expect(handle).toHaveAttribute("aria-valuemax", "152");
+    expect(handle).toHaveAttribute("aria-valuenow", "80");
+    expect(getConfigStore().config.ui.bottom_duration_height).toBe(80);
+
+    fireEvent.keyDown(handle, { key: "ArrowUp" });
+    expect(screen.getByText("k").parentElement).toHaveStyle({ height: "88px" });
+    expect(getConfigStore().config.ui.bottom_duration_height).toBe(88);
   });
 
   it("mounts only tuning items near the horizontal viewport", async () => {
