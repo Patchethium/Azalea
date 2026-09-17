@@ -10,7 +10,7 @@ import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { produce } from "solid-js/store";
 import { describe, expect, it, vi } from "vitest";
 import { defaultKeyboardShortcuts } from "@contexts/shortcuts";
-import { audioQuery, preset } from "../../test/fixtures";
+import { audioQuery, preset, spectrogram } from "../../test/fixtures";
 
 vi.mock("@solid-primitives/scheduled", () => ({
   debounce: <Args extends unknown[]>(
@@ -693,9 +693,9 @@ describe("TextBlock", () => {
     });
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    const { getConfigStore } = renderBlock(true);
+    const { getConfigStore, getTextStore } = renderBlock(true);
     await waitFor(() => expect(synthesize).toHaveBeenCalledOnce());
-    const request = synthesize.mock.calls[0][0];
+    let request = synthesize.mock.calls[0][0];
 
     await events.synthesisJobEvent.emit({
       blockId: request.blockId,
@@ -733,6 +733,18 @@ describe("TextBlock", () => {
       ["Cancelled", "Cancelled", "i-lucide:circle-slash"],
       ["Evicted", "No Longer Buffered", "i-lucide:archive-restore"],
     ] as const) {
+      getTextStore().setTextStore(
+        0,
+        "query",
+        "outputSamplingRate",
+        request.audioQuery.outputSamplingRate + 1000,
+      );
+      await waitFor(() =>
+        expect(synthesize.mock.lastCall![0].generationId).toBeGreaterThan(
+          request.generationId,
+        ),
+      );
+      request = synthesize.mock.lastCall![0];
       await events.synthesisJobEvent.emit({
         blockId: request.blockId,
         generationId: request.generationId,
@@ -812,6 +824,74 @@ describe("TextBlock", () => {
       ":",
       "queue failed",
     );
+  });
+
+  it("waits for the synthesis event listener before submitting", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    vi.spyOn(commands, "audioQuery").mockResolvedValue({
+      status: "ok",
+      data: audioQuery(),
+    });
+    const synthesize = vi
+      .spyOn(commands, "synthesize")
+      .mockResolvedValue({ status: "ok", data: null });
+
+    const internals = (
+      window as unknown as {
+        __TAURI_INTERNALS__: {
+          invoke: (...args: unknown[]) => Promise<unknown>;
+        };
+      }
+    ).__TAURI_INTERNALS__;
+    const originalInvoke = internals.invoke;
+    let releaseListen!: () => void;
+    const listenGate = new Promise<void>((resolve) => {
+      releaseListen = resolve;
+    });
+    internals.invoke = async (cmd, args, options) => {
+      if (cmd === "plugin:event|listen") await listenGate;
+      return originalInvoke(cmd, args, options);
+    };
+
+    try {
+      renderBlock(true);
+      expect(
+        await screen.findByRole("status", { name: "Queued" }),
+      ).toBeInTheDocument();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(synthesize).not.toHaveBeenCalled();
+
+      releaseListen();
+      await waitFor(() => expect(synthesize).toHaveBeenCalledOnce());
+    } finally {
+      internals.invoke = originalInvoke;
+    }
+  });
+
+  it("reports a rejected synthesis invocation as failed", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(commands, "audioQuery").mockResolvedValue({
+      status: "ok",
+      data: audioQuery(),
+    });
+    const synthesize = vi
+      .spyOn(commands, "synthesize")
+      .mockRejectedValue(new Error("ipc failed"));
+
+    renderBlock(true);
+
+    expect(
+      await screen.findByRole("status", { name: "Failed" }),
+    ).toBeInTheDocument();
+    expect(console.error).toHaveBeenCalledWith(
+      "Failed to queue synthesis for block",
+      0,
+      ":",
+      expect.any(Error),
+    );
+    await waitFor(() => expect(synthesize).toHaveBeenCalledTimes(3));
+    expect(screen.getByRole("status", { name: "Failed" })).toBeInTheDocument();
   });
 
   it("uses the experimental nonblocking command only when enabled", async () => {
@@ -1389,6 +1469,187 @@ describe("TextBlock", () => {
     expect(getTextStore().textStore[0].query).toBeNull();
     expect(screen.getByRole("button", { name: "Save audio" })).toBeDisabled();
     getTextStore().setProjectPresetStore([preset()]);
+  });
+
+  it.each(["Queued", "Running", "Failed"] as const)(
+    "cancels %s render work as soon as text changes, before its replacement query returns",
+    async (state) => {
+      mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+        shouldMockEvents: true,
+      });
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      type QueryResult = Awaited<ReturnType<typeof commands.audioQuery>>;
+      let resolveQuery!: (result: QueryResult) => void;
+      const query = vi
+        .spyOn(commands, "audioQuery")
+        .mockResolvedValueOnce({ status: "ok", data: audioQuery() })
+        .mockReturnValue(
+          new Promise((resolve) => {
+            resolveQuery = resolve;
+          }),
+        );
+      const synthesize = vi
+        .spyOn(commands, "synthesizeNonblocking")
+        .mockResolvedValue({ status: "ok", data: null });
+      const requestPreview = vi
+        .spyOn(commands, "requestSpectrogramPreview")
+        .mockResolvedValue({ status: "ok", data: null });
+      const cancel = vi
+        .spyOn(commands, "cancelSynthesis")
+        .mockResolvedValue({ status: "ok", data: null });
+      const cancelPreview = vi
+        .spyOn(commands, "cancelSpectrogramPreview")
+        .mockResolvedValue({ status: "ok", data: null });
+      vi.useFakeTimers();
+      const { container, getTextStore } = renderBlock(
+        true,
+        false,
+        false,
+        {
+          nonblocking_synthesis: true,
+        },
+        true,
+      );
+      fireEvent.click(screen.getByRole("tab", { name: "Tuning" }));
+      await vi.advanceTimersByTimeAsync(1);
+      expect(synthesize).toHaveBeenCalledOnce();
+      expect(requestPreview).toHaveBeenCalledOnce();
+      await events.spectrogramJobEvent.emit({
+        ...requestPreview.mock.calls[0][0],
+        state: "Completed",
+        error: null,
+        preview: spectrogram,
+      });
+      const canvas = container.querySelector("canvas")!;
+      expect(canvas.width).toBeGreaterThan(0);
+
+      // Start another generation with the previous image still visible.
+      getTextStore().setTextStore(0, "query", "outputStereo", true);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(synthesize).toHaveBeenCalledTimes(2);
+      expect(requestPreview).toHaveBeenCalledTimes(2);
+      const waveform = synthesize.mock.lastCall![0];
+      const preview = requestPreview.mock.lastCall![0];
+      cancel.mockClear();
+      cancelPreview.mockClear();
+      await events.synthesisJobEvent.emit({
+        ...waveform,
+        state,
+        error: "old job",
+      });
+      await events.spectrogramJobEvent.emit({
+        ...preview,
+        state,
+        error: "old job",
+        preview: null,
+      });
+
+      const editor = screen.getByLabelText("Text to synthesize");
+      editor.innerText = "changed text";
+      fireEvent.input(editor);
+      expect(cancel).toHaveBeenCalledWith(
+        waveform.blockId,
+        waveform.generationId,
+      );
+      expect(cancelPreview).toHaveBeenCalledWith(
+        preview.blockId,
+        preview.generationId,
+      );
+      expect(getTextStore().queryPending[waveform.blockId]).toBeTruthy();
+      expect(container.querySelector("canvas")).toBe(canvas);
+      expect(canvas).toHaveClass("opacity-55");
+
+      await events.synthesisJobEvent.emit({
+        ...waveform,
+        state: "Completed",
+        error: null,
+      });
+      await events.spectrogramJobEvent.emit({
+        ...preview,
+        state: "Completed",
+        error: null,
+        preview: spectrogram,
+      });
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(query).toHaveBeenLastCalledWith("changed text", 1);
+      expect(synthesize).toHaveBeenCalledTimes(2);
+      expect(requestPreview).toHaveBeenCalledTimes(2);
+      expect(
+        screen.queryByRole("status", { name: "Completed" }),
+      ).not.toBeInTheDocument();
+      expect(canvas).toHaveClass("opacity-55");
+
+      resolveQuery({
+        status: "ok",
+        data: audioQuery({ outputSamplingRate: 48_000 }),
+      });
+      await vi.advanceTimersByTimeAsync(1);
+      expect(getTextStore().queryPending[waveform.blockId]).toBeUndefined();
+      expect(synthesize).toHaveBeenCalledTimes(3);
+      expect(requestPreview).toHaveBeenCalledTimes(3);
+      expect(synthesize.mock.lastCall![0].audioQuery.outputSamplingRate).toBe(
+        48_000,
+      );
+      expect(synthesize.mock.lastCall![0].generationId).toBeGreaterThan(
+        waveform.generationId,
+      );
+      await events.synthesisJobEvent.emit({
+        ...synthesize.mock.lastCall![0],
+        state: "Completed",
+        error: null,
+      });
+      await events.spectrogramJobEvent.emit({
+        ...requestPreview.mock.lastCall![0],
+        state: "Completed",
+        error: null,
+        preview: spectrogram,
+      });
+      expect(
+        screen.getByRole("status", { name: "Completed" }),
+      ).toBeInTheDocument();
+      expect(canvas).not.toHaveClass("opacity-55");
+    },
+  );
+
+  it("does not let an older full-query response overwrite a newer accent edit", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    type QueryResult = Awaited<ReturnType<typeof commands.audioQuery>>;
+    let resolveQuery!: (result: QueryResult) => void;
+    vi.spyOn(commands, "audioQuery").mockReturnValue(
+      new Promise((resolve) => {
+        resolveQuery = resolve;
+      }),
+    );
+    const replacement = [
+      {
+        ...audioQuery().accent_phrases[0],
+        moras: [{ ...audioQuery().accent_phrases[0].moras[0], text: "サ" }],
+      },
+    ];
+    vi.spyOn(commands, "accentPhrases").mockResolvedValue({
+      status: "ok",
+      data: replacement,
+    });
+    const { getTextStore } = renderBlock(false, false, false, {}, true);
+    await waitFor(() => expect(commands.audioQuery).toHaveBeenCalled());
+    fireEvent.click(screen.getByText("コ"));
+    const editor = screen.getByRole("textbox");
+    fireEvent.input(editor, { target: { value: "サ" } });
+    fireEvent.keyDown(editor, { key: "Enter" });
+    await waitFor(() =>
+      expect(getTextStore().textStore[0].query?.accent_phrases).toEqual(
+        replacement,
+      ),
+    );
+    resolveQuery({ status: "ok", data: audioQuery() });
+    await Promise.resolve();
+    expect(getTextStore().textStore[0].query?.accent_phrases).toEqual(
+      replacement,
+    );
+    expect(getTextStore().textStore[0].query_is_modified).toBe(true);
+    expect(getTextStore().queryPending["text-block"]).toBeUndefined();
   });
 
   it("does not let a stale query response replace newer text", async () => {

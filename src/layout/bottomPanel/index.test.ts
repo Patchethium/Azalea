@@ -10,6 +10,7 @@ import {
   renderPlaybackHook,
   renderTuningHook,
 } from "@layout/bottomPanel/testUtils";
+import * as scheduled from "@solid-primitives/scheduled";
 import { fireEvent, screen, waitFor, within } from "@solidjs/testing-library";
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
@@ -28,6 +29,13 @@ const emitCompletedSpectrogram = (
     error: null,
     preview,
   });
+
+const editAccentText = (value: string) => {
+  fireEvent.click(screen.getByText("コ"));
+  const editor = screen.getByRole("textbox");
+  fireEvent.input(editor, { target: { value } });
+  fireEvent.keyDown(editor, { key: "Enter" });
+};
 
 describe("SpectrogramCanvas", () => {
   it("crops configured silence while retaining timeline display width", () => {
@@ -1008,6 +1016,7 @@ describe("BottomPanel playback", () => {
   });
 
   it("coalesces rapid waveform and spectrogram requests onto matching cache keys", async () => {
+    const debounce = vi.spyOn(scheduled, "debounce");
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
@@ -1048,6 +1057,7 @@ describe("BottomPanel playback", () => {
     await waitFor(() => expect(requestPreview).toHaveBeenCalledOnce());
     const firstWaveform = synthesize.mock.calls[0][0];
     const firstPreview = requestPreview.mock.calls[0][0];
+    debounce.mockClear();
     expect(firstPreview).toMatchObject({
       blockId: firstWaveform.blockId,
       audioQuery: firstWaveform.audioQuery,
@@ -1078,6 +1088,7 @@ describe("BottomPanel playback", () => {
 
     await waitFor(() => expect(synthesize).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(requestPreview).toHaveBeenCalledTimes(2));
+    expect(debounce).not.toHaveBeenCalled();
     expect(cancelSynthesis).toHaveBeenCalledWith(
       firstWaveform.blockId,
       firstWaveform.generationId,
@@ -1098,6 +1109,172 @@ describe("BottomPanel playback", () => {
       5.2,
     );
   });
+
+  it("retries render failures every 100ms with fresh generations and stops after three attempts", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const synthesize = vi
+      .spyOn(commands, "synthesizeNonblocking")
+      .mockResolvedValueOnce({ status: "ok", data: null })
+      .mockResolvedValueOnce({ status: "error", error: "queue failed" })
+      .mockRejectedValue(new Error("ipc failed"));
+    const requestPreview = vi
+      .spyOn(commands, "requestSpectrogramPreview")
+      .mockResolvedValueOnce({ status: "ok", data: null })
+      .mockResolvedValueOnce({ status: "error", error: "queue failed" })
+      .mockRejectedValue(new Error("ipc failed"));
+    const { getTextStore } = renderPanel(
+      {
+        buffer_render: true,
+        nonblocking_synthesis: true,
+        synthesis_delay_ms: 0,
+      },
+      false,
+      true,
+    );
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    await waitFor(() => expect(synthesize).toHaveBeenCalledOnce());
+    await waitFor(() => expect(requestPreview).toHaveBeenCalledOnce());
+    vi.useFakeTimers();
+    const waveform = synthesize.mock.calls[0][0];
+    const preview = requestPreview.mock.calls[0][0];
+    const failBoth = async () => {
+      await events.synthesisJobEvent.emit({
+        ...waveform,
+        state: "Failed",
+        error: "worker failed",
+      });
+      await events.spectrogramJobEvent.emit({
+        ...preview,
+        state: "Failed",
+        error: "worker failed",
+        preview: null,
+      });
+    };
+    await failBoth();
+    await failBoth(); // Duplicate events must not spend another attempt.
+    await vi.advanceTimersByTimeAsync(99);
+    expect(synthesize).toHaveBeenCalledOnce();
+    expect(requestPreview).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(synthesize).toHaveBeenCalledTimes(2);
+    expect(requestPreview).toHaveBeenCalledTimes(2);
+    await failBoth(); // The first generation is stale now.
+    await vi.advanceTimersByTimeAsync(100);
+    expect(synthesize).toHaveBeenCalledTimes(3);
+    expect(requestPreview).toHaveBeenCalledTimes(3);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(synthesize).toHaveBeenCalledTimes(3);
+    expect(requestPreview).toHaveBeenCalledTimes(3);
+    for (const calls of [synthesize.mock.calls, requestPreview.mock.calls]) {
+      expect(calls[1][0].generationId).toBeGreaterThan(
+        calls[0][0].generationId,
+      );
+      expect(calls[2][0].generationId).toBeGreaterThan(
+        calls[1][0].generationId,
+      );
+      expect(calls[2][0].hash).toBe(calls[0][0].hash);
+    }
+
+    // A new edit gets a fresh attempt budget, and successful retries stop.
+    synthesize.mockResolvedValue({ status: "ok", data: null });
+    requestPreview.mockResolvedValue({ status: "ok", data: null });
+    getTextStore().setTextStore(0, "query", "outputStereo", true);
+    await vi.advanceTimersByTimeAsync(1);
+    const editedWaveform = synthesize.mock.lastCall![0];
+    const editedPreview = requestPreview.mock.lastCall![0];
+    await events.synthesisJobEvent.emit({
+      ...editedWaveform,
+      state: "Failed",
+      error: "worker failed",
+    });
+    await events.spectrogramJobEvent.emit({
+      ...editedPreview,
+      state: "Failed",
+      error: "worker failed",
+      preview: null,
+    });
+    await vi.advanceTimersByTimeAsync(100);
+    expect(synthesize).toHaveBeenCalledTimes(5);
+    expect(requestPreview).toHaveBeenCalledTimes(5);
+    await events.synthesisJobEvent.emit({
+      ...synthesize.mock.lastCall![0],
+      state: "Completed",
+      error: null,
+    });
+    await emitCompletedSpectrogram(
+      requestPreview.mock.lastCall![0],
+      spectrogram,
+    );
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(synthesize).toHaveBeenCalledTimes(5);
+    expect(requestPreview).toHaveBeenCalledTimes(5);
+  });
+
+  it.each(["edit", "disable", "preview-disable", "unmount"])(
+    "cancels pending render retries on %s",
+    async (action) => {
+      mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+        shouldMockEvents: true,
+      });
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      const synthesize = vi
+        .spyOn(commands, "synthesize")
+        .mockResolvedValue({ status: "ok", data: null });
+      const requestPreview = vi
+        .spyOn(commands, "requestSpectrogramPreview")
+        .mockResolvedValue({ status: "ok", data: null });
+      vi.spyOn(commands, "cancelSynthesis").mockResolvedValue({
+        status: "ok",
+        data: null,
+      });
+      vi.spyOn(commands, "cancelSpectrogramPreview").mockResolvedValue({
+        status: "ok",
+        data: null,
+      });
+      const { getConfigStore, getTextStore, unmount } = renderPanel(
+        { buffer_render: true, synthesis_delay_ms: 0 },
+        false,
+        true,
+      );
+      fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+      await waitFor(() => expect(synthesize).toHaveBeenCalledOnce());
+      await waitFor(() => expect(requestPreview).toHaveBeenCalledOnce());
+      vi.useFakeTimers();
+      await events.synthesisJobEvent.emit({
+        ...synthesize.mock.calls[0][0],
+        state: "Failed",
+        error: "worker failed",
+      });
+      await events.spectrogramJobEvent.emit({
+        ...requestPreview.mock.calls[0][0],
+        state: "Failed",
+        error: "worker failed",
+        preview: null,
+      });
+      if (action === "edit")
+        getTextStore().setTextStore(0, "query", "outputStereo", true);
+      else if (action === "disable")
+        getConfigStore().setConfig("ui", "buffer_render", false);
+      else if (action === "preview-disable")
+        getConfigStore().setSpectrogramPreviewEnabled(false);
+      else unmount();
+      await vi.advanceTimersByTimeAsync(1000);
+      const count = action === "edit" ? 2 : 1;
+      expect(synthesize).toHaveBeenCalledTimes(
+        action === "preview-disable" ? 2 : count,
+      );
+      expect(requestPreview).toHaveBeenCalledTimes(count);
+      if (action === "edit") {
+        expect(synthesize.mock.lastCall![0].audioQuery.outputStereo).toBe(true);
+        expect(requestPreview.mock.lastCall![0].audioQuery.outputStereo).toBe(
+          true,
+        );
+      }
+    },
+  );
 
   it("recancels delayed preview submissions and stops buffered work when buffering is disabled", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
@@ -1163,6 +1340,44 @@ describe("BottomPanel playback", () => {
     );
   });
 
+  it("waits for the spectrogram event listener before requesting a preview", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const requestPreview = vi
+      .spyOn(commands, "requestSpectrogramPreview")
+      .mockResolvedValue({ status: "ok", data: null });
+
+    const internals = (
+      window as unknown as {
+        __TAURI_INTERNALS__: {
+          invoke: (...args: unknown[]) => Promise<unknown>;
+        };
+      }
+    ).__TAURI_INTERNALS__;
+    const originalInvoke = internals.invoke;
+    let releaseListen!: () => void;
+    const listenGate = new Promise<void>((resolve) => {
+      releaseListen = resolve;
+    });
+    internals.invoke = async (cmd, args, options) => {
+      if (cmd === "plugin:event|listen") await listenGate;
+      return originalInvoke(cmd, args, options);
+    };
+
+    try {
+      renderPanel({ buffer_render: true, synthesis_delay_ms: 0 });
+      fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(requestPreview).not.toHaveBeenCalled();
+
+      releaseListen();
+      await waitFor(() => expect(requestPreview).toHaveBeenCalledOnce());
+    } finally {
+      internals.invoke = originalInvoke;
+    }
+  });
+
   it("ignores running preview events and rejects completed events without a preview", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
@@ -1200,6 +1415,241 @@ describe("BottomPanel playback", () => {
       ),
     );
   });
+
+  it.each(["text", "accent", "split", "combine", "pause"])(
+    "cancels synthesis immediately and waits for the final query on an accent-panel %s edit",
+    async (kind) => {
+      vi.useFakeTimers();
+      mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+        shouldMockEvents: true,
+      });
+      type Result = Awaited<ReturnType<typeof commands.replaceMora>>;
+      let resolve!: (result: Result) => void;
+      const pending = new Promise<Result>((done) => {
+        resolve = done;
+      });
+      const replace = vi
+        .spyOn(commands, "replaceMora")
+        .mockReturnValue(pending);
+      vi.spyOn(commands, "accentPhrases").mockReturnValue(pending);
+      const synthesize = vi
+        .spyOn(commands, "synthesizeNonblocking")
+        .mockResolvedValue({ status: "ok", data: null });
+      const cancel = vi
+        .spyOn(commands, "cancelSynthesis")
+        .mockResolvedValue({ status: "ok", data: null });
+      const { getTextStore } = renderPanel(
+        {
+          buffer_render: true,
+          nonblocking_synthesis: true,
+          synthesis_delay_ms: 0,
+        },
+        false,
+        true,
+      );
+      const text = getTextStore();
+      const phrase = audioQuery().accent_phrases[0];
+      text.setTextStore(
+        0,
+        "query",
+        "accent_phrases",
+        kind === "combine"
+          ? [phrase, { ...phrase, moras: [{ ...mora, text: "ア" }] }]
+          : [{ ...phrase, moras: [{ ...mora }, { ...mora, text: "ン" }] }],
+      );
+      await vi.advanceTimersByTimeAsync(1);
+      expect(synthesize).toHaveBeenCalledOnce();
+      const first = synthesize.mock.calls[0][0];
+      if (kind === "text") editAccentText("サ");
+      else if (kind === "accent")
+        fireEvent.keyDown(
+          screen
+            .getAllByRole("slider")
+            .find((element) => element.tagName === "SPAN")!,
+          { key: "ArrowRight" },
+        );
+      else if (kind === "split")
+        fireEvent.click(
+          screen.getByLabelText("Accent connection line").parentElement!,
+        );
+      else if (kind === "combine")
+        fireEvent.click(screen.getByText("コ").nextElementSibling!);
+      else {
+        const pause =
+          screen.getByText("ン").nextElementSibling!.firstElementChild!;
+        fireEvent.mouseEnter(pause);
+        fireEvent.click(pause);
+      }
+      expect(cancel).toHaveBeenCalledWith(first.blockId, first.generationId);
+      expect(text.queryPending[first.blockId]).toBeTruthy();
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(synthesize).toHaveBeenCalledOnce();
+      if (kind !== "text") expect(replace).toHaveBeenCalledOnce();
+      const replacement =
+        kind === "text"
+          ? [{ ...phrase, moras: [{ ...mora, text: "サ" }] }]
+          : replace.mock.calls[0][0];
+      resolve({ status: "ok", data: replacement });
+      await vi.advanceTimersByTimeAsync(1);
+      expect(text.queryPending[first.blockId]).toBeUndefined();
+      expect(synthesize).toHaveBeenCalledTimes(2);
+      expect(synthesize.mock.lastCall![0].audioQuery.accent_phrases).toEqual(
+        replacement,
+      );
+    },
+  );
+
+  it("keeps only the latest overlapping phrase edit and its pending owner", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    type Result = Awaited<ReturnType<typeof commands.accentPhrases>>;
+    const resolves: ((result: Result) => void)[] = [];
+    vi.spyOn(commands, "accentPhrases").mockImplementation(
+      () => new Promise((resolve) => resolves.push(resolve)),
+    );
+    const { getTextStore } = renderPanel();
+    editAccentText("サ");
+    editAccentText("シ");
+    const text = getTextStore();
+    const latest = text.queryPending["first-block"];
+    const replacement = (value: string) => [
+      { ...audioQuery().accent_phrases[0], moras: [{ ...mora, text: value }] },
+    ];
+    resolves[0]({ status: "ok", data: replacement("サ") });
+    await Promise.resolve();
+    expect(text.queryPending["first-block"]).toBe(latest);
+    expect(screen.getByText("コ")).toBeInTheDocument();
+    resolves[1]({ status: "ok", data: replacement("シ") });
+    await waitFor(() => expect(screen.getByText("シ")).toBeInTheDocument());
+    expect(text.queryPending["first-block"]).toBeUndefined();
+  });
+
+  it.each(["accentPhrases", "replaceMora"] as const)(
+    "rejects stale %s responses after changes to the source",
+    async (command) => {
+      vi.useFakeTimers();
+      mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+        shouldMockEvents: true,
+      });
+      type Result = Awaited<ReturnType<typeof commands.accentPhrases>>;
+      const resolves: ((result: Result) => void)[] = [];
+      const invoke = vi
+        .spyOn(commands, command)
+        .mockImplementation(
+          () => new Promise<Result>((resolve) => resolves.push(resolve)),
+        );
+      const { getTextStore, getUiStore, unmount } = renderPanel();
+      const text = getTextStore();
+      text.setProjectPresetStore(1, preset({ id: "preset-2" }));
+      for (const change of [
+        "preset",
+        "style",
+        "text",
+        "query",
+        "selection",
+        "unmount",
+      ]) {
+        if (command === "accentPhrases") editAccentText("古い");
+        else {
+          const pause =
+            screen.getByText("コ").nextElementSibling!.firstElementChild!;
+          fireEvent.mouseEnter(pause);
+          fireEvent.click(pause);
+        }
+        await vi.advanceTimersByTimeAsync(300);
+        expect(invoke).toHaveBeenCalledTimes(resolves.length);
+        expect(text.queryPending["first-block"]).toBeTruthy();
+        if (change === "preset") text.setTextStore(0, "preset_id", "preset-2");
+        else if (change === "style")
+          text.setProjectPresetStore(1, { style_id: 2, style_name: "Happy" });
+        else if (change === "text") text.setTextStore(0, "text", "changed");
+        else if (change === "query")
+          text.setTextStore(
+            0,
+            "query",
+            "accent_phrases",
+            0,
+            "moras",
+            0,
+            "pitch",
+            6,
+          );
+        else if (change === "selection") {
+          getUiStore().setUIStore("selectedTextBlockIndex", 1);
+          getUiStore().setUIStore("selectedTextBlockIndex", 0);
+        } else unmount();
+        const snapshot = JSON.stringify(text.textStore[0].query);
+        expect(text.queryPending["first-block"]).toBeUndefined();
+        // A later producer must retain its pending state when the stale result settles.
+        const newer = text.beginQueryUpdate("first-block");
+        resolves[resolves.length - 1]({
+          status: "ok",
+          data: [
+            {
+              ...audioQuery().accent_phrases[0],
+              moras: [{ ...mora, text: "古" }],
+            },
+          ],
+        });
+        await vi.advanceTimersByTimeAsync(1);
+        expect(JSON.stringify(text.textStore[0].query)).toBe(snapshot);
+        expect(newer.isCurrent()).toBe(true);
+        newer.finish();
+      }
+    },
+  );
+
+  it.each(["accentPhrases", "replaceMora"] as const)(
+    "clears pending state after %s failures",
+    async (command) => {
+      vi.useFakeTimers();
+      mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+        shouldMockEvents: true,
+      });
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      vi.spyOn(commands, command)
+        .mockResolvedValueOnce({ status: "error", error: "failed" })
+        .mockRejectedValueOnce(new Error("IPC failed"));
+      const { getTextStore } = renderPanel();
+      for (let attempt = 0; attempt < 2; attempt++) {
+        if (command === "accentPhrases") editAccentText("エラー");
+        else {
+          const pause =
+            screen.getByText("コ").nextElementSibling!.firstElementChild!;
+          fireEvent.mouseEnter(pause);
+          fireEvent.click(pause);
+        }
+        await vi.advanceTimersByTimeAsync(300);
+        expect(getTextStore().queryPending["first-block"]).toBeUndefined();
+      }
+    },
+  );
+
+  it.each(["selection", "unmount"])(
+    "discards a debounced mora refresh on %s",
+    async (change) => {
+      vi.useFakeTimers();
+      mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+        shouldMockEvents: true,
+      });
+      const replace = vi
+        .spyOn(commands, "replaceMora")
+        .mockResolvedValue({ status: "ok", data: [] });
+      const { getTextStore, getUiStore, unmount } = renderPanel();
+      const pause =
+        screen.getByText("コ").nextElementSibling!.firstElementChild!;
+      fireEvent.mouseEnter(pause);
+      fireEvent.click(pause);
+      expect(getTextStore().queryPending["first-block"]).toBeTruthy();
+      if (change === "selection")
+        getUiStore().setUIStore("selectedTextBlockIndex", 1);
+      else unmount();
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(replace).not.toHaveBeenCalled();
+      expect(getTextStore().queryPending["first-block"]).toBeUndefined();
+    },
+  );
 
   it("updates an edited accent phrase through the backend", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
@@ -1493,7 +1943,7 @@ describe("BottomPanel playback", () => {
     getTextStore().setProjectPresetStore([preset()]);
     const moraElement = screen.getByText("コ");
     fireEvent.click(moraElement.nextElementSibling!);
-    await waitFor(() => expect(commands.replaceMora).toHaveBeenCalledOnce());
+    expect(commands.replaceMora).not.toHaveBeenCalled();
     expect(console.error).toHaveBeenCalledWith(
       "Invalid accent phrase index to combine",
     );

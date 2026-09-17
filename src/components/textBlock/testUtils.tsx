@@ -1,6 +1,7 @@
 import TextBlock from "@components/textBlock";
 import { AutogrowInput } from "@components/textBlock/AutogrowInput";
 import { AppToastRegion } from "@components/toast";
+import { BottomPanel } from "@layout/bottomPanel";
 import type { AzaleaConfig, KeyboardShortcuts } from "$binding";
 import { MultiProvider } from "@solid-primitives/context";
 import { render } from "@solidjs/testing-library";
@@ -48,6 +49,7 @@ export const renderBlock = (
   queryIsModified = false,
   renderAllBlocks = false,
   configOverrides: Partial<AzaleaConfig["ui"]> = {},
+  withBottomPanel = false,
 ) => {
   let text!: NonNullable<ReturnType<typeof useTextStore>>;
   let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
@@ -100,6 +102,7 @@ export const renderBlock = (
         ) : (
           <TextBlock index={0} />
         )}
+        {withBottomPanel && <BottomPanel />}
       </>
     );
   };

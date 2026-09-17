@@ -151,6 +151,16 @@ impl SpectrogramQueue {
       .map(spectrogram_queue_event)
       .collect()
   }
+
+  /// Drops work orphaned by a previous frontend session and resets generation tracking.
+  pub fn discard_all(&self) -> Vec<SpectrogramJobEvent> {
+    self
+      .0
+      .discard_all()
+      .into_iter()
+      .map(spectrogram_queue_event)
+      .collect()
+  }
 }
 
 pub(crate) fn validate_spectrogram_request(request: &SpectrogramJobRequest) -> Result<(), String> {

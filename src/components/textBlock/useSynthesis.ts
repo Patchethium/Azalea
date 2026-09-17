@@ -15,19 +15,24 @@ import {
   onMount,
   untrack,
 } from "solid-js";
-import { DEFAULT_SYNTHESIS_DELAY_MS, MAX_SYNTHESIS_DELAY_MS } from "$constants";
+import {
+  DEFAULT_SYNTHESIS_DELAY_MS,
+  MAX_SYNTHESIS_DELAY_MS,
+  MAX_RENDER_ATTEMPTS,
+  RENDER_RETRY_DELAY_MS,
+} from "$constants";
 import { useConfigStore } from "@contexts/config";
 import { usei18n } from "@contexts/i18n";
-import type { TextBlockProps } from "@contexts/text";
+import { type TextBlockProps, useTextStore } from "@contexts/text";
 import { renderRequestFingerprint } from "$utils";
 
 let synthesisGenerationSequence = 0;
 
 type ActiveSynthesisRequest = {
-  blockId: string;
-  generationId: number;
-  hash: string;
+  request: SynthesisJobRequest;
+  attempt: number;
   submitted: boolean;
+  settled: boolean;
 };
 
 export function useTextBlockSynthesis(props: {
@@ -37,6 +42,7 @@ export function useTextBlockSynthesis(props: {
   currentModifiedQuery: Accessor<AudioQuery | null>;
 }) {
   const { config } = useConfigStore()!;
+  const { queryPending } = useTextStore()!;
   const { t1 } = usei18n()!;
   const [synthState, setSynthState] = createSignal<SynthesisJobState | "Idle">(
     "Idle",
@@ -44,12 +50,15 @@ export function useTextBlockSynthesis(props: {
   let activeSynthesisRequest: ActiveSynthesisRequest | null = null;
   let lastSynthesisSignature: string | null = null;
   let unlistenSynthesis: (() => void) | undefined;
+  let listenerReady: Promise<void> = Promise.resolve();
   let disposed = false;
+  let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
   const cancelSynthesisRequest = (request: ActiveSynthesisRequest | null) => {
+    clearTimeout(retryTimer);
     if (request?.submitted) {
       void commands
-        .cancelSynthesis(request.blockId, request.generationId)
+        .cancelSynthesis(request.request.blockId, request.request.generationId)
         .then((result) => {
           if (result.status === "error") {
             console.error(
@@ -63,32 +72,69 @@ export function useTextBlockSynthesis(props: {
     }
   };
 
+  const retrySynthesis = (activeRequest: ActiveSynthesisRequest) => {
+    if (
+      disposed ||
+      activeSynthesisRequest !== activeRequest ||
+      activeRequest.settled
+    )
+      return;
+    activeRequest.settled = true;
+    setSynthState("Failed");
+    if (activeRequest.attempt >= MAX_RENDER_ATTEMPTS) return;
+    retryTimer = setTimeout(() => {
+      const next: ActiveSynthesisRequest = {
+        request: {
+          ...activeRequest.request,
+          generationId: ++synthesisGenerationSequence,
+        },
+        attempt: activeRequest.attempt + 1,
+        submitted: false,
+        settled: false,
+      };
+      activeSynthesisRequest = next;
+      setSynthState("Queued");
+      void submitSynthesis(next.request, next);
+    }, RENDER_RETRY_DELAY_MS);
+  };
+
   const submitSynthesis = async (
     request: SynthesisJobRequest,
     activeRequest: ActiveSynthesisRequest,
   ) => {
     if (disposed || activeSynthesisRequest !== activeRequest) return;
+    // Submitting before the event listener is attached can lose the worker's
+    // Running/Completed events, leaving the badge stuck on Queued forever.
+    await listenerReady;
+    if (disposed || activeSynthesisRequest !== activeRequest) return;
     activeRequest.submitted = true;
-    const result =
-      config.ui.buffer_render && config.ui.nonblocking_synthesis
-        ? await commands.synthesizeNonblocking(request)
-        : await commands.synthesize(request);
-    if (disposed || activeSynthesisRequest !== activeRequest) {
-      if (result.status === "ok") {
-        void commands.cancelSynthesis(
-          activeRequest.blockId,
-          activeRequest.generationId,
+    try {
+      const result =
+        config.ui.buffer_render && config.ui.nonblocking_synthesis
+          ? await commands.synthesizeNonblocking(request)
+          : await commands.synthesize(request);
+      if (disposed || activeSynthesisRequest !== activeRequest) {
+        if (result.status === "ok") {
+          void commands.cancelSynthesis(request.blockId, request.generationId);
+        }
+        return;
+      }
+      if (result.status === "error") {
+        retrySynthesis(activeRequest);
+        console.error(
+          "Failed to queue synthesis for block",
+          props.index,
+          ":",
+          result.error,
         );
       }
-      return;
-    }
-    if (result.status === "error") {
-      setSynthState("Failed");
+    } catch (error) {
+      retrySynthesis(activeRequest);
       console.error(
         "Failed to queue synthesis for block",
         props.index,
         ":",
-        result.error,
+        error,
       );
     }
   };
@@ -96,15 +142,16 @@ export function useTextBlockSynthesis(props: {
   let scheduledSynthesis:
     | Scheduled<[SynthesisJobRequest, ActiveSynthesisRequest]>
     | undefined;
+  let scheduledSynthesisDelay: number | null = null;
   const clearScheduledSynthesis = () => {
     scheduledSynthesis?.clear();
     scheduledSynthesis = undefined;
+    scheduledSynthesisDelay = null;
   };
   const enqueueSynthesis = (
     request: SynthesisJobRequest,
     activeRequest: ActiveSynthesisRequest,
   ) => {
-    clearScheduledSynthesis();
     const configuredDelay = untrack(
       () => config.ui.synthesis_delay_ms ?? DEFAULT_SYNTHESIS_DELAY_MS,
     );
@@ -112,30 +159,43 @@ export function useTextBlockSynthesis(props: {
       Math.max(Math.trunc(configuredDelay), 0),
       MAX_SYNTHESIS_DELAY_MS,
     );
-    scheduledSynthesis = debounce(submitSynthesis, delay);
+    // Reuse the scheduler across edits unless the configured delay changed.
+    if (scheduledSynthesis === undefined || scheduledSynthesisDelay !== delay) {
+      clearScheduledSynthesis();
+      scheduledSynthesis = debounce(submitSynthesis, delay);
+      scheduledSynthesisDelay = delay;
+    } else {
+      scheduledSynthesis.clear();
+    }
     scheduledSynthesis(request, activeRequest);
   };
 
   onMount(() => {
-    void events.synthesisJobEvent
+    listenerReady = events.synthesisJobEvent
       .listen(({ payload }) => {
         const activeRequest = activeSynthesisRequest;
         if (
           activeRequest === null ||
-          payload.blockId !== activeRequest.blockId ||
-          payload.generationId !== activeRequest.generationId ||
-          payload.hash !== activeRequest.hash
+          activeRequest.settled ||
+          payload.blockId !== activeRequest.request.blockId ||
+          payload.generationId !== activeRequest.request.generationId ||
+          payload.hash !== activeRequest.request.hash
         ) {
           return;
         }
         setSynthState(payload.state);
         if (payload.state === "Failed") {
+          retrySynthesis(activeRequest);
           console.error(
             "Synthesis failed for block",
             props.index,
             ":",
             payload.error,
           );
+        } else if (
+          ["Completed", "Cancelled", "Evicted"].includes(payload.state)
+        ) {
+          activeRequest.settled = true;
         }
       })
       .then((unlisten) => {
@@ -150,7 +210,12 @@ export function useTextBlockSynthesis(props: {
   createEffect(() => {
     const query = props.currentModifiedQuery();
     const preset = props.currentPreset();
-    if (!config.ui.buffer_render || query === null || preset === null) {
+    if (
+      !config.ui.buffer_render ||
+      queryPending[props.currentText().id] ||
+      query === null ||
+      preset === null
+    ) {
       clearScheduledSynthesis();
       cancelSynthesisRequest(activeSynthesisRequest);
       activeSynthesisRequest = null;
@@ -165,28 +230,24 @@ export function useTextBlockSynthesis(props: {
     const blockSignature = `${blockId}:${signature}`;
     if (blockSignature === lastSynthesisSignature) return;
 
-    clearScheduledSynthesis();
     cancelSynthesisRequest(activeSynthesisRequest);
     synthesisGenerationSequence += 1;
     const activeRequest: ActiveSynthesisRequest = {
-      blockId,
-      generationId: synthesisGenerationSequence,
-      hash,
-      submitted: false,
-    };
-    activeSynthesisRequest = activeRequest;
-    lastSynthesisSignature = blockSignature;
-    setSynthState("Queued");
-    enqueueSynthesis(
-      {
+      request: {
         blockId,
-        generationId: activeRequest.generationId,
+        generationId: synthesisGenerationSequence,
         audioQuery: query,
         speakerId,
         hash,
       },
-      activeRequest,
-    );
+      attempt: 1,
+      submitted: false,
+      settled: false,
+    };
+    activeSynthesisRequest = activeRequest;
+    lastSynthesisSignature = blockSignature;
+    setSynthState("Queued");
+    enqueueSynthesis(activeRequest.request, activeRequest);
   });
 
   onCleanup(() => {

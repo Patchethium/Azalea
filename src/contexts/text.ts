@@ -163,6 +163,21 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
 
   const [projectPath, setProjectPath] = createSignal<string | null>(null);
   const [queryRefreshVersion, setQueryRefreshVersion] = createSignal(0);
+  const [queryPending, setQueryPending] = createStore<
+    Record<string, number | undefined>
+  >({});
+  let queryUpdateSequence = 0;
+  const beginQueryUpdate = (blockId: string) => {
+    const revision = ++queryUpdateSequence;
+    setQueryPending(blockId, revision);
+    return {
+      isCurrent: () => queryPending[blockId] === revision,
+      finish: () => {
+        if (queryPending[blockId] === revision)
+          setQueryPending(blockId, undefined);
+      },
+    };
+  };
   const [suppressFocusBlockId, setSuppressFocusBlockId] = createSignal<
     string | null
   >(null);
@@ -389,6 +404,8 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     createFirstTextBlock,
     markQueryModified,
     queryRefreshVersion,
+    queryPending,
+    beginQueryUpdate,
     refreshGeneratedQueries,
     replaceTextBlocks,
     removeProjectPreset,

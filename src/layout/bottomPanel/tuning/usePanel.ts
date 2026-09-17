@@ -9,6 +9,8 @@ import {
   DEFAULT_BOTTOM_SCALE,
   DEFAULT_SYNTHESIS_DELAY_MS,
   MAX_SYNTHESIS_DELAY_MS,
+  MAX_RENDER_ATTEMPTS,
+  RENDER_RETRY_DELAY_MS,
 } from "$constants";
 import { useConfigStore } from "@contexts/config";
 import { useMetaStore } from "@contexts/meta";
@@ -39,6 +41,8 @@ type ActiveSpectrogramRequest = {
   signature: string;
   submitted: boolean;
   buffered: boolean;
+  attempt: number;
+  settled: boolean;
 };
 
 export function useTuningPanel(
@@ -50,6 +54,7 @@ export function useTuningPanel(
     projectPresetStore,
     selectedTextBlock,
     selectedTextBlockIndex,
+    queryPending,
   } = useTextStore()!;
   const { metas } = useMetaStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
@@ -122,10 +127,13 @@ export function useTuningPanel(
   let activeSpectrogramRequest: ActiveSpectrogramRequest | null = null;
   let lastSpectrogramSignature: string | null = null;
   let unlistenSpectrogram: (() => void) | undefined;
+  let listenerReady: Promise<void> = Promise.resolve();
+  let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
   const cancelSpectrogramRequest = (
     activeRequest: ActiveSpectrogramRequest | null,
   ) => {
+    clearTimeout(retryTimer);
     if (!activeRequest?.submitted) return;
     void commands
       .cancelSpectrogramPreview(
@@ -139,10 +147,39 @@ export function useTuningPanel(
       });
   };
 
+  const retrySpectrogram = (activeRequest: ActiveSpectrogramRequest) => {
+    if (
+      !mounted ||
+      activeSpectrogramRequest !== activeRequest ||
+      activeRequest.settled
+    )
+      return;
+    activeRequest.settled = true;
+    if (activeRequest.attempt >= MAX_RENDER_ATTEMPTS) return;
+    retryTimer = setTimeout(() => {
+      const next: ActiveSpectrogramRequest = {
+        ...activeRequest,
+        request: {
+          ...activeRequest.request,
+          generationId: ++spectrogramGenerationSequence,
+        },
+        attempt: activeRequest.attempt + 1,
+        submitted: false,
+        settled: false,
+      };
+      activeSpectrogramRequest = next;
+      void submitSpectrogramRequest(next.request, next);
+    }, RENDER_RETRY_DELAY_MS);
+  };
+
   const submitSpectrogramRequest = async (
     request: SpectrogramJobRequest,
     activeRequest: ActiveSpectrogramRequest,
   ) => {
+    if (!mounted || activeSpectrogramRequest !== activeRequest) return;
+    // Submitting before the event listener is attached can lose the worker's
+    // Completed event, leaving the previous canvas grayed out forever.
+    await listenerReady;
     if (!mounted || activeSpectrogramRequest !== activeRequest) return;
     activeRequest.submitted = true;
     try {
@@ -157,13 +194,11 @@ export function useTuningPanel(
         return;
       }
       if (result.status === "error") {
-        activeSpectrogramRequest = null;
+        retrySpectrogram(activeRequest);
         console.error("Failed to queue spectrogram preview:", result.error);
       }
     } catch (error) {
-      if (activeSpectrogramRequest === activeRequest) {
-        activeSpectrogramRequest = null;
-      }
+      retrySpectrogram(activeRequest);
       console.error("Failed to queue spectrogram preview:", error);
     }
   };
@@ -171,9 +206,29 @@ export function useTuningPanel(
   let scheduledSpectrogramRefresh:
     | Scheduled<[SpectrogramJobRequest, ActiveSpectrogramRequest]>
     | undefined;
+  let scheduledSpectrogramRefreshDelay: number | null = null;
   const clearScheduledSpectrogramRefresh = () => {
     scheduledSpectrogramRefresh?.clear();
     scheduledSpectrogramRefresh = undefined;
+    scheduledSpectrogramRefreshDelay = null;
+  };
+  const scheduleSpectrogramRefresh = (
+    request: SpectrogramJobRequest,
+    activeRequest: ActiveSpectrogramRequest,
+    delay: number,
+  ) => {
+    // Reuse the scheduler across edits unless the configured delay changed.
+    if (
+      scheduledSpectrogramRefresh === undefined ||
+      scheduledSpectrogramRefreshDelay !== delay
+    ) {
+      clearScheduledSpectrogramRefresh();
+      scheduledSpectrogramRefresh = debounce(submitSpectrogramRequest, delay);
+      scheduledSpectrogramRefreshDelay = delay;
+    } else {
+      scheduledSpectrogramRefresh.clear();
+    }
+    scheduledSpectrogramRefresh(request, activeRequest);
   };
   const startSpectrogramRequest = (
     blockId: string,
@@ -181,7 +236,6 @@ export function useTuningPanel(
     speakerId: number,
     buffered: boolean,
   ) => {
-    clearScheduledSpectrogramRefresh();
     cancelSpectrogramRequest(activeSpectrogramRequest);
     const { hash, signature } = renderRequestFingerprint(audioQuery, speakerId);
     spectrogramGenerationSequence += 1;
@@ -197,6 +251,8 @@ export function useTuningPanel(
       signature: `${blockId}:${signature}`,
       submitted: false,
       buffered,
+      attempt: 1,
+      settled: false,
     };
     activeSpectrogramRequest = activeRequest;
     lastSpectrogramSignature = activeRequest.signature;
@@ -205,6 +261,7 @@ export function useTuningPanel(
     }
 
     if (!buffered) {
+      clearScheduledSpectrogramRefresh();
       void submitSpectrogramRequest(request, activeRequest);
       return;
     }
@@ -214,16 +271,16 @@ export function useTuningPanel(
       Math.max(Math.trunc(configuredDelay), 0),
       MAX_SYNTHESIS_DELAY_MS,
     );
-    scheduledSpectrogramRefresh = debounce(submitSpectrogramRequest, delay);
-    scheduledSpectrogramRefresh(request, activeRequest);
+    scheduleSpectrogramRefresh(request, activeRequest, delay);
   };
 
   onMount(() => {
-    void events.spectrogramJobEvent
+    listenerReady = events.spectrogramJobEvent
       .listen(({ payload }) => {
         const activeRequest = activeSpectrogramRequest;
         if (
           activeRequest === null ||
+          activeRequest.settled ||
           payload.blockId !== activeRequest.request.blockId ||
           payload.generationId !== activeRequest.request.generationId ||
           payload.hash !== activeRequest.request.hash
@@ -231,19 +288,21 @@ export function useTuningPanel(
           return;
         }
         if (payload.state === "Failed") {
-          activeSpectrogramRequest = null;
+          retrySpectrogram(activeRequest);
           console.error("Failed to create spectrogram preview:", payload.error);
           return;
         }
         if (payload.state !== "Completed") return;
-        activeSpectrogramRequest = null;
         if (payload.preview === null) {
+          retrySpectrogram(activeRequest);
           console.error(
             "Failed to create spectrogram preview:",
             "completed job returned no preview",
           );
           return;
         }
+        activeRequest.settled = true;
+        activeSpectrogramRequest = null;
         const { blockId, audioQuery, speakerId } = activeRequest.request;
         cacheSpectrogram(blockId, audioQuery, speakerId, payload.preview);
         const currentQuery = currentModifiedQuery();
@@ -294,10 +353,19 @@ export function useTuningPanel(
       setSpectrogramStale(false);
       return;
     }
+    if (queryPending[block.id]) {
+      clearScheduledSpectrogramRefresh();
+      cancelSpectrogramRequest(activeSpectrogramRequest);
+      activeSpectrogramRequest = null;
+      lastSpectrogramSignature = null;
+      setSpectrogram(getLastCachedSpectrogram(block.id));
+      setSpectrogramStale(spectrogram() !== null);
+      return;
+    }
     const { signature } = renderRequestFingerprint(query, preset.style_id);
     const blockSignature = `${block.id}:${signature}`;
     if (blockSignature !== lastSpectrogramSignature) {
-      clearScheduledSpectrogramRefresh();
+      scheduledSpectrogramRefresh?.clear();
       cancelSpectrogramRequest(activeSpectrogramRequest);
       activeSpectrogramRequest = null;
       lastSpectrogramSignature = blockSignature;
@@ -328,6 +396,7 @@ export function useTuningPanel(
     on(waveformSynthesisNotice, (notice) => {
       if (
         notice === null ||
+        queryPending[notice.blockId] ||
         config.ui.buffer_render ||
         !spectrogramPreviewEnabled()
       ) {

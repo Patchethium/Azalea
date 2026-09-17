@@ -368,9 +368,13 @@ pub fn start_synthesis_worker(app: AppHandle) {
       };
       let cancellation = job.cancellation;
       let job = job.job;
-      emit_synthesis_events(&app, [job.identity.event(SynthesisJobState::Running, None)]);
-
-      let result = {
+      // A job can be cancelled after it was dequeued but before the worker starts it.
+      // Skipping it here avoids emitting a misleading `Running` event and avoids
+      // starting inference that the caller already abandoned.
+      let result = if cancellation.is_cancelled() {
+        None
+      } else {
+        emit_synthesis_events(&app, [job.identity.event(SynthesisJobState::Running, None)]);
         let state = app.state::<AppState>();
         let preparation = match job.backend {
           SynthesisBackend::Blocking => Ok(()),
@@ -462,12 +466,13 @@ pub fn start_spectrogram_worker(app: AppHandle) {
       };
       let cancellation = queued.cancellation;
       let job = queued.job;
-      emit_spectrogram_events(
-        &app,
-        [job.identity.event(SynthesisJobState::Running, None, None)],
-      );
-
-      let result = {
+      let result = if cancellation.is_cancelled() {
+        None
+      } else {
+        emit_spectrogram_events(
+          &app,
+          [job.identity.event(SynthesisJobState::Running, None, None)],
+        );
         let state = app.state::<AppState>();
         match prepare_nonblocking_synthesis_task(&state, job.request.speaker_id).await {
           Err(error) => Some(Err(error)),

@@ -1,13 +1,19 @@
 import { type AccentPhrase, commands } from "$binding";
 import { AccentPhraseItem } from "@layout/bottomPanel/AccentPhraseItem";
 import { debounce } from "@solid-primitives/scheduled";
-import { createEffect, createMemo, For, onCleanup, Show } from "solid-js";
-import { produce } from "solid-js/store";
+import {
+  batch,
+  createEffect,
+  createMemo,
+  For,
+  onCleanup,
+  Show,
+} from "solid-js";
+import { produce, unwrap } from "solid-js/store";
 import { usei18n } from "@contexts/i18n";
 import { useMetaStore } from "@contexts/meta";
 import { findPresetById, findPresetStyle, useTextStore } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
-import { useSideEffect } from "$utils";
 
 export function PhonemePanel() {
   const { t1 } = usei18n()!;
@@ -18,6 +24,7 @@ export function PhonemePanel() {
     projectPresetStore,
     selectedTextBlock,
     selectedTextBlockIndex,
+    beginQueryUpdate,
   } = useTextStore()!;
   const { metas } = useMetaStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
@@ -32,49 +39,119 @@ export function PhonemePanel() {
       : null;
   });
 
+  type AccentRequest = {
+    block: NonNullable<ReturnType<typeof currentText>>;
+    index: number;
+    styleId: number;
+    phrases: AccentPhrase[];
+    signature: string;
+    update: ReturnType<typeof beginQueryUpdate>;
+  };
+  const sourceSignature = createMemo(() =>
+    JSON.stringify([
+      currentText(),
+      currentPreset()?.id,
+      currentPreset()?.style_id,
+    ]),
+  );
+  let activeRequest: AccentRequest | null = null;
+  const finishRequest = (request: AccentRequest) => {
+    if (activeRequest !== request) return;
+    activeRequest = null;
+    request.update.finish();
+  };
+  const cancelRequest = () => {
+    scheduledMoraRefresh.clear();
+    if (activeRequest) finishRequest(activeRequest);
+  };
+  const beginRequest = (): AccentRequest | null =>
+    batch(() => {
+      cancelRequest();
+      const block = currentText();
+      const preset = currentPreset();
+      if (block?.query == null || preset === null) return null;
+      const request = {
+        block,
+        index: selectedTextBlockIndex(),
+        styleId: preset.style_id,
+        phrases: structuredClone(unwrap(block.query.accent_phrases)),
+        signature: sourceSignature(),
+        update: beginQueryUpdate(block.id),
+      };
+      activeRequest = request;
+      return request;
+    });
+  const applyPhrases = (request: AccentRequest, phrases: AccentPhrase[]) => {
+    if (
+      activeRequest !== request ||
+      !request.update.isCurrent() ||
+      sourceSignature() !== request.signature ||
+      textStore[request.index] !== request.block
+    )
+      return;
+    batch(() => {
+      finishRequest(request);
+      setTextStore(request.index, "query", "accent_phrases", phrases);
+      markQueryModified(request.index);
+    });
+  };
+  const scheduledMoraRefresh = debounce(async (request: AccentRequest) => {
+    try {
+      const result = await commands.replaceMora(
+        request.phrases,
+        request.styleId,
+      );
+      if (result.status === "ok") applyPhrases(request, result.data);
+      else console.error("Failed to refresh mora data:", result.error);
+    } catch (error) {
+      console.error("Failed to refresh mora data:", error);
+    } finally {
+      finishRequest(request);
+    }
+  }, 300);
+  const refreshMoraData = () => {
+    const request = beginRequest();
+    if (request) scheduledMoraRefresh(request);
+  };
+  createEffect(() => {
+    const signature = sourceSignature();
+    if (activeRequest && signature !== activeRequest.signature) cancelRequest();
+  });
+  onCleanup(cancelRequest);
+
   const setPhrase = (index: number, phrase: AccentPhrase) => {
     const textIndex = selectedIdx();
     if (textIndex === null) return;
-    setTextStore(textIndex, "query", "accent_phrases", index, phrase);
-    markQueryModified(textIndex);
-  };
-  const refreshMoraData = debounce(async () => {
-    const sourceBlock = currentText();
-    const textIndex = sourceBlock === null ? null : selectedTextBlockIndex();
-    const phrases = sourceBlock?.query?.accent_phrases;
-    const preset = currentPreset();
-    if (textIndex === null || !phrases || !preset) return;
-    const result = await commands.replaceMora(phrases, preset.style_id);
-    if (result.status === "ok" && textStore[textIndex] === sourceBlock) {
-      setTextStore(textIndex, "query", "accent_phrases", result.data);
+    batch(() => {
+      setTextStore(textIndex, "query", "accent_phrases", index, phrase);
       markQueryModified(textIndex);
-    }
-  }, 300);
-  onCleanup(() => refreshMoraData.clear());
+      refreshMoraData();
+    });
+  };
 
-  const splitPhrase = useSideEffect(
-    (phraseIndex: number, moraIndex: number) => {
-      const textIndex = selectedIdx();
-      const phrases = currentText()?.query?.accent_phrases;
-      if (textIndex === null || phrases == null) {
-        console.error("No accent phrases to split");
-        return;
-      }
-      if (moraIndex <= 0 || moraIndex >= phrases[phraseIndex].moras.length) {
-        console.error("Invalid mora index to split");
-        return;
-      }
-      const leftPhrase = {
-        ...phrases[phraseIndex],
-        moras: phrases[phraseIndex].moras.slice(0, moraIndex),
-        accent: 1,
-        pause_mora: null,
-      };
-      const rightPhrase = {
-        ...phrases[phraseIndex],
-        moras: phrases[phraseIndex].moras.slice(moraIndex),
-        accent: 1,
-      };
+  const splitPhrase = (phraseIndex: number, moraIndex: number) => {
+    const textIndex = selectedIdx();
+    const phrases = currentText()?.query?.accent_phrases;
+    if (textIndex === null || phrases == null) {
+      console.error("No accent phrases to split");
+      return;
+    }
+    if (moraIndex <= 0 || moraIndex >= phrases[phraseIndex].moras.length) {
+      console.error("Invalid mora index to split");
+      return;
+    }
+    const leftPhrase = {
+      ...phrases[phraseIndex],
+      moras: phrases[phraseIndex].moras.slice(0, moraIndex),
+      accent: 1,
+      pause_mora: null,
+    };
+    const rightPhrase = {
+      ...phrases[phraseIndex],
+      moras: phrases[phraseIndex].moras.slice(moraIndex),
+      accent: 1,
+    };
+    batch(() => {
       setTextStore(
         textIndex,
         "query",
@@ -84,11 +161,11 @@ export function PhonemePanel() {
         }),
       );
       markQueryModified(textIndex);
-    },
-    refreshMoraData,
-  );
+      refreshMoraData();
+    });
+  };
 
-  const combinePhrase = useSideEffect((phraseIndex: number) => {
+  const combinePhrase = (phraseIndex: number) => {
     const textIndex = selectedIdx();
     const phrases = currentText()?.query?.accent_phrases;
     if (textIndex === null || phrases == null) {
@@ -107,41 +184,40 @@ export function PhonemePanel() {
       accent: 1,
       pause_mora: right.pause_mora,
     };
-    setTextStore(
-      textIndex,
-      "query",
-      "accent_phrases",
-      produce((draft) => {
-        draft.splice(phraseIndex, 2, combinedPhrase);
-      }),
-    );
-    markQueryModified(textIndex);
-  }, refreshMoraData);
+    batch(() => {
+      setTextStore(
+        textIndex,
+        "query",
+        "accent_phrases",
+        produce((draft) => {
+          draft.splice(phraseIndex, 2, combinedPhrase);
+        }),
+      );
+      markQueryModified(textIndex);
+      refreshMoraData();
+    });
+  };
 
   const handleEditPhoneme = async (phraseIndex: number, newText: string) => {
-    const sourceBlock = currentText();
-    const textIndex = sourceBlock === null ? null : selectedTextBlockIndex();
-    const query = sourceBlock?.query;
-    const preset = currentPreset();
-    if (textIndex === null || query == null || preset === null) return;
-    const sourcePhrase = query.accent_phrases[phraseIndex];
-    if (sourcePhrase === undefined) return;
-    const result = await commands.accentPhrases(newText, preset.style_id);
-    if (result.status !== "ok" || result.data.length === 0) return;
-    const replacementPhrases = result.data.map((phrase) => ({ ...phrase }));
-    const finalReplacement = replacementPhrases[replacementPhrases.length - 1];
-    finalReplacement.pause_mora = sourcePhrase.pause_mora;
-    finalReplacement.is_interrogative = sourcePhrase.is_interrogative;
-    if (textStore[textIndex] !== sourceBlock) return;
-    setTextStore(
-      textIndex,
-      "query",
-      "accent_phrases",
-      produce((draft) => {
-        draft.splice(phraseIndex, 1, ...replacementPhrases);
-      }),
-    );
-    markQueryModified(textIndex);
+    if (!currentText()?.query?.accent_phrases[phraseIndex]) return;
+    const request = beginRequest();
+    if (!request) return;
+    try {
+      const result = await commands.accentPhrases(newText, request.styleId);
+      if (result.status !== "ok" || result.data.length === 0) return;
+      const sourcePhrase = request.phrases[phraseIndex];
+      const replacementPhrases = result.data.map((phrase) => ({ ...phrase }));
+      const finalReplacement =
+        replacementPhrases[replacementPhrases.length - 1];
+      finalReplacement.pause_mora = sourcePhrase.pause_mora;
+      finalReplacement.is_interrogative = sourcePhrase.is_interrogative;
+      request.phrases.splice(phraseIndex, 1, ...replacementPhrases);
+      applyPhrases(request, request.phrases);
+    } catch (error) {
+      console.error("Failed to edit accent phrase:", error);
+    } finally {
+      finishRequest(request);
+    }
   };
 
   const queryExists = () => {

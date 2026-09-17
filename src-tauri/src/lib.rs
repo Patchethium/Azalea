@@ -143,9 +143,14 @@ pub fn run() {
       let ready_startup = startup.clone();
       let ready_app = app_handle.clone();
       FrontendReadyEvent::listen(&app_handle, move |_| {
+        // A new frontend session owns all future rendering work. Drop jobs
+        // orphaned by a reloaded or crashed webview and reset generation
+        // tracking so the restarted generation counters are accepted again.
+        let state = ready_app.state::<AppState>();
+        state.synthesis_queue.discard_all();
+        state.spectrogram_queue.discard_all();
         let mut event = ready_startup.lock().unwrap().clone();
         if let Some(event) = event.as_mut() {
-          let state = ready_app.state::<AppState>();
           event.config = state
             .config_manager
             .read()

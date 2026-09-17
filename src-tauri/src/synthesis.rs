@@ -159,6 +159,16 @@ impl SynthesisQueue {
       .map(synthesis_queue_event)
       .collect()
   }
+
+  /// Drops work orphaned by a previous frontend session and resets generation tracking.
+  pub fn discard_all(&self) -> Vec<SynthesisJobEvent> {
+    self
+      .0
+      .discard_all()
+      .into_iter()
+      .map(synthesis_queue_event)
+      .collect()
+  }
 }
 
 #[derive(Clone)]
@@ -340,6 +350,24 @@ mod tests {
     assert_eq!(events[0].state, SynthesisJobState::Cancelled);
     assert!(running.cancellation.is_cancelled());
     assert!(!queue.finish(&running.job.identity));
+  }
+
+  #[test]
+  fn discarding_orphaned_work_cancels_generations_and_accepts_restarted_counters() {
+    let queue = SynthesisQueue::default();
+    queue.enqueue(job("block", 3, 1.0));
+
+    let events = queue.discard_all();
+
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].state, SynthesisJobState::Cancelled);
+    assert_eq!(events[0].generation_id, 3);
+    assert!(queue.pop_next().is_none());
+
+    let restarted = queue.enqueue(job("block", 1, 1.0));
+    assert_eq!(restarted.len(), 1);
+    assert_eq!(restarted[0].state, SynthesisJobState::Queued);
+    assert_eq!(queue.pop_next().unwrap().job.identity.generation_id, 1);
   }
 
   #[test]

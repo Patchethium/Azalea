@@ -66,7 +66,6 @@ impl JobCancellation {
     }
   }
 
-  #[cfg(test)]
   pub(crate) fn is_cancelled(&self) -> bool {
     self.cancelled.load(Ordering::Acquire)
   }
@@ -314,6 +313,33 @@ impl<J: LatestJob> LatestJobQueue<J> {
     }
     events
   }
+
+  /// Drops every pending and running job and forgets generation tracking.
+  ///
+  /// Used when the owning frontend session goes away, for example on a webview
+  /// reload. Without resetting `latest_generation_by_key`, a fresh frontend that
+  /// restarts its generation counters would have all of its work rejected as
+  /// out of order while the orphaned jobs kept consuming inference time.
+  pub fn discard_all(&self) -> Vec<QueueEvent<J::Identity>> {
+    let mut state = self.state.lock().unwrap();
+    let mut events = Vec::new();
+    while let Some(job) = state.pending.pop_front() {
+      events.push(QueueEvent::new(
+        job.job.identity().clone(),
+        QueueEventState::Cancelled,
+      ));
+    }
+    if let Some(running) = state.running.as_mut().filter(|running| !running.cancelled) {
+      events.push(QueueEvent::new(
+        running.identity.clone(),
+        QueueEventState::Cancelled,
+      ));
+      running.cancelled = true;
+      running.cancellation.cancel();
+    }
+    state.latest_generation_by_key.clear();
+    events
+  }
 }
 
 pub(crate) async fn run_cancellable<F: Future>(
@@ -434,6 +460,30 @@ mod tests {
     let cancelled = queue.cancel(&"second".into(), None);
     assert_eq!(cancelled.len(), 1);
     assert_eq!(cancelled[0].identity.key, "second");
+  }
+
+  #[test]
+  fn discarding_all_work_cancels_orphaned_jobs_and_resets_generations() {
+    let queue = LatestJobQueue::new(4);
+    queue.enqueue(TestJob::new("first", 5));
+    queue.enqueue(TestJob::new("second", 6));
+    let running = queue.pop_next().unwrap();
+
+    let events = queue.discard_all();
+
+    assert_eq!(events.len(), 2);
+    assert!(events
+      .iter()
+      .all(|event| event.state == QueueEventState::Cancelled));
+    assert!(running.cancellation.is_cancelled());
+    assert!(!queue.finish(&running.job.identity));
+    assert!(queue.pop_next().is_none());
+
+    // A restarted frontend may reuse lower generation IDs.
+    let restarted = queue.enqueue(TestJob::new("first", 1));
+    assert_eq!(restarted.len(), 1);
+    assert_eq!(restarted[0].state, QueueEventState::Queued);
+    assert_eq!(queue.pop_next().unwrap().job.identity.generation_id, 1);
   }
 
   #[test]

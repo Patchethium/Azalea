@@ -37,6 +37,7 @@ function TextBlock(props: { index: number }) {
     selectedTextBlockIndex,
     insertTextBlockBelow,
     queryRefreshVersion,
+    beginQueryUpdate,
     suppressFocusBlockId,
     setSuppressFocusBlockId,
     pendingFocusPlacement,
@@ -89,16 +90,22 @@ function TextBlock(props: { index: number }) {
       styleId: number,
       requestRevision: number,
       sourceBlock: TextBlockProps,
+      update: ReturnType<typeof beginQueryUpdate>,
     ) => {
       const audioQuery = await commands.audioQuery(text, styleId);
       if (
         disposed ||
+        !update.isCurrent() ||
         requestRevision !== queryRequestRevision ||
         textStore[props.index] !== sourceBlock
       ) {
         return;
       }
-      if (audioQuery.status === "ok") setQuery(audioQuery.data);
+      if (audioQuery.status === "ok")
+        batch(() => {
+          setQuery(audioQuery.data);
+          update.finish();
+        });
       else console.error(audioQuery.error);
     },
     500,
@@ -130,7 +137,11 @@ function TextBlock(props: { index: number }) {
         ) {
           fetchAudioQuery.cancel();
         } else if (styleId !== undefined) {
-          fetchAudioQuery(text, styleId, requestRevision, sourceBlock);
+          // Invalidate background work before the throttled query request can
+          // wait behind synthesis, while retaining the old tuning timeline.
+          const update = beginQueryUpdate(sourceBlock.id);
+          onCleanup(update.finish);
+          fetchAudioQuery(text, styleId, requestRevision, sourceBlock, update);
         } else {
           fetchAudioQuery.cancel();
         }
