@@ -5,6 +5,7 @@ import { createContextProvider } from "@solid-primitives/context";
 import { createEffect, createResource, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import {
+  DEFAULT_CPU_NUM_THREADS,
   DEFAULT_CUSTOM_TITLEBAR,
   DEFAULT_PLAYBACK_TIMELINE,
   DEFAULT_SPECTROGRAM_PREVIEW,
@@ -28,6 +29,17 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
   const [range, setRange] = createSignal<RangeMap | null>(null);
 
   const [configInitialized, setConfigInitialized] = createSignal(false);
+  const [committedCpuNumThreads, setCommittedCpuNumThreads] = createSignal<
+    number | undefined
+  >(undefined);
+  const markCpuThreadsCommitted = (threads: number | undefined) => {
+    setCommittedCpuNumThreads(threads ?? DEFAULT_CPU_NUM_THREADS);
+  };
+  createEffect(() => {
+    if (!configInitialized() || !uiStore.coreInitialized) return;
+    if (committedCpuNumThreads() !== undefined) return;
+    markCpuThreadsCommitted(config.core?.cpu_num_threads);
+  });
 
   const spectrogramPreviewEnabled = () =>
     config.ui.spectrogram_preview ?? DEFAULT_SPECTROGRAM_PREVIEW;
@@ -82,6 +94,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
       console.error("Failed to reinitialize core:", res.error);
       return false;
     }
+    markCpuThreadsCommitted(coreConfig.cpu_num_threads);
     await reloadCoreDependentState();
     return true;
   };
@@ -92,6 +105,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
       const res = await commands.initCore(cfg);
       if (res.status === "error") {
         if (res.error === "Core already loaded") {
+          markCpuThreadsCommitted(cfg.cpu_num_threads);
           void reloadCoreDependentState();
           setUIStore("coreInitialized", true);
         } else {
@@ -99,6 +113,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
           console.error("Failed to initialize core:", res.error);
         }
       } else {
+        markCpuThreadsCommitted(cfg.cpu_num_threads);
         void reloadCoreDependentState();
         setUIStore("coreInitialized", true);
       }
@@ -126,6 +141,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     setConfig,
     configInitialized,
     setConfigInitialized,
+    committedCpuNumThreads,
     coreInitializeResource,
     range,
     setRange,

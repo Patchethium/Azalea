@@ -356,16 +356,15 @@ function SynthesisDelayField() {
 }
 
 function CPUThreadSetting() {
-  const { config, setConfig, reinitializeCore } = useConfigStore()!;
+  const { config, setConfig, reinitializeCore, committedCpuNumThreads } =
+    useConfigStore()!;
   const { t1 } = usei18n()!;
   const [status, setStatus] = createSignal<"idle" | "loading" | "error">(
     "idle",
   );
-  const [committedThreads, setCommittedThreads] = createSignal(
-    config.core?.cpu_num_threads ?? DEFAULT_CPU_NUM_THREADS,
-  );
   const threads = () => config.core?.cpu_num_threads ?? DEFAULT_CPU_NUM_THREADS;
-  const threadsChanged = () => threads() !== committedThreads();
+  const threadsChanged = () =>
+    threads() !== (committedCpuNumThreads() ?? threads());
 
   const updateThreads = (value: string) => {
     if (status() === "error") setStatus("idle");
@@ -383,9 +382,6 @@ function CPUThreadSetting() {
     setStatus("loading");
     const ok = await reinitializeCore();
     setStatus(ok ? "idle" : "error");
-    if (ok) {
-      setCommittedThreads(threads());
-    }
   };
 
   return (

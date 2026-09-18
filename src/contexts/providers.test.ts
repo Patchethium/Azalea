@@ -1,4 +1,5 @@
 import { commands } from "$binding";
+import { DEFAULT_CPU_NUM_THREADS } from "$constants";
 import { waitFor } from "@solidjs/testing-library";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { batch } from "solid-js";
@@ -279,6 +280,11 @@ describe("ConfigProvider", () => {
     ) {
       await waitFor(() => expect(commands.getRange).toHaveBeenCalledOnce());
       expect(commands.getMetas).toHaveBeenCalledOnce();
+      expect(configStore.committedCpuNumThreads()).toBe(
+        DEFAULT_CPU_NUM_THREADS,
+      );
+    } else {
+      expect(configStore.committedCpuNumThreads()).toBeUndefined();
     }
     for (const message of scenario.messages) {
       expect(console.error).toHaveBeenCalledWith(message, expect.any(String));
@@ -324,6 +330,43 @@ describe("ConfigProvider", () => {
     });
     await waitFor(() => expect(commands.getRange).toHaveBeenCalledTimes(2));
     expect(commands.getMetas).toHaveBeenCalledTimes(2);
+  });
+
+  it("tracks the CPU thread count committed to the running core", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(commands, "initCore").mockResolvedValue({
+      status: "ok",
+      data: null,
+    });
+    vi.spyOn(commands, "getRange").mockResolvedValue({
+      status: "ok",
+      data: {},
+    });
+    vi.spyOn(commands, "getMetas").mockResolvedValue({
+      status: "ok",
+      data: [],
+    });
+    vi.spyOn(commands, "reinitCore").mockResolvedValue({
+      status: "ok",
+      data: null,
+    });
+    const configStore = renderConfigStore();
+
+    expect(configStore.committedCpuNumThreads()).toBeUndefined();
+
+    configStore.setConfig("core", {
+      ort_path: "/core",
+      ojt_dir: "/dict",
+      vvm_dir: "/models",
+      cpu_num_threads: 4,
+    });
+    await waitFor(() => expect(configStore.committedCpuNumThreads()).toBe(4));
+
+    configStore.setConfig("core", "cpu_num_threads", 8);
+    expect(configStore.committedCpuNumThreads()).toBe(4);
+
+    await expect(configStore.reinitializeCore()).resolves.toBe(true);
+    expect(configStore.committedCpuNumThreads()).toBe(8);
   });
 
   it("reports reinitialization failures without refreshing state", async () => {

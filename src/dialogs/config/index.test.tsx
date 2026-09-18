@@ -6,7 +6,7 @@ import { MultiProvider } from "@solid-primitives/context";
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import userEvent from "@testing-library/user-event";
-import { batch, type Component, createSignal, onMount } from "solid-js";
+import { batch, type Component, createSignal, onMount, Show } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ConfigProvider, useConfigStore } from "@contexts/config";
 import { i18nProvider } from "@contexts/i18n";
@@ -743,6 +743,153 @@ describe("ConfigPage", () => {
         }),
       ).not.toBeInTheDocument(),
     );
+  });
+
+  it("keeps the reinitialize prompt after the config dialog remounts", async () => {
+    vi.spyOn(commands, "getAssetsSize").mockResolvedValue({
+      status: "ok",
+      data: 0,
+    });
+    vi.spyOn(commands, "initCore").mockResolvedValue({
+      status: "ok",
+      data: null,
+    });
+    vi.spyOn(commands, "getRange").mockResolvedValue({
+      status: "ok",
+      data: {},
+    });
+    vi.spyOn(commands, "getMetas").mockResolvedValue({
+      status: "ok",
+      data: [],
+    });
+    let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
+    let ui!: NonNullable<ReturnType<typeof useUIStore>>;
+    let toggleConfig!: () => void;
+    const Harness: Component = () => {
+      appConfig = useConfigStore()!;
+      ui = useUIStore()!;
+      const [showConfig, setShowConfig] = createSignal(true);
+      toggleConfig = () => setShowConfig((show) => !show);
+      onMount(() => {
+        batch(() => {
+          appConfig.setConfig(config());
+          appConfig.setConfig("core", {
+            ort_path: "/core",
+            ojt_dir: "/dict",
+            vvm_dir: "/models",
+            cache_size: 128,
+            cpu_num_threads: 4,
+          });
+          ui.setUIStore("page", "config");
+        });
+      });
+      return (
+        <Show when={showConfig()}>
+          <ConfigPage />
+        </Show>
+      );
+    };
+
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [i18nProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+
+    const threads = await screen.findByRole("spinbutton", {
+      name: "CPU threads",
+    });
+    fireEvent.input(threads, { target: { value: "8" } });
+    fireEvent.change(threads, { target: { value: "8" } });
+    expect(
+      screen.getByRole("button", {
+        name: "Reinitialize the core to apply changes",
+      }),
+    ).toBeInTheDocument();
+
+    toggleConfig();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Config" }),
+      ).not.toBeInTheDocument(),
+    );
+
+    toggleConfig();
+    const reopenedThreads = await screen.findByRole("spinbutton", {
+      name: "CPU threads",
+    });
+    expect(reopenedThreads).toHaveValue("8");
+    expect(
+      screen.getByRole("button", {
+        name: "Reinitialize the core to apply changes",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("prompts for reinitialization when the core was initialized at startup", async () => {
+    vi.spyOn(commands, "getAssetsSize").mockResolvedValue({
+      status: "ok",
+      data: 0,
+    });
+    let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
+    let ui!: NonNullable<ReturnType<typeof useUIStore>>;
+    const Harness: Component = () => {
+      appConfig = useConfigStore()!;
+      ui = useUIStore()!;
+      onMount(() => {
+        batch(() => {
+          appConfig.setConfig(config());
+          appConfig.setConfig("core", {
+            ort_path: "/core",
+            ojt_dir: "/dict",
+            vvm_dir: "/models",
+            cache_size: 128,
+            cpu_num_threads: 4,
+          });
+          ui.setUIStore("coreInitialized", true);
+          appConfig.setConfigInitialized(true);
+          ui.setUIStore("page", "config");
+        });
+      });
+      return <ConfigPage />;
+    };
+
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [i18nProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+
+    const threads = await screen.findByRole("spinbutton", {
+      name: "CPU threads",
+    });
+    expect(
+      screen.queryByRole("button", {
+        name: "Reinitialize the core to apply changes",
+      }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.input(threads, { target: { value: "8" } });
+    fireEvent.change(threads, { target: { value: "8" } });
+    expect(
+      screen.getByRole("button", {
+        name: "Reinitialize the core to apply changes",
+      }),
+    ).toBeInTheDocument();
   });
 
   it("ignores invalid CPU thread input and shows a failed reinitialization", async () => {
