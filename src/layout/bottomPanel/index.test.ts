@@ -2583,6 +2583,53 @@ describe("BottomPanel playback", () => {
     );
   });
 
+  it("hides duration labels that do not fit their columns", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const { getConfigStore, getTextStore } = renderPanel({
+      spectrogram_preview: false,
+    });
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    const slider = await screen.findByRole("slider", { name: "コ" });
+    const item = slider.closest<HTMLElement>("[data-tuning-item]")!;
+    expect(within(item).getByText("コ")).toBeInTheDocument();
+    expect(within(item).getByText("k")).toBeInTheDocument();
+    expect(within(item).getByText("o")).toBeInTheDocument();
+
+    getConfigStore().setConfig("ui", "bottom_scale", 100);
+    await waitFor(() =>
+      expect(within(item).queryByText("k")).not.toBeInTheDocument(),
+    );
+    expect(within(item).getByText("コ")).toBeInTheDocument();
+    expect(within(item).getByText("o")).toBeInTheDocument();
+
+    getTextStore().setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      0,
+      "moras",
+      0,
+      "consonant_length",
+      0.02,
+    );
+    getTextStore().setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      0,
+      "moras",
+      0,
+      "vowel_length",
+      0.02,
+    );
+    await waitFor(() =>
+      expect(within(item).queryByText("コ")).not.toBeInTheDocument(),
+    );
+    expect(within(item).queryByText("o")).not.toBeInTheDocument();
+  });
+
   it("edits pitch and duration and plays while the pitch slider stays focused", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,

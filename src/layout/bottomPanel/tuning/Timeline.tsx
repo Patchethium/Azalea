@@ -12,6 +12,8 @@ import { createEffect, Show } from "solid-js";
 import type { PitchScale } from "./pitchScale";
 
 const PITCH_BADGE_WIDTH = 32;
+const MORA_TEXT_MIN_WIDTH = 17;
+const LATIN_CHAR_WIDTH = 9;
 
 export function TuningItem(props: {
   mora: Mora;
@@ -32,6 +34,9 @@ export function TuningItem(props: {
       : props.mora.consonant_length! * scale();
   const vowelPixels = () => props.mora.vowel_length * scale();
   const totalPixels = () => (consonantPixels() ?? 0) + vowelPixels();
+  const moraLabel = () => (props.isPause ? "" : props.mora.text);
+  const consonantLabel = () => props.mora.consonant ?? "";
+  const vowelLabel = () => (props.isPause ? "" : props.mora.vowel);
 
   return (
     <div
@@ -84,7 +89,7 @@ export function TuningItem(props: {
         style={{ height: whisper() ? undefined : `${props.durationHeight}px` }}
       >
         <div class="pointer-events-none absolute inset-0 flex items-center justify-center group-hover:invisible">
-          {props.isPause ? "" : props.mora.text}
+          <Show when={totalPixels() >= MORA_TEXT_MIN_WIDTH}>{moraLabel()}</Show>
         </div>
         <Show when={consonantPixels() != null}>
           <div
@@ -94,7 +99,14 @@ export function TuningItem(props: {
             }
             style={{ width: `${consonantPixels()}px` }}
           >
-            {props.mora.consonant}
+            <Show
+              when={
+                (consonantPixels() ?? 0) >=
+                consonantLabel().length * LATIN_CHAR_WIDTH
+              }
+            >
+              {consonantLabel()}
+            </Show>
           </div>
         </Show>
         <div
@@ -104,7 +116,9 @@ export function TuningItem(props: {
           }
           style={{ width: `${vowelPixels()}px` }}
         >
-          {props.isPause ? "" : props.mora.vowel}
+          <Show when={vowelPixels() >= vowelLabel().length * LATIN_CHAR_WIDTH}>
+            {vowelLabel()}
+          </Show>
         </div>
       </div>
     </div>
