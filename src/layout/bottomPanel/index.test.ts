@@ -2169,9 +2169,11 @@ describe("BottomPanel playback", () => {
     expect(handle).toHaveAttribute("aria-valuenow", "80");
     expect(getConfigStore().config.ui.bottom_duration_height).toBe(80);
     const ruler = screen.getByRole("group", { name: "Pitch scale" });
-    expect(ruler).toHaveStyle({ height: "120px" });
+    expect(ruler).toHaveStyle({ height: "120px", width: "64px" });
     expect(ruler.querySelector('[data-pitch="3.4"]')).toHaveTextContent("3.4");
     expect(ruler.querySelector('[data-pitch="6.5"]')).toHaveTextContent("6.5");
+    expect(ruler.querySelector('[data-pitch="4.6"]')).toBeInTheDocument();
+    expect(ruler.querySelector('[data-pitch="5.8"]')).toHaveTextContent("5.8");
     expect(ruler.querySelectorAll("[data-pitch] span").length).toBeLessThan(7);
 
     fireEvent.keyDown(handle, { key: "ArrowUp" });
@@ -2257,6 +2259,10 @@ describe("BottomPanel playback", () => {
       tuningPanel.querySelectorAll("[data-tuning-item]").length,
     ).toBeLessThan(100);
     expect(virtualTimeline).toHaveStyle({ width: "3600px" });
+    const ghost = virtualTimeline.querySelector<HTMLElement>(
+      "[data-tuning-ghost]",
+    )!;
+    expect(ghost).toHaveStyle({ left: "3600px", width: "64px" });
 
     const resizeObserver = resizeObservers.get(tuningPanel)!;
     resizeObserver.callback(
@@ -2286,6 +2292,7 @@ describe("BottomPanel playback", () => {
     await waitFor(() =>
       expect(virtualTimeline).toHaveStyle({ width: "7200px" }),
     );
+    await waitFor(() => expect(ghost).toHaveStyle({ left: "7200px" }));
     getTextStore().setTextStore(
       0,
       "query",

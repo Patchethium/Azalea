@@ -7,7 +7,7 @@ import {
   SpectrogramCanvas,
   TuningItem,
 } from "@layout/bottomPanel/tuning/Timeline";
-import { PitchRuler } from "./PitchRuler";
+import { PITCH_RULER_WIDTH, PitchRuler } from "./PitchRuler";
 import { useTuningPanel } from "@layout/bottomPanel/tuning/usePanel";
 import type {
   DraggingMode,
@@ -248,6 +248,16 @@ export function TuningPanel(props: {
                 );
               }}
             </For>
+            <Show when={panel.pitchScale().max > panel.pitchScale().min}>
+              <div
+                class="pointer-events-none absolute inset-y-0"
+                style={{
+                  left: `${virtualizer.getTotalSize()}px`,
+                  width: `${PITCH_RULER_WIDTH}px`,
+                }}
+                data-tuning-ghost
+              />
+            </Show>
             <button
               type="button"
               role="separator"

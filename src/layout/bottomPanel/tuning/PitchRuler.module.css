@@ -3,7 +3,6 @@
   top: 0;
   right: 0;
   z-index: 3;
-  width: 4rem;
   pointer-events: auto;
   user-select: none;
   color: #475569;
@@ -39,6 +38,7 @@
   font-size: 11px;
   line-height: 14px;
   font-variant-numeric: tabular-nums;
+  transition: opacity 150ms ease-in-out;
 }
 
 .ruler:hover .label {

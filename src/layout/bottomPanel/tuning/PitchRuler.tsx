@@ -3,6 +3,8 @@ import { createMemo, For, Show } from "solid-js";
 import type { PitchScale } from "./pitchScale";
 import styles from "./PitchRuler.module.css";
 
+export const PITCH_RULER_WIDTH = 64;
+
 export function PitchRuler(props: { scale: PitchScale; height: number }) {
   const { t1 } = usei18n()!;
   const ticks = createMemo(() => {
@@ -32,7 +34,13 @@ export function PitchRuler(props: { scale: PitchScale; height: number }) {
         last ||
         (pixels - previousLabel >= 24 && props.height - pixels >= 24);
       if (labeled) previousLabel = pixels;
-      return { pitch, position, labeled, first, last };
+      return {
+        pitch: Number(pitch.toFixed(3)),
+        position,
+        labeled,
+        first,
+        last,
+      };
     });
   });
 
@@ -41,7 +49,10 @@ export function PitchRuler(props: { scale: PitchScale; height: number }) {
       role="group"
       aria-label={t1("config.pitch_scale")}
       class={styles.ruler}
-      style={{ height: `${props.height}px` }}
+      style={{
+        height: `${props.height}px`,
+        width: `${PITCH_RULER_WIDTH}px`,
+      }}
     >
       <For each={ticks()}>
         {(tick) => (
@@ -58,7 +69,7 @@ export function PitchRuler(props: { scale: PitchScale; height: number }) {
                   transform: `translateY(${tick.first ? 0 : tick.last ? 100 : 50}%)`,
                 }}
               >
-                {Number(tick.pitch.toFixed(3))}
+                {tick.pitch}
               </span>
             </Show>
           </span>
