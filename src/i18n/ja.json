@@ -128,7 +128,8 @@
     "import_srt": "SRTをインポート",
     "export_all": "すべて書き出し",
     "quit": "終了",
-    "about": "このアプリについて"
+    "about": "このアプリについて",
+    "hide_pitch_ruler": "ピッチルーラーを非表示"
   },
   "export_all": {
     "title": "すべて書き出し",
@@ -168,6 +169,7 @@
     "theme_dark": "ダーク",
     "custom_titlebar": "カスタムタイトルバー",
     "playback_timeline": "再生タイムライン",
+    "pitch_ruler": "ピッチルーラー",
     "pitch_scale": "ピッチスケール",
     "pitch_scale_linear": "均等",
     "pitch_scale_density": "分布に応じる",

@@ -94,6 +94,8 @@ pub struct UIConfig {
   pub playback_timeline: bool,
   #[serde(default = "density_aware_pitch_scale_default")]
   pub density_aware_pitch_scale: bool,
+  #[serde(default = "pitch_ruler_default")]
+  pub pitch_ruler: bool,
   #[serde(default = "name_truncation_len_default")]
   pub name_truncation_len: usize,
   #[serde(default)]
@@ -129,6 +131,7 @@ impl Default for UIConfig {
       spectrogram_preview: spectrogram_preview_default(),
       playback_timeline: playback_timeline_default(),
       density_aware_pitch_scale: density_aware_pitch_scale_default(),
+      pitch_ruler: pitch_ruler_default(),
       name_truncation_len: name_truncation_len_default(),
       default_export_dir: None,
       default_export_dir_enabled: false,
@@ -181,6 +184,10 @@ fn playback_timeline_default() -> bool {
 }
 
 fn density_aware_pitch_scale_default() -> bool {
+  true
+}
+
+fn pitch_ruler_default() -> bool {
   true
 }
 
@@ -347,6 +354,7 @@ mod tests {
     assert!(!config.silent_save);
     assert!(!config.prevent_overwrite);
     assert!(config.last_exported_dir.is_none());
+    assert!(config.pitch_ruler);
     assert_eq!(config.bottom_duration_height, 48);
     assert_eq!(
       config.shortcuts.toggle_playback,
@@ -427,6 +435,7 @@ mod tests {
     assert!(config.ui.spectrogram_preview);
     assert!(config.ui.playback_timeline);
     assert!(config.ui.density_aware_pitch_scale);
+    assert!(config.ui.pitch_ruler);
     assert!(config.ui.custom_titlebar);
     assert_eq!(config.ui.primary_color, "#3b82f6");
     assert_eq!(config.ui.bottom_ratio, 0.3);

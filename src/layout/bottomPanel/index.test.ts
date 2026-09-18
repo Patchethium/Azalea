@@ -12,6 +12,7 @@ import {
 } from "@layout/bottomPanel/testUtils";
 import * as scheduled from "@solid-primitives/scheduled";
 import { fireEvent, screen, waitFor, within } from "@solidjs/testing-library";
+import userEvent from "@testing-library/user-event";
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { describe, expect, it, vi } from "vitest";
@@ -2480,6 +2481,56 @@ describe("BottomPanel playback", () => {
     expect(
       screen.queryByRole("group", { name: "Pitch scale" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("toggles density and hides the pitch ruler from its context menu", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const { getConfigStore } = renderPanel({ spectrogram_preview: false });
+    getConfigStore().setRange({
+      1: {
+        min: 4,
+        max: 6,
+        histogram_min: 4,
+        histogram_max: 6,
+        histogram: Array.from({ length: 128 }, (_, i) => (i < 64 ? 9 : 1)),
+      },
+    });
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    const ruler = await screen.findByRole("group", { name: "Pitch scale" });
+    const middleTick = () =>
+      ruler.querySelector<HTMLElement>('[data-pitch="5"]')!;
+    expect(Number.parseFloat(middleTick().style.bottom)).toBeCloseTo(82);
+
+    fireEvent.contextMenu(ruler);
+    const density = await screen.findByRole("menuitemcheckbox", {
+      name: "Density-aware",
+    });
+    expect(density).toHaveAttribute("aria-checked", "true");
+    await user.click(density);
+    expect(getConfigStore().config.ui.density_aware_pitch_scale).toBe(false);
+    expect(Number.parseFloat(middleTick().style.bottom)).toBeCloseTo(50);
+    await waitFor(() =>
+      expect(density.closest("[data-closed]")).not.toBeNull(),
+    );
+
+    fireEvent.contextMenu(ruler);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Hide pitch ruler" }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("group", { name: "Pitch scale" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(document.querySelector("[data-tuning-ghost]")).not.toBeNull();
+
+    getConfigStore().setConfig("ui", "pitch_ruler", true);
+    expect(
+      await screen.findByRole("group", { name: "Pitch scale" }),
+    ).toBeInTheDocument();
   });
 
   it("edits pitch and duration and plays while the pitch slider stays focused", async () => {

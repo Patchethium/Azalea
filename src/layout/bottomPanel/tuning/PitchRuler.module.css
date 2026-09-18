@@ -44,3 +44,7 @@
 .ruler:hover .label {
   opacity: 1;
 }
+
+.menu_item {
+  --at-apply: "w-full h-8 rounded-md flex flex-row hover:(bg-primary-5 text-white) p-2 items-center gap-2 min-w-44 cursor-pointer outline-none";
+}

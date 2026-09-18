@@ -39,7 +39,7 @@ export function TuningPanel(props: {
   waveformSynthesisNotice: WaveformSynthesisNotice | null;
 }) {
   const { t1 } = usei18n()!;
-  const { config, setConfig } = useConfigStore()!;
+  const { config, setConfig, pitchRulerEnabled } = useConfigStore()!;
   const panel = useTuningPanel(() => props.waveformSynthesisNotice);
   const [scrollElement, setScrollElement] = createSignal<HTMLDivElement | null>(
     null,
@@ -332,7 +332,9 @@ export function TuningPanel(props: {
       </div>
       <Show
         when={
-          panel.queryExists() && panel.pitchScale().max > panel.pitchScale().min
+          pitchRulerEnabled() &&
+          panel.queryExists() &&
+          panel.pitchScale().max > panel.pitchScale().min
         }
       >
         <PitchRuler

@@ -133,6 +133,13 @@ describe("ConfigPage", () => {
     fireEvent.click(preview);
     expect(appConfig.spectrogramPreviewEnabled()).toBe(false);
 
+    const ruler = screen.getByRole("switch", { name: "Pitch ruler" });
+    expect(ruler).toBeChecked();
+    fireEvent.click(ruler);
+    expect(appConfig.pitchRulerEnabled()).toBe(false);
+    fireEvent.click(ruler);
+    expect(appConfig.pitchRulerEnabled()).toBe(true);
+
     fireEvent.click(screen.getByRole("button", { name: "Close config" }));
     await waitFor(() => expect(ui.uiStore.page).toBeNull());
     expect(screen.getByRole("dialog", { name: "Config" })).toHaveAttribute(

@@ -35,6 +35,8 @@ export function ConfigPage() {
     setConfig,
     customTitlebarEnabled,
     setCustomTitlebarEnabled,
+    pitchRulerEnabled,
+    setPitchRulerEnabled,
     playbackTimelineEnabled,
     setPlaybackTimelineEnabled,
     spectrogramPreviewEnabled,
@@ -85,6 +87,21 @@ export function ConfigPage() {
             >
               <Switch.Input
                 aria-label={t1("config.playback_timeline")}
+                class="outline-2px"
+              />
+              <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
+                <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
+              </Switch.Control>
+            </Switch>
+          </ConfigItem>
+          <ConfigItem label={t1("config.pitch_ruler")}>
+            <Switch
+              checked={pitchRulerEnabled()}
+              onChange={setPitchRulerEnabled}
+              class="inline-flex items-center select-none cursor-pointer justify-center"
+            >
+              <Switch.Input
+                aria-label={t1("config.pitch_ruler")}
                 class="outline-2px"
               />
               <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">

@@ -202,6 +202,7 @@ describe("ConfigProvider", () => {
     const configStore = renderConfigStore();
 
     expect(configStore.spectrogramPreviewEnabled()).toBe(true);
+    expect(configStore.pitchRulerEnabled()).toBe(true);
     expect(configStore.themeMode()).toBe("System");
     configStore.setSpectrogramPreviewEnabled(false);
     await Promise.resolve();

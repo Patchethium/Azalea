@@ -141,6 +141,7 @@
     "theme_dark": "Dark",
     "custom_titlebar": "Custom title bar",
     "playback_timeline": "Playback timeline",
+    "pitch_ruler": "Pitch ruler",
     "pitch_scale": "Pitch scale",
     "pitch_scale_linear": "Evenly distributed",
     "pitch_scale_density": "Density-aware",
@@ -195,7 +196,8 @@
     "import_srt": "Import SRT",
     "export_all": "Export all",
     "quit": "Quit",
-    "about": "About"
+    "about": "About",
+    "hide_pitch_ruler": "Hide pitch ruler"
   },
   "export_all": {
     "title": "Export all",

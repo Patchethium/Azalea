@@ -141,6 +141,7 @@
     "theme_dark": "深色",
     "custom_titlebar": "自定义标题栏",
     "playback_timeline": "播放时间线",
+    "pitch_ruler": "音高标尺",
     "pitch_scale": "音高刻度",
     "pitch_scale_linear": "均匀分布",
     "pitch_scale_density": "密度感知",
@@ -195,7 +196,8 @@
     "import_srt": "导入 SRT",
     "export_all": "导出全部",
     "quit": "退出",
-    "about": "关于"
+    "about": "关于",
+    "hide_pitch_ruler": "隐藏音高标尺"
   },
   "export_all": {
     "title": "导出全部",

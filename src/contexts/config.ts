@@ -13,6 +13,7 @@ import { createStore } from "solid-js/store";
 import {
   DEFAULT_CPU_NUM_THREADS,
   DEFAULT_CUSTOM_TITLEBAR,
+  DEFAULT_PITCH_RULER,
   DEFAULT_PLAYBACK_TIMELINE,
   DEFAULT_SPECTROGRAM_PREVIEW,
   DEFAULT_THEME_MODE,
@@ -61,6 +62,10 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     config.ui.custom_titlebar ?? DEFAULT_CUSTOM_TITLEBAR;
   const setCustomTitlebarEnabled = (enabled: boolean) => {
     setConfig("ui", "custom_titlebar", enabled);
+  };
+  const pitchRulerEnabled = () => config.ui.pitch_ruler ?? DEFAULT_PITCH_RULER;
+  const setPitchRulerEnabled = (enabled: boolean) => {
+    setConfig("ui", "pitch_ruler", enabled);
   };
   const themeMode = (): ThemeMode => config.ui.theme_mode ?? DEFAULT_THEME_MODE;
   const setThemeMode = (mode: ThemeMode) => {
@@ -158,6 +163,8 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     setPlaybackTimelineEnabled,
     customTitlebarEnabled,
     setCustomTitlebarEnabled,
+    pitchRulerEnabled,
+    setPitchRulerEnabled,
     themeMode,
     setThemeMode,
   };
