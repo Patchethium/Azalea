@@ -141,7 +141,13 @@ unstable.
 ### Pitch Range
 
 `Azalea` comes with a pre-computed pitch range for every speakers in VOICEVOX, for a higher utilization of the tuning panel space.
-The pitch range is computed by a sliding window algorithm on the generated pitchs which gets the minimum range covering 97% of the pitchs.
+The pitch range is the narrowest interval covering 97% of corpus pitches above
+`0.1`, computed separately for each style. Each style also includes a 128-bin
+histogram over the editing range (30% padding on each side, clamped to 0–6.5).
+The editor blends the histogram's cumulative distribution with 20% linear
+spacing, giving common pitches more vertical space and finer editing steps
+while keeping sparse regions reachable. The mapping stays fixed while editing;
+only the range and histogram are embedded, not the raw corpus samples.
 
 Every time the core gets updated, we need to recompute the pitch range, by
 

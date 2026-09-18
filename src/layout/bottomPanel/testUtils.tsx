@@ -24,7 +24,13 @@ import { findPresetById, TextProvider, useTextStore } from "@contexts/text";
 import { UIProvider, useUIStore } from "@contexts/ui";
 import { getModifiedQuery } from "$utils";
 import { DEFAULT_BOTTOM_DURATION_HEIGHT } from "$constants";
-import { audioQuery, config, metas, preset } from "../../test/fixtures";
+import {
+  audioQuery,
+  config,
+  metas,
+  preset,
+  pitchRange,
+} from "../../test/fixtures";
 
 const BufferedWaveformJob: Component = () => {
   const { projectPresetStore, textStore } = useTextStore()!;
@@ -89,7 +95,9 @@ export const renderPanel = (
       batch(() => {
         meta.setMetas(metas);
         appConfig.setConfig(config(configOverrides));
-        appConfig.setRange({ 1: [4, 6] });
+        appConfig.setRange({
+          1: pitchRange(),
+        });
         text.setProjectPresetStore([preset()]);
         text.replaceTextBlocks([
           {
@@ -165,7 +173,9 @@ export const renderTuningHook = (
       batch(() => {
         meta.setMetas(metas);
         appConfig.setConfig(config(configOverrides));
-        appConfig.setRange({ 1: [4, 6] });
+        appConfig.setRange({
+          1: pitchRange(),
+        });
         text.setProjectPresetStore([preset()]);
         text.replaceTextBlocks([
           {

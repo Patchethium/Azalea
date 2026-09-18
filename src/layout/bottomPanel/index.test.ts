@@ -1999,8 +1999,8 @@ describe("BottomPanel playback", () => {
 
     expect(panel.queryExists()).toBe(true);
     expect(panel.timelineDuration()).toBeCloseTo(0.7);
-    expect(panel.minPitch()).toBeCloseTo(3.4);
-    expect(panel.maxPitch()).toBe(6.5);
+    expect(panel.pitchScale().min).toBeCloseTo(3.4);
+    expect(panel.pitchScale().max).toBe(6.5);
 
     panel.setDraggingData({
       apIndex: 0,
@@ -2035,7 +2035,9 @@ describe("BottomPanel playback", () => {
     expect(
       text.textStore[0].query?.accent_phrases[0].pause_mora?.vowel_length,
     ).toBe(0);
+    const originalScale = panel.pitchScale();
     panel.setPitch(0, 0, 5.8);
+    expect(panel.pitchScale()).toBe(originalScale);
     expect(text.textStore[0].query?.accent_phrases[0].moras[0].pitch).toBe(5.8);
     expect(text.textStore[0].query_is_modified).toBe(true);
 
@@ -2058,8 +2060,8 @@ describe("BottomPanel playback", () => {
     expect(panel.scale()).toBe(451);
 
     getConfigStore().setRange(null);
-    expect(panel.minPitch()).toBe(0);
-    expect(panel.maxPitch()).toBe(0);
+    expect(panel.pitchScale().min).toBe(0);
+    expect(panel.pitchScale().max).toBe(0);
     text.setTextStore([]);
     expect(panel.queryExists()).toBe(false);
     panel.setPitch(0, 0, 1);
@@ -2379,6 +2381,58 @@ describe("BottomPanel playback", () => {
     );
   });
 
+  it("maps pointer and keyboard edits through the density scale and announces pitch", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const { getConfigStore, getTextStore } = renderPanel({
+      spectrogram_preview: false,
+    });
+    getConfigStore().setRange({
+      1: {
+        min: 4,
+        max: 6,
+        histogram_min: 4,
+        histogram_max: 6,
+        histogram: Array.from({ length: 128 }, (_, i) => (i < 64 ? 9 : 1)),
+      },
+    });
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    const slider = await screen.findByRole("slider", { name: "コ" });
+    const track = slider.parentElement!;
+    vi.spyOn(track, "getBoundingClientRect").mockReturnValue({
+      top: 0,
+      left: 0,
+      width: 100,
+      height: 100,
+    } as DOMRect);
+    Object.assign(track, {
+      setPointerCapture: vi.fn(),
+      hasPointerCapture: () => true,
+      releasePointerCapture: vi.fn(),
+    });
+    fireEvent(
+      track,
+      new MouseEvent("pointerdown", { bubbles: true, clientY: 50 }),
+    );
+    fireEvent(
+      track,
+      new MouseEvent("pointerup", { bubbles: true, clientY: 50 }),
+    );
+    const pitch = () =>
+      getTextStore().textStore[0].query!.accent_phrases[0].moras[0].pitch;
+    // The lower half has 90% of samples: 0.8 * 0.9 + 0.2 * 0.5 = 0.82 of the track.
+    expect(pitch()).toBeCloseTo(4 + 0.5 / 0.82, 6);
+    expect(slider).toHaveAttribute("aria-valuetext", pitch().toFixed(4));
+    expect(getTextStore().textStore[0].query_is_modified).toBe(true);
+    fireEvent.keyDown(slider, { key: "ArrowUp" });
+    expect(pitch()).toBeCloseTo(4 + 0.501 / 0.82, 6);
+    fireEvent.keyDown(slider, { key: "End" });
+    expect(pitch()).toBe(6);
+    fireEvent.keyDown(slider, { key: "Home" });
+    expect(pitch()).toBe(4);
+  });
+
   it("edits pitch and duration and plays while the pitch slider stays focused", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
@@ -2404,14 +2458,15 @@ describe("BottomPanel playback", () => {
     await waitFor(() =>
       expect(
         getTextStore().textStore[0].query?.accent_phrases[0].moras[0].pitch,
-      ).toBeCloseTo(5.41),
+      ).toBeCloseTo(5.4026, 4),
     );
     expect(getTextStore().textStore[0].query_is_modified).toBe(true);
 
     fireEvent.keyDown(pitch!, { key: " " });
     await waitFor(() => expect(play).toHaveBeenCalledOnce());
     expect(play.mock.calls[0][0].accent_phrases[0].moras[0].pitch).toBeCloseTo(
-      5.41,
+      5.4026,
+      4,
     );
 
     await emit("audio-playback-finished");

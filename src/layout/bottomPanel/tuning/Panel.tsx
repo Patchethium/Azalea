@@ -235,12 +235,7 @@ export function TuningPanel(props: {
                               );
                             }
                           }}
-                          minPitch={
-                            currentItem().isPause ? 0 : panel.minPitch()
-                          }
-                          maxPitch={
-                            currentItem().isPause ? 0 : panel.maxPitch()
-                          }
+                          pitchScale={panel.pitchScale()}
                           durationHeight={durationHeight()}
                           isPause={currentItem().isPause}
                         />

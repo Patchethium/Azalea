@@ -13,7 +13,7 @@ import { SpectrogramProvider } from "@contexts/spectrogram";
 import { SystemProvider } from "@contexts/system";
 import { TextProvider, useTextStore } from "@contexts/text";
 import { UIProvider } from "@contexts/ui";
-import { config, metas } from "./test/fixtures";
+import { config, metas, pitchRange } from "./test/fixtures";
 
 const renderApp = () => {
   let text!: NonNullable<ReturnType<typeof useTextStore>>;
@@ -167,7 +167,9 @@ describe("App initialization", () => {
           case "set_config":
             return null;
           case "get_range":
-            return { 1: [4, 6] };
+            return {
+              1: pitchRange(),
+            };
           case "get_metas":
             return [
               {

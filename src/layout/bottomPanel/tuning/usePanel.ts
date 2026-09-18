@@ -34,6 +34,8 @@ import {
   onMount,
 } from "solid-js";
 
+import { createPitchScale } from "./pitchScale";
+
 let spectrogramGenerationSequence = 0;
 
 type ActiveSpectrogramRequest = {
@@ -411,18 +413,10 @@ export function useTuningPanel(
     }),
   );
 
-  const computedRange = createMemo(() => {
+  const pitchScale = createMemo(() => {
     const id = currentPreset()?.style_id;
-    const pitchRange = range();
-    if (id === undefined || pitchRange === null) return [0, 0];
-    let [min, max] = pitchRange[id] ?? [0, 0];
-    const relax = (max - min) * 0.3;
-    min = _.clamp(min - relax, 0, 6.5);
-    max = _.clamp(max + relax, 0, 6.5);
-    return [min, max];
+    return createPitchScale(id === undefined ? undefined : range()?.[id]);
   });
-  const minPitch = createMemo(() => computedRange()[0]);
-  const maxPitch = createMemo(() => computedRange()[1]);
   const [draggingData, setDraggingData] = createSignal<{
     apIndex: number;
     moraIndex: number;
@@ -552,8 +546,7 @@ export function useTuningPanel(
     timelineDuration,
     spectrogram,
     spectrogramStale,
-    minPitch,
-    maxPitch,
+    pitchScale,
     draggingData,
     setDraggingData,
     setStartX,

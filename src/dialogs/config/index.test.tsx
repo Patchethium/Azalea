@@ -12,7 +12,7 @@ import { ConfigProvider, useConfigStore } from "@contexts/config";
 import { i18nProvider } from "@contexts/i18n";
 import { MetaProvider, useMetaStore } from "@contexts/meta";
 import { UIProvider, useUIStore } from "@contexts/ui";
-import { config } from "../../test/fixtures";
+import { config, pitchRange } from "../../test/fixtures";
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: vi.fn(),
@@ -673,7 +673,9 @@ describe("ConfigPage", () => {
     });
     vi.spyOn(commands, "getRange").mockResolvedValue({
       status: "ok",
-      data: { 1: [4, 6] },
+      data: {
+        1: pitchRange(),
+      },
     });
     vi.spyOn(commands, "getMetas").mockResolvedValue({
       status: "ok",
@@ -839,6 +841,10 @@ describe("ConfigPage", () => {
   });
 
   it("prompts for reinitialization when the core was initialized at startup", async () => {
+    vi.spyOn(commands, "setConfig").mockResolvedValue({
+      status: "ok",
+      data: null,
+    });
     vi.spyOn(commands, "getAssetsSize").mockResolvedValue({
       status: "ok",
       data: 0,

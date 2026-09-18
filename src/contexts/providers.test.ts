@@ -10,6 +10,7 @@ import {
   metas,
   preset,
   spectrogram,
+  pitchRange,
 } from "../test/fixtures";
 import {
   renderConfigStore,
@@ -257,7 +258,12 @@ describe("ConfigProvider", () => {
     },
     {
       init: { status: "ok" as const, data: null },
-      range: { status: "ok" as const, data: { 1: [4, 6] as [number, number] } },
+      range: {
+        status: "ok" as const,
+        data: {
+          1: pitchRange(),
+        },
+      },
       meta: { status: "ok" as const, data: metas },
       messages: [],
     },
@@ -299,7 +305,9 @@ describe("ConfigProvider", () => {
     });
     vi.spyOn(commands, "getRange").mockResolvedValue({
       status: "ok",
-      data: { 1: [4, 6] },
+      data: {
+        1: pitchRange(),
+      },
     });
     vi.spyOn(commands, "getMetas").mockResolvedValue({
       status: "ok",

@@ -9,19 +9,20 @@ import { Slider } from "@kobalte/core/slider";
 import type { DraggingMode } from "@layout/bottomPanel/types";
 import _ from "lodash";
 import { createEffect, Show } from "solid-js";
+import type { PitchScale } from "./pitchScale";
 
 export function TuningItem(props: {
   mora: Mora;
   startDraggingDur: (origin: number, mode: DraggingMode) => void;
   setPitch: (pitch: number) => void;
-  minPitch: number;
-  maxPitch: number;
+  pitchScale: PitchScale;
   durationHeight: number;
   isPause?: boolean;
 }) {
   const { config, spectrogramPreviewEnabled } = useConfigStore()!;
   const unvoiced = () => props.mora.pitch === 0;
-  const whisper = () => props.maxPitch === 0 && props.minPitch === 0;
+  const whisper = () =>
+    props.isPause || (props.pitchScale.max === 0 && props.pitchScale.min === 0);
   const scale = () => config.ui?.bottom_scale ?? DEFAULT_BOTTOM_SCALE;
   const consonantPixels = (): number | null =>
     props.mora.consonant == null
@@ -45,17 +46,23 @@ export function TuningItem(props: {
           <Slider
             class="flex-1 b-b b-slate-3 dark:b-slate-6 b-dashed overflow-hidden"
             classList={{ "opacity-60": spectrogramPreviewEnabled() }}
-            minValue={props.minPitch}
-            maxValue={props.maxPitch}
-            step={0.01}
-            value={[props.mora.pitch]}
-            onChange={(value) => props.setPitch(value[0])}
+            minValue={0}
+            maxValue={1}
+            step={0.001}
+            value={[props.pitchScale.toPosition(props.mora.pitch)]}
+            onChange={(value) =>
+              props.setPitch(props.pitchScale.toPitch(value[0]))
+            }
             orientation="vertical"
           >
             <Slider.Track class="size-full bg-transparent relative group">
               <Slider.Fill class="absolute bg-transparent w-full group-hover:!bg-primary-50 dark:group-hover:!bg-primary-9" />
-              <Slider.Thumb class="block h-1px w-full bg-slate-4 outline-none group-hover:!bg-primary-5">
-                <Slider.Input />
+              <Slider.Thumb
+                aria-label={props.mora.text}
+                aria-valuetext={props.mora.pitch.toFixed(4)}
+                class="block h-1px w-full bg-slate-4 outline-none group-hover:!bg-primary-5"
+              >
+                <Slider.Input aria-valuetext={props.mora.pitch.toFixed(4)} />
               </Slider.Thumb>
             </Slider.Track>
           </Slider>

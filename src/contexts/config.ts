@@ -1,6 +1,12 @@
 // The store holding the configuration
 
-import { AzaleaConfig, commands, StyleId, ThemeMode } from "$binding";
+import {
+  AzaleaConfig,
+  commands,
+  PitchRange,
+  StyleId,
+  ThemeMode,
+} from "$binding";
 import { createContextProvider } from "@solid-primitives/context";
 import { createEffect, createResource, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
@@ -24,7 +30,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     ui: {},
   } as AzaleaConfig);
 
-  type RangeMap = { [key in StyleId]: [number, number] };
+  type RangeMap = { [key in StyleId]: PitchRange };
 
   const [range, setRange] = createSignal<RangeMap | null>(null);
 

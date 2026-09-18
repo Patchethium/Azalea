@@ -1,5 +1,5 @@
 use super::utils::{state_mut, state_ref};
-use crate::config::range::{get_range as _get_range, RangeMap};
+use crate::config::range::{get_range as _get_range, PitchRange, RangeMap};
 use crate::config::{AzaleaConfig, ConfigManager};
 use crate::AppState;
 
@@ -11,7 +11,7 @@ pub struct InitializationEvent {
   pub config: Option<AzaleaConfig>,
   pub core_initialized: bool,
   pub metas: Option<VoiceModelMeta>,
-  pub range: Vec<(voicevox_core::StyleId, (f32, f32))>,
+  pub range: Vec<(voicevox_core::StyleId, PitchRange)>,
   pub error: Option<String>,
 }
 

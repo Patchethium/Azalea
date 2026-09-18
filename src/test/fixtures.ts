@@ -3,6 +3,7 @@ import type {
   AzaleaConfig,
   CharacterMeta,
   Preset,
+  PitchRange,
   SpectrogramPreview,
 } from "$binding";
 import {
@@ -18,6 +19,14 @@ import {
   DEFAULT_SYNTHESIS_DELAY_MS,
   DEFAULT_THEME_MODE,
 } from "$constants";
+
+export const pitchRange = (): PitchRange => ({
+  min: 4,
+  max: 6,
+  histogram_min: 3.4,
+  histogram_max: 6.5,
+  histogram: Array(128).fill(1),
+});
 
 export const mora = {
   text: "コ",

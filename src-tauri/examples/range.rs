@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::fs::write;
 
 use azalea_lib::{
-  config::{ConfigManager, CoreConfig},
+  config::{range::PitchRange, ConfigManager, CoreConfig},
   core::Core,
 };
 use serde_json::to_string;
@@ -28,7 +28,7 @@ fn main() {
   let root = std::path::Path::new(PROJ_ROOT).to_path_buf();
   let core = Core::init(&core_config()).unwrap();
   let metas = core.metas.clone();
-  let mut pitch_range = BTreeMap::<StyleId, (f32, f32)>::new();
+  let mut pitch_range = BTreeMap::<StyleId, PitchRange>::new();
   let text_path = root.join("tests").join(BENCHMARK_TEXT);
   let lines = std::fs::read_to_string(text_path).unwrap();
   let lines: Vec<&str> = lines.lines().collect();
@@ -37,7 +37,7 @@ fn main() {
     characters.iter().for_each(|character| {
       for style in character.styles.clone() {
         let id = style.id;
-        let mut values: Vec<f32> = lines
+        let values: Vec<f32> = lines
           // Loaded speakers are not thread-safe, so do not use par_iter here.
           .iter()
           .flat_map(|line| {
@@ -51,35 +51,12 @@ fn main() {
           })
           .collect();
 
-        values.sort_by(|a, b| a.partial_cmp(b).unwrap());
-
-        let count = values.len();
-        let (low, high) = if count == 0 {
-          (0.0, 0.0)
-        } else {
-          let target_count = ((count as f32 * 0.97).ceil() as usize).max(1);
-          if target_count >= count {
-            (*values.first().unwrap(), *values.last().unwrap())
-          } else {
-            let mut min_range_len = f32::INFINITY;
-            let mut best_pair = (0.0, 0.0);
-            for index in 0..=(count - target_count) {
-              let start = values[index];
-              let end = values[index + target_count - 1];
-              let difference = end - start;
-              if difference < min_range_len {
-                min_range_len = difference;
-                best_pair = (start, end);
-              }
-            }
-            best_pair
-          }
-        };
+        let range = PitchRange::from_samples(values);
         println!(
           "{}/{}: low: {}, high: {}",
-          character.name, style.name, low, high
+          character.name, style.name, range.min, range.max
         );
-        pitch_range.insert(id, (low, high));
+        pitch_range.insert(id, range);
       }
     });
   });

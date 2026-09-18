@@ -106,7 +106,7 @@ async getMetas() : Promise<Result<CharacterMeta[], string>> {
     else return { status: "error", error: e  as any };
 }
 },
-async getRange() : Promise<Result<Partial<{ [key in StyleId]: [number, number] }>, string>> {
+async getRange() : Promise<Result<Partial<{ [key in StyleId]: PitchRange }>, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_range") };
 } catch (e) {
@@ -600,7 +600,7 @@ export type DictionaryEntry = { id: string; surface: string; pronunciation: stri
 export type DictionaryEntryInput = { surface: string; pronunciation: string; accent_type: number; word_type: DictionaryWordType; priority: number }
 export type DictionaryWordType = "PROPER_NOUN" | "COMMON_NOUN" | "VERB" | "ADJECTIVE" | "SUFFIX"
 export type FrontendReadyEvent = null
-export type InitializationEvent = { config: AzaleaConfig | null; core_initialized: boolean; metas: CharacterMeta[] | null; range: ([StyleId, [number, number]])[]; error: string | null }
+export type InitializationEvent = { config: AzaleaConfig | null; core_initialized: boolean; metas: CharacterMeta[] | null; range: ([StyleId, PitchRange])[]; error: string | null }
 export type KeyboardShortcut = { key: string; primary?: boolean; secondary?: boolean; shift?: boolean; alt?: boolean }
 export type KeyboardShortcuts = { undo?: KeyboardShortcut; redo?: KeyboardShortcut; save_project?: KeyboardShortcut; export_audio?: KeyboardShortcut; toggle_playback?: KeyboardShortcut; play_current?: KeyboardShortcut; play_next?: KeyboardShortcut }
 export type Locale = "Ja" | "En" | "ZhCn"
@@ -650,6 +650,7 @@ vowel_length: number;
  */
 pitch: number }
 export type OS = "MacOS" | "Windows" | "Linux"
+export type PitchRange = { min: number; max: number; histogram_min: number; histogram_max: number; histogram: number[] }
 export type Preset = { id?: string; name: string; style_id: StyleId; 
 /**
  * in percentage, 50-200
