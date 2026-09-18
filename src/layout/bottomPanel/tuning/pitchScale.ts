@@ -3,12 +3,13 @@ import type { PitchRange } from "$binding";
 const HISTOGRAM_BINS = 128;
 const DENSITY_WEIGHT = 0.8;
 
-export function createPitchScale(range?: PitchRange) {
+export function createPitchScale(range?: PitchRange, densityAware = true) {
   const min = range?.histogram_min ?? 0;
   const max = range?.histogram_max ?? 0;
   const span = max - min;
   const histogram = range?.histogram ?? [];
   const valid =
+    densityAware &&
     histogram.length === HISTOGRAM_BINS &&
     histogram.every((count) => Number.isFinite(count) && count >= 0);
   const total = valid ? histogram.reduce((sum, count) => sum + count, 0) : 0;

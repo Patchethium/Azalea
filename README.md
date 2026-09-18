@@ -147,7 +147,9 @@ histogram over the editing range (30% padding on each side, clamped to 0–6.5).
 The editor blends the histogram's cumulative distribution with 20% linear
 spacing, giving common pitches more vertical space and finer editing steps
 while keeping sparse regions reachable. The mapping stays fixed while editing;
-only the range and histogram are embedded, not the raw corpus samples.
+only the range and histogram are embedded, not the raw corpus samples. In Config,
+use the **Pitch scale** button group to choose **Evenly distributed** or
+**Density-aware** (the default). This preference does not change stored pitches.
 
 Every time the core gets updated, we need to recompute the pitch range, by
 

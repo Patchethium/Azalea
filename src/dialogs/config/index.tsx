@@ -4,6 +4,7 @@ import { AssetCacheSetting } from "@dialogs/config/AssetCacheSetting";
 import {
   FontSelect,
   I18NSelect,
+  PitchScaleSelect,
   PrimaryColorPicker,
   ThemeSelect,
 } from "@dialogs/config/Basics";
@@ -90,6 +91,9 @@ export function ConfigPage() {
                 <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
               </Switch.Control>
             </Switch>
+          </ConfigItem>
+          <ConfigItem label={t1("config.pitch_scale")}>
+            <PitchScaleSelect />
           </ConfigItem>
           <ConfigItem label={t1("config.primary_color")}>
             <PrimaryColorPicker />

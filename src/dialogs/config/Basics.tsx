@@ -6,10 +6,17 @@ import { Popover } from "@kobalte/core/popover";
 import { Select } from "@kobalte/core/select";
 import { ToggleGroup } from "@kobalte/core/toggle-group";
 import { createMemo, Show } from "solid-js";
-import { DEFAULT_PRIMARY_COLOR, PRIMARY_COLOR_PATTERN } from "$constants";
+import {
+  DEFAULT_DENSITY_AWARE_PITCH_SCALE,
+  DEFAULT_PRIMARY_COLOR,
+  PRIMARY_COLOR_PATTERN,
+} from "$constants";
 import { useConfigStore } from "@contexts/config";
 import { usei18n } from "@contexts/i18n";
 import { coverages, localeNames, possibleLocales } from "../../i18n";
+
+const toggleItemClass =
+  "h-full px3 bg-transparent outline-none hover:bg-slate-1 active:bg-slate-1 focus-visible:(ring-2 ring-inset ring-primary-2) ui-pressed:(!bg-primary-5 !text-white) dark:hover:bg-slate-7 dark:active:bg-slate-7";
 
 export function ThemeSelect() {
   const { themeMode, setThemeMode } = useConfigStore()!;
@@ -71,8 +78,6 @@ export function ThemeSelect() {
 export function FontSelect() {
   const { config, setConfig } = useConfigStore()!;
   const { t1 } = usei18n()!;
-  const itemClass =
-    "h-full px3 bg-transparent outline-none hover:bg-slate-1 active:bg-slate-1 focus-visible:(ring-2 ring-inset ring-primary-2) ui-pressed:(!bg-primary-5 !text-white) dark:hover:bg-slate-7 dark:active:bg-slate-7";
 
   return (
     <ToggleGroup
@@ -85,14 +90,46 @@ export function FontSelect() {
       aria-label={t1("config.font")}
       class="flex h-8 overflow-hidden rounded-md border border-slate-2 dark:border-slate-6"
     >
-      <ToggleGroup.Item value="native" class={itemClass}>
+      <ToggleGroup.Item value="native" class={toggleItemClass}>
         {t1("config.font_native")}
       </ToggleGroup.Item>
       <ToggleGroup.Item
         value="embedded"
-        class={`${itemClass} border-l border-slate-2 dark:border-slate-6`}
+        class={`${toggleItemClass} border-l border-slate-2 dark:border-slate-6`}
       >
         {t1("config.font_embedded")}
+      </ToggleGroup.Item>
+    </ToggleGroup>
+  );
+}
+
+export function PitchScaleSelect() {
+  const { config, setConfig } = useConfigStore()!;
+  const { t1 } = usei18n()!;
+
+  return (
+    <ToggleGroup
+      value={
+        (config.ui.density_aware_pitch_scale ??
+        DEFAULT_DENSITY_AWARE_PITCH_SCALE)
+          ? "density"
+          : "linear"
+      }
+      onChange={(value) => {
+        if (value !== null)
+          setConfig("ui", "density_aware_pitch_scale", value === "density");
+      }}
+      aria-label={t1("config.pitch_scale")}
+      class="flex h-8 overflow-hidden rounded-md border border-slate-2 dark:border-slate-6"
+    >
+      <ToggleGroup.Item value="linear" class={toggleItemClass}>
+        {t1("config.pitch_scale_linear")}
+      </ToggleGroup.Item>
+      <ToggleGroup.Item
+        value="density"
+        class={`${toggleItemClass} border-l border-slate-2 dark:border-slate-6`}
+      >
+        {t1("config.pitch_scale_density")}
       </ToggleGroup.Item>
     </ToggleGroup>
   );

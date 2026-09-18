@@ -92,6 +92,8 @@ pub struct UIConfig {
   pub spectrogram_preview: bool,
   #[serde(default = "playback_timeline_default")]
   pub playback_timeline: bool,
+  #[serde(default = "density_aware_pitch_scale_default")]
+  pub density_aware_pitch_scale: bool,
   #[serde(default = "name_truncation_len_default")]
   pub name_truncation_len: usize,
   #[serde(default)]
@@ -126,6 +128,7 @@ impl Default for UIConfig {
       synthesis_delay_ms: synthesis_delay_ms_default(),
       spectrogram_preview: spectrogram_preview_default(),
       playback_timeline: playback_timeline_default(),
+      density_aware_pitch_scale: density_aware_pitch_scale_default(),
       name_truncation_len: name_truncation_len_default(),
       default_export_dir: None,
       default_export_dir_enabled: false,
@@ -174,6 +177,10 @@ fn spectrogram_preview_default() -> bool {
 }
 
 fn playback_timeline_default() -> bool {
+  true
+}
+
+fn density_aware_pitch_scale_default() -> bool {
   true
 }
 
@@ -419,6 +426,7 @@ mod tests {
     assert_eq!(config.system_presets[0].name, "Default");
     assert!(config.ui.spectrogram_preview);
     assert!(config.ui.playback_timeline);
+    assert!(config.ui.density_aware_pitch_scale);
     assert!(config.ui.custom_titlebar);
     assert_eq!(config.ui.primary_color, "#3b82f6");
     assert_eq!(config.ui.bottom_ratio, 0.3);

@@ -72,6 +72,24 @@ describe("ConfigPage", () => {
     ).not.toBeInTheDocument();
     expect(appConfig.config.ui.nonblocking_synthesis).toBe(true);
 
+    const linearPitch = screen.getByRole("button", {
+      name: "Evenly distributed",
+    });
+    const densityPitch = screen.getByRole("button", { name: "Density-aware" });
+    expect(densityPitch).toHaveAttribute("aria-pressed", "true");
+    expect(linearPitch).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(linearPitch);
+    expect(appConfig.config.ui.density_aware_pitch_scale).toBe(false);
+    expect(linearPitch).toHaveAttribute("aria-pressed", "true");
+    expect(densityPitch).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(linearPitch);
+    expect(linearPitch).toHaveAttribute("aria-pressed", "true");
+    densityPitch.focus();
+    expect(densityPitch).toHaveFocus();
+    await userEvent.keyboard(" ");
+    expect(appConfig.config.ui.density_aware_pitch_scale).toBe(true);
+    expect(densityPitch).toHaveAttribute("aria-pressed", "true");
+
     const buffering = screen.getByRole("switch", {
       name: "Background Buffering for Audio Generation",
     });

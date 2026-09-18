@@ -158,6 +158,7 @@ mod tests {
     source.config.ui.nonblocking_synthesis = true;
     source.config.ui.spectrogram_preview = false;
     source.config.ui.playback_timeline = false;
+    source.config.ui.density_aware_pitch_scale = false;
 
     source.save_as(&path).unwrap();
     let mut loaded = ConfigManager::default();
@@ -171,6 +172,7 @@ mod tests {
     assert!(loaded.config.ui.nonblocking_synthesis);
     assert!(!loaded.config.ui.spectrogram_preview);
     assert!(!loaded.config.ui.playback_timeline);
+    assert!(!loaded.config.ui.density_aware_pitch_scale);
   }
 
   #[test]

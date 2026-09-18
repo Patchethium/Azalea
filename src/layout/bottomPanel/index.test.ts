@@ -2411,6 +2411,25 @@ describe("BottomPanel playback", () => {
       hasPointerCapture: () => true,
       releasePointerCapture: vi.fn(),
     });
+    getConfigStore().setConfig("ui", "density_aware_pitch_scale", false);
+    expect(
+      getTextStore().textStore[0].query!.accent_phrases[0].moras[0].pitch,
+    ).toBe(5.4);
+    expect(getTextStore().textStore[0].query_is_modified).toBe(false);
+    expect(Number(slider.getAttribute("aria-valuenow"))).toBeCloseTo(0.7);
+    fireEvent(
+      track,
+      new MouseEvent("pointerdown", { bubbles: true, clientY: 50 }),
+    );
+    fireEvent(
+      track,
+      new MouseEvent("pointerup", { bubbles: true, clientY: 50 }),
+    );
+    expect(
+      getTextStore().textStore[0].query!.accent_phrases[0].moras[0].pitch,
+    ).toBe(5);
+    getConfigStore().setConfig("ui", "density_aware_pitch_scale", true);
+    expect(Number(slider.getAttribute("aria-valuenow"))).toBeCloseTo(0.82);
     fireEvent(
       track,
       new MouseEvent("pointerdown", { bubbles: true, clientY: 50 }),
