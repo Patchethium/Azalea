@@ -281,6 +281,14 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     });
   };
 
+  const resetQueryEdits = (index: number) => {
+    batch(() => {
+      setTextStore(index, "query", null);
+      setTextStore(index, "query_is_modified", false);
+      setQueryRefreshVersion((version) => version + 1);
+    });
+  };
+
   const selectedTextBlockIndex = () =>
     clampTextBlockIndex(uiStore.selectedTextBlockIndex, textStore.length);
 
@@ -407,6 +415,7 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     queryPending,
     beginQueryUpdate,
     refreshGeneratedQueries,
+    resetQueryEdits,
     replaceTextBlocks,
     removeProjectPreset,
     newProject,

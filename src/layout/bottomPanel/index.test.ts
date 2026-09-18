@@ -2565,6 +2565,162 @@ describe("BottomPanel playback", () => {
     );
   });
 
+  it("resets accent phrase edits from the control bar on the accent panel", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const { getTextStore } = renderPanel({ spectrogram_preview: false });
+    const text = getTextStore();
+    await screen.findByText("コ");
+    const reset = await screen.findByRole("button", {
+      name: "Reset accent phrase edits (also resets pitch and duration)",
+    });
+    expect(reset).toBeDisabled();
+
+    text.setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      0,
+      "moras",
+      0,
+      "pitch",
+      5.9,
+    );
+    text.markQueryModified(0);
+    await waitFor(() => expect(reset).toBeEnabled());
+    fireEvent.click(reset);
+    await waitFor(() => expect(text.textStore[0].query).toBeNull());
+    expect(text.textStore[0].query_is_modified).toBe(false);
+  });
+
+  it("resets only pitch and duration edits from the control bar on the tuning panel", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const replaceMora = vi.spyOn(commands, "replaceMora").mockResolvedValue({
+      status: "ok",
+      data: [structuredClone(audioQuery().accent_phrases[0])],
+    });
+    const { getTextStore } = renderPanel({ spectrogram_preview: false });
+    const text = getTextStore();
+    await screen.findByText("コ");
+    text.setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      0,
+      "moras",
+      0,
+      "pitch",
+      5.9,
+    );
+    text.markQueryModified(0);
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    const reset = await screen.findByRole("button", {
+      name: "Reset pitch and duration edits",
+    });
+    fireEvent.click(reset);
+    await waitFor(() => expect(replaceMora).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(text.textStore[0].query?.accent_phrases[0].moras[0].pitch).toBe(
+        5.4,
+      ),
+    );
+    expect(text.textStore[0].query_is_modified).toBe(true);
+  });
+
+  it("ignores stale pitch and duration resets when the query changes mid-request", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    type ReplaceResult = Awaited<ReturnType<typeof commands.replaceMora>>;
+    let resolveReplace!: (result: ReplaceResult) => void;
+    const pending = new Promise<ReplaceResult>((resolve) => {
+      resolveReplace = resolve;
+    });
+    const replaceMora = vi
+      .spyOn(commands, "replaceMora")
+      .mockReturnValue(pending);
+    const { getTextStore } = renderPanel({ spectrogram_preview: false });
+    const text = getTextStore();
+    await screen.findByText("コ");
+    text.setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      0,
+      "moras",
+      0,
+      "pitch",
+      5.9,
+    );
+    text.markQueryModified(0);
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Reset pitch and duration edits",
+      }),
+    );
+    await waitFor(() => expect(replaceMora).toHaveBeenCalledTimes(1));
+
+    text.setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      0,
+      "moras",
+      0,
+      "pitch",
+      5.5,
+    );
+    resolveReplace({
+      status: "ok",
+      data: [structuredClone(audioQuery().accent_phrases[0])],
+    });
+    await pending;
+    await Promise.resolve();
+    expect(text.textStore[0].query?.accent_phrases[0].moras[0].pitch).toBe(5.5);
+  });
+
+  it("keeps edits when the pitch and duration reset request fails", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(commands, "replaceMora").mockResolvedValue({
+      status: "error",
+      error: "replace failed",
+    });
+    const { getTextStore } = renderPanel({ spectrogram_preview: false });
+    const text = getTextStore();
+    await screen.findByText("コ");
+    text.setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      0,
+      "moras",
+      0,
+      "pitch",
+      5.9,
+    );
+    text.markQueryModified(0);
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    const reset = await screen.findByRole("button", {
+      name: "Reset pitch and duration edits",
+    });
+    fireEvent.click(reset);
+    await waitFor(() =>
+      expect(console.error).toHaveBeenCalledWith(
+        "Failed to reset pitch and duration edits:",
+        "replace failed",
+      ),
+    );
+    expect(text.textStore[0].query?.accent_phrases[0].moras[0].pitch).toBe(5.9);
+    await waitFor(() => expect(reset).toBeEnabled());
+  });
+
   it("dims the slider fill but not the thumb when the spectrogram preview is enabled", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
