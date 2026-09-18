@@ -116,6 +116,17 @@ function App() {
   });
 
   onMount(() => {
+    const darkModeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const updateSystemTheme = (event: MediaQueryListEvent) => {
+      setSystemTheme(event.matches ? "dark" : "light");
+    };
+    darkModeQuery.addEventListener("change", updateSystemTheme);
+    onCleanup(() =>
+      darkModeQuery.removeEventListener("change", updateSystemTheme),
+    );
+  });
+
+  onMount(() => {
     let disposed = false;
     let unlistenClose: (() => void) | undefined;
 

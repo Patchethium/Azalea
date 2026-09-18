@@ -404,4 +404,58 @@ describe("App initialization", () => {
     await emit("tauri://theme-changed", "dark");
     expect(document.documentElement).not.toHaveClass("dark");
   });
+
+  it("falls back to prefers-color-scheme for system theme changes", async () => {
+    const listeners: Array<(event: MediaQueryListEvent) => void> = [];
+    const mediaQueryList = {
+      matches: false,
+      media: "(prefers-color-scheme: dark)",
+      onchange: null,
+      addEventListener: vi.fn(
+        (_type: string, listener: (event: MediaQueryListEvent) => void) => {
+          listeners.push(listener);
+        },
+      ),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    };
+    vi.mocked(window.matchMedia).mockReturnValue(
+      mediaQueryList as unknown as MediaQueryList,
+    );
+    mockIPC((cmd) => (cmd.includes("theme") ? "light" : null), {
+      shouldMockEvents: true,
+    });
+    mockWindows("main");
+    const result = renderApp();
+    await events.initializationEvent.emit({
+      config: config({ theme_mode: "System" }),
+      core_initialized: false,
+      metas,
+      range: [],
+      error: null,
+    });
+    await screen.findByRole("button", { name: "Pick it" });
+
+    expect(mediaQueryList.addEventListener).toHaveBeenCalledWith(
+      "change",
+      expect.any(Function),
+    );
+    expect(document.documentElement).not.toHaveClass("dark");
+
+    listeners[0]({ matches: true } as MediaQueryListEvent);
+    await waitFor(() => expect(document.documentElement).toHaveClass("dark"));
+
+    listeners[0]({ matches: false } as MediaQueryListEvent);
+    await waitFor(() =>
+      expect(document.documentElement).not.toHaveClass("dark"),
+    );
+
+    result.unmount();
+    expect(mediaQueryList.removeEventListener).toHaveBeenCalledWith(
+      "change",
+      listeners[0],
+    );
+  });
 });
