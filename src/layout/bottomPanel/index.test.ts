@@ -2721,6 +2721,33 @@ describe("BottomPanel playback", () => {
     await waitFor(() => expect(reset).toBeEnabled());
   });
 
+  it("uses the reset button style for the other toolbar buttons", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    renderPanel({ spectrogram_preview: false });
+    const playAll = await screen.findByRole("button", {
+      name: "Play selected cell and all cells below",
+    });
+    expect(playAll).toHaveClass(
+      "size-8",
+      "rounded-md",
+      "bg-transparent",
+      "hover:bg-slate-1",
+      "dark:hover:bg-slate-7",
+    );
+    expect(playAll.className).toContain(
+      "focus-visible:(ring-2 ring-primary-2)",
+    );
+    expect(playAll.className).toContain(
+      "disabled:(cursor-not-allowed opacity-50)",
+    );
+    expect(playAll.firstElementChild).toHaveClass(
+      "i-lucide:list-video",
+      "size-4",
+    );
+  });
+
   it("dims the slider fill but not the thumb when the spectrogram preview is enabled", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
