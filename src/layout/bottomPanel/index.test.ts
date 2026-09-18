@@ -2168,10 +2168,16 @@ describe("BottomPanel playback", () => {
     expect(handle).toHaveAttribute("aria-valuemax", "152");
     expect(handle).toHaveAttribute("aria-valuenow", "80");
     expect(getConfigStore().config.ui.bottom_duration_height).toBe(80);
+    const ruler = screen.getByRole("group", { name: "Pitch scale" });
+    expect(ruler).toHaveStyle({ height: "120px" });
+    expect(ruler.querySelector('[data-pitch="3.4"]')).toHaveTextContent("3.4");
+    expect(ruler.querySelector('[data-pitch="6.5"]')).toHaveTextContent("6.5");
+    expect(ruler.querySelectorAll("[data-pitch] span").length).toBeLessThan(7);
 
     fireEvent.keyDown(handle, { key: "ArrowUp" });
     expect(screen.getByText("k").parentElement).toHaveStyle({ height: "88px" });
     expect(getConfigStore().config.ui.bottom_duration_height).toBe(88);
+    expect(ruler).toHaveStyle({ height: "112px" });
   });
 
   it("mounts only tuning items near the horizontal viewport", async () => {
@@ -2241,6 +2247,9 @@ describe("BottomPanel playback", () => {
     const virtualTimeline = tuningPanel.querySelector<HTMLElement>(
       "[data-tuning-virtualizer]",
     )!;
+    const ruler = screen.getByRole("group", { name: "Pitch scale" });
+    expect(tuningPanel).not.toContainElement(ruler);
+    expect(tuningPanel.parentElement).toContainElement(ruler);
 
     expect(within(tuningPanel).getByText("mora-0")).toBeInTheDocument();
     expect(within(tuningPanel).queryByText("mora-99")).not.toBeInTheDocument();
@@ -2271,6 +2280,7 @@ describe("BottomPanel playback", () => {
       expect(within(tuningPanel).queryByText("mora-0")).not.toBeInTheDocument(),
     );
     expect(within(tuningPanel).getByText("mora-99")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Pitch scale" })).toBe(ruler);
 
     getConfigStore().setConfig("ui", "bottom_scale", 720);
     await waitFor(() =>
@@ -2388,6 +2398,9 @@ describe("BottomPanel playback", () => {
     const { getConfigStore, getTextStore } = renderPanel({
       spectrogram_preview: false,
     });
+    expect(
+      screen.queryByRole("group", { name: "Pitch scale" }),
+    ).not.toBeInTheDocument();
     getConfigStore().setRange({
       1: {
         min: 4,
@@ -2399,6 +2412,10 @@ describe("BottomPanel playback", () => {
     });
     fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
     const slider = await screen.findByRole("slider", { name: "コ" });
+    const ruler = screen.getByRole("group", { name: "Pitch scale" });
+    const middleTick = () =>
+      ruler.querySelector<HTMLElement>('[data-pitch="5"]')!;
+    expect(Number.parseFloat(middleTick().style.bottom)).toBeCloseTo(82);
     const track = slider.parentElement!;
     vi.spyOn(track, "getBoundingClientRect").mockReturnValue({
       top: 0,
@@ -2417,6 +2434,7 @@ describe("BottomPanel playback", () => {
     ).toBe(5.4);
     expect(getTextStore().textStore[0].query_is_modified).toBe(false);
     expect(Number(slider.getAttribute("aria-valuenow"))).toBeCloseTo(0.7);
+    expect(Number.parseFloat(middleTick().style.bottom)).toBeCloseTo(50);
     fireEvent(
       track,
       new MouseEvent("pointerdown", { bubbles: true, clientY: 50 }),
@@ -2430,6 +2448,7 @@ describe("BottomPanel playback", () => {
     ).toBe(5);
     getConfigStore().setConfig("ui", "density_aware_pitch_scale", true);
     expect(Number(slider.getAttribute("aria-valuenow"))).toBeCloseTo(0.82);
+    expect(Number.parseFloat(middleTick().style.bottom)).toBeCloseTo(82);
     fireEvent(
       track,
       new MouseEvent("pointerdown", { bubbles: true, clientY: 50 }),
@@ -2450,6 +2469,10 @@ describe("BottomPanel playback", () => {
     expect(pitch()).toBe(6);
     fireEvent.keyDown(slider, { key: "Home" });
     expect(pitch()).toBe(4);
+    getConfigStore().setRange(null);
+    expect(
+      screen.queryByRole("group", { name: "Pitch scale" }),
+    ).not.toBeInTheDocument();
   });
 
   it("edits pitch and duration and plays while the pitch slider stays focused", async () => {

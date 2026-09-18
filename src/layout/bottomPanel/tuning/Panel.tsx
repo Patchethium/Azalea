@@ -7,6 +7,7 @@ import {
   SpectrogramCanvas,
   TuningItem,
 } from "@layout/bottomPanel/tuning/Timeline";
+import { PitchRuler } from "./PitchRuler";
 import { useTuningPanel } from "@layout/bottomPanel/tuning/usePanel";
 import type {
   DraggingMode,
@@ -49,10 +50,12 @@ export function TuningPanel(props: {
     setConfig("ui", "bottom_duration_height", Math.round(height));
   const [maxDurationHeight, setMaxDurationHeight] =
     createSignal(durationHeight());
+  const [timelineHeight, setTimelineHeight] = createSignal(0);
   let timelineElement!: HTMLDivElement;
   let resizingDuration = false;
 
   const updateDurationBounds = () => {
+    setTimelineHeight(timelineElement.clientHeight);
     if (timelineElement.clientHeight === 0) return maxDurationHeight();
     const max = Math.max(
       MIN_DURATION_HEIGHT,
@@ -140,7 +143,7 @@ export function TuningPanel(props: {
   );
 
   return (
-    <>
+    <div class="relative size-full">
       <div
         ref={(element) => {
           panel.setScrollAreaRef(element);
@@ -317,6 +320,16 @@ export function TuningPanel(props: {
           </Slider>
         </Show>
       </div>
-    </>
+      <Show
+        when={
+          panel.queryExists() && panel.pitchScale().max > panel.pitchScale().min
+        }
+      >
+        <PitchRuler
+          scale={panel.pitchScale()}
+          height={Math.max(0, timelineHeight() - durationHeight())}
+        />
+      </Show>
+    </div>
   );
 }
