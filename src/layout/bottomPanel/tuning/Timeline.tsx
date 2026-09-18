@@ -52,7 +52,6 @@ export function TuningItem(props: {
         >
           <Slider
             class="flex-1 b-b b-slate-3 dark:b-slate-6 b-dashed overflow-hidden"
-            classList={{ "opacity-60": spectrogramPreviewEnabled() }}
             minValue={0}
             maxValue={1}
             step={0.001}
@@ -63,7 +62,10 @@ export function TuningItem(props: {
             orientation="vertical"
           >
             <Slider.Track class="size-full bg-transparent relative group">
-              <Slider.Fill class="absolute bg-transparent w-full group-hover:!bg-primary-50 dark:group-hover:!bg-primary-9" />
+              <Slider.Fill
+                class="absolute bg-transparent w-full group-hover:!bg-primary-50 dark:group-hover:!bg-primary-9"
+                classList={{ "opacity-60": spectrogramPreviewEnabled() }}
+              />
               <Slider.Thumb
                 aria-label={props.mora.text}
                 aria-valuetext={props.mora.pitch.toFixed(4)}
@@ -72,7 +74,7 @@ export function TuningItem(props: {
                 <Show when={totalPixels() >= PITCH_BADGE_WIDTH}>
                   <span
                     aria-hidden="true"
-                    class="pointer-events-none invisible absolute left-1/2 top-1/2 w-8 -translate-x-1/2 -translate-y-1/2 rounded bg-slate-4 px-1 text-center text-10px leading-4 text-white tabular-nums group-hover:visible group-hover:!bg-primary-5"
+                    class="pointer-events-none invisible absolute left-1/2 top-1/2 w-8 -translate-x-1/2 -translate-y-1/2 rounded-md bg-white px-1 text-center text-11px leading-4 tabular-nums group-hover:visible dark:bg-slate-8"
                   >
                     {props.mora.pitch.toFixed(2)}
                   </span>

@@ -2542,7 +2542,13 @@ describe("BottomPanel playback", () => {
     const slider = await screen.findByRole("slider", { name: "コ" });
     const badge = within(slider).getByText("5.40");
     expect(badge).toHaveAttribute("aria-hidden", "true");
-    expect(badge).toHaveClass("invisible", "group-hover:visible");
+    expect(badge).toHaveClass(
+      "invisible",
+      "group-hover:visible",
+      "bg-white",
+      "dark:bg-slate-8",
+    );
+    expect(badge).not.toHaveClass("bg-slate-4", "text-white", "border");
 
     getTextStore().setTextStore(
       0,
@@ -2557,6 +2563,21 @@ describe("BottomPanel playback", () => {
     await waitFor(() =>
       expect(within(slider).getByText("5.68")).toBeInTheDocument(),
     );
+  });
+
+  it("dims the slider fill but not the thumb when the spectrogram preview is enabled", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const { getConfigStore } = renderPanel({ spectrogram_preview: false });
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    const slider = await screen.findByRole("slider", { name: "コ" });
+    const fill = slider.parentElement!.firstElementChild!;
+    expect(fill).not.toHaveClass("opacity-60");
+
+    getConfigStore().setConfig("ui", "spectrogram_preview", true);
+    await waitFor(() => expect(fill).toHaveClass("opacity-60"));
+    expect(slider).not.toHaveClass("opacity-60");
   });
 
   it("hides the pitch value badge when the mora column is too narrow", async () => {
