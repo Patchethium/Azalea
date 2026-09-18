@@ -83,6 +83,21 @@ describe("TitleBar", () => {
     );
   });
 
+  it("shows custom tooltips for the window controls", async () => {
+    mockIPC(() => null);
+    mockWindows("main");
+    renderTitleBar();
+
+    for (const name of ["Minimize", "Maximize or restore", "Close"]) {
+      expect(screen.getByRole("button", { name })).not.toHaveAttribute("title");
+    }
+
+    const minimize = screen.getByRole("button", { name: "Minimize" });
+    expect(minimize.parentElement).toHaveClass("h-full");
+    fireEvent.pointerEnter(minimize.parentElement!, { pointerType: "mouse" });
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Minimize");
+  });
+
   it("indicates unsaved project changes", async () => {
     mockIPC(() => null);
     mockWindows("main");
@@ -94,8 +109,13 @@ describe("TitleBar", () => {
 
     getTextStore().setTextStore(0, "text", "Changed text");
 
-    expect(
-      await screen.findByRole("status", { name: "Unsaved changes" }),
-    ).toBeInTheDocument();
+    const indicator = await screen.findByRole("status", {
+      name: "Unsaved changes",
+    });
+    expect(indicator).not.toHaveAttribute("title");
+    fireEvent.pointerEnter(indicator.parentElement!, { pointerType: "mouse" });
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "Unsaved changes",
+    );
   });
 });

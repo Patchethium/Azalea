@@ -1,3 +1,4 @@
+import { Tooltip } from "@components/tooltip";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Show } from "solid-js";
 import { usei18n } from "@contexts/i18n";
@@ -23,49 +24,53 @@ export function TitleBar() {
           Azalea
         </span>
         <Show when={isProjectDirty()}>
-          <span
-            data-tauri-drag-region
-            role="status"
-            aria-label={t1("titlebar.unsaved")}
-            title={t1("titlebar.unsaved")}
-            class="ml2 size-1.5 shrink-0 rounded-full bg-primary-5"
-          />
+          <Tooltip content={t1("titlebar.unsaved")}>
+            <span
+              data-tauri-drag-region
+              role="status"
+              aria-label={t1("titlebar.unsaved")}
+              class="ml2 size-1.5 shrink-0 rounded-full bg-primary-5"
+            />
+          </Tooltip>
         </Show>
       </div>
       <div class="flex shrink-0">
-        <button
-          type="button"
-          aria-label={t1("titlebar.minimize")}
-          title={t1("titlebar.minimize")}
-          class="h-full w-11 flex items-center justify-center bg-transparent outline-none hover:bg-slate-3 focus-visible:bg-slate-3 dark:(hover:bg-slate-7 focus-visible:bg-slate-7)"
-          onClick={() =>
-            runWindowAction("minimize", () => appWindow.minimize())
-          }
-        >
-          <span aria-hidden="true" class="i-lucide:minus size-4" />
-        </button>
-        <button
-          type="button"
-          aria-label={t1("titlebar.maximize")}
-          title={t1("titlebar.maximize")}
-          class="h-full w-11 flex items-center justify-center bg-transparent outline-none hover:bg-slate-3 focus-visible:bg-slate-3 dark:(hover:bg-slate-7 focus-visible:bg-slate-7)"
-          onClick={() =>
-            runWindowAction("maximize or restore", () =>
-              appWindow.toggleMaximize(),
-            )
-          }
-        >
-          <span aria-hidden="true" class="i-lucide:square size-3.5" />
-        </button>
-        <button
-          type="button"
-          aria-label={t1("titlebar.close")}
-          title={t1("titlebar.close")}
-          class="h-full w-11 flex items-center justify-center bg-transparent outline-none hover:(bg-red-6 text-white) focus-visible:(bg-red-6 text-white)"
-          onClick={() => runWindowAction("close", () => appWindow.close())}
-        >
-          <span aria-hidden="true" class="i-lucide:x size-4" />
-        </button>
+        <Tooltip content={t1("titlebar.minimize")} class="h-full">
+          <button
+            type="button"
+            aria-label={t1("titlebar.minimize")}
+            class="h-full w-11 flex items-center justify-center bg-transparent outline-none hover:bg-slate-3 focus-visible:bg-slate-3 dark:(hover:bg-slate-7 focus-visible:bg-slate-7)"
+            onClick={() =>
+              runWindowAction("minimize", () => appWindow.minimize())
+            }
+          >
+            <span aria-hidden="true" class="i-lucide:minus size-4" />
+          </button>
+        </Tooltip>
+        <Tooltip content={t1("titlebar.maximize")} class="h-full">
+          <button
+            type="button"
+            aria-label={t1("titlebar.maximize")}
+            class="h-full w-11 flex items-center justify-center bg-transparent outline-none hover:bg-slate-3 focus-visible:bg-slate-3 dark:(hover:bg-slate-7 focus-visible:bg-slate-7)"
+            onClick={() =>
+              runWindowAction("maximize or restore", () =>
+                appWindow.toggleMaximize(),
+              )
+            }
+          >
+            <span aria-hidden="true" class="i-lucide:square size-3.5" />
+          </button>
+        </Tooltip>
+        <Tooltip content={t1("titlebar.close")} class="h-full">
+          <button
+            type="button"
+            aria-label={t1("titlebar.close")}
+            class="h-full w-11 flex items-center justify-center bg-transparent outline-none hover:(bg-red-6 text-white) focus-visible:(bg-red-6 text-white)"
+            onClick={() => runWindowAction("close", () => appWindow.close())}
+          >
+            <span aria-hidden="true" class="i-lucide:x size-4" />
+          </button>
+        </Tooltip>
       </div>
     </header>
   );
