@@ -11,6 +11,8 @@ import _ from "lodash";
 import { createEffect, Show } from "solid-js";
 import type { PitchScale } from "./pitchScale";
 
+const PITCH_BADGE_WIDTH = 32;
+
 export function TuningItem(props: {
   mora: Mora;
   startDraggingDur: (origin: number, mode: DraggingMode) => void;
@@ -62,6 +64,14 @@ export function TuningItem(props: {
                 aria-valuetext={props.mora.pitch.toFixed(4)}
                 class="block h-1px w-full bg-slate-4 outline-none group-hover:!bg-primary-5"
               >
+                <Show when={totalPixels() >= PITCH_BADGE_WIDTH}>
+                  <span
+                    aria-hidden="true"
+                    class="pointer-events-none invisible absolute left-1/2 top-1/2 w-8 -translate-x-1/2 -translate-y-1/2 rounded bg-slate-4 px-1 text-center text-10px leading-4 text-white tabular-nums group-hover:visible group-hover:!bg-primary-5"
+                  >
+                    {props.mora.pitch.toFixed(2)}
+                  </span>
+                </Show>
                 <Slider.Input aria-valuetext={props.mora.pitch.toFixed(4)} />
               </Slider.Thumb>
             </Slider.Track>

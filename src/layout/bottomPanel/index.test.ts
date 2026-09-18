@@ -2533,6 +2533,56 @@ describe("BottomPanel playback", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows the two-digit pitch value on the slider indicator while hovered", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const { getTextStore } = renderPanel({ spectrogram_preview: false });
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    const slider = await screen.findByRole("slider", { name: "コ" });
+    const badge = within(slider).getByText("5.40");
+    expect(badge).toHaveAttribute("aria-hidden", "true");
+    expect(badge).toHaveClass("invisible", "group-hover:visible");
+
+    getTextStore().setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      0,
+      "moras",
+      0,
+      "pitch",
+      5.678,
+    );
+    await waitFor(() =>
+      expect(within(slider).getByText("5.68")).toBeInTheDocument(),
+    );
+  });
+
+  it("hides the pitch value badge when the mora column is too narrow", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const { getConfigStore } = renderPanel({ spectrogram_preview: false });
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    const slider = await screen.findByRole("slider", { name: "コ" });
+    expect(within(slider).getByText("5.40")).toBeInTheDocument();
+
+    getConfigStore().setConfig("ui", "bottom_scale", 100);
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("slider", { name: "コ" })).queryByText("5.40"),
+      ).not.toBeInTheDocument(),
+    );
+
+    getConfigStore().setConfig("ui", "bottom_scale", 360);
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("slider", { name: "コ" })).getByText("5.40"),
+      ).toBeInTheDocument(),
+    );
+  });
+
   it("edits pitch and duration and plays while the pitch slider stays focused", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
