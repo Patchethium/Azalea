@@ -1,4 +1,5 @@
 import { commands, type Preset, type StyleId } from "$binding";
+import type { ExportAllFailure } from "@dialogs/ExportAll";
 import { createScheduled, throttle } from "@solid-primitives/scheduled";
 import {
   open as openDialog,
@@ -13,7 +14,7 @@ import {
   onCleanup,
   onMount,
 } from "solid-js";
-import { produce } from "solid-js/store";
+import { produce, unwrap } from "solid-js/store";
 import { useConfigStore } from "@contexts/config";
 import { usei18n } from "@contexts/i18n";
 import { useMetaStore } from "@contexts/meta";
@@ -26,7 +27,7 @@ import {
   useTextStore,
 } from "@contexts/text";
 import { type PendingProjectAction, useUIStore } from "@contexts/ui";
-import { parseSrt } from "$utils";
+import { createAudioFileName, getModifiedQuery, parseSrt } from "$utils";
 
 export function useSidebar() {
   const { availableStyleIds, metas } = useMetaStore()!;
@@ -182,10 +183,6 @@ export function useSidebar() {
   };
 
   const [actionMenuOpen, setActionMenuOpen] = createSignal(false);
-  const autoSave = createMemo(() => config.ui.auto_save);
-  const setAutoSave = (value: boolean) => {
-    setConfig("ui", "auto_save", value);
-  };
   const saveProject = async () => {
     let path = projectPath();
     if (path === null) {
@@ -329,6 +326,167 @@ export function useSidebar() {
     });
   };
 
+  const [exportAllOpen, setExportAllOpen] = createSignal(false);
+  const [exportAllRunning, setExportAllRunning] = createSignal(false);
+  const [exportAllCancelling, setExportAllCancelling] = createSignal(false);
+  const [exportAllFinished, setExportAllFinished] = createSignal(0);
+  const [exportAllTotal, setExportAllTotal] = createSignal(0);
+  const [exportAllCancelled, setExportAllCancelled] = createSignal(false);
+  const [exportAllFailures, setExportAllFailures] = createSignal<
+    ExportAllFailure[]
+  >([]);
+  const [exportAllOutputDir, setExportAllOutputDir] = createSignal<
+    string | null
+  >(null);
+  let exportAllCancelRequested = false;
+
+  const resetExportAll = (total: number) => {
+    exportAllCancelRequested = false;
+    setExportAllFailures([]);
+    setExportAllFinished(0);
+    setExportAllTotal(total);
+    setExportAllCancelled(false);
+    setExportAllCancelling(false);
+    setExportAllOutputDir(null);
+  };
+
+  const exportAll = async () => {
+    if (exportAllRunning()) return;
+    const exportable = textStore
+      .map((block, index) => ({ block, index }))
+      .filter(({ block }) => block.text !== "");
+
+    const pinnedDir = config.ui.default_export_dir_enabled
+      ? config.ui.default_export_dir
+      : undefined;
+    const silentExportDir = config.ui.silent_save ? pinnedDir : undefined;
+    let dir = silentExportDir;
+    if (dir == null && exportable.length > 0) {
+      let initialDir = pinnedDir ?? config.ui.last_exported_dir;
+      if (initialDir == null) {
+        initialDir = (await commands.homeDir()) ?? ".";
+      }
+      const selectedDir = await openDialog({
+        directory: true,
+        multiple: false,
+        title: t1("menu.export_all"),
+        defaultPath: initialDir,
+      });
+      if (selectedDir === null) return;
+      dir = selectedDir;
+    }
+
+    resetExportAll(exportable.length);
+    setExportAllOpen(true);
+    if (dir == null) return;
+
+    setExportAllOutputDir(dir);
+    setExportAllRunning(true);
+
+    const preventOverwrite = config.ui.prevent_overwrite === true;
+    let savedDir: string | null = null;
+    let finished = 0;
+    const recordFailure = (failure: ExportAllFailure) => {
+      setExportAllFailures((failures) => [...failures, failure]);
+    };
+
+    try {
+      for (const { block, index } of exportable) {
+        if (exportAllCancelRequested) break;
+        try {
+          const preset = findPresetById(projectPresetStore, block.preset_id);
+          const identity =
+            preset === null ? null : findPresetStyle(preset, metas);
+          if (preset === null || identity === null) {
+            recordFailure({
+              blockId: block.id,
+              index,
+              text: block.text,
+              error: t1("export_all.error.no_preset"),
+            });
+          } else {
+            let query = block.query;
+            if (query === null || query.accent_phrases.length === 0) {
+              const fetched = await commands.audioQuery(
+                block.text,
+                identity.style.id,
+              );
+              if (fetched.status === "error") {
+                recordFailure({
+                  blockId: block.id,
+                  index,
+                  text: block.text,
+                  error: fetched.error,
+                });
+                query = null;
+              } else {
+                query = fetched.data;
+              }
+            }
+            if (query !== null) {
+              const fileName = `${createAudioFileName(block.text, config.ui.name_truncation_len)}.wav`;
+              const targetPath = await commands.joinPath(dir, fileName);
+              const result = await commands.saveAudio(
+                targetPath,
+                getModifiedQuery(unwrap(query), preset),
+                identity.style.id,
+                preventOverwrite,
+              );
+              if (result.status === "ok") {
+                if (savedDir === null) {
+                  try {
+                    savedDir = (await commands.parentPath(result.data)) ?? dir;
+                  } catch (error) {
+                    console.error(error);
+                    savedDir = dir;
+                  }
+                }
+              } else {
+                recordFailure({
+                  blockId: block.id,
+                  index,
+                  text: block.text,
+                  error: result.error,
+                });
+              }
+            }
+          }
+        } catch (error) {
+          recordFailure({
+            blockId: block.id,
+            index,
+            text: block.text,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+        finished += 1;
+        setExportAllFinished(finished);
+      }
+    } finally {
+      setExportAllRunning(false);
+      setExportAllCancelling(false);
+      if (exportAllCancelRequested) setExportAllCancelled(true);
+      if (savedDir !== null) {
+        setExportAllOutputDir(savedDir);
+        setConfig("ui", "last_exported_dir", savedDir);
+      }
+    }
+  };
+
+  const cancelExportAll = () => {
+    if (!exportAllRunning()) return;
+    exportAllCancelRequested = true;
+    setExportAllCancelling(true);
+  };
+
+  const closeExportAll = () => {
+    if (exportAllRunning()) {
+      cancelExportAll();
+      return;
+    }
+    setExportAllOpen(false);
+  };
+
   const scheduledSave = createScheduled((fn) => throttle(fn, 500));
   createEffect(() => {
     JSON.stringify(project);
@@ -392,12 +550,21 @@ export function useSidebar() {
     setAboutOpen,
     actionMenuOpen,
     setActionMenuOpen,
-    autoSave,
-    setAutoSave,
     newProject,
     loadProject,
     saveProject,
     importSrt,
+    exportAll,
+    cancelExportAll,
+    closeExportAll,
+    exportAllOpen,
+    exportAllRunning,
+    exportAllCancelling,
+    exportAllFinished,
+    exportAllTotal,
+    exportAllCancelled,
+    exportAllFailures,
+    exportAllOutputDir,
     requestProjectAction,
     resolveProjectAction,
     resolvingProjectAction,

@@ -1,5 +1,6 @@
 import { AboutDialog } from "@dialogs/About";
 import { DictionaryDialog } from "@dialogs/Dictionary";
+import { ExportAllDialog } from "@dialogs/ExportAll";
 import { ShortcutReferenceDialog } from "@dialogs/ShortcutReference";
 import { UnsavedChangesDialog } from "@dialogs/UnsavedChanges";
 import { Tooltip } from "@components/tooltip";
@@ -47,35 +48,26 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
               >
                 {t1("menu.save_project")}
               </DropdownMenu.Item>
+              <DropdownMenu.Separator class="mx-2 my-1" />
               <DropdownMenu.Item
                 class={style.menu_item}
                 onClick={controls.importSrt}
               >
                 {t1("menu.import_srt")}
               </DropdownMenu.Item>
-              <DropdownMenu.Separator class="mx-2 my-1" />
-              <DropdownMenu.CheckboxItem
-                checked={controls.autoSave()}
-                onChange={controls.setAutoSave}
+              <DropdownMenu.Item
                 class={style.menu_item}
+                disabled={controls.exportAllRunning()}
+                onClick={() => void controls.exportAll()}
               >
-                {t1("menu.auto_save")}
-                <DropdownMenu.ItemIndicator class="size-4">
-                  <div class="i-lucide:check size-full" />
-                </DropdownMenu.ItemIndicator>
-              </DropdownMenu.CheckboxItem>
+                {t1("menu.export_all")}
+              </DropdownMenu.Item>
               <DropdownMenu.Separator class="mx-2 my-1" />
               <DropdownMenu.Item
                 class={style.menu_item}
                 onClick={() => controls.setAboutOpen(true)}
               >
                 {t1("menu.about")}
-              </DropdownMenu.Item>
-              <DropdownMenu.Item
-                class={style.menu_item}
-                onClick={() => controls.requestProjectAction("quit")}
-              >
-                {t1("menu.quit")}
               </DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
@@ -138,6 +130,18 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
         onSave={() => void controls.resolveProjectAction("save")}
         onDiscard={() => void controls.resolveProjectAction("discard")}
         onCancel={() => void controls.resolveProjectAction("cancel")}
+      />
+      <ExportAllDialog
+        open={controls.exportAllOpen()}
+        running={controls.exportAllRunning()}
+        cancelling={controls.exportAllCancelling()}
+        finished={controls.exportAllFinished()}
+        total={controls.exportAllTotal()}
+        cancelled={controls.exportAllCancelled()}
+        failures={controls.exportAllFailures()}
+        outputDir={controls.exportAllOutputDir()}
+        onCancel={controls.cancelExportAll}
+        onClose={controls.closeExportAll}
       />
     </>
   );

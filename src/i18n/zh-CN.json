@@ -127,6 +127,8 @@
     "open_config_dir": "打开配置目录",
     "sidebar_desp": "此区域将在未来版本中用于索引。",
     "ui": "界面",
+    "project": "项目",
+    "auto_save": "自动保存",
     "audio_export": "音频导出",
     "synthesis": "语音合成",
     "lang": "语言",
@@ -188,9 +190,26 @@
     "load_project": "加载项目",
     "save_project": "保存项目",
     "import_srt": "导入 SRT",
-    "auto_save": "自动保存",
+    "export_all": "导出全部",
     "quit": "退出",
     "about": "关于"
+  },
+  "export_all": {
+    "title": "导出全部",
+    "progress": "正在导出 {{ finished }} / {{ total }}…",
+    "progress_label": "导出进度",
+    "cancelling": "正在取消…",
+    "cancel": "取消",
+    "close": "关闭",
+    "close_label": "关闭导出对话框",
+    "empty": "没有可导出的文本块。",
+    "summary": "已导出 {{ exported }} / {{ total }} 个文件",
+    "cancelled": "已取消导出",
+    "output_dir": "输出文件夹",
+    "failures": "失败的文本块",
+    "error": {
+      "no_preset": "此文本块未设置预设。"
+    }
   },
   "preset": {
     "title": "预设",

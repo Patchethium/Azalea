@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { audioQuery, preset } from "./test/fixtures";
 import {
   countJapaneseMoras,
+  createAudioFileName,
   getModifiedQuery,
   parseSrt,
   splitJapaneseMoras,
@@ -23,6 +24,18 @@ describe("countJapaneseMoras", () => {
 describe("toHalfWidthAscii", () => {
   it("narrows full-width ASCII without changing Japanese text", () => {
     expect(toHalfWidthAscii("Ａｚａｌｅａ　Ｖ２！辞書")).toBe("Azalea V2!辞書");
+  });
+});
+
+describe("createAudioFileName", () => {
+  it("returns the text unchanged without a truncation length", () => {
+    expect(createAudioFileName("Hello world", 0)).toBe("Hello world");
+    expect(createAudioFileName("Hello world", undefined)).toBe("Hello world");
+  });
+
+  it("truncates long text and counts the removed characters", () => {
+    expect(createAudioFileName("abcdefghij", 5)).toBe("abc+5");
+    expect(createAudioFileName("abc", 5)).toBe("abc");
   });
 });
 

@@ -127,6 +127,8 @@
     "open_config_dir": "Open config directory",
     "sidebar_desp": "This space will be used for indexing in future versions.",
     "ui": "UI",
+    "project": "Project",
+    "auto_save": "Auto Save",
     "audio_export": "Audio Export",
     "synthesis": "Synthesis",
     "lang": "Language",
@@ -188,9 +190,26 @@
     "load_project": "Load Project",
     "save_project": "Save Project",
     "import_srt": "Import SRT",
-    "auto_save": "Auto Save",
+    "export_all": "Export all",
     "quit": "Quit",
     "about": "About"
+  },
+  "export_all": {
+    "title": "Export all",
+    "progress": "Exporting {{ finished }} of {{ total }}…",
+    "progress_label": "Export progress",
+    "cancelling": "Cancelling…",
+    "cancel": "Cancel",
+    "close": "Close",
+    "close_label": "Close export dialog",
+    "empty": "There are no text cells to export.",
+    "summary": "Exported {{ exported }} of {{ total }} files",
+    "cancelled": "Export cancelled",
+    "output_dir": "Output folder",
+    "failures": "Failed blocks",
+    "error": {
+      "no_preset": "No preset is assigned to this text cell."
+    }
   },
   "preset": {
     "title": "Preset",

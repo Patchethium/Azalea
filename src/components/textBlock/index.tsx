@@ -25,7 +25,7 @@ import {
   useTextStore,
 } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
-import { getModifiedQuery } from "$utils";
+import { createAudioFileName, getModifiedQuery } from "$utils";
 
 export { renderRequestFingerprint as synthesisRequestFingerprint } from "$utils";
 
@@ -198,17 +198,10 @@ function TextBlock(props: { index: number }) {
   const saveAudio = async () => {
     const preset = currentPreset();
     if (preset === null) return;
-    let fileName = currentText().text;
-    const truncationLength = config.ui.name_truncation_len;
-    if (truncationLength !== 0 && truncationLength !== undefined) {
-      fileName = _.truncate(fileName, {
-        length: truncationLength,
-        omission:
-          fileName.length < truncationLength
-            ? ""
-            : `+${(fileName.length - truncationLength).toString()}`,
-      });
-    }
+    const fileName = createAudioFileName(
+      currentText().text,
+      config.ui.name_truncation_len,
+    );
     const pinnedDir = config.ui.default_export_dir_enabled
       ? config.ui.default_export_dir
       : undefined;

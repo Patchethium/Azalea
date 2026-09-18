@@ -126,9 +126,26 @@
     "load_project": "プロジェクト読み込み",
     "save_project": "プロジェクト保存",
     "import_srt": "SRTをインポート",
-    "auto_save": "自動保存",
+    "export_all": "すべて書き出し",
     "quit": "終了",
     "about": "このアプリについて"
+  },
+  "export_all": {
+    "title": "すべて書き出し",
+    "progress": "{{ finished }} / {{ total }} を書き出し中…",
+    "progress_label": "書き出しの進捗",
+    "cancelling": "キャンセル中…",
+    "cancel": "キャンセル",
+    "close": "閉じる",
+    "close_label": "書き出しダイアログを閉じる",
+    "empty": "書き出せるテキストがありません。",
+    "summary": "{{ total }} 件中 {{ exported }} 件を書き出しました",
+    "cancelled": "書き出しをキャンセルしました",
+    "output_dir": "出力先",
+    "failures": "失敗したテキスト",
+    "error": {
+      "no_preset": "このテキストにプリセットが設定されていません。"
+    }
   },
   "config": {
     "title": "設定",
@@ -137,6 +154,8 @@
     "open_config_dir": "設定ディレクトリを開く",
     "sidebar_desp": "このスペースは以降のバージョンで索引として使われる見込みです。",
     "ui": "UI",
+    "project": "プロジェクト",
+    "auto_save": "自動保存",
     "audio_export": "音声書き出し",
     "synthesis": "音声合成",
     "lang": "言語",

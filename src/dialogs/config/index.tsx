@@ -94,6 +94,22 @@ export function ConfigPage() {
           <ConfigItem label={t1("config.primary_color")}>
             <PrimaryColorPicker />
           </ConfigItem>
+          <ConfigSectionTitle label={t1("config.project")} />
+          <ConfigItem label={t1("config.auto_save")}>
+            <Switch
+              checked={config.ui.auto_save ?? false}
+              onChange={(value) => setConfig("ui", "auto_save", value)}
+              class="inline-flex items-center select-none cursor-pointer justify-center"
+            >
+              <Switch.Input
+                aria-label={t1("config.auto_save")}
+                class="outline-2px"
+              />
+              <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
+                <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
+              </Switch.Control>
+            </Switch>
+          </ConfigItem>
           <ConfigSectionTitle label={t1("config.audio_export")} />
           <ConfigItem label={t1("config.default_export_dir")}>
             <Switch

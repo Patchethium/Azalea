@@ -19,6 +19,20 @@ export const toHalfWidthAscii = (value: string) =>
     )
     .replace(/　/gu, " ");
 
+export function createAudioFileName(
+  text: string,
+  truncationLength: number | undefined,
+): string {
+  if (truncationLength === 0 || truncationLength === undefined) return text;
+  return _.truncate(text, {
+    length: truncationLength,
+    omission:
+      text.length < truncationLength
+        ? ""
+        : `+${(text.length - truncationLength).toString()}`,
+  });
+}
+
 export function getModifiedQuery(
   query: AudioQuery,
   preset: Preset,

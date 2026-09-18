@@ -1,4 +1,9 @@
-import { type CharacterMeta, commands } from "$binding";
+import {
+  type AzaleaConfig,
+  type CharacterMeta,
+  commands,
+  type TextBlockProps,
+} from "$binding";
 import { renderSidebar, renderSidebarHook } from "@layout/sidebar/testUtils";
 import { fireEvent, screen, waitFor } from "@solidjs/testing-library";
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
@@ -881,7 +886,6 @@ describe("Sidebar unsaved changes", () => {
     await screen.findByText("Default");
     text.setTextStore(0, "text", "Edited");
     await user.click(screen.getByRole("button", { name: "Project actions" }));
-    await user.click(await screen.findByText("Auto Save"));
     await user.click(await screen.findByText("New Project"));
     expect(
       await screen.findByRole("dialog", { name: "Unsaved changes" }),
@@ -925,7 +929,7 @@ describe("Sidebar unsaved changes", () => {
     text.setProjectPath("/tmp/saved.azp");
 
     await user.click(screen.getByRole("button", { name: "Project actions" }));
-    await user.click(await screen.findByText("Quit"));
+    await user.click(await screen.findByText("New Project"));
     await screen.findByRole("dialog", { name: "Unsaved changes" });
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(text.textStore[0].text).toBe("Edited");
@@ -979,5 +983,373 @@ describe("Sidebar unsaved changes", () => {
       "Failed to run project action quit:",
       expect.any(Error),
     );
+  });
+});
+
+describe("Sidebar export all", () => {
+  const renderExportSidebar = (
+    ui: Partial<AzaleaConfig["ui"]>,
+    blocks: TextBlockProps[],
+  ) => {
+    let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
+    let text!: NonNullable<ReturnType<typeof useTextStore>>;
+    renderSidebar(({ config: configStore, meta, text: textStore }) => {
+      appConfig = configStore;
+      text = textStore;
+      batch(() => {
+        configStore.setConfig(config({ auto_save: false, ...ui }));
+        meta.setMetas(metas);
+        textStore.setProjectPresetStore([preset()]);
+        textStore.replaceTextBlocks(blocks);
+      });
+    });
+    return { getConfig: () => appConfig, getText: () => text };
+  };
+
+  const openExportAll = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(
+      await screen.findByRole("button", { name: "Project actions" }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Export all" }),
+    );
+  };
+
+  it("exports every non-empty block in order and remembers the output folder", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    vi.spyOn(commands, "homeDir").mockResolvedValue("/home/user");
+    const joinPath = vi
+      .spyOn(commands, "joinPath")
+      .mockImplementation(
+        async (dir: string, name: string) => `${dir}/${name}`,
+      );
+    const saveAudio = vi
+      .spyOn(commands, "saveAudio")
+      .mockImplementation(async (path: string) => ({
+        status: "ok" as const,
+        data: path,
+      }));
+    const parentPath = vi
+      .spyOn(commands, "parentPath")
+      .mockResolvedValue("/exports");
+    dialogs.open.mockResolvedValue("/exports");
+
+    const { getConfig } = renderExportSidebar({}, [
+      {
+        id: "first",
+        text: "First block",
+        query: audioQuery(),
+        query_is_modified: false,
+        preset_id: "preset-1",
+      },
+      {
+        id: "empty",
+        text: "",
+        query: null,
+        query_is_modified: false,
+        preset_id: "preset-1",
+      },
+      {
+        id: "second",
+        text: "Second block",
+        query: audioQuery(),
+        query_is_modified: true,
+        preset_id: "preset-1",
+      },
+    ]);
+
+    await screen.findByText("Default");
+    await openExportAll(user);
+
+    await waitFor(() => expect(saveAudio).toHaveBeenCalledTimes(2));
+    expect(dialogs.open).toHaveBeenCalledWith({
+      directory: true,
+      multiple: false,
+      title: "Export all",
+      defaultPath: "/home/user",
+    });
+    expect(joinPath.mock.calls).toEqual([
+      ["/exports", "First block.wav"],
+      ["/exports", "Second block.wav"],
+    ]);
+    expect(saveAudio.mock.calls[0][0]).toBe("/exports/First block.wav");
+    expect(saveAudio.mock.calls[1][0]).toBe("/exports/Second block.wav");
+    expect(saveAudio.mock.calls[0][3]).toBe(false);
+    await waitFor(() =>
+      expect(getConfig().config.ui.last_exported_dir).toBe("/exports"),
+    );
+    expect(parentPath).toHaveBeenCalledWith("/exports/First block.wav");
+    expect(
+      await screen.findByText("Exported 2 of 2 files"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("/exports")).toBeInTheDocument();
+  });
+
+  it("writes silently to the pinned directory and forwards overwrite prevention", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    const joinPath = vi
+      .spyOn(commands, "joinPath")
+      .mockResolvedValue("/pinned/hello.wav");
+    const saveAudio = vi
+      .spyOn(commands, "saveAudio")
+      .mockResolvedValue({ status: "ok", data: "/pinned/hello(2).wav" });
+    const parentPath = vi
+      .spyOn(commands, "parentPath")
+      .mockResolvedValue("/pinned");
+
+    const { getConfig } = renderExportSidebar(
+      {
+        default_export_dir: "/pinned",
+        default_export_dir_enabled: true,
+        silent_save: true,
+        prevent_overwrite: true,
+      },
+      [
+        {
+          id: "first",
+          text: "hello",
+          query: audioQuery(),
+          query_is_modified: false,
+          preset_id: "preset-1",
+        },
+      ],
+    );
+
+    await screen.findByText("Default");
+    await openExportAll(user);
+
+    await waitFor(() => expect(saveAudio).toHaveBeenCalledOnce());
+    expect(dialogs.open).not.toHaveBeenCalled();
+    expect(joinPath).toHaveBeenCalledWith("/pinned", "hello.wav");
+    expect(saveAudio).toHaveBeenCalledWith(
+      "/pinned/hello.wav",
+      expect.any(Object),
+      1,
+      true,
+    );
+    expect(parentPath).toHaveBeenCalledWith("/pinned/hello(2).wav");
+    await waitFor(() =>
+      expect(getConfig().config.ui.last_exported_dir).toBe("/pinned"),
+    );
+    expect(
+      await screen.findByText("Exported 1 of 1 files"),
+    ).toBeInTheDocument();
+  });
+
+  it("generates missing queries and reports failed blocks with their errors", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    vi.spyOn(commands, "joinPath").mockImplementation(
+      async (dir: string, name: string) => `${dir}/${name}`,
+    );
+    const audioQueryCommand = vi
+      .spyOn(commands, "audioQuery")
+      .mockImplementation(async (text: string) =>
+        text === "Delta"
+          ? { status: "error" as const, error: "engine down" }
+          : { status: "ok" as const, data: audioQuery() },
+      );
+    const saveAudio = vi
+      .spyOn(commands, "saveAudio")
+      .mockImplementation(async (path: string) =>
+        path.endsWith("Beta.wav")
+          ? { status: "error" as const, error: "disk full" }
+          : { status: "ok" as const, data: path },
+      );
+    vi.spyOn(commands, "parentPath").mockResolvedValue("/exports");
+    dialogs.open.mockResolvedValue("/exports");
+
+    renderExportSidebar({}, [
+      {
+        id: "a",
+        text: "Alpha",
+        query: audioQuery(),
+        query_is_modified: false,
+        preset_id: "preset-1",
+      },
+      {
+        id: "b",
+        text: "Beta",
+        query: null,
+        query_is_modified: false,
+        preset_id: "preset-1",
+      },
+      {
+        id: "c",
+        text: "Gamma",
+        query: audioQuery(),
+        query_is_modified: false,
+        preset_id: null,
+      },
+      {
+        id: "d",
+        text: "Delta",
+        query: null,
+        query_is_modified: false,
+        preset_id: "preset-1",
+      },
+    ]);
+
+    await screen.findByText("Default");
+    await openExportAll(user);
+
+    expect(
+      await screen.findByText("Exported 1 of 4 files"),
+    ).toBeInTheDocument();
+    expect(saveAudio).toHaveBeenCalledTimes(2);
+    expect(audioQueryCommand).toHaveBeenCalledWith("Beta", 1);
+    expect(audioQueryCommand).toHaveBeenCalledWith("Delta", 1);
+    expect(screen.getByText("Failed blocks")).toBeInTheDocument();
+    expect(screen.getByText("disk full")).toBeInTheDocument();
+    expect(
+      screen.getByText("No preset is assigned to this text cell."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("engine down")).toBeInTheDocument();
+  });
+
+  it("records unexpected command failures and falls back when resolving the folder fails", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    const errorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    vi.spyOn(commands, "joinPath").mockImplementation(
+      async (dir: string, name: string) => {
+        if (name.startsWith("Broken")) throw new Error("ipc down");
+        return `${dir}/${name}`;
+      },
+    );
+    const saveAudio = vi
+      .spyOn(commands, "saveAudio")
+      .mockImplementation(async (path: string) => ({
+        status: "ok" as const,
+        data: path,
+      }));
+    vi.spyOn(commands, "parentPath").mockRejectedValue(
+      new Error("parent failed"),
+    );
+    dialogs.open.mockResolvedValue("/exports");
+
+    const { getConfig } = renderExportSidebar({}, [
+      {
+        id: "broken",
+        text: "Broken block",
+        query: audioQuery(),
+        query_is_modified: false,
+        preset_id: "preset-1",
+      },
+      {
+        id: "working",
+        text: "Working block",
+        query: audioQuery(),
+        query_is_modified: false,
+        preset_id: "preset-1",
+      },
+    ]);
+
+    await screen.findByText("Default");
+    await openExportAll(user);
+
+    expect(
+      await screen.findByText("Exported 1 of 2 files"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("ipc down")).toBeInTheDocument();
+    expect(saveAudio).toHaveBeenCalledOnce();
+    expect(errorSpy).toHaveBeenCalledWith(expect.any(Error));
+    await waitFor(() =>
+      expect(getConfig().config.ui.last_exported_dir).toBe("/exports"),
+    );
+  });
+
+  it("stops after the running block when cancelled", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    vi.spyOn(commands, "joinPath").mockImplementation(
+      async (dir: string, name: string) => `${dir}/${name}`,
+    );
+    let resolveFirst!: (value: { status: "ok"; data: string }) => void;
+    const saveAudio = vi.spyOn(commands, "saveAudio").mockReturnValueOnce(
+      new Promise<{ status: "ok"; data: string }>((resolve) => {
+        resolveFirst = resolve;
+      }),
+    );
+    vi.spyOn(commands, "parentPath").mockResolvedValue("/exports");
+    dialogs.open.mockResolvedValue("/exports");
+
+    renderExportSidebar({}, [
+      {
+        id: "first",
+        text: "First block",
+        query: audioQuery(),
+        query_is_modified: false,
+        preset_id: "preset-1",
+      },
+      {
+        id: "second",
+        text: "Second block",
+        query: audioQuery(),
+        query_is_modified: false,
+        preset_id: "preset-1",
+      },
+    ]);
+
+    await screen.findByText("Default");
+    await openExportAll(user);
+
+    const dialog = await screen.findByRole("dialog", { name: "Export all" });
+    const progress = screen.getByRole("progressbar", {
+      name: "Export progress",
+    });
+    expect(progress).toHaveAttribute("aria-valuenow", "0");
+    expect(progress).toHaveAttribute("aria-valuemax", "2");
+    await user.click(
+      screen.getByRole("button", { name: "Close export dialog" }),
+    );
+    expect(dialog).not.toHaveAttribute("data-closed");
+    expect(await screen.findByText("Cancelling…")).toBeInTheDocument();
+    resolveFirst({ status: "ok", data: "/exports/First block.wav" });
+
+    expect(
+      await screen.findByText("Exported 1 of 2 files"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Export cancelled")).toBeInTheDocument();
+    expect(saveAudio).toHaveBeenCalledOnce();
+
+    await user.click(
+      screen.getByRole("button", { name: "Close export dialog" }),
+    );
+    expect(dialog).toHaveAttribute("data-closed");
+  });
+
+  it("reports an empty project without opening the directory picker", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    const saveAudio = vi.spyOn(commands, "saveAudio");
+
+    renderExportSidebar({}, [
+      {
+        id: "empty",
+        text: "",
+        query: null,
+        query_is_modified: false,
+        preset_id: null,
+      },
+    ]);
+
+    await screen.findByText("Default");
+    await openExportAll(user);
+
+    const dialog = await screen.findByRole("dialog", { name: "Export all" });
+    expect(dialog).toBeInTheDocument();
+    expect(
+      screen.getByText("There are no text cells to export."),
+    ).toBeInTheDocument();
+    expect(dialogs.open).not.toHaveBeenCalled();
+    expect(saveAudio).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(dialog).toHaveAttribute("data-closed");
   });
 });

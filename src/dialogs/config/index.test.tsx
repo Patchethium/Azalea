@@ -212,6 +212,11 @@ describe("ConfigPage", () => {
     await user.click(playbackTimeline);
     expect(appConfig.playbackTimelineEnabled()).toBe(false);
 
+    const autoSave = screen.getByRole("switch", { name: "Auto Save" });
+    expect(autoSave).not.toBeChecked();
+    await user.click(autoSave);
+    expect(appConfig.config.ui.auto_save).toBe(true);
+
     const resetPrimaryColor = screen.getByRole("button", {
       name: "Restore default primary color",
     });
