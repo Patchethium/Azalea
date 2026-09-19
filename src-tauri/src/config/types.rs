@@ -68,6 +68,14 @@ pub enum TitlebarStyle {
   Hidden,
 }
 
+#[derive(Clone, Default, Deserialize, Serialize, Type)]
+pub enum PitchScale {
+  Linear,
+  #[default]
+  Optimal,
+  DensityAware,
+}
+
 #[derive(Clone, Deserialize, Serialize, Type)]
 pub struct UIConfig {
   #[serde(default)]
@@ -100,8 +108,8 @@ pub struct UIConfig {
   pub spectrogram_preview: bool,
   #[serde(default = "playback_timeline_default")]
   pub playback_timeline: bool,
-  #[serde(default = "density_aware_pitch_scale_default")]
-  pub density_aware_pitch_scale: bool,
+  #[serde(default)]
+  pub pitch_scale: PitchScale,
   #[serde(default = "pitch_ruler_default")]
   pub pitch_ruler: bool,
   #[serde(default = "name_truncation_len_default")]
@@ -138,7 +146,7 @@ impl Default for UIConfig {
       synthesis_delay_ms: synthesis_delay_ms_default(),
       spectrogram_preview: spectrogram_preview_default(),
       playback_timeline: playback_timeline_default(),
-      density_aware_pitch_scale: density_aware_pitch_scale_default(),
+      pitch_scale: Default::default(),
       pitch_ruler: pitch_ruler_default(),
       name_truncation_len: name_truncation_len_default(),
       default_export_dir: None,
@@ -184,10 +192,6 @@ fn spectrogram_preview_default() -> bool {
 }
 
 fn playback_timeline_default() -> bool {
-  true
-}
-
-fn density_aware_pitch_scale_default() -> bool {
   true
 }
 
@@ -343,8 +347,8 @@ pub struct Project {
 #[cfg(test)]
 mod tests {
   use super::{
-    cache_size_default, cpu_num_threads_default, AzaleaConfig, KeyboardShortcut, TitlebarStyle,
-    UIConfig,
+    cache_size_default, cpu_num_threads_default, AzaleaConfig, KeyboardShortcut, PitchScale,
+    TitlebarStyle, UIConfig,
   };
 
   #[test]
@@ -439,7 +443,7 @@ mod tests {
     assert_eq!(config.system_presets[0].name, "Default");
     assert!(config.ui.spectrogram_preview);
     assert!(config.ui.playback_timeline);
-    assert!(config.ui.density_aware_pitch_scale);
+    assert!(matches!(config.ui.pitch_scale, PitchScale::Optimal));
     assert!(config.ui.pitch_ruler);
     assert!(matches!(config.ui.titlebar_style, TitlebarStyle::Custom));
     assert_eq!(config.ui.primary_color, "#3b82f6");

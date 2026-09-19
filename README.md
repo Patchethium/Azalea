@@ -148,8 +148,9 @@ The editor blends the histogram's cumulative distribution with 20% linear
 spacing, giving common pitches more vertical space and finer editing steps
 while keeping sparse regions reachable. The mapping stays fixed while editing;
 only the range and histogram are embedded, not the raw corpus samples. In Config,
-use the **Pitch scale** button group to choose **Evenly distributed** or
-**Density-aware** (the default). This preference does not change stored pitches.
+use the **Pitch scale** button group to choose **Linear** (VOICEVOX's fixed
+3–6.5 range), **Optimal** (the fitted range and default), or **Density-aware**.
+This preference does not change stored pitches.
 
 Every time the core gets updated, we need to recompute the pitch range, by
 

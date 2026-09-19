@@ -1,4 +1,5 @@
-import { DEFAULT_DENSITY_AWARE_PITCH_SCALE } from "$constants";
+import type { PitchScale as PitchScaleMode } from "$binding";
+import { DEFAULT_PITCH_SCALE } from "$constants";
 import { useConfigStore } from "@contexts/config";
 import { usei18n } from "@contexts/i18n";
 import { ContextMenu } from "@kobalte/core/context-menu";
@@ -7,12 +8,16 @@ import type { PitchScale } from "./pitchScale";
 import styles from "./PitchRuler.module.css";
 
 export const PITCH_RULER_WIDTH = 64;
+const pitchScaleOptions = [
+  ["Linear", "config.pitch_scale_linear"],
+  ["Optimal", "config.pitch_scale_optimal"],
+  ["DensityAware", "config.pitch_scale_density"],
+] as const;
 
 export function PitchRuler(props: { scale: PitchScale; height: number }) {
   const { t1 } = usei18n()!;
   const { config, setConfig, setPitchRulerEnabled } = useConfigStore()!;
-  const densityAware = () =>
-    config.ui.density_aware_pitch_scale ?? DEFAULT_DENSITY_AWARE_PITCH_SCALE;
+  const pitchScale = () => config.ui.pitch_scale ?? DEFAULT_PITCH_SCALE;
   const ticks = createMemo(() => {
     const { min, max, toPosition } = props.scale;
     const span = max - min;
@@ -85,21 +90,27 @@ export function PitchRuler(props: { scale: PitchScale; height: number }) {
       </ContextMenu.Trigger>
       <ContextMenu.Portal>
         <ContextMenu.Content class="z-50 bg-slate-1 dark:bg-slate-7 p-1 outline-none rounded-md ring-1 ring-slate-3 dark:ring-slate-5 shadow-xl">
-          <ContextMenu.CheckboxItem
-            class={styles.menu_item}
-            checked={densityAware()}
-            closeOnSelect
-            onChange={(checked) =>
-              setConfig("ui", "density_aware_pitch_scale", checked)
+          <ContextMenu.RadioGroup
+            value={pitchScale()}
+            onChange={(value) =>
+              setConfig("ui", "pitch_scale", value as PitchScaleMode)
             }
           >
-            <ContextMenu.ItemIndicator class="size-4 flex items-center justify-center">
-              <div class="i-lucide:check size-4" />
-            </ContextMenu.ItemIndicator>
-            <ContextMenu.ItemLabel>
-              {t1("config.pitch_scale_density")}
-            </ContextMenu.ItemLabel>
-          </ContextMenu.CheckboxItem>
+            <For each={pitchScaleOptions}>
+              {([value, label]) => (
+                <ContextMenu.RadioItem
+                  class={styles.menu_item}
+                  value={value}
+                  closeOnSelect
+                >
+                  <ContextMenu.ItemIndicator class="size-4 flex items-center justify-center">
+                    <div class="i-lucide:check size-4" />
+                  </ContextMenu.ItemIndicator>
+                  <ContextMenu.ItemLabel>{t1(label)}</ContextMenu.ItemLabel>
+                </ContextMenu.RadioItem>
+              )}
+            </For>
+          </ContextMenu.RadioGroup>
           <ContextMenu.Item
             class={styles.menu_item}
             onSelect={() => setPitchRulerEnabled(false)}

@@ -14,7 +14,7 @@ describe("density-aware pitch scale", () => {
   it("allocates more space and finer pitch changes to dense bins", () => {
     const histogram = Array<number>(128).fill(1);
     histogram[64] = 1000;
-    const scale = createPitchScale(range(histogram));
+    const scale = createPitchScale(range(histogram), "DensityAware");
     const binWidth = (scale.max - scale.min) / 128;
     const dense = scale.min + binWidth * 64.5;
     const sparse = scale.min + binWidth * 10.5;
@@ -31,7 +31,7 @@ describe("density-aware pitch scale", () => {
   it("round trips monotonically through occupied bins, empty bins and endpoints", () => {
     const histogram = Array<number>(128).fill(0);
     histogram[64] = 100;
-    const scale = createPitchScale(range(histogram));
+    const scale = createPitchScale(range(histogram), "DensityAware");
     let previous = -1;
     for (let i = 0; i <= 1024; i++) {
       const position = i / 1024;
@@ -56,22 +56,30 @@ describe("density-aware pitch scale", () => {
   ])(
     "uses linear spacing for uniform or unusable histograms %#",
     (histogram) => {
-      const scale = createPitchScale(range(histogram));
+      const scale = createPitchScale(range(histogram), "DensityAware");
       expect(scale.toPosition(4.95)).toBeCloseTo(0.5);
       expect(scale.toPitch(0.5)).toBeCloseTo(4.95);
     },
   );
 
   it("handles missing and degenerate ranges without dividing by zero", () => {
-    const missing = createPitchScale();
+    const missing = createPitchScale(undefined, "DensityAware");
     expect(missing.toPosition(5)).toBe(0);
     expect(missing.toPitch(0.5)).toBe(0);
-    const constant = createPitchScale({
-      ...range([]),
-      histogram_min: 5,
-      histogram_max: 5,
-    });
+    const constant = createPitchScale(
+      {
+        ...range([]),
+        histogram_min: 5,
+        histogram_max: 5,
+      },
+      "DensityAware",
+    );
     expect(constant.toPosition(5)).toBe(0);
     expect(constant.toPitch(0.5)).toBe(5);
+
+    const linear = createPitchScale(undefined, "Linear");
+    expect([linear.min, linear.toPitch(0.5), linear.max]).toEqual([
+      3, 4.75, 6.5,
+    ]);
   });
 });

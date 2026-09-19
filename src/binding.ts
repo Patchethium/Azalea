@@ -651,6 +651,7 @@ vowel_length: number;
 pitch: number }
 export type OS = "MacOS" | "Windows" | "Linux"
 export type PitchRange = { min: number; max: number; histogram_min: number; histogram_max: number; histogram: number[] }
+export type PitchScale = "Linear" | "Optimal" | "DensityAware"
 export type Preset = { id?: string; name: string; style_id: StyleId; 
 /**
  * in percentage, 50-200
@@ -775,7 +776,7 @@ export type SynthesisJobState = "Queued" | "Running" | "Completed" | "Failed" | 
 export type TextBlockProps = { id: string; text: string; query: AudioQuery | null; query_is_modified: boolean; preset_id: string | null }
 export type ThemeMode = "System" | "Light" | "Dark"
 export type TitlebarStyle = "Native" | "Custom" | "Hidden"
-export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; embedded_font?: boolean; titlebar_style?: TitlebarStyle; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; bottom_duration_height?: number; side_width?: number; buffer_render?: boolean; nonblocking_synthesis?: boolean; synthesis_delay_ms?: number; spectrogram_preview?: boolean; playback_timeline?: boolean; density_aware_pitch_scale?: boolean; pitch_ruler?: boolean; name_truncation_len?: number; default_export_dir?: string | null; default_export_dir_enabled?: boolean; silent_save?: boolean; prevent_overwrite?: boolean; last_exported_dir?: string | null; shortcuts?: KeyboardShortcuts }
+export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; embedded_font?: boolean; titlebar_style?: TitlebarStyle; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; bottom_duration_height?: number; side_width?: number; buffer_render?: boolean; nonblocking_synthesis?: boolean; synthesis_delay_ms?: number; spectrogram_preview?: boolean; playback_timeline?: boolean; pitch_scale?: PitchScale; pitch_ruler?: boolean; name_truncation_len?: number; default_export_dir?: string | null; default_export_dir_enabled?: boolean; silent_save?: boolean; prevent_overwrite?: boolean; last_exported_dir?: string | null; shortcuts?: KeyboardShortcuts }
 
 /** tauri-specta globals **/
 

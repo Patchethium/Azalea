@@ -2418,6 +2418,7 @@ describe("BottomPanel playback", () => {
         histogram: Array.from({ length: 128 }, (_, i) => (i < 64 ? 9 : 1)),
       },
     });
+    getConfigStore().setConfig("ui", "pitch_scale", "DensityAware");
     fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
     const slider = await screen.findByRole("slider", { name: "コ" });
     const ruler = screen.getByRole("group", { name: "Pitch scale" });
@@ -2436,7 +2437,7 @@ describe("BottomPanel playback", () => {
       hasPointerCapture: () => true,
       releasePointerCapture: vi.fn(),
     });
-    getConfigStore().setConfig("ui", "density_aware_pitch_scale", false);
+    getConfigStore().setConfig("ui", "pitch_scale", "Optimal");
     expect(
       getTextStore().textStore[0].query!.accent_phrases[0].moras[0].pitch,
     ).toBe(5.4);
@@ -2454,7 +2455,7 @@ describe("BottomPanel playback", () => {
     expect(
       getTextStore().textStore[0].query!.accent_phrases[0].moras[0].pitch,
     ).toBe(5);
-    getConfigStore().setConfig("ui", "density_aware_pitch_scale", true);
+    getConfigStore().setConfig("ui", "pitch_scale", "DensityAware");
     expect(Number(slider.getAttribute("aria-valuenow"))).toBeCloseTo(0.82);
     expect(Number.parseFloat(middleTick().style.bottom)).toBeCloseTo(82);
     fireEvent(
@@ -2483,7 +2484,7 @@ describe("BottomPanel playback", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("toggles density and hides the pitch ruler from its context menu", async () => {
+  it("changes the pitch scale and hides the ruler from its context menu", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
@@ -2498,6 +2499,7 @@ describe("BottomPanel playback", () => {
         histogram: Array.from({ length: 128 }, (_, i) => (i < 64 ? 9 : 1)),
       },
     });
+    getConfigStore().setConfig("ui", "pitch_scale", "DensityAware");
     fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
     const ruler = await screen.findByRole("group", { name: "Pitch scale" });
     const middleTick = () =>
@@ -2505,12 +2507,13 @@ describe("BottomPanel playback", () => {
     expect(Number.parseFloat(middleTick().style.bottom)).toBeCloseTo(82);
 
     fireEvent.contextMenu(ruler);
-    const density = await screen.findByRole("menuitemcheckbox", {
+    const density = await screen.findByRole("menuitemradio", {
       name: "Density-aware",
     });
     expect(density).toHaveAttribute("aria-checked", "true");
-    await user.click(density);
-    expect(getConfigStore().config.ui.density_aware_pitch_scale).toBe(false);
+    const optimal = screen.getByRole("menuitemradio", { name: "Optimal" });
+    await user.click(optimal);
+    expect(getConfigStore().config.ui.pitch_scale).toBe("Optimal");
     expect(Number.parseFloat(middleTick().style.bottom)).toBeCloseTo(50);
     await waitFor(() =>
       expect(density.closest("[data-closed]")).not.toBeNull(),

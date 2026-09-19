@@ -15,6 +15,6 @@ export const RENDER_RETRY_DELAY_MS = 100;
 export const MAX_RENDER_ATTEMPTS = 3;
 export const DEFAULT_SPECTROGRAM_PREVIEW = true;
 export const DEFAULT_PLAYBACK_TIMELINE = true;
-export const DEFAULT_DENSITY_AWARE_PITCH_SCALE = true;
+export const DEFAULT_PITCH_SCALE = "Optimal" as const;
 export const DEFAULT_PITCH_RULER = true;
 export const DEFAULT_CPU_NUM_THREADS = 0;

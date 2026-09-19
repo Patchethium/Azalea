@@ -1,4 +1,9 @@
-import { type Locale, type ThemeMode, type TitlebarStyle } from "$binding";
+import {
+  type Locale,
+  type PitchScale,
+  type ThemeMode,
+  type TitlebarStyle,
+} from "$binding";
 import { ColorArea } from "@kobalte/core/color-area";
 import { ColorSwatch } from "@kobalte/core/color-swatch";
 import { parseColor } from "@kobalte/core/colors";
@@ -7,7 +12,7 @@ import { Select } from "@kobalte/core/select";
 import { ToggleGroup } from "@kobalte/core/toggle-group";
 import { createMemo, Show } from "solid-js";
 import {
-  DEFAULT_DENSITY_AWARE_PITCH_SCALE,
+  DEFAULT_PITCH_SCALE,
   DEFAULT_PRIMARY_COLOR,
   PRIMARY_COLOR_PATTERN,
 } from "$constants";
@@ -138,24 +143,24 @@ export function PitchScaleSelect() {
 
   return (
     <ToggleGroup
-      value={
-        (config.ui.density_aware_pitch_scale ??
-        DEFAULT_DENSITY_AWARE_PITCH_SCALE)
-          ? "density"
-          : "linear"
-      }
+      value={config.ui.pitch_scale ?? DEFAULT_PITCH_SCALE}
       onChange={(value) => {
-        if (value !== null)
-          setConfig("ui", "density_aware_pitch_scale", value === "density");
+        if (value !== null) setConfig("ui", "pitch_scale", value as PitchScale);
       }}
       aria-label={t1("config.pitch_scale")}
       class="flex h-8 overflow-hidden rounded-md border border-slate-2 dark:border-slate-6"
     >
-      <ToggleGroup.Item value="linear" class={toggleItemClass}>
+      <ToggleGroup.Item value="Linear" class={toggleItemClass}>
         {t1("config.pitch_scale_linear")}
       </ToggleGroup.Item>
       <ToggleGroup.Item
-        value="density"
+        value="Optimal"
+        class={`${toggleItemClass} border-l border-slate-2 dark:border-slate-6`}
+      >
+        {t1("config.pitch_scale_optimal")}
+      </ToggleGroup.Item>
+      <ToggleGroup.Item
+        value="DensityAware"
         class={`${toggleItemClass} border-l border-slate-2 dark:border-slate-6`}
       >
         {t1("config.pitch_scale_density")}

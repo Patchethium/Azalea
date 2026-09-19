@@ -1,15 +1,20 @@
-import type { PitchRange } from "$binding";
+import type { PitchRange, PitchScale as PitchScaleMode } from "$binding";
 
 const HISTOGRAM_BINS = 128;
 const DENSITY_WEIGHT = 0.8;
+const LINEAR_MIN = 3;
+const LINEAR_MAX = 6.5;
 
-export function createPitchScale(range?: PitchRange, densityAware = true) {
-  const min = range?.histogram_min ?? 0;
-  const max = range?.histogram_max ?? 0;
+export function createPitchScale(
+  range?: PitchRange,
+  mode: PitchScaleMode = "Optimal",
+) {
+  const min = mode === "Linear" ? LINEAR_MIN : (range?.histogram_min ?? 0);
+  const max = mode === "Linear" ? LINEAR_MAX : (range?.histogram_max ?? 0);
   const span = max - min;
   const histogram = range?.histogram ?? [];
   const valid =
-    densityAware &&
+    mode === "DensityAware" &&
     histogram.length === HISTOGRAM_BINS &&
     histogram.every((count) => Number.isFinite(count) && count >= 0);
   const total = valid ? histogram.reduce((sum, count) => sum + count, 0) : 0;

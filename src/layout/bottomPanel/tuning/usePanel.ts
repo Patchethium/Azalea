@@ -7,7 +7,7 @@ import {
 } from "$binding";
 import {
   DEFAULT_BOTTOM_SCALE,
-  DEFAULT_DENSITY_AWARE_PITCH_SCALE,
+  DEFAULT_PITCH_SCALE,
   DEFAULT_SYNTHESIS_DELAY_MS,
   MAX_SYNTHESIS_DELAY_MS,
   MAX_RENDER_ATTEMPTS,
@@ -418,7 +418,7 @@ export function useTuningPanel(
     const id = currentPreset()?.style_id;
     return createPitchScale(
       id === undefined ? undefined : range()?.[id],
-      config.ui.density_aware_pitch_scale ?? DEFAULT_DENSITY_AWARE_PITCH_SCALE,
+      config.ui.pitch_scale ?? DEFAULT_PITCH_SCALE,
     );
   });
   const [draggingData, setDraggingData] = createSignal<{

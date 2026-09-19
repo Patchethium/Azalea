@@ -132,7 +132,7 @@ impl ConfigManager {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::config::types::{Locale, ThemeMode, TitlebarStyle};
+  use crate::config::types::{Locale, PitchScale, ThemeMode, TitlebarStyle};
 
   #[test]
   fn app_config_dir_appends_bundle_identifier() {
@@ -158,7 +158,7 @@ mod tests {
     source.config.ui.nonblocking_synthesis = true;
     source.config.ui.spectrogram_preview = false;
     source.config.ui.playback_timeline = false;
-    source.config.ui.density_aware_pitch_scale = false;
+    source.config.ui.pitch_scale = PitchScale::DensityAware;
     source.config.ui.pitch_ruler = false;
 
     source.save_as(&path).unwrap();
@@ -176,7 +176,10 @@ mod tests {
     assert!(loaded.config.ui.nonblocking_synthesis);
     assert!(!loaded.config.ui.spectrogram_preview);
     assert!(!loaded.config.ui.playback_timeline);
-    assert!(!loaded.config.ui.density_aware_pitch_scale);
+    assert!(matches!(
+      loaded.config.ui.pitch_scale,
+      PitchScale::DensityAware
+    ));
     assert!(!loaded.config.ui.pitch_ruler);
   }
 
