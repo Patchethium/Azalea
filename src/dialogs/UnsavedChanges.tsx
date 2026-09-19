@@ -39,7 +39,7 @@ export function UnsavedChangesDialog(props: UnsavedChangesDialogProps) {
               {t1("unsaved.cancel")}
             </Button>
             <Button
-              class="rounded-lg bg-slate-2 px3 py2 text-sm font-medium outline-none transition-colors hover:(bg-red-5 text-white) active:(bg-red-6 text-white) focus-visible:(ring-2 ring-red-2) disabled:opacity-60 dark:bg-slate-7 dark:hover:(bg-red-5 text-white) dark:active:(bg-red-6 text-white)"
+              class="rounded-lg bg-slate-2 px3 py2 text-sm font-medium outline-none hover:(bg-red-5 text-white) active:(bg-red-6 text-white) focus-visible:(ring-2 ring-red-2) disabled:opacity-60 dark:bg-slate-7 dark:hover:(bg-red-5 text-white) dark:active:(bg-red-6 text-white)"
               disabled={props.busy}
               onClick={props.onDiscard}
             >
