@@ -7,6 +7,7 @@ import {
   PitchScaleSelect,
   PrimaryColorPicker,
   ThemeSelect,
+  TitlebarStyleSelect,
 } from "@dialogs/config/Basics";
 import { ConfigItem } from "@dialogs/config/Item";
 import { IconButton } from "@components/iconButton";
@@ -33,8 +34,6 @@ export function ConfigPage() {
   const {
     config,
     setConfig,
-    customTitlebarEnabled,
-    setCustomTitlebarEnabled,
     pitchRulerEnabled,
     setPitchRulerEnabled,
     playbackTimelineEnabled,
@@ -64,20 +63,8 @@ export function ConfigPage() {
           <ConfigItem label={t1("config.theme")}>
             <ThemeSelect />
           </ConfigItem>
-          <ConfigItem label={t1("config.custom_titlebar")}>
-            <Switch
-              checked={customTitlebarEnabled()}
-              onChange={setCustomTitlebarEnabled}
-              class="inline-flex items-center select-none cursor-pointer justify-center"
-            >
-              <Switch.Input
-                aria-label={t1("config.custom_titlebar")}
-                class="outline-2px"
-              />
-              <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
-                <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
-              </Switch.Control>
-            </Switch>
+          <ConfigItem label={t1("config.titlebar_style")}>
+            <TitlebarStyleSelect />
           </ConfigItem>
           <ConfigItem label={t1("config.playback_timeline")}>
             <Switch

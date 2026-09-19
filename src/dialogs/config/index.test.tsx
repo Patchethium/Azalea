@@ -223,12 +223,10 @@ describe("ConfigPage", () => {
     expect(appConfig.config.ui.embedded_font).toBe(true);
     expect(embeddedFont).toHaveAttribute("aria-pressed", "true");
 
-    const customTitlebar = screen.getByRole("switch", {
-      name: "Custom title bar",
-    });
-    expect(customTitlebar).toBeChecked();
-    await user.click(customTitlebar);
-    expect(appConfig.customTitlebarEnabled()).toBe(false);
+    const customTitlebar = screen.getByRole("button", { name: "Custom" });
+    expect(customTitlebar).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: "Hidden" }));
+    expect(appConfig.titlebarStyle()).toBe("Hidden");
 
     const playbackTimeline = screen.getByRole("switch", {
       name: "Playback timeline",

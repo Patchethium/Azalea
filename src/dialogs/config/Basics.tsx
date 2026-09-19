@@ -1,4 +1,4 @@
-import { type Locale, type ThemeMode } from "$binding";
+import { type Locale, type ThemeMode, type TitlebarStyle } from "$binding";
 import { ColorArea } from "@kobalte/core/color-area";
 import { ColorSwatch } from "@kobalte/core/color-swatch";
 import { parseColor } from "@kobalte/core/colors";
@@ -72,6 +72,35 @@ export function ThemeSelect() {
         </Select.Content>
       </Select.Portal>
     </Select>
+  );
+}
+
+export function TitlebarStyleSelect() {
+  const { titlebarStyle, setTitlebarStyle } = useConfigStore()!;
+  const { t1 } = usei18n()!;
+
+  return (
+    <ToggleGroup
+      value={titlebarStyle()}
+      onChange={(value) => {
+        if (value !== null) setTitlebarStyle(value as TitlebarStyle);
+      }}
+      aria-label={t1("config.titlebar_style")}
+      class="flex h-8 overflow-hidden rounded-md border border-slate-2 dark:border-slate-6"
+    >
+      <ToggleGroup.Item value="Native" class={toggleItemClass}>
+        {t1("config.titlebar_native")}
+      </ToggleGroup.Item>
+      <ToggleGroup.Item
+        value="Custom"
+        class={`${toggleItemClass} border-x border-slate-2 dark:border-slate-6`}
+      >
+        {t1("config.titlebar_custom")}
+      </ToggleGroup.Item>
+      <ToggleGroup.Item value="Hidden" class={toggleItemClass}>
+        {t1("config.titlebar_hidden")}
+      </ToggleGroup.Item>
+    </ToggleGroup>
   );
 }
 

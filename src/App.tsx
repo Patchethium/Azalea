@@ -1,4 +1,4 @@
-import { events } from "$binding";
+import { events, type TitlebarStyle } from "$binding";
 import Resizable from "@corvu/resizable";
 import ConfigPage from "@dialogs/config";
 import { AppToastRegion } from "@components/toast";
@@ -18,7 +18,7 @@ import {
 import style from "./app.module.css";
 import {
   DEFAULT_PRIMARY_COLOR,
-  DEFAULT_CUSTOM_TITLEBAR,
+  DEFAULT_TITLEBAR_STYLE,
   DEFAULT_LOCALE,
   DEFAULT_SIDEBAR_WIDTH,
   MIN_EDITOR_WIDTH,
@@ -41,7 +41,7 @@ function App() {
     coreInitializeResource,
     setRange,
     themeMode,
-    customTitlebarEnabled,
+    titlebarStyle,
   } = useConfigStore()!;
   const { setMetas, availableStyleIds } = useMetaStore()!;
   const { t1 } = usei18n()!;
@@ -50,9 +50,8 @@ function App() {
   const { newProject, isProjectDirty } = useTextStore()!;
 
   const [initializing, setInitializing] = createSignal(true);
-  const [customTitlebarVisible, setCustomTitlebarVisible] = createSignal(
-    DEFAULT_CUSTOM_TITLEBAR,
-  );
+  const [appliedTitlebarStyle, setAppliedTitlebarStyle] =
+    createSignal<TitlebarStyle>(DEFAULT_TITLEBAR_STYLE);
   const [windowWidth, setWindowWidth] = createSignal(window.innerWidth);
   const [systemTheme, setSystemTheme] = createSignal<Theme>(
     window.matchMedia("(prefers-color-scheme: dark)").matches
@@ -154,13 +153,13 @@ function App() {
 
   createEffect(() => {
     if (!configInitialized()) return;
-    const customTitlebar = customTitlebarEnabled();
+    const titlebar = titlebarStyle();
     const request = ++decorationRequest;
     void appWindow
-      .setDecorations(!customTitlebar)
+      .setDecorations(titlebar === "Native")
       .then(() => {
         if (request === decorationRequest) {
-          setCustomTitlebarVisible(customTitlebar);
+          setAppliedTitlebarStyle(titlebar);
         }
       })
       .catch((error) => {
@@ -227,10 +226,10 @@ function App() {
       class="absolute h-full w-full left-0 top-0 flex flex-col bg-slate-1 text-slate-9 dark:(bg-slate-9 text-slate-1)"
       classList={{
         [style.macOSCustomTitlebar]:
-          customTitlebarVisible() && systemStore.os === "MacOS",
+          appliedTitlebarStyle() === "Custom" && systemStore.os === "MacOS",
       }}
     >
-      <Show when={customTitlebarVisible()}>
+      <Show when={appliedTitlebarStyle() === "Custom"}>
         <TitleBar />
       </Show>
       <div class="relative min-h-0 flex-1">

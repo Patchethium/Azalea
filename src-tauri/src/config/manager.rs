@@ -132,7 +132,7 @@ impl ConfigManager {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::config::types::{Locale, ThemeMode};
+  use crate::config::types::{Locale, ThemeMode, TitlebarStyle};
 
   #[test]
   fn app_config_dir_appends_bundle_identifier() {
@@ -153,7 +153,7 @@ mod tests {
     source.config.ui.locale = Locale::Ja;
     source.config.ui.theme_mode = ThemeMode::Dark;
     source.config.ui.embedded_font = true;
-    source.config.ui.custom_titlebar = false;
+    source.config.ui.titlebar_style = TitlebarStyle::Hidden;
     source.config.ui.primary_color = "#123456".into();
     source.config.ui.nonblocking_synthesis = true;
     source.config.ui.spectrogram_preview = false;
@@ -168,7 +168,10 @@ mod tests {
     assert!(matches!(loaded.config.ui.locale, Locale::Ja));
     assert!(matches!(loaded.config.ui.theme_mode, ThemeMode::Dark));
     assert!(loaded.config.ui.embedded_font);
-    assert!(!loaded.config.ui.custom_titlebar);
+    assert!(matches!(
+      loaded.config.ui.titlebar_style,
+      TitlebarStyle::Hidden
+    ));
     assert_eq!(loaded.config.ui.primary_color, "#123456");
     assert!(loaded.config.ui.nonblocking_synthesis);
     assert!(!loaded.config.ui.spectrogram_preview);

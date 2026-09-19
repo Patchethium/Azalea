@@ -6,13 +6,14 @@ import {
   PitchRange,
   StyleId,
   ThemeMode,
+  TitlebarStyle,
 } from "$binding";
 import { createContextProvider } from "@solid-primitives/context";
 import { createEffect, createResource, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import {
   DEFAULT_CPU_NUM_THREADS,
-  DEFAULT_CUSTOM_TITLEBAR,
+  DEFAULT_TITLEBAR_STYLE,
   DEFAULT_PITCH_RULER,
   DEFAULT_PLAYBACK_TIMELINE,
   DEFAULT_SPECTROGRAM_PREVIEW,
@@ -58,10 +59,10 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
   const setPlaybackTimelineEnabled = (enabled: boolean) => {
     setConfig("ui", "playback_timeline", enabled);
   };
-  const customTitlebarEnabled = () =>
-    config.ui.custom_titlebar ?? DEFAULT_CUSTOM_TITLEBAR;
-  const setCustomTitlebarEnabled = (enabled: boolean) => {
-    setConfig("ui", "custom_titlebar", enabled);
+  const titlebarStyle = (): TitlebarStyle =>
+    config.ui.titlebar_style ?? DEFAULT_TITLEBAR_STYLE;
+  const setTitlebarStyle = (style: TitlebarStyle) => {
+    setConfig("ui", "titlebar_style", style);
   };
   const pitchRulerEnabled = () => config.ui.pitch_ruler ?? DEFAULT_PITCH_RULER;
   const setPitchRulerEnabled = (enabled: boolean) => {
@@ -161,8 +162,8 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     setSpectrogramPreviewEnabled,
     playbackTimelineEnabled,
     setPlaybackTimelineEnabled,
-    customTitlebarEnabled,
-    setCustomTitlebarEnabled,
+    titlebarStyle,
+    setTitlebarStyle,
     pitchRulerEnabled,
     setPitchRulerEnabled,
     themeMode,

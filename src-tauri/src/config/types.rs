@@ -60,6 +60,14 @@ pub enum ThemeMode {
   Dark,
 }
 
+#[derive(Clone, Default, Deserialize, Serialize, Type)]
+pub enum TitlebarStyle {
+  Native,
+  #[default]
+  Custom,
+  Hidden,
+}
+
 #[derive(Clone, Deserialize, Serialize, Type)]
 pub struct UIConfig {
   #[serde(default)]
@@ -68,8 +76,8 @@ pub struct UIConfig {
   pub theme_mode: ThemeMode,
   #[serde(default)]
   pub embedded_font: bool,
-  #[serde(default = "custom_titlebar_default")]
-  pub custom_titlebar: bool,
+  #[serde(default)]
+  pub titlebar_style: TitlebarStyle,
   #[serde(default = "primary_color_default")]
   pub primary_color: String,
   #[serde(default = "bottom_scale_default")]
@@ -118,7 +126,7 @@ impl Default for UIConfig {
       locale: Default::default(),
       theme_mode: Default::default(),
       embedded_font: false,
-      custom_titlebar: custom_titlebar_default(),
+      titlebar_style: Default::default(),
       primary_color: primary_color_default(),
       bottom_scale: bottom_scale_default(),
       auto_save: Default::default(),
@@ -141,10 +149,6 @@ impl Default for UIConfig {
       shortcuts: Default::default(),
     }
   }
-}
-
-fn custom_titlebar_default() -> bool {
-  true
 }
 
 fn primary_color_default() -> String {
@@ -339,7 +343,8 @@ pub struct Project {
 #[cfg(test)]
 mod tests {
   use super::{
-    cache_size_default, cpu_num_threads_default, AzaleaConfig, KeyboardShortcut, UIConfig,
+    cache_size_default, cpu_num_threads_default, AzaleaConfig, KeyboardShortcut, TitlebarStyle,
+    UIConfig,
   };
 
   #[test]
@@ -348,7 +353,7 @@ mod tests {
     assert_eq!(config.synthesis_delay_ms, 600);
     assert!(!config.nonblocking_synthesis);
     assert!(!config.embedded_font);
-    assert!(config.custom_titlebar);
+    assert!(matches!(config.titlebar_style, TitlebarStyle::Custom));
     assert!(config.default_export_dir.is_none());
     assert!(!config.default_export_dir_enabled);
     assert!(!config.silent_save);
@@ -436,7 +441,7 @@ mod tests {
     assert!(config.ui.playback_timeline);
     assert!(config.ui.density_aware_pitch_scale);
     assert!(config.ui.pitch_ruler);
-    assert!(config.ui.custom_titlebar);
+    assert!(matches!(config.ui.titlebar_style, TitlebarStyle::Custom));
     assert_eq!(config.ui.primary_color, "#3b82f6");
     assert_eq!(config.ui.bottom_ratio, 0.3);
     assert_eq!(config.ui.side_width, 200);
