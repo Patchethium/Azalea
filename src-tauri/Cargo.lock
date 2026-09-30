@@ -5444,7 +5444,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 [[package]]
 name = "voicevox_core"
 version = "0.0.0"
-source = "git+https://github.com/Patchethium/voicevox_core.git?branch=generative-noise#5c47d2fc3db8f0e31bd37c88547e75fc2f314c1a"
+source = "git+https://github.com/Patchethium/voicevox_core.git?branch=generative-noise#c0cf315a25ee6982c32470c248119509d454a6e1"
 dependencies = [
  "anyhow",
  "arrayvec",
@@ -5508,7 +5508,7 @@ dependencies = [
 [[package]]
 name = "voicevox_core_build_features"
 version = "0.0.0"
-source = "git+https://github.com/Patchethium/voicevox_core.git?branch=generative-noise#5c47d2fc3db8f0e31bd37c88547e75fc2f314c1a"
+source = "git+https://github.com/Patchethium/voicevox_core.git?branch=generative-noise#c0cf315a25ee6982c32470c248119509d454a6e1"
 dependencies = [
  "relative-path",
 ]
@@ -5516,7 +5516,7 @@ dependencies = [
 [[package]]
 name = "voicevox_core_macros"
 version = "0.0.0"
-source = "git+https://github.com/Patchethium/voicevox_core.git?branch=generative-noise#5c47d2fc3db8f0e31bd37c88547e75fc2f314c1a"
+source = "git+https://github.com/Patchethium/voicevox_core.git?branch=generative-noise#c0cf315a25ee6982c32470c248119509d454a6e1"
 dependencies = [
  "derive-syn-parse",
  "fs-err",

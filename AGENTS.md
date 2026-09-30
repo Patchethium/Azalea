@@ -23,6 +23,20 @@ Specta support synchronized with the fork's `specta` branch when updating it.
 - `nonblocking::Synthesizer::replace_mora_pitch_with_noise` takes the same
   arguments and returns the same result asynchronously; call it with `.await`.
   Assign the returned phrases to `AudioQuery.accent_phrases` before synthesis.
+- `complete_mora_pitch(&accent_phrases, style_id, &pitch_prefix, options)`
+  exists on both synthesizers (nonblocking uses `.await`) and returns
+  `Result<Vec<AccentPhrase>>`. It preserves the fixed prefix exactly and
+  regenerates the remaining pitches. The prefix contains natural-log pitch
+  values in flattened mora order, including pause moras but excluding boundary
+  silence; values must be finite and nonnegative, zero for unvoiced and pause
+  moras, and no longer than the mora sequence. An empty prefix is equivalent to
+  `replace_mora_pitch_with_noise`. Prefixes are exposed to the predictor through
+  the `azalea_pitch_prefix` / `azalea_pitch_prefix_mask` graph inputs and fix
+  only voiced prefix steps. Azalea surfaces completion through the
+  `complete_mora_pitch` command, gated by the default-off
+  `UIConfig.pitch_completion_enabled` setting with a config-dialog switch and a
+  synchronized tuning-toolbar switch; pitch edits debounce completion while
+  preserving every pitch through the edited mora.
 
 Noise is injected only at voiced mora steps and feeds subsequent predictions;
 unvoiced moras and pauses remain zero after prediction. Existing
