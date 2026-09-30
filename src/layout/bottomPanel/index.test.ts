@@ -3065,6 +3065,7 @@ describe("Pitch completion", () => {
         },
       ],
     });
+    const originalPhrases = structuredClone(query.accent_phrases);
     text.setTextStore(0, "query", query);
     text.setTextStore(0, "pitch_noise_seed", 42);
     vi.useFakeTimers();
@@ -3085,7 +3086,7 @@ describe("Pitch completion", () => {
     ).toEqual([5.6, 5.9]);
     const actual = structuredClone(complete.mock.calls[0][0]);
     actual[1].moras[0].pitch = 5.1;
-    expect(actual).toEqual(query.accent_phrases);
+    expect(actual).toEqual(originalPhrases);
   });
 
   it("ignores earlier responses after another pitch edit", async () => {

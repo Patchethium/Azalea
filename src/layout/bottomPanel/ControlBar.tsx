@@ -91,9 +91,7 @@ export function ControlBar(props: {
                 }
                 class="mr2 inline-flex items-center gap1 select-none cursor-pointer text-xs"
               >
-                <Switch.Input
-                  aria-label={t1("config.pitch_completion_enabled")}
-                />
+                <Switch.Input />
                 <Switch.Label>
                   {t1("config.pitch_completion_enabled")}
                 </Switch.Label>
