@@ -2628,7 +2628,7 @@ describe("BottomPanel playback", () => {
     const regenerate = screen.getByRole("button", {
       name: "Regenerate noise seed",
     });
-    const seedField = seed.parentElement!;
+    const seedField = seed.closest("[role='group']") as HTMLElement;
     expect(seedField.previousElementSibling).toContainElement(regenerate);
     expect(seedField.nextElementSibling).toContainElement(
       screen.getByRole("button", { name: "Reset pitch and duration edits" }),
@@ -2636,6 +2636,13 @@ describe("BottomPanel playback", () => {
     expect(seed).toHaveValue("0");
     expect(seed).toBeEnabled();
     expect(regenerate).toBeEnabled();
+    vi.useFakeTimers();
+    fireEvent.pointerEnter(seed.parentElement!, { pointerType: "mouse" });
+    await vi.advanceTimersByTimeAsync(400);
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Noise seed");
+    fireEvent.pointerLeave(seed.parentElement!, { pointerType: "mouse" });
+    await vi.advanceTimersByTimeAsync(0);
+    vi.useRealTimers();
     text.markProjectSaved();
     fireEvent.input(seed, { target: { value: "4294967295" } });
     expect(text.textStore[0].pitch_noise_seed).toBe(4294967295);

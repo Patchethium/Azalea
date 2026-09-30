@@ -150,12 +150,14 @@ export function ControlBar(props: {
                 }
               }}
               format={false}
-              class="mr1 flex items-center gap1 text-xs ui-disabled:(cursor-not-allowed opacity-50)"
+              class="mr1 flex items-center text-xs ui-disabled:(cursor-not-allowed opacity-50)"
             >
-              <NumberField.Label>
-                {t1("config.pitch_noise_seed")}
-              </NumberField.Label>
-              <NumberField.Input class="h-6 w-24 rounded b b-slate-2 px1 outline-none focus:b-primary-3 dark:(b-slate-6 bg-slate-8)" />
+              <Tooltip content={t1("config.pitch_noise_seed")}>
+                <NumberField.Input
+                  aria-label={t1("config.pitch_noise_seed")}
+                  class="h-6 w-24 rounded b b-slate-2 px1 outline-none focus:b-primary-3 dark:(b-slate-6 bg-slate-8)"
+                />
+              </Tooltip>
             </NumberField>
           </Show>
           <ToolbarButton
