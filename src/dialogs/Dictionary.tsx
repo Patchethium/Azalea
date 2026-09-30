@@ -8,10 +8,11 @@ import {
 } from "$binding";
 import { AppDialogContent } from "@dialogs/AppContent";
 import { IconButton } from "@components/iconButton";
+import { NumberInput } from "@components/numberField";
 import { Dialog } from "@kobalte/core/dialog";
 import { TextField } from "@kobalte/core/text-field";
 import { AccentPhraseItem } from "@layout/bottomPanel/AccentPhraseItem";
-import { OptionSelector, PresetNumField } from "@layout/sidebar/preset/Fields";
+import { OptionSelector } from "@layout/sidebar/preset/Fields";
 import { ListToolbar } from "@layout/sidebar/preset/Toolbar";
 import { debounce } from "@solid-primitives/scheduled";
 import { splitJapaneseMoras, toHalfWidthAscii } from "$utils";
@@ -468,7 +469,7 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
                   }
                 />
                 <div class="mt-1">
-                  <PresetNumField
+                  <NumberInput
                     label={t1("dictionary.priority")}
                     value={draft.priority}
                     setValue={(value) => editDraft({ priority: value })}

@@ -182,6 +182,17 @@ describe("ConfigPage", () => {
     fireEvent.input(sigma, { target: { value: "0" } });
     expect(appConfig.config.ui.pitch_noise_sigma).toBe(0);
     fireEvent.input(sigma, { target: { value: "1e100" } });
+    expect(appConfig.config.ui.pitch_noise_sigma).toBe(0.5);
+    expect(sigma).toHaveValue("0.5");
+    fireEvent.input(sigma, { target: { value: "-1" } });
+    expect(appConfig.config.ui.pitch_noise_sigma).toBe(0);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Increase Noise strength (sigma)" }),
+    );
+    expect(appConfig.config.ui.pitch_noise_sigma).toBe(0.01);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Decrease Noise strength (sigma)" }),
+    );
     expect(appConfig.config.ui.pitch_noise_sigma).toBe(0);
     fireEvent.click(noise);
     expect(appConfig.config.ui.pitch_noise_enabled).toBe(false);

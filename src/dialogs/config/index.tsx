@@ -1,4 +1,5 @@
 import { commands } from "$binding";
+import { NumberInput } from "@components/numberField";
 import { AppDialogContent } from "@dialogs/AppContent";
 import { AssetCacheSetting } from "@dialogs/config/AssetCacheSetting";
 import {
@@ -231,27 +232,21 @@ export function ConfigPage() {
             </Switch>
           </ConfigItem>
           <ConfigItem label={t1("config.pitch_noise_sigma")} nested>
-            <NumberField
-              minValue={0}
-              step={0.01}
-              value={config.ui.pitch_noise_sigma ?? DEFAULT_PITCH_NOISE_SIGMA}
-              disabled={!config.ui.pitch_noise_enabled}
-              onRawValueChange={(value) => {
-                if (
-                  Number.isFinite(value) &&
-                  value >= 0 &&
-                  Number.isFinite(Math.fround(value))
-                ) {
-                  setConfig("ui", "pitch_noise_sigma", value);
+            <div class="w-28">
+              <NumberInput
+                label={t1("config.pitch_noise_sigma")}
+                hideLabel
+                decimal
+                disabled={!config.ui.pitch_noise_enabled}
+                value={config.ui.pitch_noise_sigma ?? DEFAULT_PITCH_NOISE_SIGMA}
+                setValue={(value) =>
+                  setConfig("ui", "pitch_noise_sigma", value)
                 }
-              }}
-              format={false}
-            >
-              <NumberField.Input
-                aria-label={t1("config.pitch_noise_sigma")}
-                class="h-8 w-24 rounded-lg b b-slate-2 px-1 outline-none focus:b-primary-3 dark:(b-slate-6 bg-slate-8) disabled:opacity-50"
+                min={0}
+                max={0.5}
+                step={0.01}
               />
-            </NumberField>
+            </div>
           </ConfigItem>
           <p class="px2 pt2 text-sm text-slate-5 dark:text-slate-4">
             {t1("config.pitch_noise_description")}

@@ -1,15 +1,12 @@
 import { IconButton } from "@components/iconButton";
+import { NumberInput } from "@components/numberField";
 import { usei18n } from "@contexts/i18n";
 import Resizable from "@corvu/resizable";
 import { PresetManagerDialog } from "@dialogs/PresetManager";
 import { SpeakerSelectionDialog } from "@dialogs/SpeakerSelection";
 import { TextField } from "@kobalte/core/text-field";
 import { PresetCard } from "@layout/sidebar/preset/Card";
-import {
-  OptionSelector,
-  PauseNumField,
-  PresetSlider,
-} from "@layout/sidebar/preset/Fields";
+import { OptionSelector, PresetSlider } from "@layout/sidebar/preset/Fields";
 import { PresetToolbar } from "@layout/sidebar/preset/Toolbar";
 import type { SidebarControls } from "@layout/sidebar/useSidebar";
 import { batch, createSignal, For, onCleanup, onMount, Show } from "solid-js";
@@ -235,15 +232,23 @@ export function PresetSidebar(props: { controls: SidebarControls }) {
                     setValue={controls.setVolume}
                   />
                   <div class="flex flex-row gap2">
-                    <PauseNumField
+                    <NumberInput
                       label={t1("preset.start_sli")}
                       value={controls.startSli()}
                       setValue={controls.setStartSli}
+                      min={0}
+                      max={1500}
+                      step={100}
+                      title="in millisecond"
                     />
-                    <PauseNumField
+                    <NumberInput
                       label={t1("preset.end_sli")}
                       value={controls.endSli()}
                       setValue={controls.setEndSli}
+                      min={0}
+                      max={1500}
+                      step={100}
+                      title="in millisecond"
                     />
                   </div>
                   <div class="h-2 w-full" />

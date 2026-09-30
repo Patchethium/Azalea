@@ -1,8 +1,5 @@
-import { IconButton } from "@components/iconButton";
 import { Tooltip } from "@components/tooltip";
-import { usei18n } from "@contexts/i18n";
 import { Checkbox } from "@kobalte/core/checkbox";
-import { NumberField } from "@kobalte/core/number-field";
 import { Select } from "@kobalte/core/select";
 import { Slider } from "@kobalte/core/slider";
 import { type JSX, Show } from "solid-js";
@@ -126,84 +123,5 @@ export function PresetSlider(props: {
         </Slider.Track>
       </div>
     </Slider>
-  );
-}
-
-export function PauseNumField(props: {
-  label: string;
-  value?: number;
-  setValue: (value: number) => void;
-}) {
-  return (
-    <PresetNumField
-      label={props.label}
-      value={props.value}
-      setValue={props.setValue}
-      min={0}
-      max={1500}
-      step={100}
-      title="in millisecond"
-    />
-  );
-}
-
-export function PresetNumField(props: {
-  label: string;
-  value?: number;
-  setValue: (value: number) => void;
-  min: number;
-  max: number;
-  step: number;
-  title?: string;
-  info?: string;
-}) {
-  const { t2 } = usei18n()!;
-  return (
-    <NumberField
-      minValue={props.min}
-      maxValue={props.max}
-      value={props.value}
-      step={props.step}
-      onChange={(value) => {
-        const parsed = Number.parseInt(value, 10);
-        if (Number.isNaN(parsed)) return;
-        props.setValue(Math.min(props.max, Math.max(props.min, parsed)));
-      }}
-      changeOnWheel={true}
-      format={false}
-      title={props.title}
-      class="w-full"
-    >
-      <div class="flex items-center gap1">
-        <NumberField.Label class="text-sm">{props.label}</NumberField.Label>
-        <Show when={props.info}>
-          {(info) => (
-            <IconButton
-              type="button"
-              icon="i-lucide:info"
-              label={info()}
-              size="xs"
-            />
-          )}
-        </Show>
-      </div>
-      <div class="flex flex-row gap-1 items-center">
-        <NumberField.Input class="h-8 w-full outline-none rounded-lg b b-slate-2 dark:(b-slate-6 bg-slate-7) focus:b-primary-3 px-1" />
-        <div class="flex flex-col">
-          <NumberField.IncrementTrigger
-            as={IconButton}
-            icon="i-lucide:chevron-up"
-            label={t2("preset.controls.increase", { label: props.label })}
-            size="xs"
-          />
-          <NumberField.DecrementTrigger
-            as={IconButton}
-            icon="i-lucide:chevron-down"
-            label={t2("preset.controls.decrease", { label: props.label })}
-            size="xs"
-          />
-        </div>
-      </div>
-    </NumberField>
   );
 }
