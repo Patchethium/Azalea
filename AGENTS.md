@@ -6,6 +6,33 @@ Azalea is a Tauri 2 desktop application. The SolidJS/TypeScript frontend lives i
 
 The Rust backend is under `src-tauri/`. Tauri commands are grouped in `src-tauri/src/commands/`, configuration handling in `config/`, and audio code in `audio/`. Rust integration tests and fixtures live in `src-tauri/tests/`. Application icons are in `src-tauri/icons/`; project artwork is in `icon/`. Treat `src/binding.ts` as generated bindings and avoid hand-editing it.
 
+## VOICEVOX Core Generative Noise
+
+The [Patchethium/voicevox_core fork](https://github.com/Patchethium/voicevox_core)
+has a [`generative-noise` branch](https://github.com/Patchethium/voicevox_core/tree/generative-noise)
+for seeded Gaussian noise in autoregressive talk pitch prediction. Keep its
+Specta support synchronized with the fork's `specta` branch when updating it.
+
+- `voicevox_core::PitchNoiseOptions { sigma: f32, seed: u32 }` controls noise.
+  `sigma` is a finite, nonnegative standard deviation in natural-log pitch
+  units; defaults are `sigma = 0.0` and `seed = 0`. The same model, inputs,
+  seed and implementation version reproduce the same noise.
+- `blocking::Synthesizer::replace_mora_pitch_with_noise(&accent_phrases,
+  style_id, options)` returns `Result<Vec<AccentPhrase>>` with new pitches,
+  preserving text, durations and all other fields.
+- `nonblocking::Synthesizer::replace_mora_pitch_with_noise` takes the same
+  arguments and returns the same result asynchronously; call it with `.await`.
+  Assign the returned phrases to `AudioQuery.accent_phrases` before synthesis.
+
+Noise is injected only at voiced mora steps and feeds subsequent predictions;
+unvoiced moras and pauses remain zero after prediction. Existing
+`replace_mora_pitch`, query creation and TTS APIs use zero noise. Ordinary VVM
+loading automatically transforms talk predictors and fails for unsupported
+graphs. Noise options are exposed only through the Rust pitch-replacement
+APIs, not waveform synthesis or other language bindings. See the fork's
+[pitch-noise documentation](https://github.com/Patchethium/voicevox_core/blob/generative-noise/docs/guide/dev/pitch-noise.md)
+for loading requirements, diagnostics and a WAV example.
+
 ## Project Files
 
 `.azp` files are versioned TOML documents. The disk-only wrapper and
