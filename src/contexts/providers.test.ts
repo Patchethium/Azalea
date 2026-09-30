@@ -435,7 +435,6 @@ describe("TextProvider", () => {
         id: "first-id",
         text: "first",
         query: null,
-        query_is_modified: false,
         pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
@@ -443,7 +442,6 @@ describe("TextProvider", () => {
         id: "second-id",
         text: "second",
         query: audioQuery(),
-        query_is_modified: false,
         pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
@@ -460,14 +458,12 @@ describe("TextProvider", () => {
           {
             id: "first-id",
             text: "first",
-            query_is_modified: false,
             pitch_noise_seed: 0,
             preset_id: "preset-1",
           },
           {
             id: "second-id",
             text: "second",
-            query_is_modified: false,
             pitch_noise_seed: 0,
             preset_id: "preset-1",
           },
@@ -484,7 +480,6 @@ describe("TextProvider", () => {
       text: "",
       preset_id: "preset-1",
       query: null,
-      query_is_modified: false,
       pitch_noise_seed: expect.any(Number),
     });
     expect(ui.uiStore.selectedTextBlockIndex).toBe(0);
@@ -501,7 +496,6 @@ describe("TextProvider", () => {
         id: "first",
         text: "first",
         query: null,
-        query_is_modified: false,
         pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
@@ -509,7 +503,6 @@ describe("TextProvider", () => {
         id: "second",
         text: "second",
         query: null,
-        query_is_modified: false,
         pitch_noise_seed: 0,
         preset_id: "preset-2",
       },
@@ -589,11 +582,11 @@ describe("TextProvider", () => {
       expect(text.textStore[0]).toMatchObject({ preset_id: null, query: null });
       expect(text.textStore[0].id).toMatch(/^text-block-/);
 
-      text.markQueryModified(0);
-      expect(text.textStore[0].query_is_modified).toBe(false);
+      text.markQueryPitchModified(0);
+      expect(text.textStore[0].pitch_is_modified).toBe(false);
       text.setTextStore(0, "query", audioQuery());
-      text.markQueryModified(0);
-      expect(text.textStore[0].query_is_modified).toBe(true);
+      text.markQueryPitchModified(0);
+      expect(text.textStore[0].pitch_is_modified).toBe(true);
       text.createFirstTextBlock();
       expect(text.textStore).toHaveLength(1);
     } finally {

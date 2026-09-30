@@ -374,11 +374,20 @@ pub struct TextBlockProps {
   pub id: String,
   pub text: String,
   pub query: Option<AudioQuery>,
-  pub query_is_modified: bool,
   #[serde(default)]
-  pub query_accent_is_modified: bool,
+  pub accent_is_modified: bool,
+  #[serde(default)]
+  pub duration_is_modified: bool,
+  #[serde(default)]
+  pub pitch_is_modified: bool,
   pub pitch_noise_seed: u32,
   pub preset_id: Option<String>,
+}
+
+impl TextBlockProps {
+  pub fn is_query_modified(&self) -> bool {
+    self.accent_is_modified || self.duration_is_modified || self.pitch_is_modified
+  }
 }
 
 #[derive(Clone, Deserialize, Serialize, Type, Default)]

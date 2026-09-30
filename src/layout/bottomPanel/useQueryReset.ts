@@ -1,7 +1,12 @@
 import { commands } from "$binding";
 import { usei18n } from "@contexts/i18n";
 import { useMetaStore } from "@contexts/meta";
-import { findPresetById, findPresetStyle, useTextStore } from "@contexts/text";
+import {
+  findPresetById,
+  findPresetStyle,
+  isQueryModified,
+  useTextStore,
+} from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
 import { batch, createMemo, createSignal } from "solid-js";
 import { unwrap } from "solid-js/store";
@@ -30,12 +35,15 @@ export function useQueryReset() {
       ? preset
       : null;
   });
-  const canReset = createMemo(
-    () =>
-      selectedTextBlock()?.query_is_modified === true &&
+  const canReset = createMemo(() => {
+    const block = selectedTextBlock();
+    return (
+      block !== null &&
+      isQueryModified(block) &&
       currentPreset() !== null &&
-      !resetPending(),
-  );
+      !resetPending()
+    );
+  });
   const resetLabel = () =>
     t1(
       uiStore.bottomPanel === "accent"
@@ -45,8 +53,8 @@ export function useQueryReset() {
 
   // The accent-panel reset rebuilds the query from the block text, discarding
   // phoneme, accent, pitch, and duration edits. The tuning-panel reset only
-  // regenerates pitch and duration, so it clears `query_is_modified` just when
-  // no accent or phoneme edits remain; otherwise those edits stay modified.
+  // regenerates pitch and duration, clearing those two flags while preserving
+  // accent and phoneme edits.
   const resetEdits = async () => {
     const block = selectedTextBlock();
     const preset = currentPreset();
@@ -55,7 +63,7 @@ export function useQueryReset() {
       block === null ||
       block.query === null ||
       preset === null ||
-      !block.query_is_modified ||
+      !isQueryModified(block) ||
       resetPending()
     ) {
       return;
@@ -89,11 +97,8 @@ export function useQueryReset() {
       }
       batch(() => {
         setTextStore(index, "query", "accent_phrases", result.data);
-        setTextStore(
-          index,
-          "query_is_modified",
-          current.query_accent_is_modified === true,
-        );
+        setTextStore(index, "duration_is_modified", false);
+        setTextStore(index, "pitch_is_modified", false);
       });
     } finally {
       if (revision === resetRevision) setResetPending(false);

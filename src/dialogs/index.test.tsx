@@ -149,7 +149,6 @@ describe("PresetManagerDialog", () => {
               id: "block-1",
               text: "",
               query: null,
-              query_is_modified: false,
               pitch_noise_seed: 0,
               preset_id: "preset-1",
             },

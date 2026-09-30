@@ -1,6 +1,6 @@
 import { Tooltip } from "@components/tooltip";
 import { useConfigStore } from "@contexts/config";
-import { useTextStore } from "@contexts/text";
+import { isQueryModified, useTextStore } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
 import { NumberField } from "@kobalte/core/number-field";
 import { PlaybackTimeline } from "@layout/bottomPanel/PlaybackTimeline";
@@ -48,6 +48,10 @@ export function ControlBar(props: {
   const { canReset, resetEdits, resetLabel } = useQueryReset();
   const pitchCompletionEnabled = () =>
     config.ui.pitch_completion_enabled ?? false;
+  const queryModified = () => {
+    const block = selectedTextBlock();
+    return block !== null && isQueryModified(block);
+  };
 
   return (
     <div class="w-full flex flex-col b-b b-slate-3 dark:b-slate-6 select-none">
@@ -113,7 +117,7 @@ export function ControlBar(props: {
             <ToolbarButton
               icon="i-lucide:dices"
               label={t1("bottom.regenerate_pitch_noise_seed")}
-              disabled={selectedTextBlock()?.query_is_modified}
+              disabled={queryModified()}
               onClick={() => {
                 const seed = Math.floor(Math.random() * 2 ** 32);
                 setTextStore(
@@ -130,7 +134,7 @@ export function ControlBar(props: {
               maxValue={4294967295}
               step={1}
               value={selectedTextBlock()?.pitch_noise_seed}
-              disabled={selectedTextBlock()?.query_is_modified}
+              disabled={queryModified()}
               onRawValueChange={(seed) => {
                 if (Number.isInteger(seed) && seed >= 0 && seed <= 4294967295) {
                   setTextStore(

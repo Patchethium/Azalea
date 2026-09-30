@@ -53,7 +53,7 @@ describe("Sidebar project lifecycle", () => {
               id: "loaded-block",
               text: "Loaded block",
               query: audioQuery({ speedScale: 1.2 }),
-              query_is_modified: true,
+              pitch_is_modified: true,
               pitch_noise_seed: 0,
               preset_id: "preset-1",
             },
@@ -81,7 +81,6 @@ describe("Sidebar project lifecycle", () => {
             id: "current-block",
             text: "Current block",
             query: audioQuery(),
-            query_is_modified: false,
             pitch_noise_seed: 0,
             preset_id: "preset-1",
           },
@@ -219,7 +218,6 @@ describe("Sidebar SRT import", () => {
             id: "current-block",
             text: "Current block",
             query: audioQuery(),
-            query_is_modified: false,
             pitch_noise_seed: 0,
             preset_id: "preset-1",
           },
@@ -349,7 +347,7 @@ describe("Sidebar controls", () => {
               id: "first",
               text: "First",
               query: audioQuery(),
-              query_is_modified: true,
+              pitch_is_modified: true,
               pitch_noise_seed: 0,
               preset_id: "preset-1",
             },
@@ -357,7 +355,7 @@ describe("Sidebar controls", () => {
               id: "second",
               text: "Second",
               query: audioQuery(),
-              query_is_modified: true,
+              pitch_is_modified: true,
               pitch_noise_seed: 0,
               preset_id: "preset-2",
             },
@@ -365,7 +363,6 @@ describe("Sidebar controls", () => {
               id: "unassigned",
               text: "Unassigned",
               query: null,
-              query_is_modified: false,
               pitch_noise_seed: 0,
               preset_id: null,
             },
@@ -380,7 +377,7 @@ describe("Sidebar controls", () => {
     controls.selectSpeakerByName("Missing");
     controls.setStyleByName("Missing");
     controls.setStyleId(1);
-    expect(text.textStore[0].query_is_modified).toBe(true);
+    expect(text.textStore[0].pitch_is_modified).toBe(true);
     controls.selectSpeakerByName("Speaker");
     controls.setStyleByName("Happy");
     expect(text.projectPresetStore[0]).toMatchObject({
@@ -388,18 +385,18 @@ describe("Sidebar controls", () => {
       speaker_uuid: "speaker-1",
       style_name: "Happy",
     });
-    expect(text.textStore[0].query_is_modified).toBe(false);
+    expect(text.textStore[0].pitch_is_modified).toBe(false);
 
-    text.setTextStore(0, "query_is_modified", true);
+    text.setTextStore(0, "pitch_is_modified", true);
     controls.setTextPresetIdx(1);
     expect(text.textStore[0]).toMatchObject({
       preset_id: "preset-2",
-      query_is_modified: false,
+      pitch_is_modified: false,
       pitch_noise_seed: 0,
     });
-    text.setTextStore(0, "query_is_modified", true);
+    text.setTextStore(0, "pitch_is_modified", true);
     controls.setTextPresetIdx(1);
-    expect(text.textStore[0].query_is_modified).toBe(true);
+    expect(text.textStore[0].pitch_is_modified).toBe(true);
 
     controls.setPresetName("Renamed");
     controls.setPitch(0.2);
@@ -521,7 +518,7 @@ describe("Sidebar controls", () => {
             id: "current-block",
             text: "Current block",
             query: audioQuery(),
-            query_is_modified: true,
+            pitch_is_modified: true,
             pitch_noise_seed: 0,
             preset_id: "preset-1",
           },
@@ -529,7 +526,7 @@ describe("Sidebar controls", () => {
             id: "related-block",
             text: "Related block",
             query: audioQuery(),
-            query_is_modified: true,
+            pitch_is_modified: true,
             pitch_noise_seed: 0,
             preset_id: "preset-1",
           },
@@ -670,7 +667,7 @@ describe("Sidebar controls", () => {
       speaker_uuid: "speaker-2",
       style_name: "Normal",
     });
-    expect(text.textStore.map((block) => block.query_is_modified)).toEqual([
+    expect(text.textStore.map((block) => block.pitch_is_modified)).toEqual([
       false,
       false,
     ]);
@@ -779,7 +776,6 @@ describe("Sidebar unsaved changes", () => {
               id: "block",
               text: "Original",
               query: audioQuery(),
-              query_is_modified: false,
               pitch_noise_seed: 0,
               preset_id: "preset-1",
             },
@@ -885,7 +881,6 @@ describe("Sidebar unsaved changes", () => {
             id: "block",
             text: "Original",
             query: audioQuery(),
-            query_is_modified: false,
             pitch_noise_seed: 0,
             preset_id: "preset-1",
           },
@@ -927,7 +922,6 @@ describe("Sidebar unsaved changes", () => {
             id: "block",
             text: "Original",
             query: audioQuery(),
-            query_is_modified: false,
             pitch_noise_seed: 0,
             preset_id: "preset-1",
           },
@@ -1052,7 +1046,6 @@ describe("Sidebar export all", () => {
         id: "first",
         text: "First block",
         query: audioQuery(),
-        query_is_modified: false,
         pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
@@ -1060,7 +1053,6 @@ describe("Sidebar export all", () => {
         id: "empty",
         text: "",
         query: null,
-        query_is_modified: false,
         pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
@@ -1068,7 +1060,7 @@ describe("Sidebar export all", () => {
         id: "second",
         text: "Second block",
         query: audioQuery(),
-        query_is_modified: true,
+        pitch_is_modified: true,
         pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
@@ -1126,7 +1118,6 @@ describe("Sidebar export all", () => {
           id: "first",
           text: "hello",
           query: audioQuery(),
-          query_is_modified: false,
           pitch_noise_seed: 0,
           preset_id: "preset-1",
         },
@@ -1182,7 +1173,6 @@ describe("Sidebar export all", () => {
         id: "a",
         text: "Alpha",
         query: audioQuery(),
-        query_is_modified: false,
         pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
@@ -1190,7 +1180,6 @@ describe("Sidebar export all", () => {
         id: "b",
         text: "Beta",
         query: null,
-        query_is_modified: false,
         pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
@@ -1198,7 +1187,6 @@ describe("Sidebar export all", () => {
         id: "c",
         text: "Gamma",
         query: audioQuery(),
-        query_is_modified: false,
         pitch_noise_seed: 0,
         preset_id: null,
       },
@@ -1206,7 +1194,6 @@ describe("Sidebar export all", () => {
         id: "d",
         text: "Delta",
         query: null,
-        query_is_modified: false,
         pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
@@ -1257,7 +1244,6 @@ describe("Sidebar export all", () => {
         id: "broken",
         text: "Broken block",
         query: audioQuery(),
-        query_is_modified: false,
         pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
@@ -1265,7 +1251,6 @@ describe("Sidebar export all", () => {
         id: "working",
         text: "Working block",
         query: audioQuery(),
-        query_is_modified: false,
         pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
@@ -1305,7 +1290,6 @@ describe("Sidebar export all", () => {
         id: "first",
         text: "First block",
         query: audioQuery(),
-        query_is_modified: false,
         pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
@@ -1313,7 +1297,6 @@ describe("Sidebar export all", () => {
         id: "second",
         text: "Second block",
         query: audioQuery(),
-        query_is_modified: false,
         pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
@@ -1357,7 +1340,6 @@ describe("Sidebar export all", () => {
         id: "empty",
         text: "",
         query: null,
-        query_is_modified: false,
         pitch_noise_seed: 0,
         preset_id: null,
       },

@@ -28,8 +28,9 @@ describe("text-block helpers", () => {
       text: "hello",
       preset_id: "preset-2",
       query: null,
-      query_is_modified: false,
-      query_accent_is_modified: false,
+      accent_is_modified: false,
+      duration_is_modified: false,
+      pitch_is_modified: false,
       pitch_noise_seed: 0,
     });
     expect(second.id).not.toBe(first.id);

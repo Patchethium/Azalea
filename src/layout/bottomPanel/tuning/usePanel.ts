@@ -16,7 +16,12 @@ import {
 import { useConfigStore } from "@contexts/config";
 import { useMetaStore } from "@contexts/meta";
 import { useSpectrogramStore } from "@contexts/spectrogram";
-import { findPresetById, findPresetStyle, useTextStore } from "@contexts/text";
+import {
+  findPresetById,
+  findPresetStyle,
+  isQueryModified,
+  useTextStore,
+} from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
 import type {
   DraggingMode,
@@ -57,7 +62,8 @@ export function useTuningPanel(
   const {
     textStore,
     setTextStore,
-    markQueryModified,
+    markQueryDurationModified,
+    markQueryPitchModified,
     projectPresetStore,
     selectedTextBlock,
     selectedTextBlockIndex,
@@ -446,7 +452,7 @@ export function useTuningPanel(
       "consonant_length",
       value,
     );
-    markQueryModified(index);
+    markQueryDurationModified(index);
   };
   const setVowelLength = (i: number, j: number, value: number) => {
     const index = selectedIdx();
@@ -461,7 +467,7 @@ export function useTuningPanel(
       "vowel_length",
       value,
     );
-    markQueryModified(index);
+    markQueryDurationModified(index);
   };
   const setPauseLength = (i: number, value: number) => {
     const index = selectedIdx();
@@ -475,7 +481,7 @@ export function useTuningPanel(
       "vowel_length",
       value,
     );
-    markQueryModified(index);
+    markQueryDurationModified(index);
   };
   let pitchCompletionRevision = 0;
   const completePitch = debounce(
@@ -509,7 +515,7 @@ export function useTuningPanel(
           !mounted ||
           revision !== pitchCompletionRevision ||
           current?.id !== blockId ||
-          !current.query_is_modified ||
+          !isQueryModified(current) ||
           currentPreset()?.style_id !== styleId ||
           JSON.stringify(current.query?.accent_phrases) !==
             JSON.stringify(phrases)
@@ -560,7 +566,7 @@ export function useTuningPanel(
         "pitch",
         value,
       );
-      markQueryModified(index);
+      markQueryPitchModified(index);
     });
     if (config.ui.pitch_completion_enabled) completePitch(index, i, j);
   };

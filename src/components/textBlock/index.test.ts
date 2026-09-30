@@ -529,7 +529,7 @@ describe("TextBlock", () => {
     await waitFor(() =>
       expect(getTextStore().textStore[0].query?.speedScale).toBe(1.2),
     );
-    expect(getTextStore().textStore[0].query_is_modified).toBe(false);
+    expect(getTextStore().textStore[0].pitch_is_modified).toBe(false);
 
     getConfigStore().setConfig("ui", "buffer_render", false);
     await waitFor(() =>
@@ -555,7 +555,7 @@ describe("TextBlock", () => {
 
     await screen.findByLabelText("Text to synthesize");
     expect(query).not.toHaveBeenCalled();
-    expect(getTextStore().textStore[0].query_is_modified).toBe(true);
+    expect(getTextStore().textStore[0].pitch_is_modified).toBe(true);
 
     const editor = screen.getByLabelText("Text to synthesize");
     editor.innerText = "changed";
@@ -564,7 +564,7 @@ describe("TextBlock", () => {
       timeout: 1_500,
     });
     await waitFor(() =>
-      expect(getTextStore().textStore[0].query_is_modified).toBe(false),
+      expect(getTextStore().textStore[0].pitch_is_modified).toBe(false),
     );
   });
 
@@ -596,7 +596,6 @@ describe("TextBlock", () => {
       text: "",
       preset_id: "preset-1",
       query: null,
-      query_is_modified: false,
       pitch_noise_seed: expect.any(Number),
     });
     expect(getTextStore().textStore[1].id).not.toBe("text-block");
@@ -642,7 +641,6 @@ describe("TextBlock", () => {
     expect(getTextStore().textStore[1]).toMatchObject({
       preset_id: "preset-1",
       query: null,
-      query_is_modified: false,
       pitch_noise_seed: expect.any(Number),
     });
     expect(getTextStore().textStore[1].id).not.toBe("text-block");
@@ -1650,7 +1648,7 @@ describe("TextBlock", () => {
     expect(getTextStore().textStore[0].query?.accent_phrases).toEqual(
       replacement,
     );
-    expect(getTextStore().textStore[0].query_is_modified).toBe(true);
+    expect(getTextStore().textStore[0].accent_is_modified).toBe(true);
     expect(getTextStore().queryPending["text-block"]).toBeUndefined();
   });
 

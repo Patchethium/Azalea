@@ -46,7 +46,7 @@ export const renderAutogrowInput = (
 
 export const renderBlock = (
   bufferRender: boolean,
-  queryIsModified = false,
+  pitchIsModified = false,
   renderAllBlocks = false,
   configOverrides: Partial<AzaleaConfig["ui"]> = {},
   withBottomPanel = false,
@@ -76,7 +76,7 @@ export const renderBlock = (
               id: "text-block",
               text: "hello",
               query: audioQuery(),
-              query_is_modified: queryIsModified,
+              pitch_is_modified: pitchIsModified,
               pitch_noise_seed: 0,
               preset_id: "preset-1",
             },
@@ -85,7 +85,6 @@ export const renderBlock = (
                   id: "second-text-block",
                   text: "second",
                   query: audioQuery(),
-                  query_is_modified: false,
                   pitch_noise_seed: 0,
                   preset_id: "preset-1",
                 }

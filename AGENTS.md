@@ -65,9 +65,9 @@ position. Resolve preset fallbacks against the current metadata before using a
 numeric style ID; an unavailable stored identity must not silently select a
 different speaker that reused the same numeric ID. Omit pristine generated
 `AudioQuery` values from the disk DTO so they regenerate after loading, but
-preserve manually edited queries as `query_override`; every manual edit must
-set `query_is_modified`, and accent or phoneme edits must also set
-`query_accent_is_modified`.
+preserve manually edited queries as `query_override`. Track manual edits per
+block with `accent_is_modified`, `duration_is_modified`, and
+`pitch_is_modified`; `query_override` is persisted whenever any of them is set.
 
 Evolve schema version `1` in place until the first release containing
 versioned project files; do not add compatibility or migrations for unreleased
@@ -82,20 +82,21 @@ The bottom panel has two panel-aware resets with intentionally different
 scopes:
 
 - The accent-panel reset (`bottom.reset_accent_edits`) rebuilds the query from
-  the block text, discarding phoneme, accent, pitch, and duration edits.
+  the block text, discarding phoneme, accent, pitch, and duration edits. It
+  clears all three edit flags.
 - The tuning-panel reset (`bottom.reset_tuning_edits`) only regenerates pitch
   and duration through `replace_mora_data`, preserving phoneme and accent
-  edits made on the accent panel.
+  edits made on the accent panel. It clears `duration_is_modified` and
+  `pitch_is_modified` but leaves `accent_is_modified` untouched.
 
-Track accent and phoneme edits separately from tuning edits with the persisted
-`TextBlockProps.query_accent_is_modified` flag (serde default; optional in the
-generated bindings). `markQueryAccentModified` sets it together with
-`query_is_modified`, while tuning edits call only `markQueryModified`. A tuning
-reset keeps `query_is_modified` when `query_accent_is_modified` is set and
-otherwise clears it, which re-enables the pitch-noise seed controls; the
-accent reset and full query regeneration clear both flags. The disk DTO
-persists the flag alongside `query_override`, and Rust validation rejects
-blocks that mark accent edits without a modified query.
+Accent and phoneme edits call `markQueryAccentModified`, pitch edits call
+`markQueryPitchModified`, and duration edits call `markQueryDurationModified`;
+the flags are persisted per block and optional in the generated bindings.
+`isQueryModified` derives the aggregate modified state from the three flags and
+gates query persistence and the pitch-noise seed controls, so a tuning reset
+re-enables the seed controls only when no accent edits remain. Full query
+regeneration clears all three flags, and Rust validation rejects modified
+flags without a query override.
 
 ## Audio File Export
 

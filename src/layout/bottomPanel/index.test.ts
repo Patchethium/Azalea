@@ -560,7 +560,6 @@ describe("BottomPanel playback", () => {
         id: "third-block",
         text: "third",
         query: audioQuery({ speedScale: 1.2 }),
-        query_is_modified: false,
         pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
@@ -842,7 +841,6 @@ describe("BottomPanel playback", () => {
       text: "",
       preset_id: "preset-1",
       query: null,
-      query_is_modified: false,
       pitch_noise_seed: expect.any(Number),
     });
     expect(getTextStore().textStore[2].id).not.toBe("first-block");
@@ -871,7 +869,6 @@ describe("BottomPanel playback", () => {
         id: "first-block",
         text: "first",
         query: audioQuery(),
-        query_is_modified: false,
         pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
@@ -879,7 +876,6 @@ describe("BottomPanel playback", () => {
         id: "second-block",
         text: "second",
         query: audioQuery({ speedScale: 1.1 }),
-        query_is_modified: false,
         pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
@@ -887,7 +883,6 @@ describe("BottomPanel playback", () => {
         id: "third-block",
         text: "third",
         query: audioQuery({ speedScale: 1.2 }),
-        query_is_modified: false,
         pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
@@ -1687,8 +1682,7 @@ describe("BottomPanel playback", () => {
         getTextStore().textStore[0].query?.accent_phrases[0].moras[0].text,
       ).toBe("サ"),
     );
-    expect(getTextStore().textStore[0].query_is_modified).toBe(true);
-    expect(getTextStore().textStore[0].query_accent_is_modified).toBe(true);
+    expect(getTextStore().textStore[0].accent_is_modified).toBe(true);
   });
 
   it("does not append the following phrase when editing phonemes", async () => {
@@ -2049,7 +2043,8 @@ describe("BottomPanel playback", () => {
     panel.setPitch(0, 0, 5.8);
     expect(panel.pitchScale()).toBe(originalScale);
     expect(text.textStore[0].query?.accent_phrases[0].moras[0].pitch).toBe(5.8);
-    expect(text.textStore[0].query_is_modified).toBe(true);
+    expect(text.textStore[0].duration_is_modified).toBe(true);
+    expect(text.textStore[0].pitch_is_modified).toBe(true);
 
     panel.handleDragFinish();
     panel.handleDragging(new MouseEvent("mousemove", { clientX: 200 }));
@@ -2450,7 +2445,7 @@ describe("BottomPanel playback", () => {
     expect(
       getTextStore().textStore[0].query!.accent_phrases[0].moras[0].pitch,
     ).toBe(5.4);
-    expect(getTextStore().textStore[0].query_is_modified).toBe(false);
+    expect(getTextStore().textStore[0].pitch_is_modified).toBe(false);
     expect(Number(slider.getAttribute("aria-valuenow"))).toBeCloseTo(0.7);
     expect(Number.parseFloat(middleTick().style.bottom)).toBeCloseTo(50);
     fireEvent(
@@ -2480,7 +2475,7 @@ describe("BottomPanel playback", () => {
     // The lower half has 90% of samples: 0.8 * 0.9 + 0.2 * 0.5 = 0.82 of the track.
     expect(pitch()).toBeCloseTo(4 + 0.5 / 0.82, 6);
     expect(slider).toHaveAttribute("aria-valuetext", pitch().toFixed(4));
-    expect(getTextStore().textStore[0].query_is_modified).toBe(true);
+    expect(getTextStore().textStore[0].pitch_is_modified).toBe(true);
     fireEvent.keyDown(slider, { key: "ArrowUp" });
     expect(pitch()).toBeCloseTo(4 + 0.501 / 0.82, 6);
     fireEvent.keyDown(slider, { key: "End" });
@@ -2600,12 +2595,11 @@ describe("BottomPanel playback", () => {
       5.9,
     );
     text.markQueryAccentModified(0);
-    expect(text.textStore[0].query_accent_is_modified).toBe(true);
+    expect(text.textStore[0].accent_is_modified).toBe(true);
     await waitFor(() => expect(reset).toBeEnabled());
     fireEvent.click(reset);
     await waitFor(() => expect(text.textStore[0].query).toBeNull());
-    expect(text.textStore[0].query_is_modified).toBe(false);
-    expect(text.textStore[0].query_accent_is_modified).toBe(false);
+    expect(text.textStore[0].accent_is_modified).toBe(false);
   });
 
   it("edits per-block seeds and unlocks them after a tuning reset", async () => {
@@ -2677,7 +2671,7 @@ describe("BottomPanel playback", () => {
       "pitch",
       5.9,
     );
-    text.markQueryModified(0);
+    text.markQueryPitchModified(0);
     expect(seed).toBeDisabled();
     expect(regenerate).toBeDisabled();
     expect(seedField).toHaveAttribute("data-disabled");
@@ -2706,7 +2700,7 @@ describe("BottomPanel playback", () => {
         5.4,
       ),
     );
-    expect(text.textStore[0].query_is_modified).toBe(false);
+    expect(text.textStore[0].pitch_is_modified).toBe(false);
     expect(seed).toBeEnabled();
     expect(regenerate).toBeEnabled();
     expect(seedField).not.toHaveAttribute("data-disabled");
@@ -2745,7 +2739,7 @@ describe("BottomPanel playback", () => {
       "pitch",
       5.9,
     );
-    text.markQueryModified(0);
+    text.markQueryPitchModified(0);
     text.markQueryAccentModified(0);
     expect(seed).toBeDisabled();
     fireEvent.click(
@@ -2757,8 +2751,8 @@ describe("BottomPanel playback", () => {
         5.4,
       ),
     );
-    expect(text.textStore[0].query_accent_is_modified).toBe(true);
-    expect(text.textStore[0].query_is_modified).toBe(true);
+    expect(text.textStore[0].accent_is_modified).toBe(true);
+    expect(text.textStore[0].pitch_is_modified).toBe(false);
     expect(seed).toBeDisabled();
   });
 
@@ -2789,7 +2783,7 @@ describe("BottomPanel playback", () => {
         "pitch",
         5.9,
       );
-      text.markQueryModified(0);
+      text.markQueryPitchModified(0);
       fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
       fireEvent.click(
         await screen.findByRole("button", {
@@ -2844,7 +2838,7 @@ describe("BottomPanel playback", () => {
       "pitch",
       5.9,
     );
-    text.markQueryModified(0);
+    text.markQueryPitchModified(0);
     fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
     const reset = await screen.findByRole("button", {
       name: "Reset pitch and duration edits",
@@ -3000,7 +2994,7 @@ describe("BottomPanel playback", () => {
         getTextStore().textStore[0].query?.accent_phrases[0].moras[0].pitch,
       ).toBeCloseTo(5.4026, 4),
     );
-    expect(getTextStore().textStore[0].query_is_modified).toBe(true);
+    expect(getTextStore().textStore[0].pitch_is_modified).toBe(true);
 
     fireEvent.keyDown(pitch!, { key: " " });
     await waitFor(() => expect(play).toHaveBeenCalledOnce());
@@ -3133,7 +3127,7 @@ describe("Pitch completion", () => {
     vi.useFakeTimers();
     getPanel().setPitch(1, 0, 5.55);
     getPanel().setPitch(1, 0, 5.6);
-    expect(text.textStore[0].query_is_modified).toBe(true);
+    expect(text.textStore[0].pitch_is_modified).toBe(true);
     expect(complete).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(100);
     expect(complete).toHaveBeenCalledOnce();

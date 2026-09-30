@@ -21,6 +21,7 @@ import { useShortcutsStore } from "@contexts/shortcuts";
 import {
   findPresetById,
   findPresetStyle,
+  isQueryModified,
   type TextBlockProps,
   useTextStore,
 } from "@contexts/text";
@@ -63,8 +64,9 @@ function TextBlock(props: { index: number }) {
     setTextStore(props.index, {
       ...currentText(),
       text,
-      query_is_modified: false,
-      query_accent_is_modified: false,
+      accent_is_modified: false,
+      duration_is_modified: false,
+      pitch_is_modified: false,
     });
   };
 
@@ -73,8 +75,9 @@ function TextBlock(props: { index: number }) {
       props.index,
       produce((draft) => {
         draft.query = query;
-        draft.query_is_modified = false;
-        draft.query_accent_is_modified = false;
+        draft.accent_is_modified = false;
+        draft.duration_is_modified = false;
+        draft.pitch_is_modified = false;
       }),
     );
   };
@@ -135,10 +138,7 @@ function TextBlock(props: { index: number }) {
         if (text === "") {
           fetchAudioQuery.cancel();
           setQuery(null);
-        } else if (
-          sourceBlock.query_is_modified &&
-          sourceBlock.query !== null
-        ) {
+        } else if (isQueryModified(sourceBlock) && sourceBlock.query !== null) {
           fetchAudioQuery.cancel();
         } else if (styleId !== undefined) {
           // Invalidate background work before the throttled query request can
@@ -314,8 +314,9 @@ function TextBlock(props: { index: number }) {
       setTextStore(props.index, {
         ...currentText(),
         text: text.slice(0, clamped),
-        query_is_modified: false,
-        query_accent_is_modified: false,
+        accent_is_modified: false,
+        duration_is_modified: false,
+        pitch_is_modified: false,
       });
       const nextIndex = insertTextBlockBelow(props.index);
       setTextStore(nextIndex, {

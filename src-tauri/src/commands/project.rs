@@ -26,7 +26,9 @@ struct ProjectBlockRef<'a> {
   pitch_noise_seed: u32,
   #[serde(skip_serializing_if = "Option::is_none")]
   query_override: Option<&'a AudioQuery>,
-  query_accent_is_modified: bool,
+  accent_is_modified: bool,
+  duration_is_modified: bool,
+  pitch_is_modified: bool,
   preset_id: Option<&'a str>,
 }
 
@@ -38,7 +40,11 @@ struct ProjectBlock {
   #[serde(default)]
   query_override: Option<AudioQuery>,
   #[serde(default)]
-  query_accent_is_modified: bool,
+  accent_is_modified: bool,
+  #[serde(default)]
+  duration_is_modified: bool,
+  #[serde(default)]
+  pitch_is_modified: bool,
   preset_id: Option<String>,
 }
 
@@ -76,14 +82,9 @@ fn validate_project(project: &Project) -> Result<(), String> {
     if !block_ids.insert(&block.id) {
       return Err(format!("Project block {index} has a duplicate ID"));
     }
-    if block.query_is_modified && block.query.is_none() {
+    if block.is_query_modified() && block.query.is_none() {
       return Err(format!(
         "Project block {index} marks a missing query as modified"
-      ));
-    }
-    if block.query_accent_is_modified && !block.query_is_modified {
-      return Err(format!(
-        "Project block {index} marks accent edits without a modified query"
       ));
     }
     if let Some(preset_id) = &block.preset_id {
@@ -115,12 +116,14 @@ pub async fn save_project(
         id: &block.id,
         text: &block.text,
         pitch_noise_seed: block.pitch_noise_seed,
-        query_override: if block.query_is_modified {
+        query_override: if block.is_query_modified() {
           block.query.as_ref()
         } else {
           None
         },
-        query_accent_is_modified: block.query_accent_is_modified,
+        accent_is_modified: block.accent_is_modified,
+        duration_is_modified: block.duration_is_modified,
+        pitch_is_modified: block.pitch_is_modified,
         preset_id: block.preset_id.as_deref(),
       })
       .collect(),
@@ -151,6 +154,15 @@ pub async fn load_project(path: String) -> Result<Project, String> {
       project_file.schema_version
     ));
   }
+  for (index, block) in project_file.blocks.iter().enumerate() {
+    let modified =
+      block.accent_is_modified || block.duration_is_modified || block.pitch_is_modified;
+    if modified != block.query_override.is_some() {
+      return Err(format!(
+        "Project block {index} has inconsistent query override flags"
+      ));
+    }
+  }
   let project = Project {
     blocks: project_file
       .blocks
@@ -159,9 +171,10 @@ pub async fn load_project(path: String) -> Result<Project, String> {
         id: block.id,
         text: block.text,
         pitch_noise_seed: block.pitch_noise_seed,
-        query_is_modified: block.query_override.is_some(),
         query: block.query_override,
-        query_accent_is_modified: block.query_accent_is_modified,
+        accent_is_modified: block.accent_is_modified,
+        duration_is_modified: block.duration_is_modified,
+        pitch_is_modified: block.pitch_is_modified,
         preset_id: block.preset_id,
       })
       .collect(),
@@ -187,8 +200,9 @@ mod tests {
         text: "こんにちは、Azalea 🌺".into(),
         pitch_noise_seed: 42,
         query: Some(sample_query()),
-        query_is_modified: true,
-        query_accent_is_modified: true,
+        accent_is_modified: true,
+        duration_is_modified: true,
+        pitch_is_modified: false,
         preset_id: Some("preset-1".into()),
       }],
       presets: vec![preset],
@@ -221,8 +235,16 @@ mod tests {
       assert!(saved_toml["blocks"][0].get("query").is_none());
       assert!(saved_toml["blocks"][0].get("query_override").is_some());
       assert_eq!(
-        saved_toml["blocks"][0]["query_accent_is_modified"].as_bool(),
+        saved_toml["blocks"][0]["accent_is_modified"].as_bool(),
         Some(true)
+      );
+      assert_eq!(
+        saved_toml["blocks"][0]["duration_is_modified"].as_bool(),
+        Some(true)
+      );
+      assert_eq!(
+        saved_toml["blocks"][0]["pitch_is_modified"].as_bool(),
+        Some(false)
       );
       let loaded = load_project(saved.to_string_lossy().into_owned())
         .await
@@ -233,8 +255,10 @@ mod tests {
       assert_eq!(loaded.blocks[0].text, "こんにちは、Azalea 🌺");
       assert_eq!(loaded.blocks[0].pitch_noise_seed, 42);
       assert!(loaded.blocks[0].query.is_some());
-      assert!(loaded.blocks[0].query_is_modified);
-      assert!(loaded.blocks[0].query_accent_is_modified);
+      assert!(loaded.blocks[0].accent_is_modified);
+      assert!(loaded.blocks[0].duration_is_modified);
+      assert!(!loaded.blocks[0].pitch_is_modified);
+      assert!(loaded.blocks[0].is_query_modified());
       assert_eq!(loaded.blocks[0].preset_id.as_deref(), Some("preset-1"));
       assert_eq!(loaded.presets.len(), 1);
       assert_eq!(
@@ -334,19 +358,6 @@ mod tests {
       assert!(error.contains("missing query"));
       assert!(!path.exists());
 
-      let mut accent_without_modifications = project();
-      accent_without_modifications.blocks[0].query_is_modified = false;
-      let path = directory.path().join("accent-without-modifications.azp");
-      let error = save_project(
-        accent_without_modifications,
-        path.to_string_lossy().into_owned(),
-        true,
-      )
-      .await
-      .unwrap_err();
-      assert!(error.contains("accent edits"), "{error}");
-      assert!(!path.exists());
-
       let mut incomplete_fallback = project();
       incomplete_fallback.presets[0].style_name = None;
       let path = directory.path().join("incomplete-fallback.azp");
@@ -438,13 +449,40 @@ mod tests {
   }
 
   #[test]
+  fn load_rejects_query_overrides_without_modified_flags() {
+    tauri::async_runtime::block_on(async {
+      let directory = tempfile::tempdir().unwrap();
+      let path = directory.path().join("inconsistent.azp");
+      save_project(project(), path.to_string_lossy().into_owned(), true)
+        .await
+        .unwrap();
+      let saved = path.with_extension("azp");
+      let mut saved_toml: toml::Value =
+        toml::from_str(&std::fs::read_to_string(&saved).unwrap()).unwrap();
+      saved_toml["blocks"][0]["accent_is_modified"] = false.into();
+      saved_toml["blocks"][0]["duration_is_modified"] = false.into();
+      std::fs::write(&saved, toml::to_string(&saved_toml).unwrap()).unwrap();
+
+      let error = load_project(saved.to_string_lossy().into_owned())
+        .await
+        .err()
+        .expect("inconsistent query override flags should be rejected");
+      assert!(
+        error.contains("inconsistent query override flags"),
+        "{error}"
+      );
+    });
+  }
+
+  #[test]
   fn save_omits_regenerable_queries() {
     tauri::async_runtime::block_on(async {
       let directory = tempfile::tempdir().unwrap();
       let path = directory.path().join("derived.azp");
       let mut derived_project = project();
-      derived_project.blocks[0].query_is_modified = false;
-      derived_project.blocks[0].query_accent_is_modified = false;
+      derived_project.blocks[0].accent_is_modified = false;
+      derived_project.blocks[0].duration_is_modified = false;
+      derived_project.blocks[0].pitch_is_modified = false;
 
       save_project(derived_project, path.to_string_lossy().into_owned(), true)
         .await
@@ -456,8 +494,10 @@ mod tests {
         .await
         .unwrap();
       assert!(loaded.blocks[0].query.is_none());
-      assert!(!loaded.blocks[0].query_is_modified);
-      assert!(!loaded.blocks[0].query_accent_is_modified);
+      assert!(!loaded.blocks[0].accent_is_modified);
+      assert!(!loaded.blocks[0].duration_is_modified);
+      assert!(!loaded.blocks[0].pitch_is_modified);
+      assert!(!loaded.blocks[0].is_query_modified());
       assert_eq!(loaded.blocks[0].pitch_noise_seed, 42);
     });
   }
