@@ -72,7 +72,7 @@ describe("ConfigPage", () => {
     ).toBeInTheDocument();
     expect(
       screen.getAllByRole("button", { name: "Experimental Features" }),
-    ).toHaveLength(3);
+    ).toHaveLength(4);
     expect(
       screen.queryByRole("switch", { name: "Non-blocking synthesis" }),
     ).not.toBeInTheDocument();
@@ -107,7 +107,7 @@ describe("ConfigPage", () => {
     expect(appConfig.config.ui.buffer_render).toBe(true);
     expect(
       screen.getAllByRole("button", { name: "Experimental Features" }),
-    ).toHaveLength(4);
+    ).toHaveLength(5);
 
     const nonblocking = screen.getByRole("switch", {
       name: "Non-blocking synthesis",
@@ -186,6 +186,13 @@ describe("ConfigPage", () => {
     fireEvent.click(noise);
     expect(appConfig.config.ui.pitch_noise_enabled).toBe(false);
     expect(sigma).toBeDisabled();
+
+    const completion = screen.getByRole("switch", { name: "Pitch completion" });
+    expect(completion).not.toBeChecked();
+    fireEvent.click(completion);
+    expect(appConfig.config.ui.pitch_completion_enabled).toBe(true);
+    fireEvent.click(completion);
+    expect(appConfig.config.ui.pitch_completion_enabled).toBe(false);
 
     fireEvent.click(screen.getByRole("button", { name: "Close config" }));
     await waitFor(() => expect(ui.uiStore.page).toBeNull());

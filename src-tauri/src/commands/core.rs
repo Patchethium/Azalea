@@ -311,6 +311,29 @@ pub async fn replace_mora_pitch(
   .await
 }
 
+/// Complete the pitch suffix from a fixed mora pitch prefix.
+#[tauri::command]
+#[specta::specta]
+pub async fn complete_mora_pitch(
+  state: State<'_, AppState>,
+  ap: Vec<AccentPhrase>,
+  style_id: StyleId,
+  pitch_prefix: Vec<f32>,
+  seed: u32,
+) -> std::result::Result<Vec<AccentPhrase>, String> {
+  let options = state_ref!(state, config_manager)
+    .config
+    .ui
+    .pitch_noise_options(seed)
+    .unwrap_or_default();
+  run_core_task(&state, move |core| {
+    core
+      .complete_mora_pitch(ap, style_id, &pitch_prefix, options)
+      .map_err(|e| e.to_string())
+  })
+  .await
+}
+
 /// Replace duration in accent phrases
 #[tauri::command]
 #[specta::specta]

@@ -27,6 +27,7 @@ import { debounce, type Scheduled } from "@solid-primitives/scheduled";
 import _ from "lodash";
 import {
   type Accessor,
+  batch,
   createEffect,
   createMemo,
   createSignal,
@@ -34,6 +35,8 @@ import {
   onCleanup,
   onMount,
 } from "solid-js";
+
+import { unwrap } from "solid-js/store";
 
 import { createPitchScale } from "./pitchScale";
 
@@ -52,6 +55,7 @@ export function useTuningPanel(
   waveformSynthesisNotice: Accessor<WaveformSynthesisNotice | null>,
 ) {
   const {
+    textStore,
     setTextStore,
     markQueryModified,
     projectPresetStore,
@@ -473,20 +477,92 @@ export function useTuningPanel(
     );
     markQueryModified(index);
   };
+  let pitchCompletionRevision = 0;
+  const completePitch = debounce(
+    async (index: number, i: number, j: number) => {
+      const block = textStore[index];
+      const preset = currentPreset();
+      if (!block?.query?.accent_phrases[i]?.moras[j] || preset === null) return;
+      const styleId = preset.style_id;
+      const phrases = structuredClone(unwrap(block.query.accent_phrases));
+      const prefix = phrases
+        .slice(0, i)
+        .flatMap((phrase) => [
+          ...phrase.moras.map((mora) => mora.pitch),
+          ...(phrase.pause_mora === null ? [] : [phrase.pause_mora.pitch]),
+        ]);
+      prefix.push(
+        ...phrases[i].moras.slice(0, j + 1).map((mora) => mora.pitch),
+      );
+      const seed = block.pitch_noise_seed;
+      const blockId = block.id;
+      const revision = pitchCompletionRevision;
+      try {
+        const result = await commands.completeMoraPitch(
+          phrases,
+          styleId,
+          prefix,
+          seed,
+        );
+        const current = textStore[index];
+        if (
+          !mounted ||
+          revision !== pitchCompletionRevision ||
+          current?.id !== blockId ||
+          !current.query_is_modified ||
+          currentPreset()?.style_id !== styleId ||
+          JSON.stringify(current.query?.accent_phrases) !==
+            JSON.stringify(phrases)
+        )
+          return;
+        if (result.status === "error") {
+          console.error("Failed to complete pitch:", result.error);
+          return;
+        }
+        setTextStore(index, "query", "accent_phrases", result.data);
+      } catch (error) {
+        if (mounted && revision === pitchCompletionRevision)
+          console.error("Failed to complete pitch:", error);
+      }
+    },
+    100,
+  );
+  createEffect(
+    on(
+      () => [
+        currentText()?.id,
+        currentPreset()?.style_id,
+        currentText()?.pitch_noise_seed,
+        config.ui.pitch_completion_enabled,
+        config.ui.pitch_noise_enabled,
+        config.ui.pitch_noise_sigma,
+      ],
+      () => {
+        ++pitchCompletionRevision;
+        completePitch.clear();
+      },
+      { defer: true },
+    ),
+  );
   const setPitch = (i: number, j: number, value: number) => {
     const index = selectedIdx();
     if (index === null) return;
-    setTextStore(
-      index,
-      "query",
-      "accent_phrases",
-      i,
-      "moras",
-      j,
-      "pitch",
-      value,
-    );
-    markQueryModified(index);
+    ++pitchCompletionRevision;
+    completePitch.clear();
+    batch(() => {
+      setTextStore(
+        index,
+        "query",
+        "accent_phrases",
+        i,
+        "moras",
+        j,
+        "pitch",
+        value,
+      );
+      markQueryModified(index);
+    });
+    if (config.ui.pitch_completion_enabled) completePitch(index, i, j);
   };
 
   const handleDragFinish = () => {
@@ -531,6 +607,7 @@ export function useTuningPanel(
   });
   onCleanup(() => {
     mounted = false;
+    completePitch.clear();
     clearScheduledSpectrogramRefresh();
     cancelSpectrogramRequest(activeSpectrogramRequest);
     activeSpectrogramRequest = null;

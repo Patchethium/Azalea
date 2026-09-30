@@ -61,6 +61,56 @@ fn decode_wav(wav: &[u8]) -> (WavSpec, Vec<i16>) {
 }
 
 #[test]
+fn real_core_pitch_completion_preserves_prefix_and_changes_suffix() {
+  let core = test_core();
+  let style_id = first_talk_style_id(&core);
+  let mut query = core.audio_query(TEST_TEXT, style_id).unwrap();
+  let original = query.accent_phrases.clone();
+  let options = PitchNoiseOptions {
+    sigma: 0.05,
+    seed: 42,
+  };
+  let noisy = core
+    .complete_mora_pitch(original.clone(), style_id, &[], options)
+    .unwrap();
+  let original_pitches = pitches(&noisy);
+  let mut prefix = original_pitches[..3].to_vec();
+  let edited = prefix.iter().rposition(|p| *p > 0.0).unwrap();
+  prefix[edited] += 0.3;
+  let completed = core
+    .complete_mora_pitch(original.clone(), style_id, &prefix, options)
+    .unwrap();
+  assert_eq!(&pitches(&completed)[..prefix.len()], prefix.as_slice());
+  assert!(pitches(&completed)[prefix.len()..]
+    .iter()
+    .zip(&original_pitches[prefix.len()..])
+    .any(|(a, b)| (a - b).abs() > 1e-6));
+  assert_eq!(
+    completed,
+    core
+      .complete_mora_pitch(original.clone(), style_id, &prefix, options)
+      .unwrap()
+  );
+  let mut restored = completed.clone();
+  for (new, old) in restored.iter_mut().zip(&original) {
+    for (new, old) in new
+      .moras
+      .iter_mut()
+      .chain(new.pause_mora.iter_mut())
+      .zip(old.moras.iter().chain(old.pause_mora.iter()))
+    {
+      if old.pitch == 0.0 {
+        assert_eq!(new.pitch, 0.0);
+      }
+      new.pitch = old.pitch;
+    }
+  }
+  assert_eq!(restored, original);
+  query.accent_phrases = completed;
+  assert!(!core.synthesis(&query, style_id).unwrap().is_empty());
+}
+
+#[test]
 fn real_core_pitch_noise_is_seeded_and_preserves_non_pitch_fields() {
   let core = test_core();
   let style_id = first_talk_style_id(&core);

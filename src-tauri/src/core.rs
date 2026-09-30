@@ -270,6 +270,21 @@ impl Core {
     }
   }
 
+  /// Complete the pitch suffix from a fixed mora pitch prefix.
+  pub fn complete_mora_pitch(
+    &self,
+    ap: Vec<AccentPhrase>,
+    style_id: StyleId,
+    pitch_prefix: &[f32],
+    options: voicevox_core::PitchNoiseOptions,
+  ) -> Result<Vec<AccentPhrase>> {
+    Ok(
+      self
+        .synthesizer
+        .complete_mora_pitch(&ap, style_id, pitch_prefix, options)?,
+    )
+  }
+
   /// same as `replace_mora` but only replaces length
   pub fn replace_mora_duration(
     &self,

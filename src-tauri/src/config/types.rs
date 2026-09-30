@@ -104,6 +104,8 @@ pub struct UIConfig {
   pub nonblocking_synthesis: bool,
   #[serde(default)]
   pub pitch_noise_enabled: bool,
+  #[serde(default)]
+  pub pitch_completion_enabled: bool,
   #[serde(
     default = "pitch_noise_sigma_default",
     deserialize_with = "deserialize_pitch_noise_sigma"
@@ -151,6 +153,7 @@ impl Default for UIConfig {
       buffer_render: buffer_render_default(),
       nonblocking_synthesis: false,
       pitch_noise_enabled: false,
+      pitch_completion_enabled: false,
       pitch_noise_sigma: pitch_noise_sigma_default(),
       synthesis_delay_ms: synthesis_delay_ms_default(),
       spectrogram_preview: spectrogram_preview_default(),
@@ -395,6 +398,7 @@ mod tests {
     assert_eq!(config.synthesis_delay_ms, 600);
     assert!(!config.nonblocking_synthesis);
     assert!(!config.pitch_noise_enabled);
+    assert!(!config.pitch_completion_enabled);
     assert_eq!(config.pitch_noise_sigma, 0.05);
     assert!(config.pitch_noise_options(42).is_none());
     assert!(!config.embedded_font);

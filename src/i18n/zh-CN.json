@@ -163,6 +163,8 @@
     "clearing_assets_cache": "正在清除…",
     "assets_cache_error": "无法读取或清除资源缓存。",
     "pitch_noise_enabled": "带噪音高生成",
+    "pitch_completion_enabled": "音高补全",
+    "pitch_completion_description": "编辑音高后，保留截至该音拍的所有音高，并重新生成后续音高。启用噪声时使用文本块的种子和配置的强度。",
     "pitch_noise_sigma": "噪声强度（sigma）",
     "pitch_noise_seed": "噪声种子",
     "pitch_noise_description": "在生成或重置音高时生效。sigma 为 0 时不添加噪声。每个文本块会随机分配一个种子，并保存在项目中，可在音高调整面板中编辑。保留已有的音高编辑。",

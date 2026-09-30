@@ -2994,3 +2994,259 @@ describe("BottomPanel playback", () => {
     expect(stop).not.toHaveBeenCalled();
   });
 });
+
+describe("Pitch completion", () => {
+  it("shares the toolbar switch with config without regenerating on toggles", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const complete = vi.spyOn(commands, "completeMoraPitch");
+    const { getConfigStore } = renderPanel({ spectrogram_preview: false });
+    expect(
+      screen.queryByRole("switch", { name: "Pitch completion" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    const toggle = screen.getByRole("switch", { name: "Pitch completion" });
+    expect(toggle).not.toBeChecked();
+    fireEvent.click(toggle);
+    expect(getConfigStore().config.ui.pitch_completion_enabled).toBe(true);
+    getConfigStore().setConfig("ui", "pitch_completion_enabled", false);
+    expect(toggle).not.toBeChecked();
+    expect(complete).not.toHaveBeenCalled();
+  });
+
+  it("debounces edits, sends the prefix including pauses, and replaces the suffix", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const complete = vi
+      .spyOn(commands, "completeMoraPitch")
+      .mockImplementation(async (phrases) => {
+        const data = structuredClone(phrases);
+        data[1].moras[1].pitch = 5.9;
+        return { status: "ok", data };
+      });
+    const { getPanel, getTextStore } = renderTuningHook({
+      spectrogram_preview: false,
+      pitch_completion_enabled: true,
+    });
+    const text = getTextStore();
+    const query = audioQuery({
+      accent_phrases: [
+        {
+          moras: [
+            { ...mora },
+            {
+              ...mora,
+              consonant: null,
+              consonant_length: null,
+              vowel: "U",
+              pitch: 0,
+            },
+          ],
+          accent: 1,
+          pause_mora: {
+            ...mora,
+            consonant: null,
+            consonant_length: null,
+            vowel: "pau",
+            pitch: 0,
+          },
+          is_interrogative: false,
+        },
+        {
+          moras: [
+            { ...mora, pitch: 5.1 },
+            { ...mora, pitch: 5.3 },
+          ],
+          accent: 2,
+          pause_mora: null,
+          is_interrogative: false,
+        },
+      ],
+    });
+    text.setTextStore(0, "query", query);
+    text.setTextStore(0, "pitch_noise_seed", 42);
+    vi.useFakeTimers();
+    getPanel().setPitch(1, 0, 5.55);
+    getPanel().setPitch(1, 0, 5.6);
+    expect(text.textStore[0].query_is_modified).toBe(true);
+    expect(complete).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(complete).toHaveBeenCalledOnce();
+    expect(complete).toHaveBeenCalledWith(
+      expect.any(Array),
+      1,
+      [5.4, 0, 0, 5.6],
+      42,
+    );
+    expect(
+      text.textStore[0].query?.accent_phrases[1].moras.map((m) => m.pitch),
+    ).toEqual([5.6, 5.9]);
+    const actual = structuredClone(complete.mock.calls[0][0]);
+    actual[1].moras[0].pitch = 5.1;
+    expect(actual).toEqual(query.accent_phrases);
+  });
+
+  it("ignores earlier responses after another pitch edit", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    type Result = Awaited<ReturnType<typeof commands.completeMoraPitch>>;
+    const resolves: ((result: Result) => void)[] = [];
+    const complete = vi
+      .spyOn(commands, "completeMoraPitch")
+      .mockImplementation(
+        () => new Promise((resolve) => resolves.push(resolve)),
+      );
+    const { getPanel, getTextStore } = renderTuningHook({
+      spectrogram_preview: false,
+      pitch_completion_enabled: true,
+    });
+    vi.useFakeTimers();
+    getPanel().setPitch(0, 0, 5.6);
+    await vi.advanceTimersByTimeAsync(100);
+    getPanel().setPitch(0, 0, 5.7);
+    await vi.advanceTimersByTimeAsync(100);
+    resolves[1]({ status: "ok", data: complete.mock.calls[1][0] });
+    await Promise.resolve();
+    resolves[0]({ status: "ok", data: complete.mock.calls[0][0] });
+    await Promise.resolve();
+    expect(
+      getTextStore().textStore[0].query?.accent_phrases[0].moras[0].pitch,
+    ).toBe(5.7);
+  });
+
+  it.each([
+    "reset",
+    "duration",
+    "accent",
+    "seed",
+    "sigma",
+    "noise",
+    "toggle",
+    "style",
+    "block",
+    "deleted",
+    "unmount",
+  ])("discards an in-flight completion after %s changes", async (change) => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    type Result = Awaited<ReturnType<typeof commands.completeMoraPitch>>;
+    let resolve!: (result: Result) => void;
+    const complete = vi.spyOn(commands, "completeMoraPitch").mockReturnValue(
+      new Promise((r) => {
+        resolve = r;
+      }),
+    );
+    const { getPanel, getTextStore, getConfigStore, unmount } =
+      renderTuningHook({
+        spectrogram_preview: false,
+        pitch_completion_enabled: true,
+      });
+    const text = getTextStore();
+    vi.useFakeTimers();
+    getPanel().setPitch(0, 0, 5.6);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(complete).toHaveBeenCalledOnce();
+    const modified = structuredClone(complete.mock.calls[0][0]);
+    modified[0].moras[0].pitch = 6;
+    if (change === "reset") text.resetQueryEdits(0);
+    if (change === "duration")
+      text.setTextStore(
+        0,
+        "query",
+        "accent_phrases",
+        0,
+        "moras",
+        0,
+        "vowel_length",
+        0.5,
+      );
+    if (change === "accent")
+      text.setTextStore(
+        0,
+        "query",
+        "accent_phrases",
+        0,
+        "is_interrogative",
+        true,
+      );
+    if (change === "seed") text.setTextStore(0, "pitch_noise_seed", 42);
+    if (change === "sigma")
+      getConfigStore().setConfig("ui", "pitch_noise_sigma", 0.1);
+    if (change === "noise")
+      getConfigStore().setConfig("ui", "pitch_noise_enabled", true);
+    if (change === "toggle")
+      getConfigStore().setConfig("ui", "pitch_completion_enabled", false);
+    if (change === "style")
+      text.setProjectPresetStore(
+        0,
+        preset({ style_id: 2, style_name: "Happy" }),
+      );
+    if (change === "block") text.setTextStore(0, "id", "replacement-block");
+    if (change === "deleted") text.setTextStore([]);
+    if (change === "unmount") unmount();
+    resolve({ status: "ok", data: modified });
+    await Promise.resolve();
+    expect(text.textStore[0]?.query?.accent_phrases[0].moras[0].pitch).not.toBe(
+      6,
+    );
+    if (change === "duration")
+      expect(
+        text.textStore[0].query?.accent_phrases[0].moras[0].vowel_length,
+      ).toBe(0.5);
+  });
+
+  it("keeps the direct edit on failures and cleans up queued work", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const complete = vi
+      .spyOn(commands, "completeMoraPitch")
+      .mockResolvedValueOnce({ status: "error", error: "prediction failed" })
+      .mockRejectedValueOnce(new Error("IPC failed"));
+    const { getPanel, getTextStore, unmount } = renderTuningHook({
+      spectrogram_preview: false,
+      pitch_completion_enabled: true,
+    });
+    vi.useFakeTimers();
+    getPanel().setPitch(0, 0, 5.6);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(console.error).toHaveBeenCalledWith(
+      "Failed to complete pitch:",
+      "prediction failed",
+    );
+    getPanel().setPitch(0, 0, 5.7);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(console.error).toHaveBeenCalledWith(
+      "Failed to complete pitch:",
+      expect.any(Error),
+    );
+    expect(
+      getTextStore().textStore[0].query?.accent_phrases[0].moras[0].pitch,
+    ).toBe(5.7);
+    getPanel().setPitch(0, 0, 5.8);
+    unmount();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(complete).toHaveBeenCalledTimes(2);
+  });
+
+  it("drops queued work when the query is reset before prediction starts", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const complete = vi.spyOn(commands, "completeMoraPitch");
+    const { getPanel, getTextStore } = renderTuningHook({
+      spectrogram_preview: false,
+      pitch_completion_enabled: true,
+    });
+    vi.useFakeTimers();
+    getPanel().setPitch(0, 0, 5.6);
+    getTextStore().resetQueryEdits(0);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(complete).not.toHaveBeenCalled();
+  });
+});

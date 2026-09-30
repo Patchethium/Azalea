@@ -256,6 +256,29 @@ export function ConfigPage() {
           <p class="px2 pt2 text-sm text-slate-5 dark:text-slate-4">
             {t1("config.pitch_noise_description")}
           </p>
+          <ConfigItem
+            label={t1("config.pitch_completion_enabled")}
+            experimental
+          >
+            <Switch
+              checked={config.ui.pitch_completion_enabled ?? false}
+              onChange={(value) =>
+                setConfig("ui", "pitch_completion_enabled", value)
+              }
+              class="inline-flex items-center select-none cursor-pointer justify-center"
+            >
+              <Switch.Input
+                aria-label={t1("config.pitch_completion_enabled")}
+                class="outline-2px"
+              />
+              <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:bg-primary-5 dark:ui-checked:bg-primary-5">
+                <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:translate-x-6" />
+              </Switch.Control>
+            </Switch>
+          </ConfigItem>
+          <p class="px2 pt2 text-sm text-slate-5 dark:text-slate-4">
+            {t1("config.pitch_completion_description")}
+          </p>
           <ConfigItem label={t1("config.background_buffering")} experimental>
             <Switch
               checked={config.ui.buffer_render}

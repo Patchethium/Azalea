@@ -2,6 +2,7 @@ import { Tooltip } from "@components/tooltip";
 import { useConfigStore } from "@contexts/config";
 import { useTextStore } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
+import { Switch } from "@kobalte/core/switch";
 import { NumberField } from "@kobalte/core/number-field";
 import { PlaybackTimeline } from "@layout/bottomPanel/PlaybackTimeline";
 import type { WaveformSynthesisNotice } from "@layout/bottomPanel/types";
@@ -37,7 +38,7 @@ export function ControlBar(props: {
   onWaveformSynthesized: (notice: WaveformSynthesisNotice) => void;
 }) {
   const { t1 } = usei18n()!;
-  const { config, playbackTimelineEnabled } = useConfigStore()!;
+  const { config, setConfig, playbackTimelineEnabled } = useConfigStore()!;
   const { selectedTextBlock, selectedTextBlockIndex, setTextStore } =
     useTextStore()!;
   const { uiStore } = useUIStore()!;
@@ -81,6 +82,27 @@ export function ControlBar(props: {
           disabled={!controls.nextExists()}
         />
         <div class="flex flex-1 items-center justify-end">
+          <Show when={uiStore.bottomPanel === "tuning"}>
+            <Tooltip content={t1("config.pitch_completion_description")}>
+              <Switch
+                checked={config.ui.pitch_completion_enabled ?? false}
+                onChange={(value) =>
+                  setConfig("ui", "pitch_completion_enabled", value)
+                }
+                class="mr2 inline-flex items-center gap1 select-none cursor-pointer text-xs"
+              >
+                <Switch.Input
+                  aria-label={t1("config.pitch_completion_enabled")}
+                />
+                <Switch.Label>
+                  {t1("config.pitch_completion_enabled")}
+                </Switch.Label>
+                <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-8 h-4 p-0.5 ui-checked:bg-primary-5 dark:ui-checked:bg-primary-5">
+                  <Switch.Thumb class="size-3 rounded-full bg-white transition-transform transition-duration-200 ui-checked:translate-x-4" />
+                </Switch.Control>
+              </Switch>
+            </Tooltip>
+          </Show>
           <Show
             when={
               config.ui.pitch_noise_enabled && uiStore.bottomPanel === "tuning"

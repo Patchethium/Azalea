@@ -63,6 +63,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
       accent_phrases,
       replace_mora,
       replace_mora_pitch,
+      complete_mora_pitch,
       replace_mora_duration,
       synthesize,
       synthesize_nonblocking,
