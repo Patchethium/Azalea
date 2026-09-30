@@ -2622,6 +2622,48 @@ describe("BottomPanel playback", () => {
     expect(
       screen.queryByRole("spinbutton", { name: "Noise seed" }),
     ).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    expect(getConfigStore().config.ui.pitch_noise_enabled).toBe(true);
+    await waitFor(() =>
+      expect(getUiStore().uiStore.bottomPanel).toBe("tuning"),
+    );
+    const seed = await screen.findByRole("spinbutton", { name: "Noise seed" });
+    const regenerate = screen.getByRole("button", {
+      name: "Regenerate noise seed",
+    });
+    const seedField = seed.parentElement!;
+    expect(seedField.previousElementSibling).toContainElement(regenerate);
+    expect(seedField.nextElementSibling).toContainElement(
+      screen.getByRole("button", { name: "Reset pitch and duration edits" }),
+    );
+    expect(seed).toHaveValue("0");
+    expect(seed).toBeEnabled();
+    expect(regenerate).toBeEnabled();
+    text.markProjectSaved();
+    fireEvent.input(seed, { target: { value: "4294967295" } });
+    expect(text.textStore[0].pitch_noise_seed).toBe(4294967295);
+    expect(text.isProjectDirty()).toBe(true);
+    expect(text.textStore[0].query?.accent_phrases[0].moras[0].pitch).toBe(5.4);
+    fireEvent.input(seed, { target: { value: "42.5" } });
+    expect(text.textStore[0].pitch_noise_seed).toBe(4294967295);
+    fireEvent.input(seed, { target: { value: "42" } });
+    expect(text.textStore[0].pitch_noise_seed).toBe(42);
+    const random = vi
+      .spyOn(Math, "random")
+      .mockReturnValueOnce(0.5)
+      .mockReturnValueOnce(0.5)
+      .mockReturnValueOnce(1 - Number.EPSILON)
+      .mockReturnValueOnce(1 - Number.EPSILON);
+    for (const expected of [2147483648, 2147483649, 4294967295, 0]) {
+      fireEvent.click(regenerate);
+      expect(text.textStore[0].pitch_noise_seed).toBe(expected);
+      expect(text.textStore[0].query?.accent_phrases[0].moras[0].pitch).toBe(
+        5.4,
+      );
+      expect(text.textStore[1].pitch_noise_seed).toBe(0);
+    }
+    random.mockRestore();
+    fireEvent.input(seed, { target: { value: "42" } });
     text.setTextStore(
       0,
       "query",
@@ -2633,28 +2675,23 @@ describe("BottomPanel playback", () => {
       5.9,
     );
     text.markQueryModified(0);
-    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-    expect(getConfigStore().config.ui.pitch_noise_enabled).toBe(true);
-    await waitFor(() =>
-      expect(getUiStore().uiStore.bottomPanel).toBe("tuning"),
-    );
-    const seed = await screen.findByRole("spinbutton", { name: "Noise seed" });
-    expect(seed).toHaveValue("0");
-    text.markProjectSaved();
-    fireEvent.input(seed, { target: { value: "4294967295" } });
-    expect(text.textStore[0].pitch_noise_seed).toBe(4294967295);
-    expect(text.isProjectDirty()).toBe(true);
-    expect(text.textStore[0].query?.accent_phrases[0].moras[0].pitch).toBe(5.9);
-    fireEvent.input(seed, { target: { value: "42.5" } });
-    expect(text.textStore[0].pitch_noise_seed).toBe(4294967295);
-    fireEvent.input(seed, { target: { value: "42" } });
+    expect(seed).toBeDisabled();
+    expect(regenerate).toBeDisabled();
+    expect(seedField).toHaveAttribute("data-disabled");
+    await userEvent.click(regenerate);
+    await userEvent.type(seed, "99");
     expect(text.textStore[0].pitch_noise_seed).toBe(42);
+    expect(text.textStore[0].query?.accent_phrases[0].moras[0].pitch).toBe(5.9);
     getUiStore().setUIStore("selectedTextBlockIndex", 1);
     expect(screen.getByRole("spinbutton", { name: "Noise seed" })).toHaveValue(
       "0",
     );
+    expect(seed).toBeEnabled();
+    expect(regenerate).toBeEnabled();
     expect(text.textStore[0].pitch_noise_seed).toBe(42);
     getUiStore().setUIStore("selectedTextBlockIndex", 0);
+    expect(seed).toBeDisabled();
+    expect(regenerate).toBeDisabled();
     const reset = await screen.findByRole("button", {
       name: "Reset pitch and duration edits",
     });
@@ -2667,9 +2704,18 @@ describe("BottomPanel playback", () => {
       ),
     );
     expect(text.textStore[0].query_is_modified).toBe(true);
+    expect(seed).toBeDisabled();
+    expect(regenerate).toBeDisabled();
+    text.resetQueryEdits(0);
+    expect(seed).toBeEnabled();
+    expect(regenerate).toBeEnabled();
+    expect(seedField).not.toHaveAttribute("data-disabled");
     getConfigStore().setConfig("ui", "pitch_noise_enabled", false);
     expect(
       screen.queryByRole("spinbutton", { name: "Noise seed" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Regenerate noise seed" }),
     ).not.toBeInTheDocument();
   });
 

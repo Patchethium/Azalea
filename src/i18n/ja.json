@@ -15,6 +15,7 @@
     "audio_exported": "音声を書き出しました"
   },
   "bottom": {
+    "regenerate_pitch_noise_seed": "ノイズのシードを再生成",
     "no_query": "テキストを入力してください",
     "no_block": "テキストセルが選択されていません",
     "accent": "アクセント",

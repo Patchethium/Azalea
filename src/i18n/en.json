@@ -15,6 +15,7 @@
     "audio_exported": "Audio exported successfully"
   },
   "bottom": {
+    "regenerate_pitch_noise_seed": "Regenerate noise seed",
     "no_query": "No Query",
     "no_block": "No text cell selected",
     "accent": "Accent",

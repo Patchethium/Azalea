@@ -3,7 +3,13 @@ import { DEFAULT_PRIMARY_COLOR } from "$constants";
 import { ConfigPage } from "@dialogs/config";
 import { AssetCacheSetting } from "@dialogs/config/AssetCacheSetting";
 import { MultiProvider } from "@solid-primitives/context";
-import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@solidjs/testing-library";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import userEvent from "@testing-library/user-event";
 import { batch, type Component, createSignal, onMount, Show } from "solid-js";
@@ -66,7 +72,7 @@ describe("ConfigPage", () => {
     ).toBeInTheDocument();
     expect(
       screen.getAllByRole("button", { name: "Experimental Features" }),
-    ).toHaveLength(2);
+    ).toHaveLength(3);
     expect(
       screen.queryByRole("switch", { name: "Non-blocking synthesis" }),
     ).not.toBeInTheDocument();
@@ -101,7 +107,7 @@ describe("ConfigPage", () => {
     expect(appConfig.config.ui.buffer_render).toBe(true);
     expect(
       screen.getAllByRole("button", { name: "Experimental Features" }),
-    ).toHaveLength(3);
+    ).toHaveLength(4);
 
     const nonblocking = screen.getByRole("switch", {
       name: "Non-blocking synthesis",
@@ -143,10 +149,22 @@ describe("ConfigPage", () => {
     fireEvent.click(ruler);
     expect(appConfig.pitchRulerEnabled()).toBe(true);
 
-    expect(screen.getByText("Experimental Features")).toBeInTheDocument();
     const noise = screen.getByRole("switch", {
       name: "Noised pitch generation",
     });
+    const noiseItem = noise.closest("div.cursor-default")! as HTMLElement;
+    expect(
+      within(noiseItem).getByRole("button", { name: "Experimental Features" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Synthesis").compareDocumentPosition(noiseItem) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      noiseItem.compareDocumentPosition(buffering) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.queryByText("Experimental Features")).not.toBeInTheDocument();
     const sigma = screen.getByRole("spinbutton", {
       name: "Noise strength (sigma)",
     });

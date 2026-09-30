@@ -213,6 +213,49 @@ export function ConfigPage() {
           <ConfigItem label={t1("config.cpu_num_threads")}>
             <CPUThreadSetting />
           </ConfigItem>
+          <ConfigItem label={t1("config.pitch_noise_enabled")} experimental>
+            <Switch
+              checked={config.ui.pitch_noise_enabled ?? false}
+              onChange={(value) =>
+                setConfig("ui", "pitch_noise_enabled", value)
+              }
+              class="inline-flex items-center select-none cursor-pointer justify-center"
+            >
+              <Switch.Input
+                aria-label={t1("config.pitch_noise_enabled")}
+                class="outline-2px"
+              />
+              <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
+                <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
+              </Switch.Control>
+            </Switch>
+          </ConfigItem>
+          <ConfigItem label={t1("config.pitch_noise_sigma")} nested>
+            <NumberField
+              minValue={0}
+              step={0.01}
+              value={config.ui.pitch_noise_sigma ?? DEFAULT_PITCH_NOISE_SIGMA}
+              disabled={!config.ui.pitch_noise_enabled}
+              onRawValueChange={(value) => {
+                if (
+                  Number.isFinite(value) &&
+                  value >= 0 &&
+                  Number.isFinite(Math.fround(value))
+                ) {
+                  setConfig("ui", "pitch_noise_sigma", value);
+                }
+              }}
+              format={false}
+            >
+              <NumberField.Input
+                aria-label={t1("config.pitch_noise_sigma")}
+                class="h-8 w-24 rounded-lg b b-slate-2 px-1 outline-none focus:b-primary-3 dark:(b-slate-6 bg-slate-8) disabled:opacity-50"
+              />
+            </NumberField>
+          </ConfigItem>
+          <p class="px2 pt2 text-sm text-slate-5 dark:text-slate-4">
+            {t1("config.pitch_noise_description")}
+          </p>
           <ConfigItem label={t1("config.background_buffering")} experimental>
             <Switch
               checked={config.ui.buffer_render}
@@ -267,50 +310,6 @@ export function ConfigPage() {
               </Switch.Control>
             </Switch>
           </ConfigItem>
-          <ConfigSectionTitle label={t1("config.experimental")} />
-          <ConfigItem label={t1("config.pitch_noise_enabled")}>
-            <Switch
-              checked={config.ui.pitch_noise_enabled ?? false}
-              onChange={(value) =>
-                setConfig("ui", "pitch_noise_enabled", value)
-              }
-              class="inline-flex items-center select-none cursor-pointer justify-center"
-            >
-              <Switch.Input
-                aria-label={t1("config.pitch_noise_enabled")}
-                class="outline-2px"
-              />
-              <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
-                <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
-              </Switch.Control>
-            </Switch>
-          </ConfigItem>
-          <ConfigItem label={t1("config.pitch_noise_sigma")} nested>
-            <NumberField
-              minValue={0}
-              step={0.01}
-              value={config.ui.pitch_noise_sigma ?? DEFAULT_PITCH_NOISE_SIGMA}
-              disabled={!config.ui.pitch_noise_enabled}
-              onRawValueChange={(value) => {
-                if (
-                  Number.isFinite(value) &&
-                  value >= 0 &&
-                  Number.isFinite(Math.fround(value))
-                ) {
-                  setConfig("ui", "pitch_noise_sigma", value);
-                }
-              }}
-              format={false}
-            >
-              <NumberField.Input
-                aria-label={t1("config.pitch_noise_sigma")}
-                class="h-8 w-24 rounded-lg b b-slate-2 px-1 outline-none focus:b-primary-3 dark:(b-slate-6 bg-slate-8) disabled:opacity-50"
-              />
-            </NumberField>
-          </ConfigItem>
-          <p class="px2 pt2 text-sm text-slate-5 dark:text-slate-4">
-            {t1("config.pitch_noise_description")}
-          </p>
         </div>
         <div class="flex justify-end b-t b-slate-2 px3 py2 dark:b-slate-6">
           <Button

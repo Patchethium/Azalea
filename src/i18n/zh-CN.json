@@ -15,6 +15,7 @@
     "audio_exported": "音频导出成功"
   },
   "bottom": {
+    "regenerate_pitch_noise_seed": "重新生成噪声种子",
     "no_query": "尚无查询",
     "no_block": "未选择文本单元格",
     "accent": "重音",

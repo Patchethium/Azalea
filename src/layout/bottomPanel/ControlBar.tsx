@@ -81,6 +81,50 @@ export function ControlBar(props: {
           disabled={!controls.nextExists()}
         />
         <div class="flex flex-1 items-center justify-end">
+          <Show
+            when={
+              config.ui.pitch_noise_enabled && uiStore.bottomPanel === "tuning"
+            }
+          >
+            <ToolbarButton
+              icon="i-lucide:dices"
+              label={t1("bottom.regenerate_pitch_noise_seed")}
+              disabled={selectedTextBlock()?.query_is_modified}
+              onClick={() => {
+                const seed = Math.floor(Math.random() * 2 ** 32);
+                setTextStore(
+                  selectedTextBlockIndex(),
+                  "pitch_noise_seed",
+                  seed === selectedTextBlock()?.pitch_noise_seed
+                    ? (seed + 1) % 2 ** 32
+                    : seed,
+                );
+              }}
+            />
+            <NumberField
+              minValue={0}
+              maxValue={4294967295}
+              step={1}
+              value={selectedTextBlock()?.pitch_noise_seed}
+              disabled={selectedTextBlock()?.query_is_modified}
+              onRawValueChange={(seed) => {
+                if (Number.isInteger(seed) && seed >= 0 && seed <= 4294967295) {
+                  setTextStore(
+                    selectedTextBlockIndex(),
+                    "pitch_noise_seed",
+                    seed,
+                  );
+                }
+              }}
+              format={false}
+              class="mr1 flex items-center gap1 text-xs ui-disabled:(cursor-not-allowed opacity-50)"
+            >
+              <NumberField.Label>
+                {t1("config.pitch_noise_seed")}
+              </NumberField.Label>
+              <NumberField.Input class="h-6 w-24 rounded b b-slate-2 px1 outline-none focus:b-primary-3 dark:(b-slate-6 bg-slate-8)" />
+            </NumberField>
+          </Show>
           <ToolbarButton
             icon="i-lucide:rotate-ccw"
             label={resetLabel()}
@@ -95,26 +139,6 @@ export function ControlBar(props: {
           />
         </div>
       </div>
-      <Show
-        when={config.ui.pitch_noise_enabled && uiStore.bottomPanel === "tuning"}
-      >
-        <NumberField
-          minValue={0}
-          maxValue={4294967295}
-          step={1}
-          value={selectedTextBlock()?.pitch_noise_seed}
-          onRawValueChange={(seed) => {
-            if (Number.isInteger(seed) && seed >= 0 && seed <= 4294967295) {
-              setTextStore(selectedTextBlockIndex(), "pitch_noise_seed", seed);
-            }
-          }}
-          format={false}
-          class="flex items-center justify-end gap2 px2 py1 text-sm"
-        >
-          <NumberField.Label>{t1("config.pitch_noise_seed")}</NumberField.Label>
-          <NumberField.Input class="h-6 w-28 rounded b b-slate-2 px1 outline-none focus:b-primary-3 dark:(b-slate-6 bg-slate-8)" />
-        </NumberField>
-      </Show>
       <Show when={playbackTimelineEnabled()}>
         <PlaybackTimeline
           phrases={controls.playbackPhrases()}
