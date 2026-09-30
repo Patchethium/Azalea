@@ -214,7 +214,11 @@ export function ConfigPage() {
           <ConfigItem label={t1("config.cpu_num_threads")}>
             <CPUThreadSetting />
           </ConfigItem>
-          <ConfigItem label={t1("config.pitch_noise_enabled")} experimental>
+          <ConfigItem
+            label={t1("config.pitch_noise_enabled")}
+            description={t1("config.pitch_noise_description")}
+            experimental
+          >
             <Switch
               checked={config.ui.pitch_noise_enabled ?? false}
               onChange={(value) =>
@@ -232,27 +236,51 @@ export function ConfigPage() {
             </Switch>
           </ConfigItem>
           <ConfigItem label={t1("config.pitch_noise_sigma")} nested>
-            <div class="w-28">
-              <NumberInput
-                label={t1("config.pitch_noise_sigma")}
-                hideLabel
-                decimal
-                disabled={!config.ui.pitch_noise_enabled}
-                value={config.ui.pitch_noise_sigma ?? DEFAULT_PITCH_NOISE_SIGMA}
-                setValue={(value) =>
-                  setConfig("ui", "pitch_noise_sigma", value)
+            <div class="flex items-center gap1">
+              <Show
+                when={
+                  (config.ui.pitch_noise_sigma ?? DEFAULT_PITCH_NOISE_SIGMA) !==
+                  DEFAULT_PITCH_NOISE_SIGMA
                 }
-                min={0}
-                max={0.5}
-                step={0.01}
-              />
+              >
+                <button
+                  type="button"
+                  title={t1("config.reset_pitch_noise_sigma")}
+                  aria-label={t1("config.reset_pitch_noise_sigma")}
+                  onClick={() =>
+                    setConfig(
+                      "ui",
+                      "pitch_noise_sigma",
+                      DEFAULT_PITCH_NOISE_SIGMA,
+                    )
+                  }
+                  class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) dark:hover:bg-slate-7"
+                >
+                  <div class="i-lucide:rotate-ccw size-4" />
+                </button>
+              </Show>
+              <div class="w-28">
+                <NumberInput
+                  label={t1("config.pitch_noise_sigma")}
+                  hideLabel
+                  decimal
+                  disabled={!config.ui.pitch_noise_enabled}
+                  value={
+                    config.ui.pitch_noise_sigma ?? DEFAULT_PITCH_NOISE_SIGMA
+                  }
+                  setValue={(value) =>
+                    setConfig("ui", "pitch_noise_sigma", value)
+                  }
+                  min={0}
+                  max={0.5}
+                  step={0.01}
+                />
+              </div>
             </div>
           </ConfigItem>
-          <p class="px2 pt2 text-sm text-slate-5 dark:text-slate-4">
-            {t1("config.pitch_noise_description")}
-          </p>
           <ConfigItem
             label={t1("config.pitch_completion_enabled")}
+            description={t1("config.pitch_completion_description")}
             experimental
           >
             <Switch
@@ -271,9 +299,6 @@ export function ConfigPage() {
               </Switch.Control>
             </Switch>
           </ConfigItem>
-          <p class="px2 pt2 text-sm text-slate-5 dark:text-slate-4">
-            {t1("config.pitch_completion_description")}
-          </p>
           <ConfigItem label={t1("config.background_buffering")} experimental>
             <Switch
               checked={config.ui.buffer_render}

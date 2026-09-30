@@ -1,5 +1,5 @@
 import { commands } from "$binding";
-import { DEFAULT_PRIMARY_COLOR } from "$constants";
+import { DEFAULT_PRIMARY_COLOR, DEFAULT_PITCH_NOISE_SIGMA } from "$constants";
 import { ConfigPage } from "@dialogs/config";
 import { AssetCacheSetting } from "@dialogs/config/AssetCacheSetting";
 import { MultiProvider } from "@solid-primitives/context";
@@ -177,8 +177,24 @@ describe("ConfigPage", () => {
     fireEvent.click(noise);
     expect(appConfig.config.ui.pitch_noise_enabled).toBe(true);
     expect(sigma).toBeEnabled();
+    expect(
+      screen.queryByRole("button", {
+        name: "Restore default noise strength",
+      }),
+    ).not.toBeInTheDocument();
     fireEvent.input(sigma, { target: { value: "0.08" } });
     expect(appConfig.config.ui.pitch_noise_sigma).toBe(0.08);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Restore default noise strength" }),
+    );
+    expect(appConfig.config.ui.pitch_noise_sigma).toBe(
+      DEFAULT_PITCH_NOISE_SIGMA,
+    );
+    expect(
+      screen.queryByRole("button", {
+        name: "Restore default noise strength",
+      }),
+    ).not.toBeInTheDocument();
     fireEvent.input(sigma, { target: { value: "0" } });
     expect(appConfig.config.ui.pitch_noise_sigma).toBe(0);
     fireEvent.input(sigma, { target: { value: "1e100" } });
@@ -210,6 +226,54 @@ describe("ConfigPage", () => {
     expect(screen.getByRole("dialog", { name: "Config" })).toHaveAttribute(
       "data-closed",
     );
+  });
+
+  it("explains experimental pitch features from their labels", async () => {
+    vi.spyOn(commands, "getAssetsSize").mockResolvedValue({
+      status: "ok",
+      data: 0,
+    });
+    const Harness: Component = () => {
+      const ui = useUIStore()!;
+      onMount(() => ui.setUIStore("page", "config"));
+      return <ConfigPage />;
+    };
+
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [i18nProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+
+    await screen.findByRole("dialog", { name: "Config" });
+    expect(
+      screen.queryByText("Applies when generating or resetting pitch."),
+    ).not.toBeInTheDocument();
+
+    const noiseLabel = screen.getByText("Noised pitch generation");
+    vi.useFakeTimers();
+    fireEvent.pointerEnter(noiseLabel, { pointerType: "mouse" });
+    await vi.advanceTimersByTimeAsync(400);
+    expect(screen.getByRole("tooltip", { hidden: true })).toHaveTextContent(
+      "Applies when generating or resetting pitch.",
+    );
+    fireEvent.pointerLeave(noiseLabel, { pointerType: "mouse" });
+
+    const completionLabel = screen.getByText("Pitch completion");
+    fireEvent.pointerEnter(completionLabel, { pointerType: "mouse" });
+    await vi.advanceTimersByTimeAsync(400);
+    const tooltips = screen.getAllByRole("tooltip", { hidden: true });
+    expect(tooltips[tooltips.length - 1]).toHaveTextContent(
+      "After a pitch edit, keep all pitches through that mora",
+    );
+    vi.useRealTimers();
   });
 
   it("opens the config directory from the footer button", async () => {

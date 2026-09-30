@@ -196,6 +196,7 @@
     "pitch_completion_enabled": "音高補完",
     "pitch_completion_description": "音高を編集すると、そのモーラまでの音高を保持し、後続の音高を再生成します。ノイズが有効な場合は、テキストのシードと設定した強さを使用します。",
     "pitch_noise_sigma": "ノイズの強さ（sigma）",
+    "reset_pitch_noise_sigma": "既定のノイズの強さに戻す",
     "pitch_noise_seed": "ノイズのシード",
     "pitch_noise_description": "音高の生成・リセット時に適用されます。sigma が 0 の場合はノイズなし。各テキストにはランダムなシードが割り当てられ、プロジェクトに保存されます。シードは音高調整パネルで編集できます。既存の音高編集は保持されます。",
     "experimental": "実験的な機能",

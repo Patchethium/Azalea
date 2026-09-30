@@ -168,6 +168,7 @@
     "pitch_completion_enabled": "Pitch completion",
     "pitch_completion_description": "After a pitch edit, keep all pitches through that mora and regenerate the remaining pitches. Noise uses the block’s seed and configured strength when enabled.",
     "pitch_noise_sigma": "Noise strength (sigma)",
+    "reset_pitch_noise_sigma": "Restore default noise strength",
     "pitch_noise_seed": "Noise seed",
     "pitch_noise_description": "Applies when generating or resetting pitch. Sigma 0 disables noise. Each block gets a random seed saved in the project and editable in the pitch panel. Existing pitch edits are preserved.",
     "experimental": "Experimental Features",
