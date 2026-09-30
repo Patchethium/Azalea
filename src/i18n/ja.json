@@ -33,7 +33,7 @@
     "playback_phrase_anchor": "アクセント句{{ index }}から再生",
     "jump_to_playback_anchor": "再生開始アクセント句を表示",
     "reset_accent_edits": "アクセント句の編集をリセット（ピッチと長さもリセットされます）",
-    "reset_tuning_edits": "ピッチと長さの編集をリセット"
+    "reset_tuning_edits": "ピッチ・長さ・アクセント句の編集をリセット"
   },
   "shortcuts": {
     "title": "キーボードショートカット",

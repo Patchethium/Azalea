@@ -1,17 +1,12 @@
-import { commands } from "$binding";
 import { usei18n } from "@contexts/i18n";
 import { useMetaStore } from "@contexts/meta";
 import { findPresetById, findPresetStyle, useTextStore } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
-import { batch, createMemo, createSignal } from "solid-js";
-import { unwrap } from "solid-js/store";
+import { createMemo } from "solid-js";
 
 export function useQueryReset() {
   const { t1 } = usei18n()!;
   const {
-    textStore,
-    setTextStore,
-    markQueryModified,
     projectPresetStore,
     selectedTextBlock,
     selectedTextBlockIndex,
@@ -19,8 +14,6 @@ export function useQueryReset() {
   } = useTextStore()!;
   const { metas } = useMetaStore()!;
   const { uiStore } = useUIStore()!;
-  const [resetPending, setResetPending] = createSignal(false);
-  let resetRevision = 0;
 
   const currentPreset = createMemo(() => {
     const preset = findPresetById(
@@ -34,8 +27,7 @@ export function useQueryReset() {
   const canReset = createMemo(
     () =>
       selectedTextBlock()?.query_is_modified === true &&
-      currentPreset() !== null &&
-      !resetPending(),
+      currentPreset() !== null,
   );
   const resetLabel = () =>
     t1(
@@ -44,53 +36,20 @@ export function useQueryReset() {
         : "bottom.reset_tuning_edits",
     );
 
-  const resetEdits = async () => {
+  // Resetting discards every manual query edit (accent, pitch, and duration)
+  // and regenerates the query from the text. Nulling the query also clears
+  // `query_is_modified`, which re-enables the pitch-noise seed controls.
+  const resetEdits = () => {
     const block = selectedTextBlock();
-    const preset = currentPreset();
-    const index = selectedTextBlockIndex();
     if (
       block === null ||
       block.query === null ||
-      preset === null ||
       !block.query_is_modified ||
-      resetPending()
+      currentPreset() === null
     ) {
       return;
     }
-    if (uiStore.bottomPanel === "accent") {
-      resetQueryEdits(index);
-      return;
-    }
-    const phrases = structuredClone(unwrap(block.query.accent_phrases));
-    const seed = block.pitch_noise_seed;
-    const revision = ++resetRevision;
-    setResetPending(true);
-    try {
-      const result = await commands.replaceMora(phrases, preset.style_id, seed);
-      if (revision !== resetRevision) return;
-      if (result.status === "error") {
-        console.error(
-          "Failed to reset pitch and duration edits:",
-          result.error,
-        );
-        return;
-      }
-      const current = textStore[index];
-      if (
-        current?.id !== block.id ||
-        current.pitch_noise_seed !== seed ||
-        JSON.stringify(current.query?.accent_phrases) !==
-          JSON.stringify(phrases)
-      ) {
-        return;
-      }
-      batch(() => {
-        setTextStore(index, "query", "accent_phrases", result.data);
-        markQueryModified(index);
-      });
-    } finally {
-      if (revision === resetRevision) setResetPending(false);
-    }
+    resetQueryEdits(selectedTextBlockIndex());
   };
 
   return { canReset, resetEdits, resetLabel };

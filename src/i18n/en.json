@@ -33,7 +33,7 @@
     "playback_phrase_anchor": "Start playback from accent phrase {{ index }}",
     "jump_to_playback_anchor": "Show playback starting phrase",
     "reset_accent_edits": "Reset accent phrase edits (also resets pitch and duration)",
-    "reset_tuning_edits": "Reset pitch and duration edits"
+    "reset_tuning_edits": "Reset pitch, duration, and accent edits"
   },
   "shortcuts": {
     "title": "Keyboard Shortcuts",

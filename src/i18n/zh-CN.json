@@ -33,7 +33,7 @@
     "playback_phrase_anchor": "从重音短语 {{ index }} 开始播放",
     "jump_to_playback_anchor": "显示播放起始重音短语",
     "reset_accent_edits": "重置重音短语编辑（音高和时长也会重置）",
-    "reset_tuning_edits": "重置音高和时长编辑"
+    "reset_tuning_edits": "重置音高、时长和重音编辑"
   },
   "shortcuts": {
     "title": "键盘快捷键",
