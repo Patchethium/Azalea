@@ -2,28 +2,30 @@ import { Tooltip } from "@components/tooltip";
 import { useConfigStore } from "@contexts/config";
 import { useTextStore } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
-import { Switch } from "@kobalte/core/switch";
 import { NumberField } from "@kobalte/core/number-field";
 import { PlaybackTimeline } from "@layout/bottomPanel/PlaybackTimeline";
 import type { WaveformSynthesisNotice } from "@layout/bottomPanel/types";
 import { usePlaybackControls } from "@layout/bottomPanel/usePlaybackControls";
 import { useQueryReset } from "@layout/bottomPanel/useQueryReset";
 import { usei18n } from "@contexts/i18n";
-import { Show } from "solid-js";
+import { Show, type JSX } from "solid-js";
 
 function ToolbarButton(props: {
   icon: string;
   label: string;
+  tooltip?: JSX.Element;
   ariaBusy?: boolean;
+  ariaPressed?: boolean;
   disabled?: boolean;
   onClick?: () => void;
 }) {
   return (
-    <Tooltip content={props.label}>
+    <Tooltip content={props.tooltip ?? props.label}>
       <button
         type="button"
         aria-label={props.label}
         aria-busy={props.ariaBusy}
+        aria-pressed={props.ariaPressed}
         onClick={() => props.onClick?.()}
         disabled={props.disabled}
         class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) disabled:(cursor-not-allowed opacity-50) dark:hover:bg-slate-7"
@@ -44,6 +46,8 @@ export function ControlBar(props: {
   const { uiStore } = useUIStore()!;
   const controls = usePlaybackControls(props.onWaveformSynthesized);
   const { canReset, resetEdits, resetLabel } = useQueryReset();
+  const pitchCompletionEnabled = () =>
+    config.ui.pitch_completion_enabled ?? false;
 
   return (
     <div class="w-full flex flex-col b-b b-slate-3 dark:b-slate-6 select-none">
@@ -83,23 +87,30 @@ export function ControlBar(props: {
         />
         <div class="flex flex-1 items-center justify-end">
           <Show when={uiStore.bottomPanel === "tuning"}>
-            <Tooltip content={t1("config.pitch_completion_description")}>
-              <Switch
-                checked={config.ui.pitch_completion_enabled ?? false}
-                onChange={(value) =>
-                  setConfig("ui", "pitch_completion_enabled", value)
-                }
-                class="mr2 inline-flex items-center gap1 select-none cursor-pointer text-xs"
-              >
-                <Switch.Input />
-                <Switch.Label>
-                  {t1("config.pitch_completion_enabled")}
-                </Switch.Label>
-                <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-8 h-4 p-0.5 ui-checked:bg-primary-5 dark:ui-checked:bg-primary-5">
-                  <Switch.Thumb class="size-3 rounded-full bg-white transition-transform transition-duration-200 ui-checked:translate-x-4" />
-                </Switch.Control>
-              </Switch>
-            </Tooltip>
+            <ToolbarButton
+              icon={
+                pitchCompletionEnabled() ? "i-lucide:unlock" : "i-lucide:lock"
+              }
+              label={t1("config.pitch_completion_enabled")}
+              ariaPressed={pitchCompletionEnabled()}
+              tooltip={
+                <div class="flex max-w-64 flex-col gap-0.5">
+                  <span class="font-medium">
+                    {t1("config.pitch_completion_enabled")}
+                  </span>
+                  <span class="whitespace-normal">
+                    {t1("config.pitch_completion_description")}
+                  </span>
+                </div>
+              }
+              onClick={() =>
+                setConfig(
+                  "ui",
+                  "pitch_completion_enabled",
+                  !pitchCompletionEnabled(),
+                )
+              }
+            />
           </Show>
           <Show
             when={

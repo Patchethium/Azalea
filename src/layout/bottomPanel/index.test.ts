@@ -2996,22 +2996,26 @@ describe("BottomPanel playback", () => {
 });
 
 describe("Pitch completion", () => {
-  it("shares the toolbar switch with config without regenerating on toggles", async () => {
+  it("shares the toolbar toggle with config without regenerating on toggles", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
     const complete = vi.spyOn(commands, "completeMoraPitch");
     const { getConfigStore } = renderPanel({ spectrogram_preview: false });
     expect(
-      screen.queryByRole("switch", { name: "Pitch completion" }),
+      screen.queryByRole("button", { name: "Pitch completion" }),
     ).not.toBeInTheDocument();
     fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-    const toggle = screen.getByRole("switch", { name: "Pitch completion" });
-    expect(toggle).not.toBeChecked();
+    const toggle = screen.getByRole("button", { name: "Pitch completion" });
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(toggle.firstElementChild).toHaveClass("i-lucide:lock");
     fireEvent.click(toggle);
     expect(getConfigStore().config.ui.pitch_completion_enabled).toBe(true);
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(toggle.firstElementChild).toHaveClass("i-lucide:unlock");
     getConfigStore().setConfig("ui", "pitch_completion_enabled", false);
-    expect(toggle).not.toBeChecked();
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(toggle.firstElementChild).toHaveClass("i-lucide:lock");
     expect(complete).not.toHaveBeenCalled();
   });
 

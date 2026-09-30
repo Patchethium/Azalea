@@ -35,7 +35,7 @@ Specta support synchronized with the fork's `specta` branch when updating it.
   only voiced prefix steps. Azalea surfaces completion through the
   `complete_mora_pitch` command, gated by the default-off
   `UIConfig.pitch_completion_enabled` setting with a config-dialog switch and a
-  synchronized tuning-toolbar switch; pitch edits debounce completion while
+  synchronized tuning-toolbar lock toggle; pitch edits debounce completion while
   preserving every pitch through the edited mora.
 
 Noise is injected only at voiced mora steps and feeds subsequent predictions;
