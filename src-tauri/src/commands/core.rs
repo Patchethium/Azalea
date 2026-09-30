@@ -1,4 +1,4 @@
-use super::utils::state_mut;
+use super::utils::{state_mut, state_ref};
 use crate::async_job::run_cancellable;
 use crate::config::manager::user_dictionary_path;
 use crate::config::CoreConfig;
@@ -212,18 +212,36 @@ pub async fn audio_query(
   state: State<'_, AppState>,
   text: String,
   speaker_id: StyleId,
+  seed: u32,
 ) -> std::result::Result<AudioQuery, String> {
-  if let Some(cache) = state_mut!(state, query_lru).get(&(text.clone(), speaker_id)) {
-    return Ok(cache.clone());
-  }
+  let noise = state_ref!(state, config_manager)
+    .config
+    .ui
+    .pitch_noise_options(seed);
   let cache_key = (text.clone(), speaker_id);
-  let query = run_core_task(&state, move |core| {
-    core
-      .audio_query(&text, speaker_id)
-      .map_err(|e| e.to_string())
-  })
-  .await?;
-  state_mut!(state, query_lru).put(cache_key, query.clone());
+  let cached = state_mut!(state, query_lru).get(&cache_key).cloned();
+  // Cache the ordinary query so changing the seed or sigma cannot reuse old noise.
+  let mut query = match cached {
+    Some(query) => query,
+    None => {
+      let query = run_core_task(&state, move |core| {
+        core
+          .audio_query(&text, speaker_id)
+          .map_err(|e| e.to_string())
+      })
+      .await?;
+      state_mut!(state, query_lru).put(cache_key, query.clone());
+      query
+    }
+  };
+  if noise.is_some() {
+    query.accent_phrases = run_core_task(&state, move |core| {
+      core
+        .apply_pitch_noise(query.accent_phrases, speaker_id, noise)
+        .map_err(|e| e.to_string())
+    })
+    .await?;
+  }
   Ok(query)
 }
 
@@ -234,10 +252,16 @@ pub async fn accent_phrases(
   state: State<'_, AppState>,
   text: String,
   speaker_id: StyleId,
+  seed: u32,
 ) -> std::result::Result<Vec<AccentPhrase>, String> {
+  let noise = state_ref!(state, config_manager)
+    .config
+    .ui
+    .pitch_noise_options(seed);
   run_core_task(&state, move |core| {
     core
       .accent_phrases(&text, speaker_id)
+      .and_then(|ap| core.apply_pitch_noise(ap, speaker_id, noise))
       .map_err(|e| e.to_string())
   })
   .await
@@ -250,9 +274,17 @@ pub async fn replace_mora(
   state: State<'_, AppState>,
   ap: Vec<AccentPhrase>,
   style_id: StyleId,
+  seed: u32,
 ) -> std::result::Result<Vec<AccentPhrase>, String> {
+  let noise = state_ref!(state, config_manager)
+    .config
+    .ui
+    .pitch_noise_options(seed);
   run_core_task(&state, move |core| {
-    core.replace_mora(ap, style_id).map_err(|e| e.to_string())
+    core
+      .replace_mora(ap, style_id)
+      .and_then(|ap| core.apply_pitch_noise(ap, style_id, noise))
+      .map_err(|e| e.to_string())
   })
   .await
 }
@@ -264,10 +296,16 @@ pub async fn replace_mora_pitch(
   state: State<'_, AppState>,
   ap: Vec<AccentPhrase>,
   style_id: StyleId,
+  seed: u32,
 ) -> std::result::Result<Vec<AccentPhrase>, String> {
+  let noise = state_ref!(state, config_manager)
+    .config
+    .ui
+    .pitch_noise_options(seed);
   run_core_task(&state, move |core| {
     core
       .replace_mora_pitch(ap, style_id)
+      .and_then(|ap| core.apply_pitch_noise(ap, style_id, noise))
       .map_err(|e| e.to_string())
   })
   .await

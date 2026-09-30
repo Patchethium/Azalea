@@ -23,6 +23,7 @@ struct ProjectFile {
 struct ProjectBlockRef<'a> {
   id: &'a str,
   text: &'a str,
+  pitch_noise_seed: u32,
   #[serde(skip_serializing_if = "Option::is_none")]
   query_override: Option<&'a AudioQuery>,
   preset_id: Option<&'a str>,
@@ -32,6 +33,7 @@ struct ProjectBlockRef<'a> {
 struct ProjectBlock {
   id: String,
   text: String,
+  pitch_noise_seed: u32,
   #[serde(default)]
   query_override: Option<AudioQuery>,
   preset_id: Option<String>,
@@ -104,6 +106,7 @@ pub async fn save_project(
       .map(|block| ProjectBlockRef {
         id: &block.id,
         text: &block.text,
+        pitch_noise_seed: block.pitch_noise_seed,
         query_override: if block.query_is_modified {
           block.query.as_ref()
         } else {
@@ -146,6 +149,7 @@ pub async fn load_project(path: String) -> Result<Project, String> {
       .map(|block| TextBlockProps {
         id: block.id,
         text: block.text,
+        pitch_noise_seed: block.pitch_noise_seed,
         query_is_modified: block.query_override.is_some(),
         query: block.query_override,
         preset_id: block.preset_id,
@@ -171,6 +175,7 @@ mod tests {
       blocks: vec![TextBlockProps {
         id: "block-1".into(),
         text: "こんにちは、Azalea 🌺".into(),
+        pitch_noise_seed: 42,
         query: Some(sample_query()),
         query_is_modified: true,
         preset_id: Some("preset-1".into()),
@@ -211,6 +216,7 @@ mod tests {
       assert_eq!(loaded.blocks.len(), 1);
       assert_eq!(loaded.blocks[0].id, "block-1");
       assert_eq!(loaded.blocks[0].text, "こんにちは、Azalea 🌺");
+      assert_eq!(loaded.blocks[0].pitch_noise_seed, 42);
       assert!(loaded.blocks[0].query.is_some());
       assert!(loaded.blocks[0].query_is_modified);
       assert_eq!(loaded.blocks[0].preset_id.as_deref(), Some("preset-1"));
@@ -378,6 +384,31 @@ mod tests {
   }
 
   #[test]
+  fn load_rejects_missing_or_invalid_block_seeds() {
+    tauri::async_runtime::block_on(async {
+      let directory = tempfile::tempdir().unwrap();
+      let path = directory.path().join("seed.azp");
+      for seed in [
+        "",
+        "pitch_noise_seed = -1",
+        "pitch_noise_seed = 4294967296",
+        "pitch_noise_seed = 1.5",
+      ] {
+        std::fs::write(
+          &path,
+          format!(
+          "schema_version = 1\npresets = []\n[[blocks]]\nid = \"block\"\ntext = \"text\"\n{seed}\n"
+        ),
+        )
+        .unwrap();
+        assert!(load_project(path.to_string_lossy().into_owned())
+          .await
+          .is_err());
+      }
+    });
+  }
+
+  #[test]
   fn save_omits_regenerable_queries() {
     tauri::async_runtime::block_on(async {
       let directory = tempfile::tempdir().unwrap();
@@ -396,6 +427,7 @@ mod tests {
         .unwrap();
       assert!(loaded.blocks[0].query.is_none());
       assert!(!loaded.blocks[0].query_is_modified);
+      assert_eq!(loaded.blocks[0].pitch_noise_seed, 42);
     });
   }
 
@@ -421,7 +453,7 @@ mod tests {
       let duplicate_ids = directory.path().join("duplicates.azp");
       std::fs::write(
         &duplicate_ids,
-        "schema_version = 1\npresets = []\n[[blocks]]\nid = \"same\"\ntext = \"a\"\n[[blocks]]\nid = \"same\"\ntext = \"b\"\n",
+        "schema_version = 1\npresets = []\n[[blocks]]\nid = \"same\"\ntext = \"a\"\npitch_noise_seed = 0\n[[blocks]]\nid = \"same\"\ntext = \"b\"\npitch_noise_seed = 0\n",
       )
       .unwrap();
       let error = load_project(duplicate_ids.to_string_lossy().into_owned())
@@ -451,7 +483,7 @@ mod tests {
       let missing_preset = directory.path().join("missing-preset.azp");
       std::fs::write(
         &missing_preset,
-        "schema_version = 1\npresets = []\n[[blocks]]\nid = \"block\"\ntext = \"a\"\npreset_id = \"missing\"\n",
+        "schema_version = 1\npresets = []\n[[blocks]]\nid = \"block\"\ntext = \"a\"\npitch_noise_seed = 0\npreset_id = \"missing\"\n",
       )
       .unwrap();
       let error = load_project(missing_preset.to_string_lossy().into_owned())

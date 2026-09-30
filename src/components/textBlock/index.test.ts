@@ -514,7 +514,7 @@ describe("TextBlock", () => {
       }));
 
     const { getTextStore, getConfigStore } = renderBlock(true);
-    await waitFor(() => expect(query).toHaveBeenCalledWith("hello", 1));
+    await waitFor(() => expect(query).toHaveBeenCalledWith("hello", 1, 0));
     const status = screen.getByRole("status", { name: "Queued" });
     expect(status).toBeInTheDocument();
     fireEvent.pointerEnter(status.parentElement!, { pointerType: "mouse" });
@@ -523,7 +523,7 @@ describe("TextBlock", () => {
     const editor = screen.getByLabelText("Text to synthesize");
     editor.innerText = "changed";
     fireEvent.input(editor);
-    await waitFor(() => expect(query).toHaveBeenCalledWith("changed", 1), {
+    await waitFor(() => expect(query).toHaveBeenCalledWith("changed", 1, 0), {
       timeout: 1_500,
     });
     await waitFor(() =>
@@ -560,7 +560,7 @@ describe("TextBlock", () => {
     const editor = screen.getByLabelText("Text to synthesize");
     editor.innerText = "changed";
     fireEvent.input(editor);
-    await waitFor(() => expect(query).toHaveBeenCalledWith("changed", 1), {
+    await waitFor(() => expect(query).toHaveBeenCalledWith("changed", 1, 0), {
       timeout: 1_500,
     });
     await waitFor(() =>
@@ -597,6 +597,7 @@ describe("TextBlock", () => {
       preset_id: "preset-1",
       query: null,
       query_is_modified: false,
+      pitch_noise_seed: expect.any(Number),
     });
     expect(getTextStore().textStore[1].id).not.toBe("text-block");
 
@@ -642,6 +643,7 @@ describe("TextBlock", () => {
       preset_id: "preset-1",
       query: null,
       query_is_modified: false,
+      pitch_noise_seed: expect.any(Number),
     });
     expect(getTextStore().textStore[1].id).not.toBe("text-block");
     expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(1);
@@ -1571,7 +1573,7 @@ describe("TextBlock", () => {
         preview: spectrogram,
       });
       await vi.advanceTimersByTimeAsync(1000);
-      expect(query).toHaveBeenLastCalledWith("changed text", 1);
+      expect(query).toHaveBeenLastCalledWith("changed text", 1, 0);
       expect(synthesize).toHaveBeenCalledTimes(2);
       expect(requestPreview).toHaveBeenCalledTimes(2);
       expect(
@@ -1652,42 +1654,57 @@ describe("TextBlock", () => {
     expect(getTextStore().queryPending["text-block"]).toBeUndefined();
   });
 
-  it("does not let a stale query response replace newer text", async () => {
-    mockIPC(() => null, { shouldMockEvents: true });
-    type QueryResult = Awaited<ReturnType<typeof commands.audioQuery>>;
-    let resolveHello!: (value: QueryResult) => void;
-    let resolveChanged!: (value: QueryResult) => void;
-    const hello = new Promise<QueryResult>((resolve) => {
-      resolveHello = resolve;
-    });
-    const changed = new Promise<QueryResult>((resolve) => {
-      resolveChanged = resolve;
-    });
-    const query = vi
-      .spyOn(commands, "audioQuery")
-      .mockImplementation((text) => (text === "hello" ? hello : changed));
+  it.each(["text", "seed"] as const)(
+    "does not let a stale query response replace newer %s",
+    async (change) => {
+      mockIPC(() => null, { shouldMockEvents: true });
+      type QueryResult = Awaited<ReturnType<typeof commands.audioQuery>>;
+      let resolveHello!: (value: QueryResult) => void;
+      let resolveChanged!: (value: QueryResult) => void;
+      const hello = new Promise<QueryResult>((resolve) => {
+        resolveHello = resolve;
+      });
+      const changed = new Promise<QueryResult>((resolve) => {
+        resolveChanged = resolve;
+      });
+      const query = vi
+        .spyOn(commands, "audioQuery")
+        .mockImplementation((text, _, seed) =>
+          text === "hello" && seed === 0 ? hello : changed,
+        );
 
-    const { getTextStore } = renderBlock(false);
-    await waitFor(() => expect(query).toHaveBeenCalledWith("hello", 1));
-    const editor = screen.getByLabelText("Text to synthesize");
-    editor.innerText = "changed";
-    fireEvent.input(editor);
-    await waitFor(() => expect(query).toHaveBeenCalledWith("changed", 1), {
-      timeout: 1_500,
-    });
+      const { getTextStore } = renderBlock(false);
+      await waitFor(() => expect(query).toHaveBeenCalledWith("hello", 1, 0));
+      if (change === "text") {
+        const editor = screen.getByLabelText("Text to synthesize");
+        editor.innerText = "changed";
+        fireEvent.input(editor);
+      } else getTextStore().setTextStore(0, "pitch_noise_seed", 42);
+      await waitFor(
+        () =>
+          expect(query).toHaveBeenCalledWith(
+            change === "text" ? "changed" : "hello",
+            1,
+            change === "text" ? 0 : 42,
+          ),
+        {
+          timeout: 1_500,
+        },
+      );
 
-    resolveChanged({
-      status: "ok",
-      data: audioQuery({ speedScale: 1.5 }),
-    });
-    await waitFor(() =>
-      expect(getTextStore().textStore[0].query?.speedScale).toBe(1.5),
-    );
-    resolveHello({
-      status: "ok",
-      data: audioQuery({ speedScale: 0.5 }),
-    });
-    await Promise.resolve();
-    expect(getTextStore().textStore[0].query?.speedScale).toBe(1.5);
-  });
+      resolveChanged({
+        status: "ok",
+        data: audioQuery({ speedScale: 1.5 }),
+      });
+      await waitFor(() =>
+        expect(getTextStore().textStore[0].query?.speedScale).toBe(1.5),
+      );
+      resolveHello({
+        status: "ok",
+        data: audioQuery({ speedScale: 0.5 }),
+      });
+      await Promise.resolve();
+      expect(getTextStore().textStore[0].query?.speedScale).toBe(1.5);
+    },
+  );
 });

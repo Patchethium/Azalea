@@ -80,6 +80,12 @@ after loading rather than stored in the project file; queries containing
 manual accent, phoneme, pitch, or duration edits are retained as explicit
 `query_override` data.
 
+Experimental pitch noise can be enabled in Config, with an adjustable sigma
+(default `0.05`; `0` produces deterministic pitch). Each new text block gets
+a random seed that is saved in the project and can be edited in the tuning
+panel. Settings apply to future generation and pitch resets; manual edits
+remain intact. This uses the fork's `generative-noise` core branch.
+
 ### Setup
 
 ```sh

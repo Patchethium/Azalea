@@ -220,6 +220,81 @@ mod tests {
   }
 
   #[test]
+  fn cached_queries_still_apply_current_pitch_noise_settings() {
+    let query: AudioQuery = serde_json::from_value(json!({
+      "accent_phrases": [], "speedScale": 1.0, "pitchScale": 0.0,
+      "intonationScale": 1.0, "volumeScale": 1.0,
+      "prePhonemeLength": 0.1, "postPhonemeLength": 0.1,
+      "outputSamplingRate": 24000, "outputStereo": false
+    }))
+    .unwrap();
+    let mut cache = lru::LruCache::new(NonZeroUsize::new(4).unwrap());
+    cache.put(("cached".into(), StyleId(1)), query.clone());
+    let state = empty_app_state(None, Some(cache));
+    state
+      .config_manager
+      .write()
+      .unwrap()
+      .replace(config::ConfigManager::default());
+    let app = mock_builder()
+      .manage(state)
+      .invoke_handler(tauri::generate_handler![audio_query])
+      .build(mock_context(noop_assets()))
+      .unwrap();
+    let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
+      .build()
+      .unwrap();
+    for seed in [0, u32::MAX] {
+      let response = get_ipc_response(
+        &webview,
+        invoke_request(
+          "audio_query",
+          json!({
+            "text": "cached", "speakerId": 1, "seed": seed
+          }),
+        ),
+      )
+      .unwrap()
+      .deserialize::<AudioQuery>()
+      .unwrap();
+      assert_eq!(response, query);
+    }
+    app
+      .state::<AppState>()
+      .config_manager
+      .write()
+      .unwrap()
+      .as_mut()
+      .unwrap()
+      .config
+      .ui
+      .pitch_noise_enabled = true;
+    let error = get_ipc_response(
+      &webview,
+      invoke_request(
+        "audio_query",
+        json!({
+          "text": "cached", "speakerId": 1, "seed": 42
+        }),
+      ),
+    )
+    .unwrap_err()
+    .to_string();
+    assert!(error.contains("core is not initialized"), "{error}");
+    assert_eq!(
+      app
+        .state::<AppState>()
+        .query_lru
+        .write()
+        .unwrap()
+        .as_mut()
+        .unwrap()
+        .get(&("cached".into(), StyleId(1))),
+      Some(&query)
+    );
+  }
+
+  #[test]
   fn mock_runtime_dispatches_registered_path_commands() {
     let app = mock_builder()
       .invoke_handler(tauri::generate_handler![join_path, parent_path, home_dir])

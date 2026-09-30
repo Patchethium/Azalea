@@ -100,6 +100,7 @@ export function PhonemePanel() {
       const result = await commands.replaceMora(
         request.phrases,
         request.styleId,
+        request.block.pitch_noise_seed,
       );
       if (result.status === "ok") applyPhrases(request, result.data);
       else console.error("Failed to refresh mora data:", result.error);
@@ -203,7 +204,11 @@ export function PhonemePanel() {
     const request = beginRequest();
     if (!request) return;
     try {
-      const result = await commands.accentPhrases(newText, request.styleId);
+      const result = await commands.accentPhrases(
+        newText,
+        request.styleId,
+        request.block.pitch_noise_seed,
+      );
       if (result.status !== "ok" || result.data.length === 0) return;
       const sourcePhrase = request.phrases[phraseIndex];
       const replacementPhrases = result.data.map((phrase) => ({ ...phrase }));

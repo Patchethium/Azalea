@@ -52,7 +52,7 @@ uuid = { version = "1", features = ["v4"] }
 
 [dependencies.voicevox_core]
 git = "https://github.com/Patchethium/voicevox_core.git"
-branch = "specta"
+branch = "generative-noise"
 features = ["specta", "load-onnxruntime"]
 
 [dev-dependencies]

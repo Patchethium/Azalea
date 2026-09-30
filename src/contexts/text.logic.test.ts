@@ -17,6 +17,9 @@ describe("text-block helpers", () => {
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000001")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000002");
 
+    vi.spyOn(Math, "random")
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(1 - Number.EPSILON);
     const first = createTextBlock("preset-2", "hello");
     const second = createTextBlock(null);
 
@@ -26,8 +29,15 @@ describe("text-block helpers", () => {
       preset_id: "preset-2",
       query: null,
       query_is_modified: false,
+      pitch_noise_seed: 0,
     });
     expect(second.id).not.toBe(first.id);
+    expect(second.pitch_noise_seed).toBe(4294967295);
+    for (const block of [first, second]) {
+      expect(Number.isInteger(block.pitch_noise_seed)).toBe(true);
+      expect(block.pitch_noise_seed).toBeGreaterThanOrEqual(0);
+      expect(block.pitch_noise_seed).toBeLessThanOrEqual(4294967295);
+    }
     expect(second).toMatchObject({ text: "", preset_id: null, query: null });
   });
 });

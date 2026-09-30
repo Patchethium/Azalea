@@ -42,6 +42,7 @@ const createTextBlock = (
   preset_id: presetId,
   query: null,
   query_is_modified: false,
+  pitch_noise_seed: Math.floor(Math.random() * 2 ** 32),
 });
 
 type PresetStyle = {
@@ -128,6 +129,7 @@ const serializeProject = (
       query: block.query_is_modified ? block.query : null,
       query_is_modified: block.query_is_modified,
       preset_id: block.preset_id,
+      pitch_noise_seed: block.pitch_noise_seed,
     })),
     presets: presets.map((preset) => ({
       id: preset.id,

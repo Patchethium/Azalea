@@ -90,9 +90,10 @@ function TextBlock(props: { index: number }) {
       styleId: number,
       requestRevision: number,
       sourceBlock: TextBlockProps,
+      seed: number,
       update: ReturnType<typeof beginQueryUpdate>,
     ) => {
-      const audioQuery = await commands.audioQuery(text, styleId);
+      const audioQuery = await commands.audioQuery(text, styleId, seed);
       if (
         disposed ||
         !update.isCurrent() ||
@@ -124,8 +125,9 @@ function TextBlock(props: { index: number }) {
         () => currentText().text,
         () => currentPresetStyle()?.style.id,
         queryRefreshVersion,
+        () => currentText().pitch_noise_seed,
       ],
-      ([, text, styleId]) => {
+      ([, text, styleId, , seed]) => {
         const sourceBlock = currentText();
         const requestRevision = ++queryRequestRevision;
         if (text === "") {
@@ -141,7 +143,14 @@ function TextBlock(props: { index: number }) {
           // wait behind synthesis, while retaining the old tuning timeline.
           const update = beginQueryUpdate(sourceBlock.id);
           onCleanup(update.finish);
-          fetchAudioQuery(text, styleId, requestRevision, sourceBlock, update);
+          fetchAudioQuery(
+            text,
+            styleId,
+            requestRevision,
+            sourceBlock,
+            seed,
+            update,
+          );
         } else {
           fetchAudioQuery.cancel();
         }

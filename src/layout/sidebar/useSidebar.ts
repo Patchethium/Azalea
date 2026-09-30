@@ -410,6 +410,7 @@ export function useSidebar() {
               const fetched = await commands.audioQuery(
                 block.text,
                 identity.style.id,
+                block.pitch_noise_seed,
               );
               if (fetched.status === "error") {
                 recordFailure({

@@ -102,6 +102,13 @@ pub struct UIConfig {
   pub buffer_render: bool,
   #[serde(default)]
   pub nonblocking_synthesis: bool,
+  #[serde(default)]
+  pub pitch_noise_enabled: bool,
+  #[serde(
+    default = "pitch_noise_sigma_default",
+    deserialize_with = "deserialize_pitch_noise_sigma"
+  )]
+  pub pitch_noise_sigma: f32,
   #[serde(default = "synthesis_delay_ms_default")]
   pub synthesis_delay_ms: u32,
   #[serde(default = "spectrogram_preview_default")]
@@ -143,6 +150,8 @@ impl Default for UIConfig {
       side_width: side_width_default(),
       buffer_render: buffer_render_default(),
       nonblocking_synthesis: false,
+      pitch_noise_enabled: false,
+      pitch_noise_sigma: pitch_noise_sigma_default(),
       synthesis_delay_ms: synthesis_delay_ms_default(),
       spectrogram_preview: spectrogram_preview_default(),
       playback_timeline: playback_timeline_default(),
@@ -156,6 +165,34 @@ impl Default for UIConfig {
       last_exported_dir: None,
       shortcuts: Default::default(),
     }
+  }
+}
+
+impl UIConfig {
+  pub fn pitch_noise_options(&self, seed: u32) -> Option<voicevox_core::PitchNoiseOptions> {
+    self
+      .pitch_noise_enabled
+      .then_some(voicevox_core::PitchNoiseOptions {
+        sigma: self.pitch_noise_sigma,
+        seed,
+      })
+  }
+}
+
+fn pitch_noise_sigma_default() -> f32 {
+  0.05
+}
+
+fn deserialize_pitch_noise_sigma<'de, D: serde::Deserializer<'de>>(
+  deserializer: D,
+) -> Result<f32, D::Error> {
+  let sigma = f32::deserialize(deserializer)?;
+  if sigma.is_finite() && sigma >= 0.0 {
+    Ok(sigma)
+  } else {
+    Err(serde::de::Error::custom(
+      "Pitch noise sigma must be finite and nonnegative",
+    ))
   }
 }
 
@@ -335,6 +372,7 @@ pub struct TextBlockProps {
   pub text: String,
   pub query: Option<AudioQuery>,
   pub query_is_modified: bool,
+  pub pitch_noise_seed: u32,
   pub preset_id: Option<String>,
 }
 
@@ -356,6 +394,9 @@ mod tests {
     let config: UIConfig = toml::from_str("").unwrap();
     assert_eq!(config.synthesis_delay_ms, 600);
     assert!(!config.nonblocking_synthesis);
+    assert!(!config.pitch_noise_enabled);
+    assert_eq!(config.pitch_noise_sigma, 0.05);
+    assert!(config.pitch_noise_options(42).is_none());
     assert!(!config.embedded_font);
     assert!(matches!(config.titlebar_style, TitlebarStyle::Custom));
     assert!(config.default_export_dir.is_none());
@@ -433,6 +474,18 @@ mod tests {
     );
     let serialized = toml::Value::try_from(config).unwrap();
     assert!(serialized["shortcuts"].get("stop_playback").is_none());
+  }
+
+  #[test]
+  fn pitch_noise_settings_validate_sigma() {
+    for sigma in ["-0.1", "nan", "inf", "-inf", "1e100"] {
+      assert!(toml::from_str::<UIConfig>(&format!("pitch_noise_sigma = {sigma}")).is_err());
+    }
+    let config: UIConfig =
+      toml::from_str("pitch_noise_enabled = true\npitch_noise_sigma = 0.0").unwrap();
+    let options = config.pitch_noise_options(u32::MAX).unwrap();
+    assert_eq!(options.sigma, 0.0);
+    assert_eq!(options.seed, u32::MAX);
   }
 
   #[test]

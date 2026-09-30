@@ -561,6 +561,7 @@ describe("BottomPanel playback", () => {
         text: "third",
         query: audioQuery({ speedScale: 1.2 }),
         query_is_modified: false,
+        pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
     ]);
@@ -842,6 +843,7 @@ describe("BottomPanel playback", () => {
       preset_id: "preset-1",
       query: null,
       query_is_modified: false,
+      pitch_noise_seed: expect.any(Number),
     });
     expect(getTextStore().textStore[2].id).not.toBe("first-block");
     expect(getTextStore().textStore[2].id).not.toBe("second-block");
@@ -870,6 +872,7 @@ describe("BottomPanel playback", () => {
         text: "first",
         query: audioQuery(),
         query_is_modified: false,
+        pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
       {
@@ -877,6 +880,7 @@ describe("BottomPanel playback", () => {
         text: "second",
         query: audioQuery({ speedScale: 1.1 }),
         query_is_modified: false,
+        pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
       {
@@ -884,6 +888,7 @@ describe("BottomPanel playback", () => {
         text: "third",
         query: audioQuery({ speedScale: 1.2 }),
         query_is_modified: false,
+        pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
     ]);
@@ -1548,6 +1553,7 @@ describe("BottomPanel playback", () => {
         "style",
         "text",
         "query",
+        "seed",
         "selection",
         "unmount",
       ]) {
@@ -1565,6 +1571,8 @@ describe("BottomPanel playback", () => {
         else if (change === "style")
           text.setProjectPresetStore(1, { style_id: 2, style_name: "Happy" });
         else if (change === "text") text.setTextStore(0, "text", "changed");
+        else if (change === "seed")
+          text.setTextStore(0, "pitch_noise_seed", 42);
         else if (change === "query")
           text.setTextStore(
             0,
@@ -1673,7 +1681,7 @@ describe("BottomPanel playback", () => {
     fireEvent.input(editor, { target: { value: "サ" } });
     fireEvent.click(editor.parentElement!.parentElement!);
 
-    await waitFor(() => expect(replaceAccent).toHaveBeenCalledWith("サ", 1));
+    await waitFor(() => expect(replaceAccent).toHaveBeenCalledWith("サ", 1, 0));
     await waitFor(() =>
       expect(
         getTextStore().textStore[0].query?.accent_phrases[0].moras[0].text,
@@ -1715,7 +1723,7 @@ describe("BottomPanel playback", () => {
     fireEvent.input(editor, { target: { value: "サ" } });
     fireEvent.click(editor.parentElement!.parentElement!);
 
-    await waitFor(() => expect(replaceAccent).toHaveBeenCalledWith("サ", 1));
+    await waitFor(() => expect(replaceAccent).toHaveBeenCalledWith("サ", 1, 0));
     await waitFor(() =>
       expect(
         getTextStore().textStore[0].query?.accent_phrases.map((phrase) =>
@@ -1745,7 +1753,7 @@ describe("BottomPanel playback", () => {
     fireEvent.click(editor.parentElement!.parentElement!);
 
     await waitFor(() =>
-      expect(replaceAccent).toHaveBeenCalledWith("コンニちは", 1),
+      expect(replaceAccent).toHaveBeenCalledWith("コンニちは", 1, 0),
     );
     await waitFor(() =>
       expect(
@@ -2597,7 +2605,7 @@ describe("BottomPanel playback", () => {
     expect(text.textStore[0].query_is_modified).toBe(false);
   });
 
-  it("resets only pitch and duration edits from the control bar on the tuning panel", async () => {
+  it("edits per-block seeds and uses them for pitch and duration resets", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
@@ -2605,9 +2613,15 @@ describe("BottomPanel playback", () => {
       status: "ok",
       data: [structuredClone(audioQuery().accent_phrases[0])],
     });
-    const { getTextStore } = renderPanel({ spectrogram_preview: false });
+    const { getTextStore, getConfigStore, getUiStore } = renderPanel({
+      spectrogram_preview: false,
+      pitch_noise_enabled: true,
+    });
     const text = getTextStore();
     await screen.findByText("コ");
+    expect(
+      screen.queryByRole("spinbutton", { name: "Noise seed" }),
+    ).not.toBeInTheDocument();
     text.setTextStore(
       0,
       "query",
@@ -2620,71 +2634,104 @@ describe("BottomPanel playback", () => {
     );
     text.markQueryModified(0);
     fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    expect(getConfigStore().config.ui.pitch_noise_enabled).toBe(true);
+    await waitFor(() =>
+      expect(getUiStore().uiStore.bottomPanel).toBe("tuning"),
+    );
+    const seed = await screen.findByRole("spinbutton", { name: "Noise seed" });
+    expect(seed).toHaveValue("0");
+    text.markProjectSaved();
+    fireEvent.input(seed, { target: { value: "4294967295" } });
+    expect(text.textStore[0].pitch_noise_seed).toBe(4294967295);
+    expect(text.isProjectDirty()).toBe(true);
+    expect(text.textStore[0].query?.accent_phrases[0].moras[0].pitch).toBe(5.9);
+    fireEvent.input(seed, { target: { value: "42.5" } });
+    expect(text.textStore[0].pitch_noise_seed).toBe(4294967295);
+    fireEvent.input(seed, { target: { value: "42" } });
+    expect(text.textStore[0].pitch_noise_seed).toBe(42);
+    getUiStore().setUIStore("selectedTextBlockIndex", 1);
+    expect(screen.getByRole("spinbutton", { name: "Noise seed" })).toHaveValue(
+      "0",
+    );
+    expect(text.textStore[0].pitch_noise_seed).toBe(42);
+    getUiStore().setUIStore("selectedTextBlockIndex", 0);
     const reset = await screen.findByRole("button", {
       name: "Reset pitch and duration edits",
     });
     fireEvent.click(reset);
     await waitFor(() => expect(replaceMora).toHaveBeenCalledTimes(1));
+    expect(replaceMora.mock.lastCall?.[2]).toBe(42);
     await waitFor(() =>
       expect(text.textStore[0].query?.accent_phrases[0].moras[0].pitch).toBe(
         5.4,
       ),
     );
     expect(text.textStore[0].query_is_modified).toBe(true);
+    getConfigStore().setConfig("ui", "pitch_noise_enabled", false);
+    expect(
+      screen.queryByRole("spinbutton", { name: "Noise seed" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("ignores stale pitch and duration resets when the query changes mid-request", async () => {
-    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
-      shouldMockEvents: true,
-    });
-    type ReplaceResult = Awaited<ReturnType<typeof commands.replaceMora>>;
-    let resolveReplace!: (result: ReplaceResult) => void;
-    const pending = new Promise<ReplaceResult>((resolve) => {
-      resolveReplace = resolve;
-    });
-    const replaceMora = vi
-      .spyOn(commands, "replaceMora")
-      .mockReturnValue(pending);
-    const { getTextStore } = renderPanel({ spectrogram_preview: false });
-    const text = getTextStore();
-    await screen.findByText("コ");
-    text.setTextStore(
-      0,
-      "query",
-      "accent_phrases",
-      0,
-      "moras",
-      0,
-      "pitch",
-      5.9,
-    );
-    text.markQueryModified(0);
-    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-    fireEvent.click(
-      await screen.findByRole("button", {
-        name: "Reset pitch and duration edits",
-      }),
-    );
-    await waitFor(() => expect(replaceMora).toHaveBeenCalledTimes(1));
+  it.each(["query", "seed"] as const)(
+    "ignores stale pitch and duration resets when the %s changes mid-request",
+    async (change) => {
+      mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+        shouldMockEvents: true,
+      });
+      type ReplaceResult = Awaited<ReturnType<typeof commands.replaceMora>>;
+      let resolveReplace!: (result: ReplaceResult) => void;
+      const pending = new Promise<ReplaceResult>((resolve) => {
+        resolveReplace = resolve;
+      });
+      const replaceMora = vi
+        .spyOn(commands, "replaceMora")
+        .mockReturnValue(pending);
+      const { getTextStore } = renderPanel({ spectrogram_preview: false });
+      const text = getTextStore();
+      await screen.findByText("コ");
+      text.setTextStore(
+        0,
+        "query",
+        "accent_phrases",
+        0,
+        "moras",
+        0,
+        "pitch",
+        5.9,
+      );
+      text.markQueryModified(0);
+      fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+      fireEvent.click(
+        await screen.findByRole("button", {
+          name: "Reset pitch and duration edits",
+        }),
+      );
+      await waitFor(() => expect(replaceMora).toHaveBeenCalledTimes(1));
 
-    text.setTextStore(
-      0,
-      "query",
-      "accent_phrases",
-      0,
-      "moras",
-      0,
-      "pitch",
-      5.5,
-    );
-    resolveReplace({
-      status: "ok",
-      data: [structuredClone(audioQuery().accent_phrases[0])],
-    });
-    await pending;
-    await Promise.resolve();
-    expect(text.textStore[0].query?.accent_phrases[0].moras[0].pitch).toBe(5.5);
-  });
+      if (change === "seed") text.setTextStore(0, "pitch_noise_seed", 43);
+      else
+        text.setTextStore(
+          0,
+          "query",
+          "accent_phrases",
+          0,
+          "moras",
+          0,
+          "pitch",
+          5.5,
+        );
+      resolveReplace({
+        status: "ok",
+        data: [structuredClone(audioQuery().accent_phrases[0])],
+      });
+      await pending;
+      await Promise.resolve();
+      expect(text.textStore[0].query?.accent_phrases[0].moras[0].pitch).toBe(
+        change === "seed" ? 5.9 : 5.5,
+      );
+    },
+  );
 
   it("keeps edits when the pitch and duration reset request fails", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {

@@ -105,6 +105,7 @@ export const renderPanel = (
             text: "first",
             query: audioQuery(),
             query_is_modified: false,
+            pitch_noise_seed: 0,
             preset_id: "preset-1",
           },
           {
@@ -112,6 +113,7 @@ export const renderPanel = (
             text: "second",
             query: audioQuery({ speedScale: 1.1 }),
             query_is_modified: false,
+            pitch_noise_seed: 0,
             preset_id: "preset-1",
           },
         ]);
@@ -183,6 +185,7 @@ export const renderTuningHook = (
             text: "first",
             query: audioQuery(),
             query_is_modified: false,
+            pitch_noise_seed: 0,
             preset_id: "preset-1",
           },
         ]);
@@ -238,6 +241,7 @@ export const renderPlaybackHook = (
             text: "first",
             query: audioQuery(),
             query_is_modified: false,
+            pitch_noise_seed: 0,
             preset_id: "preset-1",
           },
           {
@@ -245,6 +249,7 @@ export const renderPlaybackHook = (
             text: "second",
             query: audioQuery({ speedScale: 1.1 }),
             query_is_modified: false,
+            pitch_noise_seed: 0,
             preset_id: "preset-1",
           },
         ]);

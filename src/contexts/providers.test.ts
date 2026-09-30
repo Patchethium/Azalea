@@ -436,6 +436,7 @@ describe("TextProvider", () => {
         text: "first",
         query: null,
         query_is_modified: false,
+        pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
       {
@@ -443,6 +444,7 @@ describe("TextProvider", () => {
         text: "second",
         query: audioQuery(),
         query_is_modified: false,
+        pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
     ]);
@@ -459,12 +461,14 @@ describe("TextProvider", () => {
             id: "first-id",
             text: "first",
             query_is_modified: false,
+            pitch_noise_seed: 0,
             preset_id: "preset-1",
           },
           {
             id: "second-id",
             text: "second",
             query_is_modified: false,
+            pitch_noise_seed: 0,
             preset_id: "preset-1",
           },
         ],
@@ -481,6 +485,7 @@ describe("TextProvider", () => {
       preset_id: "preset-1",
       query: null,
       query_is_modified: false,
+      pitch_noise_seed: expect.any(Number),
     });
     expect(ui.uiStore.selectedTextBlockIndex).toBe(0);
   });
@@ -497,6 +502,7 @@ describe("TextProvider", () => {
         text: "first",
         query: null,
         query_is_modified: false,
+        pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
       {
@@ -504,6 +510,7 @@ describe("TextProvider", () => {
         text: "second",
         query: null,
         query_is_modified: false,
+        pitch_noise_seed: 0,
         preset_id: "preset-2",
       },
     ]);

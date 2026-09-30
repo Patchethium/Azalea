@@ -77,6 +77,7 @@ export const renderBlock = (
               text: "hello",
               query: audioQuery(),
               query_is_modified: queryIsModified,
+              pitch_noise_seed: 0,
               preset_id: "preset-1",
             },
             renderAllBlocks
@@ -85,6 +86,7 @@ export const renderBlock = (
                   text: "second",
                   query: audioQuery(),
                   query_is_modified: false,
+                  pitch_noise_seed: 0,
                   preset_id: "preset-1",
                 }
               : null,

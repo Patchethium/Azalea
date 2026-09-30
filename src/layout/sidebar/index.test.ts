@@ -54,6 +54,7 @@ describe("Sidebar project lifecycle", () => {
               text: "Loaded block",
               query: audioQuery({ speedScale: 1.2 }),
               query_is_modified: true,
+              pitch_noise_seed: 0,
               preset_id: "preset-1",
             },
           ],
@@ -81,6 +82,7 @@ describe("Sidebar project lifecycle", () => {
             text: "Current block",
             query: audioQuery(),
             query_is_modified: false,
+            pitch_noise_seed: 0,
             preset_id: "preset-1",
           },
         ]);
@@ -218,6 +220,7 @@ describe("Sidebar SRT import", () => {
             text: "Current block",
             query: audioQuery(),
             query_is_modified: false,
+            pitch_noise_seed: 0,
             preset_id: "preset-1",
           },
         ]);
@@ -347,6 +350,7 @@ describe("Sidebar controls", () => {
               text: "First",
               query: audioQuery(),
               query_is_modified: true,
+              pitch_noise_seed: 0,
               preset_id: "preset-1",
             },
             {
@@ -354,6 +358,7 @@ describe("Sidebar controls", () => {
               text: "Second",
               query: audioQuery(),
               query_is_modified: true,
+              pitch_noise_seed: 0,
               preset_id: "preset-2",
             },
             {
@@ -361,6 +366,7 @@ describe("Sidebar controls", () => {
               text: "Unassigned",
               query: null,
               query_is_modified: false,
+              pitch_noise_seed: 0,
               preset_id: null,
             },
           ]);
@@ -389,6 +395,7 @@ describe("Sidebar controls", () => {
     expect(text.textStore[0]).toMatchObject({
       preset_id: "preset-2",
       query_is_modified: false,
+      pitch_noise_seed: 0,
     });
     text.setTextStore(0, "query_is_modified", true);
     controls.setTextPresetIdx(1);
@@ -515,6 +522,7 @@ describe("Sidebar controls", () => {
             text: "Current block",
             query: audioQuery(),
             query_is_modified: true,
+            pitch_noise_seed: 0,
             preset_id: "preset-1",
           },
           {
@@ -522,6 +530,7 @@ describe("Sidebar controls", () => {
             text: "Related block",
             query: audioQuery(),
             query_is_modified: true,
+            pitch_noise_seed: 0,
             preset_id: "preset-1",
           },
         ]);
@@ -771,6 +780,7 @@ describe("Sidebar unsaved changes", () => {
               text: "Original",
               query: audioQuery(),
               query_is_modified: false,
+              pitch_noise_seed: 0,
               preset_id: "preset-1",
             },
           ]);
@@ -876,6 +886,7 @@ describe("Sidebar unsaved changes", () => {
             text: "Original",
             query: audioQuery(),
             query_is_modified: false,
+            pitch_noise_seed: 0,
             preset_id: "preset-1",
           },
         ]);
@@ -917,6 +928,7 @@ describe("Sidebar unsaved changes", () => {
             text: "Original",
             query: audioQuery(),
             query_is_modified: false,
+            pitch_noise_seed: 0,
             preset_id: "preset-1",
           },
         ]);
@@ -1041,6 +1053,7 @@ describe("Sidebar export all", () => {
         text: "First block",
         query: audioQuery(),
         query_is_modified: false,
+        pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
       {
@@ -1048,6 +1061,7 @@ describe("Sidebar export all", () => {
         text: "",
         query: null,
         query_is_modified: false,
+        pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
       {
@@ -1055,6 +1069,7 @@ describe("Sidebar export all", () => {
         text: "Second block",
         query: audioQuery(),
         query_is_modified: true,
+        pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
     ]);
@@ -1112,6 +1127,7 @@ describe("Sidebar export all", () => {
           text: "hello",
           query: audioQuery(),
           query_is_modified: false,
+          pitch_noise_seed: 0,
           preset_id: "preset-1",
         },
       ],
@@ -1167,6 +1183,7 @@ describe("Sidebar export all", () => {
         text: "Alpha",
         query: audioQuery(),
         query_is_modified: false,
+        pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
       {
@@ -1174,6 +1191,7 @@ describe("Sidebar export all", () => {
         text: "Beta",
         query: null,
         query_is_modified: false,
+        pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
       {
@@ -1181,6 +1199,7 @@ describe("Sidebar export all", () => {
         text: "Gamma",
         query: audioQuery(),
         query_is_modified: false,
+        pitch_noise_seed: 0,
         preset_id: null,
       },
       {
@@ -1188,6 +1207,7 @@ describe("Sidebar export all", () => {
         text: "Delta",
         query: null,
         query_is_modified: false,
+        pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
     ]);
@@ -1199,8 +1219,8 @@ describe("Sidebar export all", () => {
       await screen.findByText("Exported 1 of 4 files"),
     ).toBeInTheDocument();
     expect(saveAudio).toHaveBeenCalledTimes(2);
-    expect(audioQueryCommand).toHaveBeenCalledWith("Beta", 1);
-    expect(audioQueryCommand).toHaveBeenCalledWith("Delta", 1);
+    expect(audioQueryCommand).toHaveBeenCalledWith("Beta", 1, 0);
+    expect(audioQueryCommand).toHaveBeenCalledWith("Delta", 1, 0);
     expect(screen.getByText("Failed blocks")).toBeInTheDocument();
     expect(screen.getByText("disk full")).toBeInTheDocument();
     expect(
@@ -1238,6 +1258,7 @@ describe("Sidebar export all", () => {
         text: "Broken block",
         query: audioQuery(),
         query_is_modified: false,
+        pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
       {
@@ -1245,6 +1266,7 @@ describe("Sidebar export all", () => {
         text: "Working block",
         query: audioQuery(),
         query_is_modified: false,
+        pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
     ]);
@@ -1284,6 +1306,7 @@ describe("Sidebar export all", () => {
         text: "First block",
         query: audioQuery(),
         query_is_modified: false,
+        pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
       {
@@ -1291,6 +1314,7 @@ describe("Sidebar export all", () => {
         text: "Second block",
         query: audioQuery(),
         query_is_modified: false,
+        pitch_noise_seed: 0,
         preset_id: "preset-1",
       },
     ]);
@@ -1334,6 +1358,7 @@ describe("Sidebar export all", () => {
         text: "",
         query: null,
         query_is_modified: false,
+        pitch_noise_seed: 0,
         preset_id: null,
       },
     ]);

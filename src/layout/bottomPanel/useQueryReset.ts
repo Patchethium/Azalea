@@ -62,10 +62,11 @@ export function useQueryReset() {
       return;
     }
     const phrases = structuredClone(unwrap(block.query.accent_phrases));
+    const seed = block.pitch_noise_seed;
     const revision = ++resetRevision;
     setResetPending(true);
     try {
-      const result = await commands.replaceMora(phrases, preset.style_id);
+      const result = await commands.replaceMora(phrases, preset.style_id, seed);
       if (revision !== resetRevision) return;
       if (result.status === "error") {
         console.error(
@@ -77,6 +78,7 @@ export function useQueryReset() {
       const current = textStore[index];
       if (
         current?.id !== block.id ||
+        current.pitch_noise_seed !== seed ||
         JSON.stringify(current.query?.accent_phrases) !==
           JSON.stringify(phrases)
       ) {

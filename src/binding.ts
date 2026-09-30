@@ -165,9 +165,9 @@ async deleteDictionaryEntry(id: string) : Promise<Result<null, string>> {
 /**
  * Encodes text into audio query
  */
-async audioQuery(text: string, speakerId: StyleId) : Promise<Result<AudioQuery, string>> {
+async audioQuery(text: string, speakerId: StyleId, seed: number) : Promise<Result<AudioQuery, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("audio_query", { text, speakerId }) };
+    return { status: "ok", data: await TAURI_INVOKE("audio_query", { text, speakerId, seed }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -176,9 +176,9 @@ async audioQuery(text: string, speakerId: StyleId) : Promise<Result<AudioQuery, 
 /**
  * Encodes text into accent phrases
  */
-async accentPhrases(text: string, speakerId: StyleId) : Promise<Result<AccentPhrase[], string>> {
+async accentPhrases(text: string, speakerId: StyleId, seed: number) : Promise<Result<AccentPhrase[], string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("accent_phrases", { text, speakerId }) };
+    return { status: "ok", data: await TAURI_INVOKE("accent_phrases", { text, speakerId, seed }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -187,9 +187,9 @@ async accentPhrases(text: string, speakerId: StyleId) : Promise<Result<AccentPhr
 /**
  * Replace mora data (pitch and duration) in accent phrases
  */
-async replaceMora(ap: AccentPhrase[], styleId: StyleId) : Promise<Result<AccentPhrase[], string>> {
+async replaceMora(ap: AccentPhrase[], styleId: StyleId, seed: number) : Promise<Result<AccentPhrase[], string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("replace_mora", { ap, styleId }) };
+    return { status: "ok", data: await TAURI_INVOKE("replace_mora", { ap, styleId, seed }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -198,9 +198,9 @@ async replaceMora(ap: AccentPhrase[], styleId: StyleId) : Promise<Result<AccentP
 /**
  * Replace pitch in accent phrases
  */
-async replaceMoraPitch(ap: AccentPhrase[], styleId: StyleId) : Promise<Result<AccentPhrase[], string>> {
+async replaceMoraPitch(ap: AccentPhrase[], styleId: StyleId, seed: number) : Promise<Result<AccentPhrase[], string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("replace_mora_pitch", { ap, styleId }) };
+    return { status: "ok", data: await TAURI_INVOKE("replace_mora_pitch", { ap, styleId, seed }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -773,10 +773,10 @@ export type SynthState =
 export type SynthesisJobEvent = { blockId: string; generationId: number; hash: string; state: SynthesisJobState; error: string | null }
 export type SynthesisJobRequest = { blockId: string; generationId: number; audioQuery: AudioQuery; speakerId: StyleId; hash: string }
 export type SynthesisJobState = "Queued" | "Running" | "Completed" | "Failed" | "Cancelled" | "Evicted"
-export type TextBlockProps = { id: string; text: string; query: AudioQuery | null; query_is_modified: boolean; preset_id: string | null }
+export type TextBlockProps = { id: string; text: string; query: AudioQuery | null; query_is_modified: boolean; pitch_noise_seed: number; preset_id: string | null }
 export type ThemeMode = "System" | "Light" | "Dark"
 export type TitlebarStyle = "Native" | "Custom" | "Hidden"
-export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; embedded_font?: boolean; titlebar_style?: TitlebarStyle; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; bottom_duration_height?: number; side_width?: number; buffer_render?: boolean; nonblocking_synthesis?: boolean; synthesis_delay_ms?: number; spectrogram_preview?: boolean; playback_timeline?: boolean; pitch_scale?: PitchScale; pitch_ruler?: boolean; name_truncation_len?: number; default_export_dir?: string | null; default_export_dir_enabled?: boolean; silent_save?: boolean; prevent_overwrite?: boolean; last_exported_dir?: string | null; shortcuts?: KeyboardShortcuts }
+export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; embedded_font?: boolean; titlebar_style?: TitlebarStyle; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; bottom_duration_height?: number; side_width?: number; buffer_render?: boolean; nonblocking_synthesis?: boolean; pitch_noise_enabled?: boolean; pitch_noise_sigma?: number; synthesis_delay_ms?: number; spectrogram_preview?: boolean; playback_timeline?: boolean; pitch_scale?: PitchScale; pitch_ruler?: boolean; name_truncation_len?: number; default_export_dir?: string | null; default_export_dir_enabled?: boolean; silent_save?: boolean; prevent_overwrite?: boolean; last_exported_dir?: string | null; shortcuts?: KeyboardShortcuts }
 
 /** tauri-specta globals **/
 

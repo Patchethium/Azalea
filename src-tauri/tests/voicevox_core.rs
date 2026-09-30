@@ -9,7 +9,9 @@ use std::{
 use azalea_lib::{audio::spectal::MelSpec, core::Core};
 use hound::{SampleFormat, WavSpec};
 use ndarray::Array1;
-use voicevox_core::{blocking::UserDict, AccentPhrase, Mora, StyleId, StyleType, UserDictWord};
+use voicevox_core::{
+  blocking::UserDict, AccentPhrase, Mora, PitchNoiseOptions, StyleId, StyleType, UserDictWord,
+};
 
 mod common;
 
@@ -56,6 +58,56 @@ fn decode_wav(wav: &[u8]) -> (WavSpec, Vec<i16>) {
     .collect::<Result<Vec<_>, _>>()
     .expect("synthesized WAV contains invalid samples");
   (spec, samples)
+}
+
+#[test]
+fn real_core_pitch_noise_is_seeded_and_preserves_non_pitch_fields() {
+  let core = test_core();
+  let style_id = first_talk_style_id(&core);
+  let mut query = core.audio_query(TEST_TEXT, style_id).unwrap();
+  let original = query.accent_phrases.clone();
+  let generate = |sigma, seed| {
+    core
+      .apply_pitch_noise(
+        original.clone(),
+        style_id,
+        Some(PitchNoiseOptions { sigma, seed }),
+      )
+      .unwrap()
+  };
+  assert_eq!(
+    core
+      .apply_pitch_noise(original.clone(), style_id, None)
+      .unwrap(),
+    original
+  );
+  let zero = generate(0.0, 42);
+  for (actual, expected) in pitches(&zero).iter().zip(pitches(&original)) {
+    assert!((actual - expected).abs() <= 1e-6);
+  }
+  let noisy = generate(0.05, 42);
+  assert_eq!(noisy, generate(0.05, 42));
+  assert_ne!(pitches(&noisy), pitches(&original));
+  assert_ne!(pitches(&noisy), pitches(&generate(0.05, 43)));
+  assert_ne!(pitches(&noisy), pitches(&generate(0.1, 42)));
+  let mut without_noise = noisy.clone();
+  for (actual, expected) in without_noise.iter_mut().zip(&original) {
+    for (actual, expected) in actual
+      .moras
+      .iter_mut()
+      .chain(actual.pause_mora.iter_mut())
+      .zip(expected.moras.iter().chain(expected.pause_mora.iter()))
+    {
+      assert!(actual.pitch.is_finite());
+      if expected.pitch == 0.0 {
+        assert_eq!(actual.pitch, 0.0);
+      }
+      actual.pitch = expected.pitch;
+    }
+  }
+  assert_eq!(without_noise, original);
+  query.accent_phrases = noisy;
+  assert!(!core.synthesis(&query, style_id).unwrap().is_empty());
 }
 
 #[test]

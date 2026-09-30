@@ -44,6 +44,7 @@ function renderDictionary(
             text: "generated",
             query: audioQuery(),
             query_is_modified: false,
+            pitch_noise_seed: 0,
             preset_id: null,
           },
           {
@@ -51,6 +52,7 @@ function renderDictionary(
             text: "manual",
             query: audioQuery({ speedScale: 1.25 }),
             query_is_modified: true,
+            pitch_noise_seed: 0,
             preset_id: null,
           },
         ]);
@@ -228,6 +230,7 @@ describe("DictionaryDialog", () => {
     expect(dialog.getText().textStore[0].query).toBeNull();
     expect(dialog.getText().textStore[1]).toMatchObject({
       query_is_modified: true,
+      pitch_noise_seed: 0,
       query: { speedScale: 1.25 },
     });
 

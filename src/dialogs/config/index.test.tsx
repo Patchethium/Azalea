@@ -143,6 +143,32 @@ describe("ConfigPage", () => {
     fireEvent.click(ruler);
     expect(appConfig.pitchRulerEnabled()).toBe(true);
 
+    expect(screen.getByText("Experimental Features")).toBeInTheDocument();
+    const noise = screen.getByRole("switch", {
+      name: "Noised pitch generation",
+    });
+    const sigma = screen.getByRole("spinbutton", {
+      name: "Noise strength (sigma)",
+    });
+    expect(noise).not.toBeChecked();
+    expect(sigma).toBeDisabled();
+    expect(sigma).toHaveValue("0.05");
+    expect(
+      screen.queryByRole("spinbutton", { name: "Noise seed" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(noise);
+    expect(appConfig.config.ui.pitch_noise_enabled).toBe(true);
+    expect(sigma).toBeEnabled();
+    fireEvent.input(sigma, { target: { value: "0.08" } });
+    expect(appConfig.config.ui.pitch_noise_sigma).toBe(0.08);
+    fireEvent.input(sigma, { target: { value: "0" } });
+    expect(appConfig.config.ui.pitch_noise_sigma).toBe(0);
+    fireEvent.input(sigma, { target: { value: "1e100" } });
+    expect(appConfig.config.ui.pitch_noise_sigma).toBe(0);
+    fireEvent.click(noise);
+    expect(appConfig.config.ui.pitch_noise_enabled).toBe(false);
+    expect(sigma).toBeDisabled();
+
     fireEvent.click(screen.getByRole("button", { name: "Close config" }));
     await waitFor(() => expect(ui.uiStore.page).toBeNull());
     expect(screen.getByRole("dialog", { name: "Config" })).toHaveAttribute(

@@ -254,6 +254,22 @@ impl Core {
     Ok(self.synthesizer.replace_mora_pitch(&ap, style_id)?)
   }
 
+  pub fn apply_pitch_noise(
+    &self,
+    ap: Vec<AccentPhrase>,
+    style_id: StyleId,
+    options: Option<voicevox_core::PitchNoiseOptions>,
+  ) -> Result<Vec<AccentPhrase>> {
+    match options {
+      Some(options) => Ok(
+        self
+          .synthesizer
+          .replace_mora_pitch_with_noise(&ap, style_id, options)?,
+      ),
+      None => Ok(ap),
+    }
+  }
+
   /// same as `replace_mora` but only replaces length
   pub fn replace_mora_duration(
     &self,
