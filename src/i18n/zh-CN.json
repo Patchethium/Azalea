@@ -9,6 +9,8 @@
     "later.button": "好的"
   },
   "loading": "加载中",
+  "enabled": "已启用",
+  "disabled": "已禁用",
   "toast": {
     "notifications": "通知",
     "close": "关闭通知",

@@ -9,6 +9,8 @@
     "later.button": "ええで"
   },
   "loading": "ローディング中",
+  "enabled": "有効",
+  "disabled": "無効",
   "toast": {
     "notifications": "通知",
     "close": "通知を閉じる",

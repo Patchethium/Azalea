@@ -93,16 +93,9 @@ export function ControlBar(props: {
               }
               label={t1("config.pitch_completion_enabled")}
               ariaPressed={pitchCompletionEnabled()}
-              tooltip={
-                <div class="flex max-w-64 flex-col gap-0.5">
-                  <span class="font-medium">
-                    {t1("config.pitch_completion_enabled")}
-                  </span>
-                  <span class="whitespace-normal">
-                    {t1("config.pitch_completion_description")}
-                  </span>
-                </div>
-              }
+              tooltip={`${t1("config.pitch_completion_enabled")} (${
+                pitchCompletionEnabled() ? t1("enabled") : t1("disabled")
+              })`}
               onClick={() =>
                 setConfig(
                   "ui",

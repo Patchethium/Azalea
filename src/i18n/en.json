@@ -9,6 +9,8 @@
     "later.button": "Okay"
   },
   "loading": "Loading",
+  "enabled": "enabled",
+  "disabled": "disabled",
   "toast": {
     "notifications": "Notifications",
     "close": "Close notification",

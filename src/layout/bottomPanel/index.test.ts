@@ -3009,13 +3009,28 @@ describe("Pitch completion", () => {
     const toggle = screen.getByRole("button", { name: "Pitch completion" });
     expect(toggle).toHaveAttribute("aria-pressed", "false");
     expect(toggle.firstElementChild).toHaveClass("i-lucide:lock");
+    vi.useFakeTimers();
+    const trigger = toggle.parentElement!;
+    fireEvent.pointerEnter(trigger, { pointerType: "mouse" });
+    await vi.advanceTimersByTimeAsync(400);
+    expect(screen.getByRole("tooltip")).toHaveTextContent(
+      "Pitch completion (disabled)",
+    );
     fireEvent.click(toggle);
     expect(getConfigStore().config.ui.pitch_completion_enabled).toBe(true);
     expect(toggle).toHaveAttribute("aria-pressed", "true");
     expect(toggle.firstElementChild).toHaveClass("i-lucide:unlock");
+    expect(screen.getByRole("tooltip")).toHaveTextContent(
+      "Pitch completion (enabled)",
+    );
     getConfigStore().setConfig("ui", "pitch_completion_enabled", false);
     expect(toggle).toHaveAttribute("aria-pressed", "false");
     expect(toggle.firstElementChild).toHaveClass("i-lucide:lock");
+    expect(screen.getByRole("tooltip")).toHaveTextContent(
+      "Pitch completion (disabled)",
+    );
+    fireEvent.pointerLeave(trigger, { pointerType: "mouse" });
+    vi.useRealTimers();
     expect(complete).not.toHaveBeenCalled();
   });
 
