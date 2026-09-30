@@ -375,6 +375,8 @@ pub struct TextBlockProps {
   pub text: String,
   pub query: Option<AudioQuery>,
   pub query_is_modified: bool,
+  #[serde(default)]
+  pub query_accent_is_modified: bool,
   pub pitch_noise_seed: u32,
   pub preset_id: Option<String>,
 }

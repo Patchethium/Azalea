@@ -1688,6 +1688,7 @@ describe("BottomPanel playback", () => {
       ).toBe("サ"),
     );
     expect(getTextStore().textStore[0].query_is_modified).toBe(true);
+    expect(getTextStore().textStore[0].query_accent_is_modified).toBe(true);
   });
 
   it("does not append the following phrase when editing phonemes", async () => {
@@ -2598,16 +2599,22 @@ describe("BottomPanel playback", () => {
       "pitch",
       5.9,
     );
-    text.markQueryModified(0);
+    text.markQueryAccentModified(0);
+    expect(text.textStore[0].query_accent_is_modified).toBe(true);
     await waitFor(() => expect(reset).toBeEnabled());
     fireEvent.click(reset);
     await waitFor(() => expect(text.textStore[0].query).toBeNull());
     expect(text.textStore[0].query_is_modified).toBe(false);
+    expect(text.textStore[0].query_accent_is_modified).toBe(false);
   });
 
-  it("edits per-block seeds and unlocks them when resetting edits", async () => {
+  it("edits per-block seeds and unlocks them after a tuning reset", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
+    });
+    const replaceMora = vi.spyOn(commands, "replaceMora").mockResolvedValue({
+      status: "ok",
+      data: [structuredClone(audioQuery().accent_phrases[0])],
     });
     const { getTextStore, getConfigStore, getUiStore } = renderPanel({
       spectrogram_preview: false,
@@ -2630,9 +2637,7 @@ describe("BottomPanel playback", () => {
     const seedField = seed.parentElement!;
     expect(seedField.previousElementSibling).toContainElement(regenerate);
     expect(seedField.nextElementSibling).toContainElement(
-      screen.getByRole("button", {
-        name: "Reset pitch, duration, and accent edits",
-      }),
+      screen.getByRole("button", { name: "Reset pitch and duration edits" }),
     );
     expect(seed).toHaveValue("0");
     expect(seed).toBeEnabled();
@@ -2691,10 +2696,16 @@ describe("BottomPanel playback", () => {
     expect(seed).toBeDisabled();
     expect(regenerate).toBeDisabled();
     const reset = await screen.findByRole("button", {
-      name: "Reset pitch, duration, and accent edits",
+      name: "Reset pitch and duration edits",
     });
     fireEvent.click(reset);
-    expect(text.textStore[0].query).toBeNull();
+    await waitFor(() => expect(replaceMora).toHaveBeenCalledTimes(1));
+    expect(replaceMora.mock.lastCall?.[2]).toBe(42);
+    await waitFor(() =>
+      expect(text.textStore[0].query?.accent_phrases[0].moras[0].pitch).toBe(
+        5.4,
+      ),
+    );
     expect(text.textStore[0].query_is_modified).toBe(false);
     expect(seed).toBeEnabled();
     expect(regenerate).toBeEnabled();
@@ -2706,6 +2717,147 @@ describe("BottomPanel playback", () => {
     expect(
       screen.queryByRole("button", { name: "Regenerate noise seed" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("preserves accent and phoneme edits when resetting pitch and duration", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const replaceMora = vi.spyOn(commands, "replaceMora").mockResolvedValue({
+      status: "ok",
+      data: [structuredClone(audioQuery().accent_phrases[0])],
+    });
+    const { getTextStore } = renderPanel({
+      spectrogram_preview: false,
+      pitch_noise_enabled: true,
+    });
+    const text = getTextStore();
+    await screen.findByText("コ");
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    const seed = await screen.findByRole("spinbutton", { name: "Noise seed" });
+    text.setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      0,
+      "moras",
+      0,
+      "pitch",
+      5.9,
+    );
+    text.markQueryModified(0);
+    text.markQueryAccentModified(0);
+    expect(seed).toBeDisabled();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Reset pitch and duration edits" }),
+    );
+    await waitFor(() => expect(replaceMora).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(text.textStore[0].query?.accent_phrases[0].moras[0].pitch).toBe(
+        5.4,
+      ),
+    );
+    expect(text.textStore[0].query_accent_is_modified).toBe(true);
+    expect(text.textStore[0].query_is_modified).toBe(true);
+    expect(seed).toBeDisabled();
+  });
+
+  it.each(["query", "seed"] as const)(
+    "ignores stale pitch and duration resets when the %s changes mid-request",
+    async (change) => {
+      mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+        shouldMockEvents: true,
+      });
+      type ReplaceResult = Awaited<ReturnType<typeof commands.replaceMora>>;
+      let resolveReplace!: (result: ReplaceResult) => void;
+      const pending = new Promise<ReplaceResult>((resolve) => {
+        resolveReplace = resolve;
+      });
+      const replaceMora = vi
+        .spyOn(commands, "replaceMora")
+        .mockReturnValue(pending);
+      const { getTextStore } = renderPanel({ spectrogram_preview: false });
+      const text = getTextStore();
+      await screen.findByText("コ");
+      text.setTextStore(
+        0,
+        "query",
+        "accent_phrases",
+        0,
+        "moras",
+        0,
+        "pitch",
+        5.9,
+      );
+      text.markQueryModified(0);
+      fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+      fireEvent.click(
+        await screen.findByRole("button", {
+          name: "Reset pitch and duration edits",
+        }),
+      );
+      await waitFor(() => expect(replaceMora).toHaveBeenCalledTimes(1));
+
+      if (change === "seed") text.setTextStore(0, "pitch_noise_seed", 43);
+      else
+        text.setTextStore(
+          0,
+          "query",
+          "accent_phrases",
+          0,
+          "moras",
+          0,
+          "pitch",
+          5.5,
+        );
+      resolveReplace({
+        status: "ok",
+        data: [structuredClone(audioQuery().accent_phrases[0])],
+      });
+      await pending;
+      await Promise.resolve();
+      expect(text.textStore[0].query?.accent_phrases[0].moras[0].pitch).toBe(
+        change === "seed" ? 5.9 : 5.5,
+      );
+    },
+  );
+
+  it("keeps edits when the pitch and duration reset request fails", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(commands, "replaceMora").mockResolvedValue({
+      status: "error",
+      error: "replace failed",
+    });
+    const { getTextStore } = renderPanel({ spectrogram_preview: false });
+    const text = getTextStore();
+    await screen.findByText("コ");
+    text.setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      0,
+      "moras",
+      0,
+      "pitch",
+      5.9,
+    );
+    text.markQueryModified(0);
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    const reset = await screen.findByRole("button", {
+      name: "Reset pitch and duration edits",
+    });
+    fireEvent.click(reset);
+    await waitFor(() =>
+      expect(console.error).toHaveBeenCalledWith(
+        "Failed to reset pitch and duration edits:",
+        "replace failed",
+      ),
+    );
+    expect(text.textStore[0].query?.accent_phrases[0].moras[0].pitch).toBe(5.9);
+    await waitFor(() => expect(reset).toBeEnabled());
   });
 
   it("uses the reset button style for the other toolbar buttons", async () => {

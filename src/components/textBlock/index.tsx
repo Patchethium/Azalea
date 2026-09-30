@@ -64,6 +64,7 @@ function TextBlock(props: { index: number }) {
       ...currentText(),
       text,
       query_is_modified: false,
+      query_accent_is_modified: false,
     });
   };
 
@@ -73,6 +74,7 @@ function TextBlock(props: { index: number }) {
       produce((draft) => {
         draft.query = query;
         draft.query_is_modified = false;
+        draft.query_accent_is_modified = false;
       }),
     );
   };
@@ -313,6 +315,7 @@ function TextBlock(props: { index: number }) {
         ...currentText(),
         text: text.slice(0, clamped),
         query_is_modified: false,
+        query_accent_is_modified: false,
       });
       const nextIndex = insertTextBlockBelow(props.index);
       setTextStore(nextIndex, {

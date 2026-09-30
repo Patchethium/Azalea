@@ -26,6 +26,7 @@ struct ProjectBlockRef<'a> {
   pitch_noise_seed: u32,
   #[serde(skip_serializing_if = "Option::is_none")]
   query_override: Option<&'a AudioQuery>,
+  query_accent_is_modified: bool,
   preset_id: Option<&'a str>,
 }
 
@@ -36,6 +37,8 @@ struct ProjectBlock {
   pitch_noise_seed: u32,
   #[serde(default)]
   query_override: Option<AudioQuery>,
+  #[serde(default)]
+  query_accent_is_modified: bool,
   preset_id: Option<String>,
 }
 
@@ -78,6 +81,11 @@ fn validate_project(project: &Project) -> Result<(), String> {
         "Project block {index} marks a missing query as modified"
       ));
     }
+    if block.query_accent_is_modified && !block.query_is_modified {
+      return Err(format!(
+        "Project block {index} marks accent edits without a modified query"
+      ));
+    }
     if let Some(preset_id) = &block.preset_id {
       if !preset_ids.contains(preset_id) {
         return Err(format!(
@@ -112,6 +120,7 @@ pub async fn save_project(
         } else {
           None
         },
+        query_accent_is_modified: block.query_accent_is_modified,
         preset_id: block.preset_id.as_deref(),
       })
       .collect(),
@@ -152,6 +161,7 @@ pub async fn load_project(path: String) -> Result<Project, String> {
         pitch_noise_seed: block.pitch_noise_seed,
         query_is_modified: block.query_override.is_some(),
         query: block.query_override,
+        query_accent_is_modified: block.query_accent_is_modified,
         preset_id: block.preset_id,
       })
       .collect(),
@@ -178,6 +188,7 @@ mod tests {
         pitch_noise_seed: 42,
         query: Some(sample_query()),
         query_is_modified: true,
+        query_accent_is_modified: true,
         preset_id: Some("preset-1".into()),
       }],
       presets: vec![preset],
@@ -209,6 +220,10 @@ mod tests {
       assert_eq!(saved_toml["presets"][0]["id"].as_str(), Some("preset-1"));
       assert!(saved_toml["blocks"][0].get("query").is_none());
       assert!(saved_toml["blocks"][0].get("query_override").is_some());
+      assert_eq!(
+        saved_toml["blocks"][0]["query_accent_is_modified"].as_bool(),
+        Some(true)
+      );
       let loaded = load_project(saved.to_string_lossy().into_owned())
         .await
         .unwrap();
@@ -219,6 +234,7 @@ mod tests {
       assert_eq!(loaded.blocks[0].pitch_noise_seed, 42);
       assert!(loaded.blocks[0].query.is_some());
       assert!(loaded.blocks[0].query_is_modified);
+      assert!(loaded.blocks[0].query_accent_is_modified);
       assert_eq!(loaded.blocks[0].preset_id.as_deref(), Some("preset-1"));
       assert_eq!(loaded.presets.len(), 1);
       assert_eq!(
@@ -318,6 +334,19 @@ mod tests {
       assert!(error.contains("missing query"));
       assert!(!path.exists());
 
+      let mut accent_without_modifications = project();
+      accent_without_modifications.blocks[0].query_is_modified = false;
+      let path = directory.path().join("accent-without-modifications.azp");
+      let error = save_project(
+        accent_without_modifications,
+        path.to_string_lossy().into_owned(),
+        true,
+      )
+      .await
+      .unwrap_err();
+      assert!(error.contains("accent edits"), "{error}");
+      assert!(!path.exists());
+
       let mut incomplete_fallback = project();
       incomplete_fallback.presets[0].style_name = None;
       let path = directory.path().join("incomplete-fallback.azp");
@@ -415,6 +444,7 @@ mod tests {
       let path = directory.path().join("derived.azp");
       let mut derived_project = project();
       derived_project.blocks[0].query_is_modified = false;
+      derived_project.blocks[0].query_accent_is_modified = false;
 
       save_project(derived_project, path.to_string_lossy().into_owned(), true)
         .await
@@ -427,6 +457,7 @@ mod tests {
         .unwrap();
       assert!(loaded.blocks[0].query.is_none());
       assert!(!loaded.blocks[0].query_is_modified);
+      assert!(!loaded.blocks[0].query_accent_is_modified);
       assert_eq!(loaded.blocks[0].pitch_noise_seed, 42);
     });
   }

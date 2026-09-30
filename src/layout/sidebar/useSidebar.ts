@@ -83,7 +83,10 @@ export function useSidebar() {
         setTextStore(
           produce((blocks) => {
             for (const block of blocks) {
-              if (block.preset_id === presetId) block.query_is_modified = false;
+              if (block.preset_id === presetId) {
+                block.query_is_modified = false;
+                block.query_accent_is_modified = false;
+              }
             }
           }),
         );
@@ -149,6 +152,11 @@ export function useSidebar() {
       setTextStore(selectedTextBlockIndex(), "preset_id", nextPresetId);
       if (previousStyle !== nextPreset.style_id) {
         setTextStore(selectedTextBlockIndex(), "query_is_modified", false);
+        setTextStore(
+          selectedTextBlockIndex(),
+          "query_accent_is_modified",
+          false,
+        );
       }
     });
   };

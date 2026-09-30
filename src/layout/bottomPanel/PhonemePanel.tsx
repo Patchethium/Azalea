@@ -20,7 +20,7 @@ export function PhonemePanel() {
   const {
     textStore,
     setTextStore,
-    markQueryModified,
+    markQueryAccentModified,
     projectPresetStore,
     selectedTextBlock,
     selectedTextBlockIndex,
@@ -92,7 +92,7 @@ export function PhonemePanel() {
     batch(() => {
       finishRequest(request);
       setTextStore(request.index, "query", "accent_phrases", phrases);
-      markQueryModified(request.index);
+      markQueryAccentModified(request.index);
     });
   };
   const scheduledMoraRefresh = debounce(async (request: AccentRequest) => {
@@ -125,7 +125,7 @@ export function PhonemePanel() {
     if (textIndex === null) return;
     batch(() => {
       setTextStore(textIndex, "query", "accent_phrases", index, phrase);
-      markQueryModified(textIndex);
+      markQueryAccentModified(textIndex);
       refreshMoraData();
     });
   };
@@ -161,7 +161,7 @@ export function PhonemePanel() {
           draft.splice(phraseIndex, 1, leftPhrase, rightPhrase);
         }),
       );
-      markQueryModified(textIndex);
+      markQueryAccentModified(textIndex);
       refreshMoraData();
     });
   };
@@ -194,7 +194,7 @@ export function PhonemePanel() {
           draft.splice(phraseIndex, 2, combinedPhrase);
         }),
       );
-      markQueryModified(textIndex);
+      markQueryAccentModified(textIndex);
       refreshMoraData();
     });
   };
