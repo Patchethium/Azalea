@@ -78,25 +78,32 @@ command signatures or shared Rust command types do.
 
 ## Query Reset Semantics
 
-The bottom panel has two panel-aware resets with intentionally different
-scopes:
+The bottom panel is split into two orthogonal panels; keep their edit tracking
+and controls independent:
 
-- The accent-panel reset (`bottom.reset_accent_edits`) rebuilds the query from
-  the block text, discarding phoneme, accent, pitch, and duration edits. It
-  clears all three edit flags.
-- The tuning-panel reset (`bottom.reset_tuning_edits`) only regenerates pitch
-  and duration through `replace_mora_data`, preserving phoneme and accent
-  edits made on the accent panel. It clears `duration_is_modified` and
-  `pitch_is_modified` but leaves `accent_is_modified` untouched.
+- The accent panel tracks `accent_is_modified`. Its reset
+  (`bottom.reset_accent_edits`) is enabled only by that flag and rebuilds the
+  query from the block text, discarding phoneme, accent, pitch, and duration
+  edits. It clears all three flags.
+- The tuning panel tracks `duration_is_modified` and `pitch_is_modified`. Its
+  reset (`bottom.reset_tuning_edits`) is enabled only by those flags and
+  regenerates pitch and duration through `replace_mora_data`, preserving
+  phoneme and accent edits. It clears the two tuning flags and leaves
+  `accent_is_modified` untouched.
+
+Enforce the orthogonality in control state: the tuning panel must never read
+`accent_is_modified` and the accent panel must never read the tuning flags.
+Specifically, the pitch-noise seed controls are disabled only by
+`duration_is_modified` or `pitch_is_modified`, never by accent or phoneme
+edits, and a tuning reset must not enable, disable, or clear the accent reset
+(or vice versa).
 
 Accent and phoneme edits call `markQueryAccentModified`, pitch edits call
 `markQueryPitchModified`, and duration edits call `markQueryDurationModified`;
 the flags are persisted per block and optional in the generated bindings.
-`isQueryModified` derives the aggregate modified state from the three flags and
-gates query persistence and the pitch-noise seed controls, so a tuning reset
-re-enables the seed controls only when no accent edits remain. Full query
-regeneration clears all three flags, and Rust validation rejects modified
-flags without a query override.
+`isQueryModified` derives the aggregate modified state and gates query
+persistence and regeneration. Rust validation rejects modified flags without a
+query override.
 
 ## Audio File Export
 

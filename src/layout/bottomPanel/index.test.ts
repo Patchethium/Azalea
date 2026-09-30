@@ -2713,7 +2713,7 @@ describe("BottomPanel playback", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("preserves accent and phoneme edits when resetting pitch and duration", async () => {
+  it("keeps accent and phoneme edits while resetting pitch and duration", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
@@ -2753,8 +2753,67 @@ describe("BottomPanel playback", () => {
     );
     expect(text.textStore[0].accent_is_modified).toBe(true);
     expect(text.textStore[0].pitch_is_modified).toBe(false);
-    expect(seed).toBeDisabled();
+    expect(seed).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Reset pitch and duration edits" }),
+    ).toBeDisabled();
   });
+
+  it("keeps accent edits out of the tuning reset and seed controls", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const { getTextStore } = renderPanel({
+      spectrogram_preview: false,
+      pitch_noise_enabled: true,
+    });
+    const text = getTextStore();
+    await screen.findByText("コ");
+    text.markQueryAccentModified(0);
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    expect(
+      screen.getByRole("button", { name: "Reset pitch and duration edits" }),
+    ).toBeDisabled();
+    const seed = await screen.findByRole("spinbutton", { name: "Noise seed" });
+    expect(seed).toBeEnabled();
+    fireEvent.click(screen.getByRole("tab", { name: "Accent" }));
+    expect(
+      screen.getByRole("button", {
+        name: "Reset accent phrase edits (also resets pitch and duration)",
+      }),
+    ).toBeEnabled();
+  });
+
+  it.each(["pitch", "duration"] as const)(
+    "gates the tuning reset and seed controls on %s edits",
+    async (kind) => {
+      mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+        shouldMockEvents: true,
+      });
+      const { getTextStore } = renderPanel({
+        spectrogram_preview: false,
+        pitch_noise_enabled: true,
+      });
+      const text = getTextStore();
+      await screen.findByText("コ");
+      if (kind === "pitch") text.markQueryPitchModified(0);
+      else text.markQueryDurationModified(0);
+      fireEvent.click(await screen.findByRole("tab", { name: "Accent" }));
+      expect(
+        screen.getByRole("button", {
+          name: "Reset accent phrase edits (also resets pitch and duration)",
+        }),
+      ).toBeDisabled();
+      fireEvent.click(screen.getByRole("tab", { name: "Tuning" }));
+      expect(
+        screen.getByRole("button", { name: "Reset pitch and duration edits" }),
+      ).toBeEnabled();
+      const seed = await screen.findByRole("spinbutton", {
+        name: "Noise seed",
+      });
+      expect(seed).toBeDisabled();
+    },
+  );
 
   it.each(["query", "seed"] as const)(
     "ignores stale pitch and duration resets when the %s changes mid-request",

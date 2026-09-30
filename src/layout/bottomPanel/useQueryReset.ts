@@ -4,12 +4,17 @@ import { useMetaStore } from "@contexts/meta";
 import {
   findPresetById,
   findPresetStyle,
-  isQueryModified,
+  type TextBlockProps,
   useTextStore,
 } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
 import { batch, createMemo, createSignal } from "solid-js";
 import { unwrap } from "solid-js/store";
+
+// The tuning panel is orthogonal to the accent panel: its controls only track
+// pitch and duration edits, regardless of accent or phoneme edits.
+const tuningModified = (block: TextBlockProps) =>
+  block.duration_is_modified === true || block.pitch_is_modified === true;
 
 export function useQueryReset() {
   const { t1 } = usei18n()!;
@@ -37,12 +42,12 @@ export function useQueryReset() {
   });
   const canReset = createMemo(() => {
     const block = selectedTextBlock();
-    return (
-      block !== null &&
-      isQueryModified(block) &&
-      currentPreset() !== null &&
-      !resetPending()
-    );
+    if (block === null || currentPreset() === null || resetPending()) {
+      return false;
+    }
+    return uiStore.bottomPanel === "accent"
+      ? block.accent_is_modified === true
+      : tuningModified(block);
   });
   const resetLabel = () =>
     t1(
@@ -63,15 +68,16 @@ export function useQueryReset() {
       block === null ||
       block.query === null ||
       preset === null ||
-      !isQueryModified(block) ||
       resetPending()
     ) {
       return;
     }
     if (uiStore.bottomPanel === "accent") {
+      if (block.accent_is_modified !== true) return;
       resetQueryEdits(index);
       return;
     }
+    if (!tuningModified(block)) return;
     const phrases = structuredClone(unwrap(block.query.accent_phrases));
     const seed = block.pitch_noise_seed;
     const revision = ++resetRevision;

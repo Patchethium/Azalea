@@ -1,6 +1,6 @@
 import { Tooltip } from "@components/tooltip";
 import { useConfigStore } from "@contexts/config";
-import { isQueryModified, useTextStore } from "@contexts/text";
+import { useTextStore } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
 import { NumberField } from "@kobalte/core/number-field";
 import { PlaybackTimeline } from "@layout/bottomPanel/PlaybackTimeline";
@@ -48,9 +48,14 @@ export function ControlBar(props: {
   const { canReset, resetEdits, resetLabel } = useQueryReset();
   const pitchCompletionEnabled = () =>
     config.ui.pitch_completion_enabled ?? false;
-  const queryModified = () => {
+  // The tuning panel is orthogonal to the accent panel: the noise seed
+  // controls track only duration and pitch edits.
+  const tuningModified = () => {
     const block = selectedTextBlock();
-    return block !== null && isQueryModified(block);
+    return (
+      block !== null &&
+      (block.duration_is_modified === true || block.pitch_is_modified === true)
+    );
   };
 
   return (
@@ -117,7 +122,7 @@ export function ControlBar(props: {
             <ToolbarButton
               icon="i-lucide:dices"
               label={t1("bottom.regenerate_pitch_noise_seed")}
-              disabled={queryModified()}
+              disabled={tuningModified()}
               onClick={() => {
                 const seed = Math.floor(Math.random() * 2 ** 32);
                 setTextStore(
@@ -134,7 +139,7 @@ export function ControlBar(props: {
               maxValue={4294967295}
               step={1}
               value={selectedTextBlock()?.pitch_noise_seed}
-              disabled={queryModified()}
+              disabled={tuningModified()}
               onRawValueChange={(seed) => {
                 if (Number.isInteger(seed) && seed >= 0 && seed <= 4294967295) {
                   setTextStore(
