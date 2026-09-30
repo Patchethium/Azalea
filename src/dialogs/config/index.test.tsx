@@ -1,5 +1,9 @@
 import { commands } from "$binding";
-import { DEFAULT_PRIMARY_COLOR, DEFAULT_PITCH_NOISE_SIGMA } from "$constants";
+import {
+  DEFAULT_PRIMARY_COLOR,
+  DEFAULT_PITCH_NOISE_SIGMA,
+  MAX_PITCH_NOISE_SIGMA,
+} from "$constants";
 import { ConfigPage } from "@dialogs/config";
 import { AssetCacheSetting } from "@dialogs/config/AssetCacheSetting";
 import { MultiProvider } from "@solid-primitives/context";
@@ -198,8 +202,8 @@ describe("ConfigPage", () => {
     fireEvent.input(sigma, { target: { value: "0" } });
     expect(appConfig.config.ui.pitch_noise_sigma).toBe(0);
     fireEvent.input(sigma, { target: { value: "1e100" } });
-    expect(appConfig.config.ui.pitch_noise_sigma).toBe(0.5);
-    expect(sigma).toHaveValue("0.5");
+    expect(appConfig.config.ui.pitch_noise_sigma).toBe(MAX_PITCH_NOISE_SIGMA);
+    expect(sigma).toHaveValue("0.15");
     fireEvent.input(sigma, { target: { value: "-1" } });
     expect(appConfig.config.ui.pitch_noise_sigma).toBe(0);
     fireEvent.click(

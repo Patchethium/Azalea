@@ -24,6 +24,7 @@ import {
   DEFAULT_CPU_NUM_THREADS,
   DEFAULT_PITCH_NOISE_SIGMA,
   DEFAULT_SYNTHESIS_DELAY_MS,
+  MAX_PITCH_NOISE_SIGMA,
   MAX_SYNTHESIS_DELAY_MS,
 } from "$constants";
 import { useConfigStore } from "@contexts/config";
@@ -272,7 +273,7 @@ export function ConfigPage() {
                     setConfig("ui", "pitch_noise_sigma", value)
                   }
                   min={0}
-                  max={0.5}
+                  max={MAX_PITCH_NOISE_SIGMA}
                   step={0.01}
                 />
               </div>

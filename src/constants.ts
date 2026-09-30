@@ -19,3 +19,4 @@ export const DEFAULT_PITCH_SCALE = "Optimal" as const;
 export const DEFAULT_PITCH_RULER = true;
 export const DEFAULT_CPU_NUM_THREADS = 0;
 export const DEFAULT_PITCH_NOISE_SIGMA = 0.05;
+export const MAX_PITCH_NOISE_SIGMA = 0.15;
