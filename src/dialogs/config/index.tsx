@@ -236,49 +236,50 @@ export function ConfigPage() {
               </Switch.Control>
             </Switch>
           </ConfigItem>
-          <ConfigItem label={t1("config.pitch_noise_sigma")} nested>
-            <div class="flex items-center gap1">
-              <Show
-                when={
-                  (config.ui.pitch_noise_sigma ?? DEFAULT_PITCH_NOISE_SIGMA) !==
-                  DEFAULT_PITCH_NOISE_SIGMA
-                }
-              >
-                <button
-                  type="button"
-                  title={t1("config.reset_pitch_noise_sigma")}
-                  aria-label={t1("config.reset_pitch_noise_sigma")}
-                  onClick={() =>
-                    setConfig(
-                      "ui",
-                      "pitch_noise_sigma",
-                      DEFAULT_PITCH_NOISE_SIGMA,
-                    )
+          <Show when={config.ui.pitch_noise_enabled}>
+            <ConfigItem label={t1("config.pitch_noise_sigma")} nested>
+              <div class="flex items-center gap1">
+                <Show
+                  when={
+                    (config.ui.pitch_noise_sigma ??
+                      DEFAULT_PITCH_NOISE_SIGMA) !== DEFAULT_PITCH_NOISE_SIGMA
                   }
-                  class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) dark:hover:bg-slate-7"
                 >
-                  <div class="i-lucide:rotate-ccw size-4" />
-                </button>
-              </Show>
-              <div class="w-28">
-                <NumberInput
-                  label={t1("config.pitch_noise_sigma")}
-                  hideLabel
-                  decimal
-                  disabled={!config.ui.pitch_noise_enabled}
-                  value={
-                    config.ui.pitch_noise_sigma ?? DEFAULT_PITCH_NOISE_SIGMA
-                  }
-                  setValue={(value) =>
-                    setConfig("ui", "pitch_noise_sigma", value)
-                  }
-                  min={0}
-                  max={MAX_PITCH_NOISE_SIGMA}
-                  step={0.01}
-                />
+                  <button
+                    type="button"
+                    title={t1("config.reset_pitch_noise_sigma")}
+                    aria-label={t1("config.reset_pitch_noise_sigma")}
+                    onClick={() =>
+                      setConfig(
+                        "ui",
+                        "pitch_noise_sigma",
+                        DEFAULT_PITCH_NOISE_SIGMA,
+                      )
+                    }
+                    class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) dark:hover:bg-slate-7"
+                  >
+                    <div class="i-lucide:rotate-ccw size-4" />
+                  </button>
+                </Show>
+                <div class="w-28">
+                  <NumberInput
+                    label={t1("config.pitch_noise_sigma")}
+                    hideLabel
+                    decimal
+                    value={
+                      config.ui.pitch_noise_sigma ?? DEFAULT_PITCH_NOISE_SIGMA
+                    }
+                    setValue={(value) =>
+                      setConfig("ui", "pitch_noise_sigma", value)
+                    }
+                    min={0}
+                    max={MAX_PITCH_NOISE_SIGMA}
+                    step={0.01}
+                  />
+                </div>
               </div>
-            </div>
-          </ConfigItem>
+            </ConfigItem>
+          </Show>
           <ConfigItem
             label={t1("config.pitch_completion_enabled")}
             description={t1("config.pitch_completion_description")}

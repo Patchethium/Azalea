@@ -169,18 +169,23 @@ describe("ConfigPage", () => {
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(screen.queryByText("Experimental Features")).not.toBeInTheDocument();
-    const sigma = screen.getByRole("spinbutton", {
-      name: "Noise strength (sigma)",
-    });
     expect(noise).not.toBeChecked();
-    expect(sigma).toBeDisabled();
-    expect(sigma).toHaveValue("0.05");
+    expect(
+      screen.queryByText("Noise strength (sigma)"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("spinbutton", { name: "Noise strength (sigma)" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("spinbutton", { name: "Noise seed" }),
     ).not.toBeInTheDocument();
     fireEvent.click(noise);
     expect(appConfig.config.ui.pitch_noise_enabled).toBe(true);
+    const sigma = screen.getByRole("spinbutton", {
+      name: "Noise strength (sigma)",
+    });
     expect(sigma).toBeEnabled();
+    expect(sigma).toHaveValue("0.05");
     expect(
       screen.queryByRole("button", {
         name: "Restore default noise strength",
@@ -216,7 +221,20 @@ describe("ConfigPage", () => {
     expect(appConfig.config.ui.pitch_noise_sigma).toBe(0);
     fireEvent.click(noise);
     expect(appConfig.config.ui.pitch_noise_enabled).toBe(false);
-    expect(sigma).toBeDisabled();
+    expect(
+      screen.queryByText("Noise strength (sigma)"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("spinbutton", { name: "Noise strength (sigma)" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Restore default noise strength" }),
+    ).not.toBeInTheDocument();
+    expect(appConfig.config.ui.pitch_noise_sigma).toBe(0);
+    fireEvent.click(noise);
+    expect(
+      screen.getByRole("spinbutton", { name: "Noise strength (sigma)" }),
+    ).toHaveValue("0");
 
     const completion = screen.getByRole("switch", { name: "Pitch completion" });
     expect(completion).not.toBeChecked();
