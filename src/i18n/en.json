@@ -9,8 +9,8 @@
     "later.button": "Okay"
   },
   "loading": "Loading",
-  "enabled": "enabled",
-  "disabled": "disabled",
+  "enabled": "Enabled",
+  "disabled": "Disabled",
   "toast": {
     "notifications": "Notifications",
     "close": "Close notification",
@@ -52,6 +52,7 @@
     "toggle_playback": "Play or stop selected cell",
     "play_current": "Play selected cell",
     "play_next": "Play selected cell and advance",
+    "toggle_pitch_completion": "Toggle pitch completion lock",
     "tab_configurable": "Configurable",
     "tab_fixed": "Fixed",
     "fixed_hint": "Not configurable",
@@ -166,7 +167,7 @@
     "assets_cache_error": "Could not read or clear the asset cache.",
     "pitch_noise_enabled": "Noised pitch generation",
     "pitch_completion_enabled": "Pitch completion",
-    "pitch_completion_description": "After a pitch edit, keep all pitches through that mora and regenerate the remaining pitches. Noise uses the block’s seed and configured strength when enabled.",
+    "pitch_completion_description": "After a pitch edit, keep all pitches through that mora and regenerate the remaining pitches. Use the tuning toolbar lock to pause completion. Noise uses the block’s seed and configured strength when enabled.",
     "pitch_noise_sigma": "Noise strength (sigma)",
     "reset_pitch_noise_sigma": "Restore default noise strength",
     "pitch_noise_seed": "Noise seed",

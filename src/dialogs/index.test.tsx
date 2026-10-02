@@ -291,6 +291,11 @@ describe("ShortcutReferenceDialog", () => {
     const saveShortcut = await screen.findByRole("button", {
       name: "Save project: Ctrl + S",
     });
+    expect(
+      screen.getByRole("button", {
+        name: "Toggle pitch completion lock: Ctrl + L",
+      }),
+    ).toBeInTheDocument();
     const undoShortcut = screen.getByRole("button", {
       name: "Undo text edit: Ctrl + Z",
     });

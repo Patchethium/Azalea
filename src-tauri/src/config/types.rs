@@ -106,6 +106,8 @@ pub struct UIConfig {
   pub pitch_noise_enabled: bool,
   #[serde(default)]
   pub pitch_completion_enabled: bool,
+  #[serde(default)]
+  pub pitch_completion_locked: bool,
   #[serde(
     default = "pitch_noise_sigma_default",
     deserialize_with = "deserialize_pitch_noise_sigma"
@@ -154,6 +156,7 @@ impl Default for UIConfig {
       nonblocking_synthesis: false,
       pitch_noise_enabled: false,
       pitch_completion_enabled: false,
+      pitch_completion_locked: false,
       pitch_noise_sigma: pitch_noise_sigma_default(),
       synthesis_delay_ms: synthesis_delay_ms_default(),
       spectrogram_preview: spectrogram_preview_default(),
@@ -284,6 +287,8 @@ pub struct KeyboardShortcuts {
   pub play_current: KeyboardShortcut,
   #[serde(default = "play_next_shortcut_default")]
   pub play_next: KeyboardShortcut,
+  #[serde(default = "toggle_pitch_completion_shortcut_default")]
+  pub toggle_pitch_completion: KeyboardShortcut,
 }
 
 impl Default for KeyboardShortcuts {
@@ -296,6 +301,7 @@ impl Default for KeyboardShortcuts {
       toggle_playback: toggle_playback_shortcut_default(),
       play_current: play_current_shortcut_default(),
       play_next: play_next_shortcut_default(),
+      toggle_pitch_completion: toggle_pitch_completion_shortcut_default(),
     }
   }
 }
@@ -326,6 +332,10 @@ fn play_current_shortcut_default() -> KeyboardShortcut {
 
 fn play_next_shortcut_default() -> KeyboardShortcut {
   KeyboardShortcut::new("Enter", false, true)
+}
+
+fn toggle_pitch_completion_shortcut_default() -> KeyboardShortcut {
+  KeyboardShortcut::new("L", true, false)
 }
 
 #[derive(Clone, Deserialize, Serialize, Type)]
@@ -410,6 +420,7 @@ mod tests {
     assert!(!config.nonblocking_synthesis);
     assert!(!config.pitch_noise_enabled);
     assert!(!config.pitch_completion_enabled);
+    assert!(!config.pitch_completion_locked);
     assert_eq!(config.pitch_noise_sigma, 0.05);
     assert!(config.pitch_noise_options(42).is_none());
     assert!(!config.embedded_font);
@@ -421,6 +432,10 @@ mod tests {
     assert!(config.last_exported_dir.is_none());
     assert!(config.pitch_ruler);
     assert_eq!(config.bottom_duration_height, 48);
+    assert_eq!(
+      config.shortcuts.toggle_pitch_completion,
+      KeyboardShortcut::new("L", true, false)
+    );
     assert_eq!(
       config.shortcuts.toggle_playback,
       KeyboardShortcut::new("Space", false, false)
@@ -489,6 +504,10 @@ mod tests {
     );
     let serialized = toml::Value::try_from(config).unwrap();
     assert!(serialized["shortcuts"].get("stop_playback").is_none());
+    assert_eq!(
+      serialized["shortcuts"]["toggle_pitch_completion"]["key"].as_str(),
+      Some("L")
+    );
   }
 
   #[test]

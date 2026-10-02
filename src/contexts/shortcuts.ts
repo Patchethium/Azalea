@@ -11,6 +11,7 @@ export const shortcutActions = [
   "toggle_playback",
   "play_current",
   "play_next",
+  "toggle_pitch_completion",
 ] as const;
 
 export type ShortcutAction = (typeof shortcutActions)[number];
@@ -81,6 +82,13 @@ export const defaultKeyboardShortcuts: Record<
     primary: false,
     secondary: false,
     shift: true,
+    alt: false,
+  },
+  toggle_pitch_completion: {
+    key: "L",
+    primary: true,
+    secondary: false,
+    shift: false,
     alt: false,
   },
 };

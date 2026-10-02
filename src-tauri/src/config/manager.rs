@@ -158,6 +158,8 @@ mod tests {
     source.config.ui.nonblocking_synthesis = true;
     source.config.ui.pitch_noise_enabled = true;
     source.config.ui.pitch_completion_enabled = true;
+    source.config.ui.pitch_completion_locked = true;
+    source.config.ui.shortcuts.toggle_pitch_completion.key = "K".into();
     source.config.ui.pitch_noise_sigma = 0.08;
     source.config.ui.spectrogram_preview = false;
     source.config.ui.playback_timeline = false;
@@ -179,6 +181,8 @@ mod tests {
     assert!(loaded.config.ui.nonblocking_synthesis);
     assert!(loaded.config.ui.pitch_noise_enabled);
     assert!(loaded.config.ui.pitch_completion_enabled);
+    assert!(loaded.config.ui.pitch_completion_locked);
+    assert_eq!(loaded.config.ui.shortcuts.toggle_pitch_completion.key, "K");
     assert_eq!(loaded.config.ui.pitch_noise_sigma, 0.08);
     assert!(!loaded.config.ui.spectrogram_preview);
     assert!(!loaded.config.ui.playback_timeline);

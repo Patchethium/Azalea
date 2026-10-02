@@ -613,7 +613,7 @@ export type DictionaryWordType = "PROPER_NOUN" | "COMMON_NOUN" | "VERB" | "ADJEC
 export type FrontendReadyEvent = null
 export type InitializationEvent = { config: AzaleaConfig | null; core_initialized: boolean; metas: CharacterMeta[] | null; range: ([StyleId, PitchRange])[]; error: string | null }
 export type KeyboardShortcut = { key: string; primary?: boolean; secondary?: boolean; shift?: boolean; alt?: boolean }
-export type KeyboardShortcuts = { undo?: KeyboardShortcut; redo?: KeyboardShortcut; save_project?: KeyboardShortcut; export_audio?: KeyboardShortcut; toggle_playback?: KeyboardShortcut; play_current?: KeyboardShortcut; play_next?: KeyboardShortcut }
+export type KeyboardShortcuts = { undo?: KeyboardShortcut; redo?: KeyboardShortcut; save_project?: KeyboardShortcut; export_audio?: KeyboardShortcut; toggle_playback?: KeyboardShortcut; play_current?: KeyboardShortcut; play_next?: KeyboardShortcut; toggle_pitch_completion?: KeyboardShortcut }
 export type Locale = "Ja" | "En" | "ZhCn"
 /**
  * モーラ（子音＋母音）ごとの情報。
@@ -787,7 +787,7 @@ export type SynthesisJobState = "Queued" | "Running" | "Completed" | "Failed" | 
 export type TextBlockProps = { id: string; text: string; query: AudioQuery | null; accent_is_modified?: boolean; duration_is_modified?: boolean; pitch_is_modified?: boolean; pitch_noise_seed: number; preset_id: string | null }
 export type ThemeMode = "System" | "Light" | "Dark"
 export type TitlebarStyle = "Native" | "Custom" | "Hidden"
-export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; embedded_font?: boolean; titlebar_style?: TitlebarStyle; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; bottom_duration_height?: number; side_width?: number; buffer_render?: boolean; nonblocking_synthesis?: boolean; pitch_noise_enabled?: boolean; pitch_completion_enabled?: boolean; pitch_noise_sigma?: number; synthesis_delay_ms?: number; spectrogram_preview?: boolean; playback_timeline?: boolean; pitch_scale?: PitchScale; pitch_ruler?: boolean; name_truncation_len?: number; default_export_dir?: string | null; default_export_dir_enabled?: boolean; silent_save?: boolean; prevent_overwrite?: boolean; last_exported_dir?: string | null; shortcuts?: KeyboardShortcuts }
+export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; embedded_font?: boolean; titlebar_style?: TitlebarStyle; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; bottom_duration_height?: number; side_width?: number; buffer_render?: boolean; nonblocking_synthesis?: boolean; pitch_noise_enabled?: boolean; pitch_completion_enabled?: boolean; pitch_completion_locked?: boolean; pitch_noise_sigma?: number; synthesis_delay_ms?: number; spectrogram_preview?: boolean; playback_timeline?: boolean; pitch_scale?: PitchScale; pitch_ruler?: boolean; name_truncation_len?: number; default_export_dir?: string | null; default_export_dir_enabled?: boolean; silent_save?: boolean; prevent_overwrite?: boolean; last_exported_dir?: string | null; shortcuts?: KeyboardShortcuts }
 
 /** tauri-specta globals **/
 

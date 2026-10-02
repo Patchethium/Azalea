@@ -65,6 +65,17 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     setConfig("ui", "titlebar_style", style);
   };
   const pitchRulerEnabled = () => config.ui.pitch_ruler ?? DEFAULT_PITCH_RULER;
+  const pitchCompletionActive = () =>
+    (config.ui.pitch_completion_enabled ?? false) &&
+    !config.ui.pitch_completion_locked;
+  const togglePitchCompletionLock = () => {
+    if (config.ui.pitch_completion_enabled)
+      setConfig(
+        "ui",
+        "pitch_completion_locked",
+        !config.ui.pitch_completion_locked,
+      );
+  };
   const setPitchRulerEnabled = (enabled: boolean) => {
     setConfig("ui", "pitch_ruler", enabled);
   };
@@ -166,6 +177,8 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     setTitlebarStyle,
     pitchRulerEnabled,
     setPitchRulerEnabled,
+    pitchCompletionActive,
+    togglePitchCompletionLock,
     themeMode,
     setThemeMode,
   };

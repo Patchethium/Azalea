@@ -2,13 +2,14 @@ import { Tooltip } from "@components/tooltip";
 import { useConfigStore } from "@contexts/config";
 import { useTextStore } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
+import { useShortcutsStore } from "@contexts/shortcuts";
 import { NumberField } from "@kobalte/core/number-field";
 import { PlaybackTimeline } from "@layout/bottomPanel/PlaybackTimeline";
 import type { WaveformSynthesisNotice } from "@layout/bottomPanel/types";
 import { usePlaybackControls } from "@layout/bottomPanel/usePlaybackControls";
 import { useQueryReset } from "@layout/bottomPanel/useQueryReset";
 import { usei18n } from "@contexts/i18n";
-import { Show, type JSX } from "solid-js";
+import { onCleanup, onMount, Show, type JSX } from "solid-js";
 
 function ToolbarButton(props: {
   icon: string;
@@ -40,14 +41,34 @@ export function ControlBar(props: {
   onWaveformSynthesized: (notice: WaveformSynthesisNotice) => void;
 }) {
   const { t1 } = usei18n()!;
-  const { config, setConfig, playbackTimelineEnabled } = useConfigStore()!;
+  const {
+    config,
+    playbackTimelineEnabled,
+    pitchCompletionActive,
+    togglePitchCompletionLock,
+  } = useConfigStore()!;
+  const { matchesShortcut, formatShortcut, isApplicationShortcutAllowed } =
+    useShortcutsStore()!;
   const { selectedTextBlock, selectedTextBlockIndex, setTextStore } =
     useTextStore()!;
   const { uiStore } = useUIStore()!;
   const controls = usePlaybackControls(props.onWaveformSynthesized);
   const { canReset, resetEdits, resetLabel } = useQueryReset();
-  const pitchCompletionEnabled = () =>
-    config.ui.pitch_completion_enabled ?? false;
+  onMount(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        uiStore.page !== null ||
+        !config.ui.pitch_completion_enabled ||
+        !isApplicationShortcutAllowed(event) ||
+        !matchesShortcut(event, "toggle_pitch_completion")
+      )
+        return;
+      event.preventDefault();
+      togglePitchCompletionLock();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    onCleanup(() => window.removeEventListener("keydown", handleKeyDown));
+  });
   // The tuning panel is orthogonal to the accent panel: the noise seed
   // controls track only duration and pitch edits.
   const tuningModified = () => {
@@ -95,23 +116,27 @@ export function ControlBar(props: {
           disabled={!controls.nextExists()}
         />
         <div class="flex flex-1 items-center justify-end">
-          <Show when={uiStore.bottomPanel === "tuning"}>
+          <Show
+            when={
+              config.ui.pitch_completion_enabled &&
+              uiStore.bottomPanel === "tuning"
+            }
+          >
             <ToolbarButton
               icon={
-                pitchCompletionEnabled() ? "i-lucide:unlock" : "i-lucide:lock"
+                pitchCompletionActive() ? "i-lucide:unlock" : "i-lucide:lock"
               }
               label={t1("config.pitch_completion_enabled")}
-              ariaPressed={pitchCompletionEnabled()}
-              tooltip={`${t1("config.pitch_completion_enabled")} (${
-                pitchCompletionEnabled() ? t1("enabled") : t1("disabled")
-              })`}
-              onClick={() =>
-                setConfig(
-                  "ui",
-                  "pitch_completion_enabled",
-                  !pitchCompletionEnabled(),
-                )
+              ariaPressed={pitchCompletionActive()}
+              tooltip={
+                <>
+                  <div>{`${t1("config.pitch_completion_enabled")} (${formatShortcut("toggle_pitch_completion").join("+")})`}</div>
+                  <div>
+                    {pitchCompletionActive() ? t1("enabled") : t1("disabled")}
+                  </div>
+                </>
               }
+              onClick={togglePitchCompletionLock}
             />
           </Show>
           <Show

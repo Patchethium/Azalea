@@ -204,12 +204,17 @@ describe("ConfigProvider", () => {
     expect(configStore.spectrogramPreviewEnabled()).toBe(true);
     expect(configStore.pitchRulerEnabled()).toBe(true);
     expect(configStore.themeMode()).toBe("System");
+    expect(configStore.pitchCompletionActive()).toBe(false);
+    configStore.togglePitchCompletionLock();
+    expect(configStore.config.ui.pitch_completion_locked).toBeUndefined();
     configStore.setSpectrogramPreviewEnabled(false);
     await Promise.resolve();
     expect(invocations).toHaveLength(0);
 
     batch(() => {
-      configStore.setConfig(config({ spectrogram_preview: false }));
+      configStore.setConfig(
+        config({ spectrogram_preview: false, pitch_completion_enabled: true }),
+      );
       configStore.setConfigInitialized(true);
     });
     configStore.setThemeMode("Dark");
@@ -220,6 +225,18 @@ describe("ConfigProvider", () => {
     const save = invocations.find(({ cmd }) => cmd === "set_config");
     expect(save?.args).toMatchObject({
       config: { ui: { theme_mode: "Dark" } },
+    });
+    expect(configStore.pitchCompletionActive()).toBe(true);
+    invocations.length = 0;
+    configStore.togglePitchCompletionLock();
+    expect(configStore.pitchCompletionActive()).toBe(false);
+    await waitFor(() => expect(invocations).not.toHaveLength(0));
+    expect(
+      invocations.find(({ cmd }) => cmd === "set_config")?.args,
+    ).toMatchObject({
+      config: {
+        ui: { pitch_completion_enabled: true, pitch_completion_locked: true },
+      },
     });
   });
 

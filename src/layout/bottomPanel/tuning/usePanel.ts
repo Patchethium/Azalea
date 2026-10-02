@@ -71,8 +71,13 @@ export function useTuningPanel(
   } = useTextStore()!;
   const { metas } = useMetaStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
-  const { config, setConfig, spectrogramPreviewEnabled, range } =
-    useConfigStore()!;
+  const {
+    config,
+    setConfig,
+    spectrogramPreviewEnabled,
+    pitchCompletionActive,
+    range,
+  } = useConfigStore()!;
   const {
     getCacheKey,
     getCachedSpectrogram,
@@ -540,6 +545,7 @@ export function useTuningPanel(
         currentPreset()?.style_id,
         currentText()?.pitch_noise_seed,
         config.ui.pitch_completion_enabled,
+        config.ui.pitch_completion_locked,
         config.ui.pitch_noise_enabled,
         config.ui.pitch_noise_sigma,
       ],
@@ -568,7 +574,7 @@ export function useTuningPanel(
       );
       markQueryPitchModified(index);
     });
-    if (config.ui.pitch_completion_enabled) completePitch(index, i, j);
+    if (pitchCompletionActive()) completePitch(index, i, j);
   };
 
   const handleDragFinish = () => {

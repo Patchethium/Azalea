@@ -3206,7 +3206,7 @@ describe("Pitch completion", () => {
     expect(complete).not.toHaveBeenCalled();
   });
 
-  it("shares the toolbar toggle with config without regenerating on toggles", async () => {
+  it("shows an independent persisted lock only when the feature is enabled", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
@@ -3216,32 +3216,144 @@ describe("Pitch completion", () => {
       screen.queryByRole("button", { name: "Pitch completion" }),
     ).not.toBeInTheDocument();
     fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    expect(
+      screen.queryByRole("button", { name: "Pitch completion" }),
+    ).not.toBeInTheDocument();
+    getConfigStore().setConfig("ui", "pitch_completion_enabled", true);
     const toggle = screen.getByRole("button", { name: "Pitch completion" });
-    expect(toggle).toHaveAttribute("aria-pressed", "false");
-    expect(toggle.firstElementChild).toHaveClass("i-lucide:lock");
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(toggle.firstElementChild).toHaveClass("i-lucide:unlock");
     vi.useFakeTimers();
     const trigger = toggle.parentElement!;
     fireEvent.pointerEnter(trigger, { pointerType: "mouse" });
     await vi.advanceTimersByTimeAsync(400);
-    expect(screen.getByRole("tooltip")).toHaveTextContent(
-      "Pitch completion (disabled)",
+    expect(screen.getByRole("tooltip").firstElementChild).toHaveTextContent(
+      "Pitch completion (Ctrl+L)",
+    );
+    expect(screen.getByRole("tooltip").lastElementChild).toHaveTextContent(
+      "Enabled",
     );
     fireEvent.click(toggle);
     expect(getConfigStore().config.ui.pitch_completion_enabled).toBe(true);
-    expect(toggle).toHaveAttribute("aria-pressed", "true");
-    expect(toggle.firstElementChild).toHaveClass("i-lucide:unlock");
-    expect(screen.getByRole("tooltip")).toHaveTextContent(
-      "Pitch completion (enabled)",
-    );
-    getConfigStore().setConfig("ui", "pitch_completion_enabled", false);
+    expect(getConfigStore().config.ui.pitch_completion_locked).toBe(true);
     expect(toggle).toHaveAttribute("aria-pressed", "false");
     expect(toggle.firstElementChild).toHaveClass("i-lucide:lock");
-    expect(screen.getByRole("tooltip")).toHaveTextContent(
-      "Pitch completion (disabled)",
+    expect(screen.getByRole("tooltip").lastElementChild).toHaveTextContent(
+      "Disabled",
     );
     fireEvent.pointerLeave(trigger, { pointerType: "mouse" });
     vi.useRealTimers();
+    getConfigStore().setConfig("ui", "pitch_completion_enabled", false);
+    expect(
+      screen.queryByRole("button", { name: "Pitch completion" }),
+    ).not.toBeInTheDocument();
+    getConfigStore().setConfig("ui", "pitch_completion_enabled", true);
+    const restored = screen.getByRole("button", { name: "Pitch completion" });
+    expect(restored).toHaveAttribute("aria-pressed", "false");
+    expect(restored.firstElementChild).toHaveClass("i-lucide:lock");
+    fireEvent.click(restored);
+    expect(getConfigStore().config.ui.pitch_completion_locked).toBe(false);
+    expect(restored).toHaveAttribute("aria-pressed", "true");
     expect(complete).not.toHaveBeenCalled();
+  });
+
+  it.each(["Linux", "MacOS"])(
+    "toggles the lock with the primary shortcut on %s and cleans up the listener",
+    async (os) => {
+      mockIPC((cmd) => (cmd === "get_os" ? os : null), {
+        shouldMockEvents: true,
+      });
+      const { getConfigStore, getUiStore, unmount } = renderPanel({
+        spectrogram_preview: false,
+        pitch_completion_enabled: true,
+        pitch_completion_locked: true,
+      });
+      fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+      const toggle = screen.getByRole("button", { name: "Pitch completion" });
+      const pitch = screen.getByRole("slider", { name: "コ" });
+      fireEvent.pointerEnter(toggle.parentElement!, { pointerType: "mouse" });
+      await waitFor(() =>
+        expect(screen.getByRole("tooltip")).toHaveTextContent(
+          os === "MacOS" ? "Cmd+L" : "Ctrl+L",
+        ),
+      );
+      fireEvent.pointerLeave(toggle.parentElement!, { pointerType: "mouse" });
+      const primary = os === "MacOS" ? { metaKey: true } : { ctrlKey: true };
+      const secondary = os === "MacOS" ? { ctrlKey: true } : { metaKey: true };
+      for (const modifiers of [
+        {},
+        secondary,
+        { ...primary, shiftKey: true },
+        { ...primary, altKey: true },
+        { ...primary, repeat: true },
+        { ...primary, isComposing: true },
+      ]) {
+        fireEvent.keyDown(pitch, { key: "l", ...modifiers });
+        expect(getConfigStore().config.ui.pitch_completion_locked).toBe(true);
+      }
+      const handled = new KeyboardEvent("keydown", {
+        key: "l",
+        ...primary,
+        cancelable: true,
+      });
+      handled.preventDefault();
+      fireEvent(window, handled);
+      expect(getConfigStore().config.ui.pitch_completion_locked).toBe(true);
+      expect(fireEvent.keyDown(pitch, { key: "l", ...primary })).toBe(false);
+      expect(getConfigStore().config.ui.pitch_completion_locked).toBe(false);
+      expect(toggle).toHaveAttribute("aria-pressed", "true");
+      expect(getConfigStore().config.ui.pitch_completion_enabled).toBe(true);
+      getConfigStore().setConfig("ui", "shortcuts", {
+        toggle_pitch_completion: { key: "K", primary: true },
+      });
+      fireEvent.keyDown(pitch, { key: "l", ...primary });
+      expect(getConfigStore().config.ui.pitch_completion_locked).toBe(false);
+      fireEvent.keyDown(pitch, { key: "k", ...primary });
+      expect(getConfigStore().config.ui.pitch_completion_locked).toBe(true);
+      getConfigStore().setConfig("ui", "pitch_completion_enabled", false);
+      expect(fireEvent.keyDown(window, { key: "k", ...primary })).toBe(true);
+      expect(getConfigStore().config.ui.pitch_completion_locked).toBe(true);
+      getConfigStore().setConfig("ui", "pitch_completion_enabled", true);
+      getUiStore().setUIStore("page", "shortcuts");
+      fireEvent.keyDown(window, { key: "k", ...primary });
+      expect(getConfigStore().config.ui.pitch_completion_locked).toBe(true);
+      getUiStore().setUIStore("page", null);
+      unmount();
+      fireEvent.keyDown(window, { key: "k", ...primary });
+      expect(getConfigStore().config.ui.pitch_completion_locked).toBe(true);
+    },
+  );
+
+  it("preserves direct pitch edits while locked and resumes completion only after another edit", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const complete = vi
+      .spyOn(commands, "completeMoraPitch")
+      .mockImplementation(async (data) => ({ status: "ok", data }));
+    const { getPanel, getConfigStore, getTextStore } = renderTuningHook({
+      spectrogram_preview: false,
+      pitch_completion_enabled: true,
+      pitch_completion_locked: true,
+    });
+    vi.useFakeTimers();
+    getPanel().setPitch(0, 0, 5.6);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(complete).not.toHaveBeenCalled();
+    expect(
+      getTextStore().textStore[0].query?.accent_phrases[0].moras[0].pitch,
+    ).toBe(5.6);
+    getConfigStore().togglePitchCompletionLock();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(complete).not.toHaveBeenCalled();
+    getPanel().setPitch(0, 0, 5.7);
+    getConfigStore().togglePitchCompletionLock();
+    getConfigStore().togglePitchCompletionLock();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(complete).not.toHaveBeenCalled();
+    getPanel().setPitch(0, 0, 5.8);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(complete).toHaveBeenCalledOnce();
   });
 
   it("debounces edits, sends the prefix including pauses, and replaces the suffix", async () => {
@@ -3355,6 +3467,8 @@ describe("Pitch completion", () => {
     "sigma",
     "noise",
     "toggle",
+    "lock",
+    "lock-cycle",
     "style",
     "block",
     "deleted",
@@ -3410,6 +3524,9 @@ describe("Pitch completion", () => {
       getConfigStore().setConfig("ui", "pitch_noise_enabled", true);
     if (change === "toggle")
       getConfigStore().setConfig("ui", "pitch_completion_enabled", false);
+    if (change === "lock" || change === "lock-cycle")
+      getConfigStore().togglePitchCompletionLock();
+    if (change === "lock-cycle") getConfigStore().togglePitchCompletionLock();
     if (change === "style")
       text.setProjectPresetStore(
         0,

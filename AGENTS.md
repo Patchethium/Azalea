@@ -34,9 +34,14 @@ Specta support synchronized with the fork's `specta` branch when updating it.
   the `azalea_pitch_prefix` / `azalea_pitch_prefix_mask` graph inputs and fix
   only voiced prefix steps. Azalea surfaces completion through the
   `complete_mora_pitch` command, gated by the default-off
-  `UIConfig.pitch_completion_enabled` setting with a config-dialog switch and a
-  synchronized tuning-toolbar lock toggle; pitch edits debounce completion while
-  preserving every pitch through the edited mora.
+  `UIConfig.pitch_completion_enabled` setting with a config-dialog switch. The
+  tuning-toolbar lock appears only when the feature is enabled and independently
+  controls the persisted `UIConfig.pitch_completion_locked` state, defaulting to
+  unlocked. Ctrl/Cmd+L toggles this lock through the configurable
+  `toggle_pitch_completion` shortcut. Pitch edits debounce completion only while
+  the feature is enabled and unlocked, preserving every pitch through the edited
+  mora. Lock changes cancel queued completion and invalidate in-flight responses
+  without regenerating pitches.
 
 Noise is injected only at voiced mora steps and feeds subsequent predictions;
 unvoiced moras and pauses remain zero after prediction. Existing
