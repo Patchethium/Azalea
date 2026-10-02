@@ -1,0 +1,10 @@
+@media (prefers-reduced-motion: no-preference) {
+  /* Keep keyboard edits and pointer drags immediate, including track clicks. */
+  .pitchSlider:not(:focus-within):not(:active) .pitchThumb {
+    transition: bottom 240ms ease-out;
+  }
+
+  .pitchSlider:not(:focus-within):not(:active) .pitchFill {
+    transition: top 240ms ease-out;
+  }
+}

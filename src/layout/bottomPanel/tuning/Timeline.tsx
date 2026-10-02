@@ -8,8 +8,9 @@ import { useConfigStore } from "@contexts/config";
 import { Slider } from "@kobalte/core/slider";
 import type { DraggingMode } from "@layout/bottomPanel/types";
 import _ from "lodash";
-import { createEffect, Show } from "solid-js";
+import { createEffect, createSignal, Show } from "solid-js";
 import type { PitchScale } from "./pitchScale";
+import styles from "./Timeline.module.css";
 
 const PITCH_BADGE_WIDTH = 32;
 const MORA_TEXT_MIN_WIDTH = 17;
@@ -24,6 +25,11 @@ export function TuningItem(props: {
   isPause?: boolean;
 }) {
   const { config, spectrogramPreviewEnabled } = useConfigStore()!;
+  const [pitchMoving, setPitchMoving] = createSignal(false);
+  const handlePitchTransition = (event: TransitionEvent) => {
+    if (event.propertyName === "bottom")
+      setPitchMoving(event.type === "transitionrun");
+  };
   const unvoiced = () => props.mora.pitch === 0;
   const whisper = () =>
     props.isPause || (props.pitchScale.max === 0 && props.pitchScale.min === 0);
@@ -51,7 +57,7 @@ export function TuningItem(props: {
           }
         >
           <Slider
-            class="flex-1 b-b b-slate-3 dark:b-slate-6 b-dashed overflow-hidden"
+            class={`${styles.pitchSlider} flex-1 b-b b-slate-3 dark:b-slate-6 b-dashed overflow-hidden`}
             minValue={0}
             maxValue={1}
             step={0.001}
@@ -63,13 +69,17 @@ export function TuningItem(props: {
           >
             <Slider.Track class="size-full bg-transparent relative group">
               <Slider.Fill
-                class="absolute bg-transparent w-full group-hover:!bg-primary-50 dark:group-hover:!bg-primary-9"
+                class={`${styles.pitchFill} absolute bg-transparent w-full group-hover:!bg-primary-50 dark:group-hover:!bg-primary-9`}
                 classList={{ "opacity-60": spectrogramPreviewEnabled() }}
               />
               <Slider.Thumb
                 aria-label={props.mora.text}
                 aria-valuetext={props.mora.pitch.toFixed(4)}
-                class="block h-1px w-full bg-slate-4 outline-none group-hover:!bg-primary-5"
+                class={`${styles.pitchThumb} block h-1px w-full bg-slate-4 outline-none group-hover:!bg-primary-5`}
+                classList={{ "!bg-primary-5": pitchMoving() }}
+                onTransitionRun={handlePitchTransition}
+                onTransitionEnd={handlePitchTransition}
+                onTransitionCancel={handlePitchTransition}
               >
                 <Show when={totalPixels() >= PITCH_BADGE_WIDTH}>
                   <span

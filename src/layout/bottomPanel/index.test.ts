@@ -17,6 +17,7 @@ import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { describe, expect, it, vi } from "vitest";
 import { audioQuery, mora, preset, spectrogram } from "../../test/fixtures";
+import tuningStyles from "./tuning/Timeline.module.css";
 
 const emitCompletedSpectrogram = (
   request: SpectrogramJobRequest,
@@ -3099,6 +3100,112 @@ describe("BottomPanel playback", () => {
 });
 
 describe("Pitch completion", () => {
+  it("keeps sliders mounted while completion moves the changed suffix pitches", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    vi.spyOn(commands, "completeMoraPitch").mockImplementation(
+      async (phrases) => {
+        const data = structuredClone(phrases);
+        data[0].moras[1].pitch = 5.9;
+        return { status: "ok", data };
+      },
+    );
+    const { getTextStore, getConfigStore } = renderPanel({
+      spectrogram_preview: false,
+      pitch_completion_enabled: true,
+    });
+    const query = audioQuery();
+    query.accent_phrases[0].moras.push(
+      { ...mora, text: "ン", pitch: 5.2 },
+      { ...mora, text: "ニ", pitch: 5.3 },
+    );
+    getTextStore().setTextStore(0, "query", query);
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    const edited = await screen.findByRole("slider", { name: "コ" });
+    const changed = screen.getByRole("slider", { name: "ン" });
+    const unchanged = screen.getByRole("slider", { name: "ニ" });
+    const sliderRoot = changed.closest('[role="group"]')!;
+    expect(sliderRoot).toHaveClass(tuningStyles.pitchSlider);
+    expect(changed).toHaveClass(tuningStyles.pitchThumb);
+    expect(changed.previousElementSibling).toHaveClass(tuningStyles.pitchFill);
+    const originalBottom = changed.style.bottom;
+    const unchangedBottom = unchanged.style.bottom;
+    edited.focus();
+    vi.useFakeTimers();
+    fireEvent.keyDown(edited, { key: "ArrowUp" });
+    const editedBottom = edited.style.bottom;
+    await vi.advanceTimersByTimeAsync(100);
+    expect(screen.getByRole("slider", { name: "コ" })).toBe(edited);
+    expect(screen.getByRole("slider", { name: "ン" })).toBe(changed);
+    expect(screen.getByRole("slider", { name: "ニ" })).toBe(unchanged);
+    expect(edited).toHaveFocus();
+    expect(edited.style.bottom).toBe(editedBottom);
+    expect(changed.style.bottom).not.toBe(originalBottom);
+    expect(changed).toHaveAttribute("aria-valuetext", "5.9000");
+    expect(unchanged.style.bottom).toBe(unchangedBottom);
+    // JSDOM does not run CSS transitions; dispatch their browser lifecycle events.
+    const transition = (type: string, propertyName = "bottom") =>
+      fireEvent(
+        changed,
+        Object.assign(new Event(type, { bubbles: true }), { propertyName }),
+      );
+    transition("transitionrun", "top");
+    expect(changed).not.toHaveClass("!bg-primary-5");
+    transition("transitionrun");
+    expect(changed).toHaveClass("!bg-primary-5");
+    expect(edited).not.toHaveClass("!bg-primary-5");
+    expect(unchanged).not.toHaveClass("!bg-primary-5");
+    transition("transitionend", "top");
+    expect(changed).toHaveClass("!bg-primary-5");
+    transition("transitionend");
+    expect(changed).not.toHaveClass("!bg-primary-5");
+    transition("transitionrun");
+    transition("transitioncancel");
+    expect(changed).not.toHaveClass("!bg-primary-5");
+    getConfigStore().setConfig("ui", "pitch_completion_enabled", false);
+    expect(sliderRoot).toHaveClass(tuningStyles.pitchSlider);
+  });
+
+  it("keeps pitch transitions available for query regeneration and reset with completion disabled", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const complete = vi.spyOn(commands, "completeMoraPitch");
+    vi.spyOn(commands, "replaceMora").mockResolvedValue({
+      status: "ok",
+      data: audioQuery().accent_phrases,
+    });
+    const { getTextStore } = renderPanel({
+      spectrogram_preview: false,
+      pitch_completion_enabled: false,
+    });
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    const slider = await screen.findByRole("slider", { name: "コ" });
+    const root = slider.closest('[role="group"]')!;
+    const originalBottom = slider.style.bottom;
+    expect(root).toHaveClass(tuningStyles.pitchSlider);
+    const regenerated = audioQuery();
+    regenerated.accent_phrases[0].moras[0].pitch = 5.9;
+    getTextStore().setTextStore(0, "query", regenerated);
+    expect(screen.getByRole("slider", { name: "コ" })).toBe(slider);
+    expect(slider.style.bottom).not.toBe(originalBottom);
+    expect(slider).toHaveAttribute("aria-valuetext", "5.9000");
+    getTextStore().markQueryPitchModified(0);
+    const reset = screen.getByRole("button", {
+      name: "Reset pitch and duration edits",
+    });
+    reset.focus();
+    fireEvent.click(reset);
+    await waitFor(() =>
+      expect(slider).toHaveAttribute("aria-valuetext", "5.4000"),
+    );
+    expect(screen.getByRole("slider", { name: "コ" })).toBe(slider);
+    expect(slider.style.bottom).toBe(originalBottom);
+    expect(root).toHaveClass(tuningStyles.pitchSlider);
+    expect(complete).not.toHaveBeenCalled();
+  });
+
   it("shares the toolbar toggle with config without regenerating on toggles", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
