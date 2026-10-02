@@ -1,3 +1,4 @@
+import { Tooltip } from "@components/tooltip";
 import { IconButton } from "@components/iconButton";
 import { NumberInput } from "@components/numberField";
 import { usei18n } from "@contexts/i18n";
@@ -232,24 +233,26 @@ export function PresetSidebar(props: { controls: SidebarControls }) {
                     setValue={controls.setVolume}
                   />
                   <div class="flex flex-row gap2">
-                    <NumberInput
-                      label={t1("preset.start_sli")}
-                      value={controls.startSli()}
-                      setValue={controls.setStartSli}
-                      min={0}
-                      max={1500}
-                      step={100}
-                      title="in millisecond"
-                    />
-                    <NumberInput
-                      label={t1("preset.end_sli")}
-                      value={controls.endSli()}
-                      setValue={controls.setEndSli}
-                      min={0}
-                      max={1500}
-                      step={100}
-                      title="in millisecond"
-                    />
+                    <Tooltip content="in millisecond" class="min-w-0 flex-1">
+                      <NumberInput
+                        label={t1("preset.start_sli")}
+                        value={controls.startSli()}
+                        setValue={controls.setStartSli}
+                        min={0}
+                        max={1500}
+                        step={100}
+                      />
+                    </Tooltip>
+                    <Tooltip content="in millisecond" class="min-w-0 flex-1">
+                      <NumberInput
+                        label={t1("preset.end_sli")}
+                        value={controls.endSli()}
+                        setValue={controls.setEndSli}
+                        min={0}
+                        max={1500}
+                        step={100}
+                      />
+                    </Tooltip>
                   </div>
                   <div class="h-2 w-full" />
                 </Show>

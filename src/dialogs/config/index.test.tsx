@@ -412,16 +412,30 @@ describe("ConfigPage", () => {
     const resetPrimaryColor = screen.getByRole("button", {
       name: "Restore default primary color",
     });
-    expect(resetPrimaryColor.nextElementSibling).toHaveAccessibleName(
-      "Primary color",
-    );
+    expect(document.querySelector("[title]")).toBeNull();
+    await user.hover(resetPrimaryColor);
+    expect(
+      await screen.findByRole("tooltip", { hidden: true }),
+    ).toHaveTextContent("Restore default primary color");
+    fireEvent.pointerLeave(resetPrimaryColor.parentElement!, {
+      pointerType: "mouse",
+    });
+    resetPrimaryColor.focus();
+    expect(
+      await screen.findByRole("tooltip", { hidden: true }),
+    ).toHaveTextContent("Restore default primary color");
     await user.click(resetPrimaryColor);
     expect(appConfig.config.ui.primary_color).toBe(DEFAULT_PRIMARY_COLOR);
     expect(
       screen.queryByRole("button", { name: "Restore default primary color" }),
     ).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Primary color" }));
+    const primaryColor = screen.getByRole("button", { name: "Primary color" });
+    primaryColor.focus();
+    expect(
+      await screen.findByRole("tooltip", { hidden: true }),
+    ).toHaveTextContent("Primary color");
+    await user.click(primaryColor);
     await user.click(await screen.findByText("Normalize"));
     expect(appConfig.config.ui.primary_color).toMatch(/^#[0-9a-f]{6}$/);
     expect(appConfig.config.ui.primary_color).not.toBe("#808080");

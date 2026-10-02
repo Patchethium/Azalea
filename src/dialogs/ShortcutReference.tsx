@@ -1,3 +1,4 @@
+import { Tooltip } from "@components/tooltip";
 import { AppDialogContent } from "@dialogs/AppContent";
 import { Dialog } from "@kobalte/core/dialog";
 import { Tabs } from "@kobalte/core/tabs";
@@ -128,65 +129,72 @@ export function ShortcutReferenceDialog(props: ShortcutReferenceDialogProps) {
                       const keys = () => formatShortcut(action);
                       return (
                         <div class="grid grid-cols-[minmax(12rem,3fr)_minmax(0,2fr)_2rem] items-center gap3 py3 b-b b-slate-2 dark:b-slate-6 last:b-b-0">
-                          <button
-                            type="button"
-                            aria-label={`${t1(`shortcuts.${action}`)}: ${keys().join(
-                              " + ",
-                            )}`}
-                            title={t1("shortcuts.edit")}
-                            onClick={() => {
-                              setRecording(action);
-                              setConflict(false);
-                            }}
-                            onKeyDown={(event) => recordShortcut(action, event)}
-                            onBlur={() => {
-                              if (recording() === action) setRecording(null);
-                            }}
-                            class="group h-9 min-w-0 grid grid-cols-[repeat(9,max-content)] items-center justify-center gap1 overflow-x-auto rounded-md bg-transparent px2 outline-none focus-visible:ring-2 focus-visible:ring-primary-2"
-                            classList={{
-                              "ring-2 ring-primary-2": recording() === action,
-                            }}
+                          <Tooltip
+                            content={t1("shortcuts.edit")}
+                            class="min-w-0"
                           >
-                            <Show
-                              when={recording() !== action}
-                              fallback={
-                                <span class="text-xs text-primary-7 dark:text-primary-3">
-                                  {t1("shortcuts.recording")}
-                                </span>
+                            <button
+                              type="button"
+                              aria-label={`${t1(`shortcuts.${action}`)}: ${keys().join(
+                                " + ",
+                              )}`}
+                              onClick={() => {
+                                setRecording(action);
+                                setConflict(false);
+                              }}
+                              onKeyDown={(event) =>
+                                recordShortcut(action, event)
                               }
+                              onBlur={() => {
+                                if (recording() === action) setRecording(null);
+                              }}
+                              class="group h-9 w-full min-w-0 grid grid-cols-[repeat(9,max-content)] items-center justify-center gap1 overflow-x-auto rounded-md bg-transparent px2 outline-none focus-visible:ring-2 focus-visible:ring-primary-2"
+                              classList={{
+                                "ring-2 ring-primary-2": recording() === action,
+                              }}
                             >
-                              <For each={keys()}>
-                                {(key, index) => (
-                                  <>
-                                    <kbd class="min-w-7 rounded-md bg-slate-1 px2 py1 text-center text-sm font-mono group-hover:text-primary-5 transition-colors dark:bg-slate-9">
-                                      {key}
-                                    </kbd>
-                                    <Show when={index() < keys().length - 1}>
-                                      <div
-                                        aria-hidden="true"
-                                        class="i-lucide:plus size-4 text-slate-5"
-                                      />
-                                    </Show>
-                                  </>
-                                )}
-                              </For>
-                            </Show>
-                          </button>
+                              <Show
+                                when={recording() !== action}
+                                fallback={
+                                  <span class="text-xs text-primary-7 dark:text-primary-3">
+                                    {t1("shortcuts.recording")}
+                                  </span>
+                                }
+                              >
+                                <For each={keys()}>
+                                  {(key, index) => (
+                                    <>
+                                      <kbd class="min-w-7 rounded-md bg-slate-1 px2 py1 text-center text-sm font-mono group-hover:text-primary-5 transition-colors dark:bg-slate-9">
+                                        {key}
+                                      </kbd>
+                                      <Show when={index() < keys().length - 1}>
+                                        <div
+                                          aria-hidden="true"
+                                          class="i-lucide:plus size-4 text-slate-5"
+                                        />
+                                      </Show>
+                                    </>
+                                  )}
+                                </For>
+                              </Show>
+                            </button>
+                          </Tooltip>
                           <span class="min-w-0 text-left">
                             {t1(`shortcuts.${action}`)}
                           </span>
                           <Show when={!isDefaultShortcut(action)}>
-                            <button
-                              type="button"
-                              title={t1("shortcuts.reset")}
-                              aria-label={t1("shortcuts.reset")}
-                              onClick={() =>
-                                setConflict(!resetShortcut(action))
-                              }
-                              class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) dark:hover:bg-slate-7"
-                            >
-                              <div class="i-lucide:rotate-ccw size-4" />
-                            </button>
+                            <Tooltip content={t1("shortcuts.reset")}>
+                              <button
+                                type="button"
+                                aria-label={t1("shortcuts.reset")}
+                                onClick={() =>
+                                  setConflict(!resetShortcut(action))
+                                }
+                                class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) dark:hover:bg-slate-7"
+                              >
+                                <div class="i-lucide:rotate-ccw size-4" />
+                              </button>
+                            </Tooltip>
                           </Show>
                         </div>
                       );

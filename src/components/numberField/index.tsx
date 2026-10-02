@@ -77,7 +77,6 @@ export function NumberInput(props: {
   min: number;
   max: number;
   step: number;
-  title?: string;
   info?: string;
   disabled?: boolean;
   hideLabel?: boolean;
@@ -100,7 +99,6 @@ export function NumberInput(props: {
       }}
       changeOnWheel={true}
       format={false}
-      title={props.title}
       class="w-full"
     >
       <div class={props.hideLabel ? "sr-only" : "flex items-center gap1"}>

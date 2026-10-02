@@ -244,21 +244,22 @@ export function ConfigPage() {
                       DEFAULT_PITCH_NOISE_SIGMA) !== DEFAULT_PITCH_NOISE_SIGMA
                   }
                 >
-                  <button
-                    type="button"
-                    title={t1("config.reset_pitch_noise_sigma")}
-                    aria-label={t1("config.reset_pitch_noise_sigma")}
-                    onClick={() =>
-                      setConfig(
-                        "ui",
-                        "pitch_noise_sigma",
-                        DEFAULT_PITCH_NOISE_SIGMA,
-                      )
-                    }
-                    class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) dark:hover:bg-slate-7"
-                  >
-                    <div class="i-lucide:rotate-ccw size-4" />
-                  </button>
+                  <Tooltip content={t1("config.reset_pitch_noise_sigma")}>
+                    <button
+                      type="button"
+                      aria-label={t1("config.reset_pitch_noise_sigma")}
+                      onClick={() =>
+                        setConfig(
+                          "ui",
+                          "pitch_noise_sigma",
+                          DEFAULT_PITCH_NOISE_SIGMA,
+                        )
+                      }
+                      class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) dark:hover:bg-slate-7"
+                    >
+                      <div class="i-lucide:rotate-ccw size-4" />
+                    </button>
+                  </Tooltip>
                 </Show>
                 <div class="w-28">
                   <NumberInput
@@ -499,24 +500,25 @@ function CPUThreadSetting() {
   return (
     <div class="flex items-center gap-2">
       <Show when={threadsChanged()}>
-        <button
-          type="button"
-          title={t1("config.reinitialize_core")}
-          aria-label={t1("config.reinitialize_core")}
-          disabled={status() === "loading"}
-          onClick={() => void reinit()}
-          class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) dark:hover:bg-slate-7"
-        >
-          <div
-            class={
-              status() === "loading"
-                ? "i-lucide:loader-circle size-4 animate-spin"
-                : status() === "error"
-                  ? "i-lucide:triangle-alert size-4 text-red-6 dark:text-red-4"
-                  : "i-lucide:refresh-cw size-4"
-            }
-          />
-        </button>
+        <Tooltip content={t1("config.reinitialize_core")}>
+          <button
+            type="button"
+            aria-label={t1("config.reinitialize_core")}
+            disabled={status() === "loading"}
+            onClick={() => void reinit()}
+            class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) dark:hover:bg-slate-7"
+          >
+            <div
+              class={
+                status() === "loading"
+                  ? "i-lucide:loader-circle size-4 animate-spin"
+                  : status() === "error"
+                    ? "i-lucide:triangle-alert size-4 text-red-6 dark:text-red-4"
+                    : "i-lucide:refresh-cw size-4"
+              }
+            />
+          </button>
+        </Tooltip>
       </Show>
       <NumberField
         minValue={0}

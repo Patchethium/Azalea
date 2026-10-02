@@ -303,7 +303,7 @@ describe("BottomPanel playback", () => {
     });
 
     expect(timeline).toHaveAttribute("data-playback-anchor", "unset");
-    expect(timeline.parentElement).toHaveClass("h-6");
+    expect(timeline.parentElement?.parentElement).toHaveClass("h-6");
     expect(firstPhrase).toHaveStyle({ width: "5rem" });
     expect(secondPhrase).toHaveStyle({ width: "8rem" });
     expect(secondPhrase).toHaveClass("bg-transparent");
@@ -459,6 +459,10 @@ describe("BottomPanel playback", () => {
     );
     rightIndicator.focus();
     expect(rightIndicator).toHaveFocus();
+    expect(rightIndicator).not.toHaveAttribute("title");
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "Show playback starting phrase",
+    );
     fireEvent.click(rightIndicator);
     expect(rightIndicator).not.toHaveFocus();
     expect(rightIndicator).toHaveAttribute("tabindex", "-1");

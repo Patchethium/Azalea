@@ -1,3 +1,4 @@
+import { Tooltip } from "@components/tooltip";
 import {
   type Locale,
   type PitchScale,
@@ -201,28 +202,30 @@ export function PrimaryColorPicker() {
   return (
     <div class="flex items-center gap1">
       <Show when={!isDefaultColor()}>
-        <button
-          type="button"
-          title={t1("config.reset_primary_color")}
-          aria-label={t1("config.reset_primary_color")}
-          onClick={resetPrimaryColor}
-          class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) dark:hover:bg-slate-7"
-        >
-          <div class="i-lucide:rotate-ccw size-4" />
-        </button>
+        <Tooltip content={t1("config.reset_primary_color")}>
+          <button
+            type="button"
+            aria-label={t1("config.reset_primary_color")}
+            onClick={resetPrimaryColor}
+            class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) dark:hover:bg-slate-7"
+          >
+            <div class="i-lucide:rotate-ccw size-4" />
+          </button>
+        </Tooltip>
       </Show>
       <Popover placement="bottom-end" gutter={8}>
-        <Popover.Trigger
-          aria-label={t1("config.primary_color")}
-          title={t1("config.primary_color")}
-          class="size-8 cursor-pointer rounded-md b b-slate-2 dark:b-slate-6 bg-transparent p1 outline-none focus-visible:(b-primary-5 ring-2 ring-primary-2)"
-        >
-          <ColorSwatch
-            value={color()}
-            colorName={colorHex()}
-            class="size-full rounded-sm b b-black/15 dark:b-white/20"
-          />
-        </Popover.Trigger>
+        <Tooltip content={t1("config.primary_color")}>
+          <Popover.Trigger
+            aria-label={t1("config.primary_color")}
+            class="size-8 cursor-pointer rounded-md b b-slate-2 dark:b-slate-6 bg-transparent p1 outline-none focus-visible:(b-primary-5 ring-2 ring-primary-2)"
+          >
+            <ColorSwatch
+              value={color()}
+              colorName={colorHex()}
+              class="size-full rounded-sm b b-black/15 dark:b-white/20"
+            />
+          </Popover.Trigger>
+        </Tooltip>
         <Popover.Portal>
           <Popover.Content class="z-60 w-56 rounded-lg b b-slate-2 dark:b-slate-6 bg-white dark:bg-slate-8 p3 shadow-lg outline-none">
             <Popover.Arrow class="fill-white dark:fill-slate-8" />

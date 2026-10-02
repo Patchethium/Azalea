@@ -1,3 +1,4 @@
+import { Tooltip } from "@components/tooltip";
 import { Preset } from "$binding";
 import { AppDialogContent } from "@dialogs/AppContent";
 import { Button } from "@kobalte/core/button";
@@ -115,30 +116,40 @@ function PresetItem(props: PresetItemProps) {
       </span>
       <Show when={hovered()} fallback={<div />}>
         <div class="flex gap-1">
-          <Button
-            class="hover:text-primary-5 rounded text-slate-7 dark:text-slate-3 bg-transparent"
-            title={t1(
+          <Tooltip
+            content={t1(
               props.direction === "right"
                 ? "preset_manager.copy_to_system"
                 : "preset_manager.copy_to_project",
             )}
-            onClick={() => props.copyTo(props.preset)}
           >
-            <div
-              class="size-6"
-              classList={{
-                "i-lucide:arrow-right": props.direction === "right",
-                "i-lucide:arrow-left": props.direction === "left",
-              }}
-            />
-          </Button>
-          <Button
-            class="hover:text-red-5 rounded text-slate-7 dark:text-slate-3 bg-transparent"
-            title={t1("preset_manager.delete")}
-            onClick={() => props.delete(props.index)}
-          >
-            <div class="i-lucide:trash-2 size-6" />
-          </Button>
+            <Button
+              class="hover:text-primary-5 rounded text-slate-7 dark:text-slate-3 bg-transparent"
+              aria-label={t1(
+                props.direction === "right"
+                  ? "preset_manager.copy_to_system"
+                  : "preset_manager.copy_to_project",
+              )}
+              onClick={() => props.copyTo(props.preset)}
+            >
+              <div
+                class="size-6"
+                classList={{
+                  "i-lucide:arrow-right": props.direction === "right",
+                  "i-lucide:arrow-left": props.direction === "left",
+                }}
+              />
+            </Button>
+          </Tooltip>
+          <Tooltip content={t1("preset_manager.delete")}>
+            <Button
+              class="hover:text-red-5 rounded text-slate-7 dark:text-slate-3 bg-transparent"
+              aria-label={t1("preset_manager.delete")}
+              onClick={() => props.delete(props.index)}
+            >
+              <div class="i-lucide:trash-2 size-6" />
+            </Button>
+          </Tooltip>
         </div>
       </Show>
     </div>

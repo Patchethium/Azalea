@@ -1,3 +1,4 @@
+import { Tooltip } from "@components/tooltip";
 import { commands } from "$binding";
 import { ConfigItem } from "@dialogs/config/Item";
 import { Button } from "@kobalte/core/button";
@@ -94,12 +95,13 @@ export function AssetCacheSetting(props: { open: boolean }) {
         <Show
           when={status() !== "error"}
           fallback={
-            <span
-              role="alert"
-              aria-label={t1("config.assets_cache_error")}
-              title={t1("config.assets_cache_error")}
-              class="i-lucide:triangle-alert size-4 text-red-6 dark:text-red-4"
-            />
+            <Tooltip content={t1("config.assets_cache_error")}>
+              <span
+                role="alert"
+                aria-label={t1("config.assets_cache_error")}
+                class="i-lucide:triangle-alert size-4 text-red-6 dark:text-red-4"
+              />
+            </Tooltip>
           }
         >
           <output

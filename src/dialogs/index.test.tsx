@@ -175,6 +175,15 @@ describe("PresetManagerDialog", () => {
     const projectItem = (await screen.findByText("Project Only"))
       .parentElement!;
     fireEvent.mouseEnter(projectItem);
+    const copyToSystem = await screen.findByRole("button", {
+      name: "Copy to System",
+    });
+    expect(document.querySelector("[title]")).toBeNull();
+    fireEvent.focusIn(copyToSystem);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "Copy to System",
+    );
+    fireEvent.focusOut(copyToSystem);
     fireEvent.click(
       await screen.findByRole("button", { name: "Copy to System" }),
     );
@@ -299,7 +308,13 @@ describe("ShortcutReferenceDialog", () => {
     const undoShortcut = screen.getByRole("button", {
       name: "Undo text edit: Ctrl + Z",
     });
-    expect(undoShortcut.parentElement).toHaveClass("grid");
+    expect(undoShortcut.parentElement?.parentElement).toHaveClass("grid");
+    expect(document.querySelector("[title]")).toBeNull();
+    fireEvent.focusIn(undoShortcut);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "Edit shortcut",
+    );
+    fireEvent.focusOut(undoShortcut);
     expect(undoShortcut.closest(".overflow-y-auto")).toBeInTheDocument();
     expect(
       screen.getByRole("dialog", { name: "Keyboard Shortcuts" }),
