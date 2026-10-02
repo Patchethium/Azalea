@@ -1,9 +1,9 @@
 import { Tooltip } from "@components/tooltip";
+import { NumberField } from "@components/numberField";
 import { useConfigStore } from "@contexts/config";
 import { useTextStore } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
 import { useShortcutsStore } from "@contexts/shortcuts";
-import { NumberField } from "@kobalte/core/number-field";
 import { PlaybackTimeline } from "@layout/bottomPanel/PlaybackTimeline";
 import type { WaveformSynthesisNotice } from "@layout/bottomPanel/types";
 import { usePlaybackControls } from "@layout/bottomPanel/usePlaybackControls";

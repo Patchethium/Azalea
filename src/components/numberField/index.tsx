@@ -1,7 +1,73 @@
 import { IconButton } from "@components/iconButton";
 import { usei18n } from "@contexts/i18n";
-import { NumberField } from "@kobalte/core/number-field";
-import { Show } from "solid-js";
+import {
+  NumberField as KobalteNumberField,
+  useNumberFieldContext,
+} from "@kobalte/core/number-field";
+import {
+  type ComponentProps,
+  createEffect,
+  createSignal,
+  on,
+  Show,
+} from "solid-js";
+
+/** Preserve numeric edit text and restore the value from focus on empty blur. */
+export const NumberField = Object.assign(
+  (props: ComponentProps<typeof KobalteNumberField>) => {
+    const [draft, setDraft] = createSignal<string>();
+    let valueOnFocus = props.value;
+    createEffect(
+      on(
+        () => props.value,
+        () => {
+          if (draft() !== "" && Number(draft()) === Number(props.value)) return;
+          if (draft() === "") valueOnFocus = props.value;
+          setDraft(undefined);
+        },
+        { defer: true },
+      ),
+    );
+    return (
+      <KobalteNumberField
+        {...props}
+        value={draft() ?? props.value}
+        onChange={(value) => {
+          setDraft(value);
+          if (value !== "") props.onChange?.(value);
+          if (value !== "" && Number(value) !== Number(props.value)) {
+            setDraft(undefined);
+          }
+        }}
+        onRawValueChange={(value) => {
+          if (draft() !== "") props.onRawValueChange?.(value);
+        }}
+        onFocusIn={() => {
+          valueOnFocus = props.value;
+        }}
+        onFocusOut={() => {
+          const wasEmpty = draft() === "";
+          setDraft(undefined);
+          if (!wasEmpty) return;
+          if (valueOnFocus === undefined || valueOnFocus === props.value)
+            return;
+          props.onChange?.(String(valueOnFocus));
+          props.onRawValueChange?.(Number(valueOnFocus));
+        }}
+      />
+    );
+  },
+  KobalteNumberField,
+  {
+    Input: (props: ComponentProps<typeof KobalteNumberField.Input>) => {
+      const context = useNumberFieldContext();
+      // Bind the text directly: parsing it would make empty and zero equivalent.
+      return (
+        <KobalteNumberField.Input {...props} value={context.value() ?? ""} />
+      );
+    },
+  },
+);
 
 /** Labeled numeric input with clamping, stepping, and optional decimal values. */
 export function NumberInput(props: {

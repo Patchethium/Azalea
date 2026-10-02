@@ -207,6 +207,7 @@ describe("DictionaryDialog", () => {
     fireEvent.input(priority, {
       target: { value: "" },
     });
+    expect(priority).toHaveValue("");
     fireEvent.input(priority, {
       target: { value: "8" },
     });

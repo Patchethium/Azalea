@@ -125,6 +125,12 @@ describe("ConfigPage", () => {
     fireEvent.input(delay, { target: { value: "15000" } });
     fireEvent.change(delay, { target: { value: "15000" } });
     expect(appConfig.config.ui.synthesis_delay_ms).toBe(10_000);
+    await userEvent.clear(delay);
+    expect(delay).toHaveValue("");
+    expect(appConfig.config.ui.synthesis_delay_ms).toBe(10_000);
+    await userEvent.tab();
+    expect(delay).toHaveValue("10000");
+    expect(appConfig.config.ui.synthesis_delay_ms).toBe(10_000);
 
     fireEvent.click(buffering);
     expect(appConfig.config.ui.buffer_render).toBe(false);
@@ -206,6 +212,18 @@ describe("ConfigPage", () => {
     ).not.toBeInTheDocument();
     fireEvent.input(sigma, { target: { value: "0" } });
     expect(appConfig.config.ui.pitch_noise_sigma).toBe(0);
+    await userEvent.clear(sigma);
+    expect(sigma).toHaveValue("");
+    expect(appConfig.config.ui.pitch_noise_sigma).toBe(0);
+    await userEvent.tab();
+    expect(sigma).toHaveValue("0");
+    expect(appConfig.config.ui.pitch_noise_sigma).toBe(0);
+    await userEvent.clear(sigma);
+    await userEvent.type(sigma, "0.03");
+    expect(sigma).toHaveValue("0.03");
+    expect(appConfig.config.ui.pitch_noise_sigma).toBe(0.03);
+    await userEvent.tab();
+    expect(sigma).toHaveValue("0.03");
     fireEvent.input(sigma, { target: { value: "1e100" } });
     expect(appConfig.config.ui.pitch_noise_sigma).toBe(MAX_PITCH_NOISE_SIGMA);
     expect(sigma).toHaveValue("0.15");
@@ -411,6 +429,12 @@ describe("ConfigPage", () => {
     const truncation = screen.getAllByRole("spinbutton")[0];
     fireEvent.input(truncation, { target: { value: "12" } });
     fireEvent.change(truncation, { target: { value: "12" } });
+    expect(appConfig.config.ui.name_truncation_len).toBe(12);
+    await user.clear(truncation);
+    expect(truncation).toHaveValue("");
+    expect(appConfig.config.ui.name_truncation_len).toBe(12);
+    await user.tab();
+    expect(truncation).toHaveValue("12");
     expect(appConfig.config.ui.name_truncation_len).toBe(12);
 
     await user.click(screen.getByRole("button", { name: /Language/ }));

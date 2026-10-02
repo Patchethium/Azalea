@@ -1,5 +1,5 @@
 import { commands } from "$binding";
-import { NumberInput } from "@components/numberField";
+import { NumberField, NumberInput } from "@components/numberField";
 import { AppDialogContent } from "@dialogs/AppContent";
 import { AssetCacheSetting } from "@dialogs/config/AssetCacheSetting";
 import {
@@ -15,7 +15,6 @@ import { IconButton } from "@components/iconButton";
 import { Tooltip } from "@components/tooltip";
 import { Button } from "@kobalte/core/button";
 import { Dialog } from "@kobalte/core/dialog";
-import { NumberField } from "@kobalte/core/number-field";
 import { Switch } from "@kobalte/core/switch";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import _ from "lodash";

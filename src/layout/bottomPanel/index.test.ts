@@ -2645,6 +2645,10 @@ describe("BottomPanel playback", () => {
     await vi.advanceTimersByTimeAsync(0);
     vi.useRealTimers();
     text.markProjectSaved();
+    await userEvent.clear(seed);
+    expect(seed).toHaveValue("");
+    expect(text.textStore[0].pitch_noise_seed).toBe(0);
+    expect(text.isProjectDirty()).toBe(false);
     fireEvent.input(seed, { target: { value: "4294967295" } });
     expect(text.textStore[0].pitch_noise_seed).toBe(4294967295);
     expect(text.isProjectDirty()).toBe(true);
@@ -2653,6 +2657,19 @@ describe("BottomPanel playback", () => {
     expect(text.textStore[0].pitch_noise_seed).toBe(4294967295);
     fireEvent.input(seed, { target: { value: "42" } });
     expect(text.textStore[0].pitch_noise_seed).toBe(42);
+    await userEvent.tab();
+    text.markProjectSaved();
+    await userEvent.click(seed);
+    await userEvent.keyboard("{Backspace}");
+    expect(seed).toHaveValue("4");
+    expect(text.textStore[0].pitch_noise_seed).toBe(4);
+    await userEvent.keyboard("{Backspace}");
+    expect(seed).toHaveValue("");
+    expect(text.textStore[0].pitch_noise_seed).toBe(4);
+    await userEvent.tab();
+    expect(seed).toHaveValue("42");
+    expect(text.textStore[0].pitch_noise_seed).toBe(42);
+    expect(text.isProjectDirty()).toBe(false);
     const random = vi
       .spyOn(Math, "random")
       .mockReturnValueOnce(0.5)
