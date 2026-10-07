@@ -42,7 +42,6 @@ export function VoiceSetup(props: {
     config,
     setConfig,
     setupSource,
-    setupChangePending,
     setDownloadedCore,
     coreError,
     setCoreError,
@@ -139,13 +138,9 @@ export function VoiceSetup(props: {
           {t1("loading")}
         </p>
       </Show>
-      <Show when={coreSwitching() || setupChangePending()}>
+      <Show when={coreSwitching()}>
         <p role="status" class="m0 text-sm">
-          {t1(
-            coreSwitching()
-              ? "voice_setup.switching"
-              : "voice_setup.incomplete",
-          )}
+          {t1("voice_setup.switching")}
         </p>
       </Show>
       <Show when={coreError()}>
@@ -193,8 +188,7 @@ export function ModelManagerDialog(props: {
   onOpenChange: (open: boolean) => void;
 }) {
   const { t1 } = usei18n()!;
-  const { setupChangePending, setDownloadedCore, coreError, reinitializeCore } =
-    useConfigStore()!;
+  const { setDownloadedCore, coreError, reinitializeCore } = useConfigStore()!;
   const { uiStore } = useUIStore()!;
   const open = () => props.open;
   const [setup, setSetup] = createSignal<DownloadSetup | null>(null);
@@ -348,11 +342,6 @@ export function ModelManagerDialog(props: {
       >
         <div class="flex min-h-0 flex-1 flex-col gap3 overflow-auto p4">
           <p class="m0 text-sm">{t1("voice_setup.description")}</p>
-          <Show when={setupChangePending()}>
-            <p role="status" class="m0 text-sm">
-              {t1("voice_setup.incomplete")}
-            </p>
-          </Show>
           <div class="flex flex-wrap gap3 text-sm">
             <For
               each={[
