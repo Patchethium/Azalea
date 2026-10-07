@@ -210,7 +210,7 @@ export function ConfigPage() {
           </ConfigItem>
           <ConfigSectionTitle label={t1("config.storage")} />
           <AssetCacheSetting open={uiStore.page === "config"} />
-          <VoiceSetup />
+          <VoiceSetup modelManager="sidebar" />
           <ConfigSectionTitle label={t1("config.synthesis")} />
           <ConfigItem label={t1("config.cpu_num_threads")}>
             <CPUThreadSetting />

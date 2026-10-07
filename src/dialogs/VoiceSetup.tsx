@@ -29,7 +29,14 @@ export function formatDownloadSize(bytes: number) {
   return `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(bytes / 1024 / 1024)} MB`;
 }
 
-export function VoiceSetup(props: { showModelManager?: boolean }) {
+export function VoiceSetup(props: {
+  /**
+   * Renders the manage-models button for the managed setup. `inline` opens a
+   * nested dialog (the setup wizard), `sidebar` switches to the shared sidebar
+   * page and closes the surrounding dialog.
+   */
+  modelManager?: "inline" | "sidebar";
+}) {
   const { t1 } = usei18n()!;
   const {
     config,
@@ -44,7 +51,7 @@ export function VoiceSetup(props: { showModelManager?: boolean }) {
     coreSwitching,
     coreInitializeResource,
   } = useConfigStore()!;
-  const { uiStore } = useUIStore()!;
+  const { uiStore, setUIStore } = useUIStore()!;
   const [busy, setBusy] = createSignal(false);
   const [modelsOpen, setModelsOpen] = createSignal(false);
   let revision = 0;
@@ -159,11 +166,22 @@ export function VoiceSetup(props: { showModelManager?: boolean }) {
           {t1("init_dialog.installed.button")}
         </AppButton>
       </Show>
-      <Show when={props.showModelManager && setupSource() === "Downloaded"}>
-        <AppButton onClick={() => setModelsOpen(true)}>
+      <Show when={props.modelManager && setupSource() === "Downloaded"}>
+        <AppButton
+          onClick={() =>
+            props.modelManager === "sidebar"
+              ? setUIStore("page", "models")
+              : setModelsOpen(true)
+          }
+        >
           {t1("voice_setup.manage")}
         </AppButton>
-        <ModelManagerDialog open={modelsOpen()} onOpenChange={setModelsOpen} />
+        <Show when={props.modelManager === "inline"}>
+          <ModelManagerDialog
+            open={modelsOpen()}
+            onOpenChange={setModelsOpen}
+          />
+        </Show>
       </Show>
     </section>
   );

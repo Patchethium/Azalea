@@ -304,6 +304,44 @@ describe("App initialization", () => {
       await screen.findByRole("button", { name: "Manage models" }),
     ).toHaveAttribute("aria-pressed", "false");
   });
+
+  it("opens the shared model manager from Config and closes the config dialog", async () => {
+    mockIPC(
+      (command) => {
+        if (command === "get_download_setup")
+          return {
+            directory: "/data/voicevox",
+            components: [],
+            core_config: null,
+          };
+        if (command.includes("theme")) return "light";
+        return null;
+      },
+      { shouldMockEvents: true },
+    );
+    mockWindows("main");
+    renderApp();
+    await events.initializationEvent.emit({
+      config: { ...config(), setup_source: "Downloaded" },
+      core_initialized: true,
+      active_setup_source: "Downloaded",
+      metas,
+      range: [],
+      error: null,
+    });
+    await screen.findByLabelText("Text to synthesize");
+    fireEvent.click(screen.getByRole("button", { name: "Open config" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Manage models" }),
+    );
+    expect(
+      await screen.findByRole("dialog", { name: "Manage models" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("dialog", { name: "Config" }),
+    ).not.toBeInTheDocument();
+  });
+
   it.each(["Downloaded", "ExistingInstallation"] as const)(
     "keeps a pending source switch separate from the active %s setup",
     async (active) => {

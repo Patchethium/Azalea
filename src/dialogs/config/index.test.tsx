@@ -355,6 +355,48 @@ describe("ConfigPage", () => {
     await waitFor(() => expect(openConfigDir).toHaveBeenCalledTimes(1));
   });
 
+  it("closes Config and opens the shared model manager from the managed voice setup", async () => {
+    vi.spyOn(commands, "getAssetsSize").mockResolvedValue({
+      status: "ok",
+      data: 0,
+    });
+    let ui!: NonNullable<ReturnType<typeof useUIStore>>;
+    const Harness: Component = () => {
+      const appConfig = useConfigStore()!;
+      ui = useUIStore()!;
+      onMount(() => {
+        batch(() => {
+          appConfig.setConfig(config());
+          appConfig.setConfig("setup_source", "Downloaded");
+          ui.setUIStore("page", "config");
+        });
+      });
+      return <ConfigPage />;
+    };
+
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [i18nProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+
+    expect(
+      await screen.findByRole("dialog", { name: "Config" }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Manage models" }));
+    await waitFor(() => expect(ui.uiStore.page).toBe("models"));
+    expect(screen.getByRole("dialog", { name: "Config" })).toHaveAttribute(
+      "data-closed",
+    );
+  });
+
   it("updates general appearance settings", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     vi.spyOn(commands, "getAssetsSize").mockResolvedValue({

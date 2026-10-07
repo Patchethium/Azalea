@@ -30,7 +30,7 @@ function InitPage() {
           class="w-[min(90vw,32rem)]"
         >
           <div class="overflow-auto px4 pb4 text-left">
-            <VoiceSetup showModelManager />
+            <VoiceSetup modelManager="inline" />
             <I18NSelect />
           </div>
         </AppDialogContent>

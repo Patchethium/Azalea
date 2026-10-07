@@ -66,12 +66,18 @@ function deferred<T>() {
 }
 let listener: (event: { payload: DownloadProgressEvent }) => void;
 let store: NonNullable<ReturnType<typeof useConfigStore>>;
+let uiStore: NonNullable<ReturnType<typeof useUIStore>>;
 const unlisten = vi.fn();
-function mount(existing = true, downloaded = false) {
+function mount(
+  existing = true,
+  downloaded = false,
+  modelManager?: "inline" | "sidebar",
+) {
   const Harness = () => {
     store = useConfigStore()!;
     const [modelsOpen, setModelsOpen] = createSignal(false);
     const ui = useUIStore()!;
+    uiStore = ui;
     onMount(() =>
       batch(() => {
         ui.setUIStore("coreInitialized", existing);
@@ -89,7 +95,7 @@ function mount(existing = true, downloaded = false) {
     );
     return (
       <>
-        <VoiceSetup />
+        <VoiceSetup modelManager={modelManager} />
         <AppButton onClick={() => setModelsOpen(true)}>
           Open model manager
         </AppButton>
@@ -161,7 +167,7 @@ describe("VoiceSetup", () => {
     });
   });
 
-  it("switches setups with the keyboard and keeps the manager trigger out of Config", async () => {
+  it("switches setups with the keyboard without rendering a manager trigger by default", async () => {
     mount();
     store.setConfig("setup_source", "ExistingInstallation");
     const user = userEvent.setup();
@@ -181,6 +187,26 @@ describe("VoiceSetup", () => {
     await user.click(screen.getByRole("button", { name: "VOICEVOX" }));
     expect(store.setupChangePending()).toBe(false);
     expect(store.config.core).toEqual(installedCore);
+  });
+
+  it("opens the shared model manager page in sidebar mode", async () => {
+    mount(true, false, "sidebar");
+    expect(
+      await screen.findByRole("button", { name: "Manage models" }),
+    ).toBeInTheDocument();
+    store.setConfig("setup_source", "ExistingInstallation");
+    expect(
+      screen.queryByRole("button", { name: "Manage models" }),
+    ).not.toBeInTheDocument();
+    store.setConfig("setup_source", "Downloaded");
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Manage models" }),
+    );
+    expect(uiStore.uiStore.page).toBe("models");
+    expect(
+      screen.queryByRole("dialog", { name: "Manage models" }),
+    ).not.toBeInTheDocument();
+    expect(commands.getDownloadSetup).not.toHaveBeenCalled();
   });
 
   it("ignores stale setup checks after switching back or unmounting", async () => {
