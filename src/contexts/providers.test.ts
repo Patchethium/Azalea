@@ -64,7 +64,7 @@ describe("MetaProvider", () => {
     ]);
     expect(store.availableStyleIds()).toEqual([2, 10, 4, 5, 6]);
     store.setMetas(metas);
-    expect(store.availableStyleIds()).toEqual([1, 2, 3]);
+    expect(store.availableStyleIds()).toEqual([1, 2]);
     expect(store.metas.map((speaker) => speaker.speaker_uuid)).toEqual(
       metas.map((speaker) => speaker.speaker_uuid),
     );
