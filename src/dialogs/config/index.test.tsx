@@ -1,4 +1,5 @@
 import { commands } from "$binding";
+import en from "../../i18n/en.json";
 import {
   DEFAULT_PRIMARY_COLOR,
   DEFAULT_PITCH_NOISE_SIGMA,
@@ -180,7 +181,7 @@ describe("ConfigPage", () => {
       screen.queryByText("Noise strength (sigma)"),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("spinbutton", { name: "Noise strength (sigma)" }),
+      screen.queryByRole("spinbutton", { name: en.config.pitch_noise_sigma }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("spinbutton", { name: "Noise seed" }),
@@ -188,7 +189,7 @@ describe("ConfigPage", () => {
     fireEvent.click(noise);
     expect(appConfig.config.ui.pitch_noise_enabled).toBe(true);
     const sigma = screen.getByRole("spinbutton", {
-      name: "Noise strength (sigma)",
+      name: en.config.pitch_noise_sigma,
     });
     expect(sigma).toBeEnabled();
     expect(sigma).toHaveValue("0.05");
@@ -230,11 +231,15 @@ describe("ConfigPage", () => {
     fireEvent.input(sigma, { target: { value: "-1" } });
     expect(appConfig.config.ui.pitch_noise_sigma).toBe(0);
     fireEvent.click(
-      screen.getByRole("button", { name: "Increase Noise strength (sigma)" }),
+      screen.getByRole("button", {
+        name: `Increase ${en.config.pitch_noise_sigma}`,
+      }),
     );
     expect(appConfig.config.ui.pitch_noise_sigma).toBe(0.01);
     fireEvent.click(
-      screen.getByRole("button", { name: "Decrease Noise strength (sigma)" }),
+      screen.getByRole("button", {
+        name: `Decrease ${en.config.pitch_noise_sigma}`,
+      }),
     );
     expect(appConfig.config.ui.pitch_noise_sigma).toBe(0);
     fireEvent.click(noise);
@@ -243,7 +248,7 @@ describe("ConfigPage", () => {
       screen.queryByText("Noise strength (sigma)"),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("spinbutton", { name: "Noise strength (sigma)" }),
+      screen.queryByRole("spinbutton", { name: en.config.pitch_noise_sigma }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Restore default noise strength" }),
@@ -251,7 +256,7 @@ describe("ConfigPage", () => {
     expect(appConfig.config.ui.pitch_noise_sigma).toBe(0);
     fireEvent.click(noise);
     expect(
-      screen.getByRole("spinbutton", { name: "Noise strength (sigma)" }),
+      screen.getByRole("spinbutton", { name: en.config.pitch_noise_sigma }),
     ).toHaveValue("0");
 
     const completion = screen.getByRole("switch", { name: "Pitch completion" });
@@ -294,7 +299,7 @@ describe("ConfigPage", () => {
 
     await screen.findByRole("dialog", { name: "Config" });
     expect(
-      screen.queryByText("Applies when generating or resetting pitch."),
+      screen.queryByText(en.config.pitch_noise_description),
     ).not.toBeInTheDocument();
 
     const noiseLabel = screen.getByText("Noised pitch generation");
@@ -302,7 +307,7 @@ describe("ConfigPage", () => {
     fireEvent.pointerEnter(noiseLabel, { pointerType: "mouse" });
     await vi.advanceTimersByTimeAsync(400);
     expect(screen.getByRole("tooltip", { hidden: true })).toHaveTextContent(
-      "Applies when generating or resetting pitch.",
+      en.config.pitch_noise_description,
     );
     fireEvent.pointerLeave(noiseLabel, { pointerType: "mouse" });
 
@@ -311,7 +316,7 @@ describe("ConfigPage", () => {
     await vi.advanceTimersByTimeAsync(400);
     const tooltips = screen.getAllByRole("tooltip", { hidden: true });
     expect(tooltips[tooltips.length - 1]).toHaveTextContent(
-      "After a pitch edit, keep all pitches through that mora",
+      en.config.pitch_completion_description,
     );
     vi.useRealTimers();
   });

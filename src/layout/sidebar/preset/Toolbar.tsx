@@ -1,4 +1,5 @@
 import { IconButton } from "@components/iconButton";
+import { useConfigStore } from "@contexts/config";
 import { usei18n } from "@contexts/i18n";
 import type { SidebarControls } from "@layout/sidebar/useSidebar";
 import type { JSX } from "solid-js";
@@ -59,24 +60,30 @@ export function ListToolbar(props: ListToolbarProps) {
 export function PresetToolbar(props: { controls: SidebarControls }) {
   const { t1 } = usei18n()!;
   const controls = props.controls;
+  const { voicesReady } = useConfigStore()!;
   return (
     <ListToolbar
       createLabel={t1("preset.controls.create")}
       onCreate={controls.createPreset}
+      createDisabled={!voicesReady()}
       moveUpLabel={t1("preset.controls.move_up")}
       onMoveUp={() => controls.movePreset(controls.currentPresetIndex(), -1)}
-      moveUpDisabled={controls.currentPresetIndex() <= 0}
+      moveUpDisabled={!voicesReady() || controls.currentPresetIndex() <= 0}
       moveDownLabel={t1("preset.controls.move_down")}
       onMoveDown={() => controls.movePreset(controls.currentPresetIndex(), 1)}
       moveDownDisabled={
+        !voicesReady() ||
         controls.currentPresetIndex() === -1 ||
         controls.currentPresetIndex() === controls.projectPresetStore.length - 1
       }
       deleteLabel={t1("preset.controls.delete")}
       onDelete={controls.removePreset}
-      deleteDisabled={controls.currentText()?.preset_id == null}
+      deleteDisabled={
+        !voicesReady() || controls.currentText()?.preset_id == null
+      }
       extra={
         <IconButton
+          disabled={!voicesReady()}
           icon="i-lucide:library"
           label={t1("preset.controls.manage")}
           onClick={() => controls.setPresetManagerOpen(true)}

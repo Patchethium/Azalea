@@ -13,6 +13,10 @@ pub struct InitializationEvent {
   pub metas: Option<VoiceModelMeta>,
   pub range: Vec<(voicevox_core::StyleId, PitchRange)>,
   pub error: Option<String>,
+  #[serde(default)]
+  pub resolved_core: Option<crate::config::CoreConfig>,
+  #[serde(default)]
+  pub active_setup_source: Option<crate::config::types::SetupSource>,
 }
 
 #[derive(Clone, serde::Deserialize, serde::Serialize, specta::Type, tauri_specta::Event)]
@@ -29,6 +33,8 @@ pub async fn initialize(app: tauri::AppHandle) -> InitializationEvent {
         metas: None,
         range: _get_range().into_iter().collect(),
         error: Some(error.to_string()),
+        resolved_core: None,
+        active_setup_source: None,
       }
     }
   };
@@ -39,7 +45,16 @@ pub async fn initialize(app: tauri::AppHandle) -> InitializationEvent {
     .unwrap()
     .replace(config_manager);
 
-  let error = if let Some(core_config) = config.core.clone() {
+  let config_copy = config.clone();
+  let resolved =
+    tauri::async_runtime::spawn_blocking(move || super::downloads::resolve_setup(&config_copy))
+      .await
+      .map_err(|e| e.to_string())
+      .and_then(|result| result);
+  let resolved_core = resolved.as_ref().ok().cloned().flatten();
+  let error = if let Err(error) = resolved {
+    Some(error)
+  } else if let Some(core_config) = resolved_core.clone() {
     super::core::initialize_core(&state, core_config)
       .await
       .err()
@@ -57,12 +72,20 @@ pub async fn initialize(app: tauri::AppHandle) -> InitializationEvent {
   } else {
     None
   };
+  let active_setup_source = state
+    .core
+    .read()
+    .await
+    .as_ref()
+    .map(|core| core.config.setup_source);
   InitializationEvent {
+    active_setup_source,
     config: Some(config),
     core_initialized,
     metas,
     range: _get_range().into_iter().collect(),
     error,
+    resolved_core,
   }
 }
 

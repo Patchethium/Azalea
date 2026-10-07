@@ -1,3 +1,4 @@
+import InitPage from "@layout/InitPage";
 import TextBlock from "@components/textBlock";
 import Resizable from "@corvu/resizable";
 import { Button } from "@kobalte/core/button";
@@ -10,7 +11,7 @@ import { useTextStore } from "@contexts/text";
 
 function MainPage() {
   const { textStore, createFirstTextBlock } = useTextStore()!;
-  const { config, setConfig } = useConfigStore()!;
+  const { config, setConfig, voicesReady } = useConfigStore()!;
   const { t1 } = usei18n()!;
 
   return (
@@ -22,42 +23,44 @@ function MainPage() {
           minSize={0.3}
         >
           <div class="h-full w-full flex flex-col overflow-auto bg-transparent pl-1">
-            <Show
-              when={textStore.length > 0}
-              fallback={
-                <div class="size-full flex flex-col items-center justify-center gap-3 px-6 text-center">
-                  <div
-                    aria-hidden="true"
-                    class="i-lucide:file-plus-2 size-10 text-slate-4 dark:text-slate-5"
-                  />
-                  <div>
-                    <h2 class="font-semibold">
-                      {t1("text_block.empty_project.title")}
-                    </h2>
-                    <p class="mt-1 text-sm text-slate-5 dark:text-slate-4">
-                      {t1("text_block.empty_project.description")}
-                    </p>
+            <Show when={voicesReady()} fallback={<InitPage />}>
+              <Show
+                when={textStore.length > 0}
+                fallback={
+                  <div class="size-full flex flex-col items-center justify-center gap-3 px-6 text-center">
+                    <div
+                      aria-hidden="true"
+                      class="i-lucide:file-plus-2 size-10 text-slate-4 dark:text-slate-5"
+                    />
+                    <div>
+                      <h2 class="font-semibold">
+                        {t1("text_block.empty_project.title")}
+                      </h2>
+                      <p class="mt-1 text-sm text-slate-5 dark:text-slate-4">
+                        {t1("text_block.empty_project.description")}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      class="flex items-center gap-2 rounded-md bg-primary-5 px-3 py-2 text-white hover:bg-primary-6 active:bg-primary-7 focus-visible:(outline-solid outline-3 outline-primary-2)"
+                      aria-label={t1("text_block.empty_project.create")}
+                      onClick={createFirstTextBlock}
+                    >
+                      <div aria-hidden="true" class="i-lucide:plus size-4" />
+                      {t1("text_block.empty_project.create")}
+                    </Button>
                   </div>
-                  <Button
-                    type="button"
-                    class="flex items-center gap-2 rounded-md bg-primary-5 px-3 py-2 text-white hover:bg-primary-6 active:bg-primary-7 focus-visible:(outline-solid outline-3 outline-primary-2)"
-                    aria-label={t1("text_block.empty_project.create")}
-                    onClick={createFirstTextBlock}
-                  >
-                    <div aria-hidden="true" class="i-lucide:plus size-4" />
-                    {t1("text_block.empty_project.create")}
-                  </Button>
-                </div>
-              }
-            >
-              <div class="h-2 w-full" />
-              <For each={textStore}>
-                {(_, index) => (
-                  <div>
-                    <TextBlock index={index()} />
-                  </div>
-                )}
-              </For>
+                }
+              >
+                <div class="h-2 w-full" />
+                <For each={textStore}>
+                  {(_, index) => (
+                    <div>
+                      <TextBlock index={index()} />
+                    </div>
+                  )}
+                </For>
+              </Show>
             </Show>
           </div>
         </Resizable.Panel>
@@ -76,7 +79,7 @@ function MainPage() {
           collapseThreshold={0.05}
         >
           <div class="hfull bg-transparent p-2 pl-0 pt-0">
-            <BottomPanel />
+            <BottomPanel disabled={!voicesReady()} />
           </div>
         </Resizable.Panel>
       </Resizable>

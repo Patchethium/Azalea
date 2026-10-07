@@ -93,6 +93,7 @@ export const renderPanel = (
     const meta = useMetaStore()!;
     onMount(() => {
       batch(() => {
+        ui.setUIStore("coreInitialized", true);
         meta.setMetas(metas);
         appConfig.setConfig(config(configOverrides));
         appConfig.setRange({

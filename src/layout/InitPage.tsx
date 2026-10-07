@@ -1,104 +1,40 @@
-import { CoreConfig, commands } from "$binding";
-import { I18NSelect } from "@dialogs/config";
-import { Button } from "@kobalte/core/button";
-import { RadioGroup } from "@kobalte/core/radio-group";
-import { createSignal, For } from "solid-js";
-import { useConfigStore } from "@contexts/config";
+import { AppButton } from "@components/button";
 import { usei18n } from "@contexts/i18n";
+import { AppDialogContent } from "@dialogs/AppContent";
+import { I18NSelect } from "@dialogs/config/Basics";
+import { VoiceSetup } from "@dialogs/VoiceSetup";
+import { Dialog } from "@kobalte/core/dialog";
+import { createSignal } from "solid-js";
 
 function InitPage() {
-  const { setConfig } = useConfigStore()!;
-  const { t1, t2 } = usei18n()!;
-
-  const setCoreConfig = (config: CoreConfig) => {
-    setConfig("core", config);
-  };
-
-  type ActionType = "later" | "installed";
-  const actions: ActionType[] = ["installed", "later"];
-  const [action, setAction] = createSignal<ActionType>("installed");
-
-  const actionName = (act: ActionType) => {
-    switch (act) {
-      case "installed":
-        return t1("init_dialog.installed.desp");
-      case "later":
-        return t1("init_dialog.later.desp");
-    }
-  };
-
-  const buttonName = () => {
-    switch (action()) {
-      case "installed":
-        return t1("init_dialog.installed.button");
-      case "later":
-        return t1("init_dialog.later.button");
-    }
-  };
-
-  const executeAction = async () => {
-    switch (action()) {
-      case "later":
-        commands.quit();
-        break;
-      case "installed": {
-        const cfg = await commands.pickCore();
-        if (cfg === null) {
-          console.warn(
-            "User cancelled core picking or an invalid path is provided.",
-          );
-        } else {
-          setCoreConfig(cfg);
-        }
-        break;
-      }
-    }
-  };
+  const { t1 } = usei18n()!;
+  const [open, setOpen] = createSignal(false);
 
   return (
-    <div class="flex relative items-center justify-center wfull hfull">
+    <div class="size-full flex flex-col items-center justify-center gap-3 px-6 text-center">
       <div
-        class="relative flex flex-col items-start gap-1 bg-white dark:bg-slate-8 p8 rounded-2xl b-1 border-primary-2 selection:(text-white bg-primary-5)
-       before:(content-empty inset-0 scale-110 absolute left-0 top-0 blur-150 wfull hfull -z-10 rounded-3xl bg-gradient-to-br from-primary-3 to-green-3 rounded-2xl animate-duration-7000 animate-pulse)"
-      >
-        <div class="text-center text-xl font-600 text-slate-9 dark:text-slate-1">
-          {t1("init_dialog.intro")}
-        </div>
-        <div class="">{t2("init_dialog.before")}</div>
-        <RadioGroup
-          value={action()}
-          onChange={setAction}
-          class="flex flex-col gap2"
-        >
-          <For each={actions}>
-            {(act: ActionType) => (
-              <RadioGroup.Item
-                value={act}
-                class="flex flex-row gap-2 items-center"
-              >
-                <RadioGroup.ItemInput />
-                <RadioGroup.ItemControl class="w5 h5 rounded-full bg-white dark:bg-slate-7 b-1 border-gray-2 dark:border-slate-5 flex justify-center items-center ui-checked:bg-primary-5">
-                  <RadioGroup.ItemIndicator class="w2 h2 bg-white rounded-full" />
-                </RadioGroup.ItemControl>
-                <RadioGroup.ItemLabel class="">
-                  {actionName(act)}
-                </RadioGroup.ItemLabel>
-              </RadioGroup.Item>
-            )}
-          </For>
-        </RadioGroup>
-        <div class="flex flex-row justify-center items-center w-full">
-          <I18NSelect />
-          <div class="m-auto" />
-          <Button
-            class="py2 px3 rounded-lg bg-primary-5 text-white hover:bg-primary-6 focus:(bg-primary-6 outline-solid outline-3 outline-primary-2) active:bg-primary-7"
-            disabled={action() === null}
-            onClick={executeAction}
-          >
-            {buttonName()}
-          </Button>
-        </div>
+        aria-hidden="true"
+        class="i-lucide:audio-lines size-10 text-slate-4 dark:text-slate-5"
+      />
+      <div>
+        <h2 class="font-semibold">{t1("init_dialog.intro")}</h2>
+        <p class="mt-1 text-sm text-slate-5 dark:text-slate-4">
+          {t1("init_dialog.before")}
+        </p>
       </div>
+      <AppButton onClick={() => setOpen(true)}>{t1("config.open")}</AppButton>
+      <Dialog open={open()} onOpenChange={setOpen}>
+        <AppDialogContent
+          title={t1("voice_setup.title")}
+          closeLabel={t1("voice_setup.close_setup")}
+          class="w-[min(90vw,32rem)]"
+        >
+          <div class="overflow-auto px4 pb4 text-left">
+            <VoiceSetup showModelManager />
+            <I18NSelect />
+          </div>
+        </AppDialogContent>
+      </Dialog>
     </div>
   );
 }

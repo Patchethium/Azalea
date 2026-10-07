@@ -7,9 +7,37 @@ use voicevox_core::{AudioQuery, StyleId};
 #[derive(Default, Clone, Deserialize, Serialize, Type)]
 pub struct AzaleaConfig {
   pub core: Option<CoreConfig>,
+  #[serde(default)]
+  pub setup_source: SetupSource,
+  #[serde(default)]
+  pub downloaded_setup: DownloadedSetupConfig,
   pub ui: UIConfig,
   #[serde(default = "presets_default")]
   pub system_presets: Vec<Preset>,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize, Type)]
+pub enum SetupSource {
+  #[default]
+  ExistingInstallation,
+  Downloaded,
+}
+
+#[derive(Clone, Deserialize, Serialize, Type)]
+pub struct DownloadedSetupConfig {
+  #[serde(default = "cache_size_default")]
+  pub cache_size: usize,
+  #[serde(default = "cpu_num_threads_default")]
+  pub cpu_num_threads: u16,
+}
+
+impl Default for DownloadedSetupConfig {
+  fn default() -> Self {
+    Self {
+      cache_size: cache_size_default(),
+      cpu_num_threads: cpu_num_threads_default(),
+    }
+  }
 }
 
 fn presets_default() -> Vec<Preset> {
@@ -28,6 +56,8 @@ pub struct CoreConfig {
   pub cache_size: usize,
   #[serde(default = "cpu_num_threads_default")]
   pub cpu_num_threads: u16,
+  #[serde(default)]
+  pub setup_source: SetupSource,
 }
 
 pub fn cache_size_default() -> usize {
@@ -525,6 +555,12 @@ mod tests {
   #[test]
   fn empty_application_config_has_a_default_preset_and_preview() {
     let config: AzaleaConfig = toml::from_str("[ui]\n").unwrap();
+    assert_eq!(
+      config.setup_source,
+      super::SetupSource::ExistingInstallation
+    );
+    assert_eq!(config.downloaded_setup.cache_size, 128);
+    assert_eq!(config.downloaded_setup.cpu_num_threads, 0);
 
     assert_eq!(config.system_presets.len(), 1);
     assert_eq!(config.system_presets[0].name, "Default");

@@ -1,12 +1,9 @@
 {
   "title": "Azalea",
   "init_dialog": {
-    "intro": "Welcome to Azalea, an unofficial GUI for VOICEVOX",
-    "before": "Before getting started, Azalea needs to know where the VOICEVOX is",
-    "installed.desp": "I have VOICEVOX installed",
-    "installed.button": "Pick it",
-    "later.desp": "I'll figure it out",
-    "later.button": "Okay"
+    "intro": "No voices set up",
+    "before": "Set up voices in Config to start creating speech.",
+    "installed.button": "Pick it"
   },
   "loading": "Loading",
   "enabled": "Enabled",
@@ -278,12 +275,9 @@
     "delete": "Delete"
   },
   "voice_setup": {
+    "close_setup": "Close voice setup",
     "title": "Voice setup",
-    "existing": "Existing VOICEVOX installation",
-    "downloaded": "Downloaded CPU setup",
-    "use_existing": "Use existing installation",
-    "download": "Download components",
-    "close": "Close component downloads",
+    "close": "Close model manager",
     "description": "Choose voice packages. Missing CPU runtime and system dictionary are included automatically. Your custom dictionary is shared between setups.",
     "model_terms": "Model terms",
     "runtime_terms": "Runtime terms",
@@ -296,10 +290,16 @@
     "start": "Download selected packages",
     "retry": "Retry",
     "cancel": "Cancel download",
-    "use_downloaded": "Use downloaded setup",
-    "restart": "Restart Azalea to apply the selected setup.",
+    "use_downloaded": "Apply models",
     "cancelled": "Download cancelled. Completed components were kept.",
-    "complete": "Downloads complete. Select “Use downloaded setup” to activate them.",
-    "extracting": "Extracting…"
+    "complete": "Downloads complete. Select “Apply models” to load them.",
+    "extracting": "Extracting…",
+    "managed": "Azalea-managed models",
+    "manage": "Manage models",
+    "downloaded_models": "Downloaded models",
+    "available_models": "Available downloads (0.16.4)",
+    "refresh": "Refresh available models",
+    "switching": "Switching voice setup…",
+    "incomplete": "Download and apply the required models, or choose a VOICEVOX installation, to finish switching."
   }
 }

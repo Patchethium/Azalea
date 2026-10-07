@@ -1,12 +1,9 @@
 {
   "title": "Azalea",
   "init_dialog": {
-    "intro": "欢迎使用 Azalea，一款非官方 VOICEVOX 图形界面",
-    "before": "开始之前，Azalea 需要知道 VOICEVOX 的位置",
-    "installed.desp": "我的电脑已安装 VOICEVOX",
-    "installed.button": "选择位置",
-    "later.desp": "稍后再说",
-    "later.button": "好的"
+    "intro": "尚未设置语音",
+    "before": "请在设置中配置语音环境以开始生成语音。",
+    "installed.button": "选择位置"
   },
   "loading": "加载中",
   "enabled": "已启用",
@@ -278,12 +275,9 @@
     "delete": "删除"
   },
   "voice_setup": {
+    "close_setup": "关闭语音设置",
     "title": "语音环境",
-    "existing": "现有 VOICEVOX 安装",
-    "downloaded": "下载的 CPU 环境",
-    "use_existing": "使用现有安装",
-    "download": "下载所需组件",
-    "close": "关闭组件下载",
+    "close": "关闭模型管理",
     "description": "请选择语音模型包。缺失的 CPU 运行库和系统词典会自动下载。两个环境共享用户词典。",
     "model_terms": "模型使用条款",
     "runtime_terms": "运行库使用条款",
@@ -296,10 +290,16 @@
     "start": "下载所选模型包",
     "retry": "重试",
     "cancel": "取消下载",
-    "use_downloaded": "使用下载的环境",
-    "restart": "请重启 Azalea 以应用所选环境。",
+    "use_downloaded": "应用模型",
     "cancelled": "下载已取消，已完成的组件会保留。",
-    "complete": "下载已完成。选择“使用下载的环境”以启用。",
-    "extracting": "正在解压…"
+    "complete": "下载已完成。选择“应用模型”以加载。",
+    "extracting": "正在解压…",
+    "managed": "Azalea 管理的模型",
+    "manage": "管理模型",
+    "downloaded_models": "已下载的模型",
+    "available_models": "可下载的模型（0.16.4）",
+    "refresh": "刷新模型列表",
+    "switching": "正在切换语音环境…",
+    "incomplete": "请下载并应用所需模型，或选择 VOICEVOX 安装位置，以完成切换。"
   }
 }

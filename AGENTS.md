@@ -4,6 +4,18 @@
 
 Azalea is a Tauri 2 desktop application. The SolidJS/TypeScript frontend lives in `src/`: reusable UI belongs in `components/`, pages in `layout/`, shared state in `contexts/`, and translations in `i18n/`. Styles use colocated CSS modules; UnoCSS is configured in `uno.config.ts`.
 
+Reuse existing UI components whenever possible. When new components are necessary,
+make them reusable with Kobalte primitives and UnoCSS styling. Avoid native browser
+controls and vanilla CSS for new UI. Preserve accessible labels, keyboard navigation,
+and focus handling.
+
+Downloaded VOICEVOX components belong under
+`dirs::data_local_dir()/{bundle_identifier}/voicevox`, outside the clearable asset
+cache. Existing-installation and downloaded setups keep separate models and system
+dictionaries. Seamless switching reuses the first compatible ONNX Runtime loaded
+in the process; the shared runtime determines the available execution providers.
+Their custom user dictionary is shared.
+
 The Rust backend is under `src-tauri/`. Tauri commands are grouped in `src-tauri/src/commands/`, configuration handling in `config/`, and audio code in `audio/`. Rust integration tests and fixtures live in `src-tauri/tests/`. Application icons are in `src-tauri/icons/`; project artwork is in `icon/`. Treat `src/binding.ts` as generated bindings and avoid hand-editing it.
 
 ## VOICEVOX Core Generative Noise

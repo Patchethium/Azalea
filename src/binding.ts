@@ -45,6 +45,30 @@ async clearAssets() : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async getDownloadSetup() : Promise<Result<DownloadSetup, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_download_setup") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async downloadCpuSetup(operationId: string, packageIds: string[]) : Promise<Result<DownloadOutcome, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("download_cpu_setup", { operationId, packageIds }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async cancelSetupDownload(operationId: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cancel_setup_download", { operationId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async pickCore() : Promise<CoreConfig | null> {
     return await TAURI_INVOKE("pick_core");
 },
@@ -389,11 +413,13 @@ async loadProject(path: string) : Promise<Result<Project, string>> {
 
 
 export const events = __makeEvents__<{
+downloadProgressEvent: DownloadProgressEvent,
 frontendReadyEvent: FrontendReadyEvent,
 initializationEvent: InitializationEvent,
 spectrogramJobEvent: SpectrogramJobEvent,
 synthesisJobEvent: SynthesisJobEvent
 }>({
+downloadProgressEvent: "download-progress-event",
 frontendReadyEvent: "frontend-ready-event",
 initializationEvent: "initialization-event",
 spectrogramJobEvent: "spectrogram-job-event",
@@ -567,7 +593,7 @@ outputStereo: boolean;
  */
 kana: string | null }
 export type AudioSequenceItem = { audio_query: AudioQuery; speaker_id: StyleId }
-export type AzaleaConfig = { core: CoreConfig | null; ui: UIConfig; system_presets?: Preset[] }
+export type AzaleaConfig = { core: CoreConfig | null; setup_source?: SetupSource; downloaded_setup?: DownloadedSetupConfig; ui: UIConfig; system_presets?: Preset[] }
 /**
  * <i>キャラクター</i>のメタ情報。
  */
@@ -606,12 +632,17 @@ export type CoreConfig = {
  * For example, if the lib is in `/home/user/VOICEVOX/vv-engine/libvoicevox_core.so`,
  * the path should be `/home/user/VOICEVOX/vv-engine`.
  */
-ort_path: string; ojt_dir: string; vvm_dir: string; cache_size?: number; cpu_num_threads?: number }
+ort_path: string; ojt_dir: string; vvm_dir: string; cache_size?: number; cpu_num_threads?: number; setup_source?: SetupSource }
 export type DictionaryEntry = { id: string; surface: string; pronunciation: string; accent_type: number; word_type: DictionaryWordType; priority: number }
 export type DictionaryEntryInput = { surface: string; pronunciation: string; accent_type: number; word_type: DictionaryWordType; priority: number }
 export type DictionaryWordType = "PROPER_NOUN" | "COMMON_NOUN" | "VERB" | "ADJECTIVE" | "SUFFIX"
+export type DownloadComponent = { id: string; bytes: number; installed: boolean; entries: PackageVoice[] }
+export type DownloadOutcome = { cancelled: boolean; icon_errors: string[] }
+export type DownloadProgressEvent = { operation_id: string; component_id: string; completed_bytes: number; total_bytes: number; extracting: boolean }
+export type DownloadSetup = { directory: string; components: DownloadComponent[]; core_config: CoreConfig | null }
+export type DownloadedSetupConfig = { cache_size?: number; cpu_num_threads?: number }
 export type FrontendReadyEvent = null
-export type InitializationEvent = { config: AzaleaConfig | null; core_initialized: boolean; metas: CharacterMeta[] | null; range: ([StyleId, PitchRange])[]; error: string | null }
+export type InitializationEvent = { config: AzaleaConfig | null; core_initialized: boolean; metas: CharacterMeta[] | null; range: ([StyleId, PitchRange])[]; error: string | null; resolved_core?: CoreConfig | null; active_setup_source?: SetupSource | null }
 export type KeyboardShortcut = { key: string; primary?: boolean; secondary?: boolean; shift?: boolean; alt?: boolean }
 export type KeyboardShortcuts = { undo?: KeyboardShortcut; redo?: KeyboardShortcut; save_project?: KeyboardShortcut; export_audio?: KeyboardShortcut; toggle_playback?: KeyboardShortcut; play_current?: KeyboardShortcut; play_next?: KeyboardShortcut; toggle_pitch_completion?: KeyboardShortcut }
 export type Locale = "Ja" | "En" | "ZhCn"
@@ -661,6 +692,7 @@ vowel_length: number;
  */
 pitch: number }
 export type OS = "MacOS" | "Windows" | "Linux"
+export type PackageVoice = { character: string; style: string; style_id: number }
 export type PitchRange = { min: number; max: number; histogram_min: number; histogram_max: number; histogram: number[] }
 export type PitchScale = "Linear" | "Optimal" | "DensityAware"
 export type Preset = { id?: string; name: string; style_id: StyleId; 
@@ -681,6 +713,7 @@ start_slience: number;
  */
 end_slience: number; speaker_uuid?: string | null; style_name?: string | null }
 export type Project = { blocks: TextBlockProps[]; presets: Preset[] }
+export type SetupSource = "ExistingInstallation" | "Downloaded"
 export type SpeakerIconRequest = { speaker_uuid: string; style_id: number }
 export type SpeakerIconResult = { speaker_uuid: string; data_url: string | null; error: string | null }
 export type SpectrogramJobEvent = { blockId: string; generationId: number; hash: string; state: SynthesisJobState; error: string | null; preview: SpectrogramPreview | null }

@@ -8,6 +8,7 @@ use super::AzaleaConfig;
 
 /// Resolved base directory for the config file, assets and user dictionary.
 static CONFIG_DIR: OnceLock<PathBuf> = OnceLock::new();
+static BUNDLE_IDENTIFIER: OnceLock<String> = OnceLock::new();
 
 /// Base directory for the config file, assets and user dictionary.
 ///
@@ -41,6 +42,7 @@ fn app_config_dir(identifier: &str) -> PathBuf {
 /// Records the bundle identifier declared in `tauri.conf.json` so release
 /// builds store their config under `{config_dir}/{identifier}`.
 pub(crate) fn init_config_dir(identifier: &str) {
+  let _ = BUNDLE_IDENTIFIER.set(identifier.to_owned());
   #[cfg(not(debug_assertions))]
   {
     let _ = CONFIG_DIR.set(app_config_dir(identifier));
@@ -49,6 +51,22 @@ pub(crate) fn init_config_dir(identifier: &str) {
   {
     let _ = identifier;
   }
+}
+
+pub(crate) fn downloaded_components_dir() -> Result<PathBuf, String> {
+  local_components_dir(
+    dirs::data_local_dir(),
+    BUNDLE_IDENTIFIER
+      .get()
+      .map(String::as_str)
+      .unwrap_or("com.azalea.app"),
+  )
+}
+
+fn local_components_dir(base: Option<PathBuf>, identifier: &str) -> Result<PathBuf, String> {
+  base
+    .map(|base| base.join(identifier).join("voicevox"))
+    .ok_or_else(|| "The local data directory is unavailable".into())
 }
 
 pub(crate) fn assets_dir() -> PathBuf {
@@ -135,6 +153,16 @@ mod tests {
   use crate::config::types::{Locale, PitchScale, ThemeMode, TitlebarStyle};
 
   #[test]
+  fn downloaded_components_use_local_data_and_report_missing_base() {
+    let directory = tempfile::tempdir().unwrap();
+    assert_eq!(
+      local_components_dir(Some(directory.path().to_owned()), "com.azalea.app").unwrap(),
+      directory.path().join("com.azalea.app/voicevox")
+    );
+    assert!(local_components_dir(None, "com.azalea.app").is_err());
+  }
+
+  #[test]
   fn app_config_dir_appends_bundle_identifier() {
     let Some(base) = dirs::config_dir() else {
       return;
@@ -164,6 +192,8 @@ mod tests {
     source.config.ui.spectrogram_preview = false;
     source.config.ui.playback_timeline = false;
     source.config.ui.pitch_scale = PitchScale::DensityAware;
+    source.config.setup_source = crate::config::types::SetupSource::Downloaded;
+    source.config.downloaded_setup.cpu_num_threads = 4;
     source.config.ui.pitch_ruler = false;
 
     source.save_as(&path).unwrap();
@@ -191,6 +221,11 @@ mod tests {
       PitchScale::DensityAware
     ));
     assert!(!loaded.config.ui.pitch_ruler);
+    assert_eq!(
+      loaded.config.setup_source,
+      crate::config::types::SetupSource::Downloaded
+    );
+    assert_eq!(loaded.config.downloaded_setup.cpu_num_threads, 4);
   }
 
   #[test]

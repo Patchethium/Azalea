@@ -15,6 +15,7 @@ use std::{
 };
 use walkdir::WalkDir;
 
+use crate::config::types::SetupSource;
 use anyhow::{Context, Result};
 
 pub fn search_file(filename: &str, dir: impl AsRef<Path>, partial: bool) -> Option<PathBuf> {
@@ -52,6 +53,7 @@ pub fn search_dir(dirname: &str, dir: impl AsRef<Path>, partial: bool) -> Option
 }
 
 pub struct Core {
+  pub config: CoreConfig,
   pub synthesizer: Synthesizer<OpenJtalk>,
   nonblocking_synthesizer: NonblockingSynthesizer<()>,
   pub metas: HashMap<String, VoiceModelMeta>,
@@ -162,23 +164,34 @@ impl Core {
       ort_path,
       cache_size: cache_size_default(),
       cpu_num_threads: cpu_num_threads_default(),
+      setup_source: crate::config::types::SetupSource::ExistingInstallation,
     })
   }
 
   pub fn init(cfg: &CoreConfig) -> Result<Self> {
+    // VOICEVOX Core keeps the first compatible runtime for the process lifetime.
+    // New synthesizers may use different models/dictionaries and CPU settings.
     let ort = Onnxruntime::load_once().filename(&cfg.ort_path).perform()?;
+    let acceleration_mode = if cfg.setup_source == SetupSource::Downloaded {
+      voicevox_core::AccelerationMode::Cpu
+    } else {
+      voicevox_core::AccelerationMode::Auto
+    };
     let ojt = OpenJtalk::new(cfg.ojt_dir.to_string_lossy().to_string())?;
     let synthesizer = Synthesizer::builder(ort)
       .text_analyzer(ojt)
       .cpu_num_threads(cfg.cpu_num_threads)
+      .acceleration_mode(acceleration_mode)
       .build()?;
     let nonblocking_ort = NonblockingOnnxruntime::get()
       .context("nonblocking ONNX Runtime is unavailable after initialization")?;
     let nonblocking_synthesizer = NonblockingSynthesizer::builder(nonblocking_ort)
       .cpu_num_threads(cfg.cpu_num_threads)
+      .acceleration_mode(acceleration_mode)
       .build()?;
     let (speaker_to_vvm, metas) = Self::gather_meta(&cfg.vvm_dir)?;
     Ok(Self {
+      config: cfg.clone(),
       synthesizer,
       nonblocking_synthesizer,
       metas,

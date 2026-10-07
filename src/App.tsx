@@ -3,7 +3,6 @@ import Resizable from "@corvu/resizable";
 import ConfigPage from "@dialogs/config";
 import { AppToastRegion } from "@components/toast";
 import { TitleBar } from "@components/titleBar";
-import InitPage from "@layout/InitPage";
 import MainPage from "@layout/MainPage";
 import Sidebar from "@layout/sidebar";
 import { getCurrentWindow, Theme } from "@tauri-apps/api/window";
@@ -36,6 +35,9 @@ function App() {
   const {
     config,
     setConfig,
+    setDownloadedCore,
+    setActiveSetupSource,
+    setCoreError,
     configInitialized,
     setConfigInitialized,
     coreInitializeResource,
@@ -46,7 +48,7 @@ function App() {
   const { setMetas, availableStyleIds } = useMetaStore()!;
   const { t1 } = usei18n()!;
   const { systemStore } = useSystemStore()!;
-  const { uiStore, setUIStore } = useUIStore()!;
+  const { setUIStore } = useUIStore()!;
   const { newProject, isProjectDirty } = useTextStore()!;
 
   const [initializing, setInitializing] = createSignal(true);
@@ -66,7 +68,15 @@ function App() {
       if (payload.error) {
         console.error("Failed to initialize application:", payload.error);
       }
+      setCoreError(payload.error);
       if (payload.config) {
+        setActiveSetupSource(
+          payload.active_setup_source ??
+            payload.config.setup_source ??
+            "ExistingInstallation",
+        );
+        if (payload.resolved_core?.setup_source === "Downloaded")
+          setDownloadedCore(payload.resolved_core ?? null);
         setUIStore("coreInitialized", payload.core_initialized);
         setRange(Object.fromEntries(payload.range));
         if (payload.metas) setMetas(payload.metas);
@@ -170,9 +180,11 @@ function App() {
     decorationRequest += 1;
   });
 
+  let projectInitialized = false;
   createEffect(() => {
     const stylesReady = availableStyleIds().length > 0;
-    if (!coreInitializeResource.loading && stylesReady) {
+    if (!projectInitialized && !coreInitializeResource.loading && stylesReady) {
+      projectInitialized = true;
       // Project defaults read translations and metadata. Neither should become
       // an implicit reason to recreate the active project later.
       untrack(newProject);
@@ -234,47 +246,42 @@ function App() {
       </Show>
       <div class="relative min-h-0 flex-1">
         <Show
-          when={!initializing() && !coreInitializeResource.loading}
+          when={!initializing()}
           fallback={
             <div class="size-full flex items-center justify-center text-2xl font-bold">
               {t1("loading")}
             </div>
           }
         >
-          <Show when={!uiStore.coreInitialized}>
-            <InitPage />
-          </Show>
-          <Show when={uiStore.coreInitialized}>
-            <Resizable
-              class={`absolute flex flex-row size-full ${style.canvas}`}
-              sizes={sidebarPanelSizes()}
-              onSizesChange={(sizes) => {
-                const sideWidth = Math.round(sizes[0] * windowWidth());
-                if (sideWidth !== config.ui.side_width) {
-                  setConfig("ui", "side_width", sideWidth);
-                }
-              }}
+          <Resizable
+            class={`absolute flex flex-row size-full ${style.canvas}`}
+            sizes={sidebarPanelSizes()}
+            onSizesChange={(sizes) => {
+              const sideWidth = Math.round(sizes[0] * windowWidth());
+              if (sideWidth !== config.ui.side_width) {
+                setConfig("ui", "side_width", sideWidth);
+              }
+            }}
+          >
+            <Resizable.Panel
+              class="min-w-0 overflow-hidden"
+              minSize="175px"
+              collapsible
+              collapseThreshold={0.05}
             >
-              <Resizable.Panel
-                class="min-w-0 overflow-hidden"
-                minSize="175px"
-                collapsible
-                collapseThreshold={0.05}
-              >
-                <Sidebar />
-              </Resizable.Panel>
-              <Resizable.Handle
-                aria-label="Resize Handle"
-                class="group basis-2 bg-transparent py-3 flex items-center justify-center px-2px"
-              >
-                <div class="rounded transition-colors bg-transparent group-hover:bg-primary-5 group-active:bg-primary-5 h-full w-[1px]" />
-              </Resizable.Handle>
-              <Resizable.Panel class="w-full overflow-hidden" minSize="400px">
-                <MainPage />
-                <ConfigPage />
-              </Resizable.Panel>
-            </Resizable>
-          </Show>
+              <Sidebar />
+            </Resizable.Panel>
+            <Resizable.Handle
+              aria-label="Resize Handle"
+              class="group basis-2 bg-transparent py-3 flex items-center justify-center px-2px"
+            >
+              <div class="rounded transition-colors bg-transparent group-hover:bg-primary-5 group-active:bg-primary-5 h-full w-[1px]" />
+            </Resizable.Handle>
+            <Resizable.Panel class="w-full overflow-hidden" minSize="400px">
+              <MainPage />
+              <ConfigPage />
+            </Resizable.Panel>
+          </Resizable>
         </Show>
       </div>
       <AppToastRegion />

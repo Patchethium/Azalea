@@ -11,7 +11,7 @@ use core::Core;
 use commands::*;
 #[cfg(any(debug_assertions, test))]
 use specta_typescript::Typescript;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{atomic::AtomicU64, Arc, Mutex, RwLock};
 use tauri::async_runtime::RwLock as TokioRwLock;
 use tauri::Manager;
 use tokio::sync::Semaphore;
@@ -29,6 +29,7 @@ type LockedState<T> = RwLock<Option<T>>;
 pub struct AppState {
   pub(crate) core: TokioRwLock<Option<Arc<Core>>>,
   pub(crate) core_task_gate: Arc<Semaphore>,
+  pub(crate) core_generation: AtomicU64,
   pub(crate) query_lru: LockedState<lru::LruCache<(String, StyleId), AudioQuery>>,
   pub(crate) wav_lru: TokioRwLock<Option<WavLruType>>,
   pub(crate) synthesis_queue: SynthesisQueue,
@@ -45,6 +46,9 @@ fn specta_builder() -> Builder<tauri::Wry> {
       download_speaker_icons,
       get_assets_size,
       clear_assets,
+      get_download_setup,
+      download_cpu_setup,
+      cancel_setup_download,
       pick_core,
       init_config,
       get_config,
@@ -89,7 +93,8 @@ fn specta_builder() -> Builder<tauri::Wry> {
       InitializationEvent,
       FrontendReadyEvent,
       SynthesisJobEvent,
-      SpectrogramJobEvent
+      SpectrogramJobEvent,
+      DownloadProgressEvent
     ])
 }
 
@@ -127,6 +132,7 @@ pub fn run() {
     .manage(AppState {
       core: TokioRwLock::new(None),
       core_task_gate: Arc::new(Semaphore::new(1)),
+      core_generation: AtomicU64::new(0),
       query_lru: RwLock::new(None),
       wav_lru: TokioRwLock::new(None),
       synthesis_queue: SynthesisQueue::default(),
@@ -158,6 +164,17 @@ pub fn run() {
             .unwrap()
             .as_ref()
             .map(|manager| manager.config.clone());
+          if let Ok(core) = state.core.try_read() {
+            event.core_initialized = core.is_some();
+            event.active_setup_source = core.as_ref().map(|core| core.config.setup_source);
+            event.resolved_core = core.as_ref().map(|core| core.config.clone());
+            event.metas = core
+              .as_ref()
+              .map(|core| core.metas.values().flatten().cloned().collect());
+            if core.is_some() {
+              event.error = None;
+            }
+          }
         }
         if let Some(event) = event {
           if let Err(error) = event.emit(&ready_app) {
@@ -194,6 +211,7 @@ mod tests {
     AppState {
       core: TokioRwLock::new(None),
       core_task_gate: Arc::new(Semaphore::new(1)),
+      core_generation: AtomicU64::new(0),
       query_lru: RwLock::new(query_lru),
       wav_lru: TokioRwLock::new(wav_lru),
       synthesis_queue: SynthesisQueue::default(),

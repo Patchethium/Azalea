@@ -50,8 +50,12 @@ export function getModifiedQuery(
 export const renderRequestFingerprint = (
   query: AudioQuery,
   speakerId: number,
+  coreRevision = 0,
 ) => {
-  const serialized = JSON.stringify([speakerId, query]);
+  const serialized =
+    coreRevision === 0
+      ? JSON.stringify([speakerId, query])
+      : JSON.stringify([speakerId, query, coreRevision]);
   let hash = 0x811c9dc5;
   for (let index = 0; index < serialized.length; index += 1) {
     hash ^= serialized.charCodeAt(index);

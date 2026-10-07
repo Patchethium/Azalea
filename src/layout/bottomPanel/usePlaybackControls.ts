@@ -22,6 +22,7 @@ import { getModifiedQuery } from "$utils";
 
 export function usePlaybackControls(
   onWaveformSynthesized: (notice: WaveformSynthesisNotice) => void,
+  disabled: () => boolean = () => false,
 ) {
   const {
     textStore,
@@ -264,6 +265,7 @@ export function usePlaybackControls(
     });
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (disabled()) return;
       const playbackShortcutAllowed = isPlaybackShortcutAllowed(event);
       const playbackToggleAllowed = isPlaybackToggleAllowed(event);
       if (!playbackShortcutAllowed && !playbackToggleAllowed) return;

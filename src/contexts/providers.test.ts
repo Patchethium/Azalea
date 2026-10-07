@@ -63,9 +63,13 @@ describe("MetaProvider", () => {
       "Larger minimum",
     ]);
     expect(store.availableStyleIds()).toEqual([2, 10, 4, 5, 6]);
-    expect(store.setMetas(metas)).toEqual(
-      new Error("Metas are read-only and we already have some"),
+    store.setMetas(metas);
+    expect(store.availableStyleIds()).toEqual([1, 2, 3]);
+    expect(store.metas.map((speaker) => speaker.speaker_uuid)).toEqual(
+      metas.map((speaker) => speaker.speaker_uuid),
     );
+    store.setMetas([]);
+    expect(store.metas).toHaveLength(0);
   });
 
   it("owns speaker icon Blob URLs across replacements, clears, and cleanup", () => {

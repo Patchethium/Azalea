@@ -19,7 +19,7 @@ use std::io::Cursor;
 use std::io::Write;
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{atomic::Ordering, Arc};
 
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
@@ -41,6 +41,11 @@ pub async fn initialize_core(
   state: &AppState,
   config: CoreConfig,
 ) -> std::result::Result<(), String> {
+  let _permit = state
+    .core_task_gate
+    .acquire()
+    .await
+    .map_err(|e| e.to_string())?;
   if state.core.read().await.is_none() {
     let core_config = config.clone();
     let core = tauri::async_runtime::spawn_blocking(move || Core::init(&core_config))
@@ -91,18 +96,24 @@ pub async fn initialize_core(
 #[tauri::command]
 #[specta::specta]
 pub async fn reinit_core(
+  app: AppHandle,
   state: State<'_, AppState>,
   config: CoreConfig,
 ) -> std::result::Result<(), String> {
-  reinitialize_core(&state, config).await
+  reinitialize_core(&app, &state, config).await
 }
 
 pub async fn reinitialize_core(
+  app: &AppHandle,
   state: &AppState,
   config: CoreConfig,
 ) -> std::result::Result<(), String> {
-  let core_config = config.clone();
-  let core = tauri::async_runtime::spawn_blocking(move || Core::init(&core_config))
+  let _permit = state
+    .core_task_gate
+    .acquire()
+    .await
+    .map_err(|e| e.to_string())?;
+  let core = tauri::async_runtime::spawn_blocking(move || Core::init(&config))
     .await
     .map_err(|e| format!("Core initialization task failed: {e}"))?
     .map_err(|e| e.to_string())?;
@@ -113,7 +124,26 @@ pub async fn reinitialize_core(
   })
   .await
   .map_err(|e| format!("Dictionary initialization task failed: {e}"))??;
+  // Commit only after both synthesizers and the shared user dictionary are ready.
+  state.core_generation.fetch_add(1, Ordering::SeqCst);
   state.core.write().await.replace(Arc::new(core));
+  emit_synthesis_events(app, state.synthesis_queue.discard_all());
+  emit_spectrogram_events(app, state.spectrogram_queue.discard_all());
+  if let Some(cache) = state.wav_lru.write().await.as_mut() {
+    cache.clear();
+  }
+  if let Some(cache) = state.query_lru.write().map_err(|e| e.to_string())?.as_mut() {
+    cache.clear();
+  }
+  let player = state
+    .audio_player
+    .write()
+    .map_err(|e| e.to_string())?
+    .take();
+  if let Some(player) = player {
+    player.stop().await;
+  }
+  let _ = app.emit("audio-playback-finished", ());
   Ok(())
 }
 
@@ -132,11 +162,34 @@ pub async fn get_metas(state: State<'_, AppState>) -> std::result::Result<VoiceM
   Ok(metas.values().flatten().cloned().collect())
 }
 
+fn ensure_core_generation(state: &AppState, generation: u64) -> Result<(), String> {
+  if state.core_generation.load(Ordering::SeqCst) != generation {
+    return Err("Voice setup changed; retry the operation".into());
+  }
+  Ok(())
+}
+
+fn generation_key(key: String, generation: u64) -> String {
+  if generation == 0 {
+    key
+  } else {
+    format!("{generation}:{key}")
+  }
+}
+
 async fn run_core_task<T, F>(state: &AppState, task: F) -> Result<T, String>
 where
   T: Send + 'static,
   F: FnOnce(Arc<Core>) -> Result<T, String> + Send + 'static,
 {
+  let generation = state.core_generation.load(Ordering::SeqCst);
+  let permit = state
+    .core_task_gate
+    .clone()
+    .acquire_owned()
+    .await
+    .map_err(|_| "Core task worker is unavailable")?;
+  ensure_core_generation(state, generation)?;
   let core = state
     .core
     .read()
@@ -144,12 +197,7 @@ where
     .as_ref()
     .cloned()
     .ok_or("core is not initialized")?;
-  let permit = state
-    .core_task_gate
-    .clone()
-    .acquire_owned()
-    .await
-    .map_err(|_| "Core task worker is unavailable")?;
+
   tauri::async_runtime::spawn_blocking(move || {
     let _permit = permit;
     task(core)
@@ -163,6 +211,14 @@ async fn run_nonblocking_synthesis_task(
   audio_query: AudioQuery,
   speaker_id: StyleId,
 ) -> Result<Vec<u8>, String> {
+  let generation = state.core_generation.load(Ordering::SeqCst);
+  let _permit = state
+    .core_task_gate
+    .clone()
+    .acquire_owned()
+    .await
+    .map_err(|_| "Core task worker is unavailable")?;
+  ensure_core_generation(state, generation)?;
   let core = state
     .core
     .read()
@@ -170,12 +226,7 @@ async fn run_nonblocking_synthesis_task(
     .as_ref()
     .cloned()
     .ok_or("core is not initialized")?;
-  let _permit = state
-    .core_task_gate
-    .clone()
-    .acquire_owned()
-    .await
-    .map_err(|_| "Core task worker is unavailable")?;
+
   core
     .synthesis_nonblocking_prepared(&audio_query, speaker_id)
     .await
@@ -186,6 +237,14 @@ async fn prepare_nonblocking_synthesis_task(
   state: &AppState,
   speaker_id: StyleId,
 ) -> Result<(), String> {
+  let generation = state.core_generation.load(Ordering::SeqCst);
+  let _permit = state
+    .core_task_gate
+    .clone()
+    .acquire_owned()
+    .await
+    .map_err(|_| "Core task worker is unavailable")?;
+  ensure_core_generation(state, generation)?;
   let core = state
     .core
     .read()
@@ -193,12 +252,7 @@ async fn prepare_nonblocking_synthesis_task(
     .as_ref()
     .cloned()
     .ok_or("core is not initialized")?;
-  let _permit = state
-    .core_task_gate
-    .clone()
-    .acquire_owned()
-    .await
-    .map_err(|_| "Core task worker is unavailable")?;
+
   core
     .prepare_nonblocking_synthesis(speaker_id)
     .await
@@ -218,7 +272,8 @@ pub async fn audio_query(
     .config
     .ui
     .pitch_noise_options(seed);
-  let cache_key = (text.clone(), speaker_id);
+  let generation = state.core_generation.load(Ordering::SeqCst);
+  let cache_key = (generation_key(text.clone(), generation), speaker_id);
   let cached = state_mut!(state, query_lru).get(&cache_key).cloned();
   // Cache the ordinary query so changing the seed or sigma cannot reuse old noise.
   let mut query = match cached {
@@ -230,6 +285,7 @@ pub async fn audio_query(
           .map_err(|e| e.to_string())
       })
       .await?;
+      ensure_core_generation(&state, generation)?;
       state_mut!(state, query_lru).put(cache_key, query.clone());
       query
     }
@@ -242,6 +298,7 @@ pub async fn audio_query(
     })
     .await?;
   }
+  ensure_core_generation(&state, generation)?;
   Ok(query)
 }
 
@@ -592,9 +649,11 @@ async fn synthesize_cached(
   backend: SynthesisBackend,
 ) -> std::result::Result<Vec<u8>, String> {
   let query_string = serde_json::to_string(&audio_query).map_err(|e| e.to_string())?;
-  let cache_key = (query_string, speaker_id);
+  let generation = state.core_generation.load(Ordering::SeqCst);
+  let cache_key = (generation_key(query_string, generation), speaker_id);
   let (cell, evicted) = {
     let mut cache_guard = state.wav_lru.write().await;
+    ensure_core_generation(state, generation)?;
     let cache = cache_guard.as_mut().ok_or("wav_lru is not initialized")?;
     if let Some(entry) = cache.get(&cache_key) {
       (entry.cell.clone(), None)
@@ -626,8 +685,10 @@ async fn synthesize_cached(
   })
   .await?;
 
+  ensure_core_generation(state, generation)?;
   let evicted = {
     let mut cache_guard = state.wav_lru.write().await;
+    ensure_core_generation(state, generation)?;
     let cache = cache_guard.as_mut().ok_or("wav_lru is not initialized")?;
     let is_current_cell = cache
       .get(&cache_key)
@@ -678,6 +739,7 @@ pub async fn play_audio(
   speaker_id: StyleId,
   start_time_seconds: Option<f64>,
 ) -> std::result::Result<(), String> {
+  let generation = state.core_generation.load(Ordering::SeqCst);
   let start_at = playback_start_duration(start_time_seconds)?;
   let wav = synthesize_cached(
     &app,
@@ -688,6 +750,12 @@ pub async fn play_audio(
     SynthesisBackend::Blocking,
   )
   .await?;
+  let _permit = state
+    .core_task_gate
+    .acquire()
+    .await
+    .map_err(|e| e.to_string())?;
+  ensure_core_generation(&state, generation)?;
   let playback_app = app.clone();
   let audio_player = AudioPlayer::play(wav, start_at, move || {
     if let Err(error) = playback_app.emit("audio-playback-finished", ()) {
@@ -721,6 +789,7 @@ pub async fn play_audio_sequence(
   if items.is_empty() {
     return Ok(());
   }
+  let generation = state.core_generation.load(Ordering::SeqCst);
   let start_at = playback_start_duration(start_time_seconds)?;
   let mut wavs = Vec::with_capacity(items.len());
   for item in items {
@@ -736,6 +805,12 @@ pub async fn play_audio_sequence(
       .await?,
     );
   }
+  let _permit = state
+    .core_task_gate
+    .acquire()
+    .await
+    .map_err(|e| e.to_string())?;
+  ensure_core_generation(&state, generation)?;
   let item_started_app = app.clone();
   let playback_app = app.clone();
   let audio_player = AudioPlayer::play_many_from(
@@ -948,7 +1023,8 @@ pub async fn synthesize_state(
   let query_string = serde_json::to_string(&query).map_err(|e| e.to_string())?;
   let mut cache_guard = state.wav_lru.write().await;
   let cache = cache_guard.as_mut().ok_or("wav_lru is not initialized")?;
-  if let Some(entry) = cache.get(&(query_string, speaker_id)) {
+  let key = generation_key(query_string, state.core_generation.load(Ordering::SeqCst));
+  if let Some(entry) = cache.get(&(key, speaker_id)) {
     if entry.cell.get().is_some() {
       return Ok(SynthState::Done);
     } else {

@@ -29,7 +29,7 @@ function ToolbarButton(props: {
         aria-pressed={props.ariaPressed}
         onClick={() => props.onClick?.()}
         disabled={props.disabled}
-        class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) disabled:(cursor-not-allowed opacity-50) dark:hover:bg-slate-7"
+        class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none enabled:hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) disabled:cursor-not-allowed dark:enabled:hover:bg-slate-7"
       >
         <div class={`${props.icon} size-4`} />
       </button>
@@ -38,6 +38,7 @@ function ToolbarButton(props: {
 }
 
 export function ControlBar(props: {
+  disabled?: boolean;
   onWaveformSynthesized: (notice: WaveformSynthesisNotice) => void;
 }) {
   const { t1 } = usei18n()!;
@@ -52,11 +53,15 @@ export function ControlBar(props: {
   const { selectedTextBlock, selectedTextBlockIndex, setTextStore } =
     useTextStore()!;
   const { uiStore } = useUIStore()!;
-  const controls = usePlaybackControls(props.onWaveformSynthesized);
+  const controls = usePlaybackControls(
+    props.onWaveformSynthesized,
+    () => props.disabled ?? false,
+  );
   const { canReset, resetEdits, resetLabel } = useQueryReset();
   onMount(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
+        props.disabled ||
         uiStore.page !== null ||
         !config.ui.pitch_completion_enabled ||
         !isApplicationShortcutAllowed(event) ||
@@ -175,7 +180,7 @@ export function ControlBar(props: {
                 }
               }}
               format={false}
-              class="mr1 flex items-center text-xs ui-disabled:(cursor-not-allowed opacity-50)"
+              class="mr1 flex items-center text-xs ui-disabled:cursor-not-allowed"
             >
               <Tooltip content={t1("config.pitch_noise_seed")}>
                 <NumberField.Input

@@ -9,7 +9,7 @@ import { MetaProvider, useMetaStore } from "@contexts/meta";
 import { ShortcutsProvider } from "@contexts/shortcuts";
 import { SystemProvider } from "@contexts/system";
 import { TextProvider, useTextStore } from "@contexts/text";
-import { UIProvider } from "@contexts/ui";
+import { UIProvider, useUIStore } from "@contexts/ui";
 
 export type SidebarTestStores = {
   config: NonNullable<ReturnType<typeof useConfigStore>>;
@@ -19,6 +19,7 @@ export type SidebarTestStores = {
 
 export function renderSidebar(setup: (stores: SidebarTestStores) => void) {
   const Harness: Component = () => {
+    useUIStore()!.setUIStore("coreInitialized", true);
     const stores = {
       config: useConfigStore()!,
       meta: useMetaStore()!,

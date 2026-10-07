@@ -1,0 +1,949 @@
+{
+  "archives": [
+    {
+      "id": "runtime-linux-x64",
+      "url": "https://github.com/VOICEVOX/onnxruntime-builder/releases/download/voicevox_onnxruntime-1.17.3/voicevox_onnxruntime-linux-x64-1.17.3.tgz",
+      "bytes": 6765720,
+      "sha256": "72b5287fdd48dc833a9929f6e9e3826e793b54ce1202181be93f63823a222f58",
+      "library": "voicevox_onnxruntime-linux-x64-1.17.3/lib/libvoicevox_onnxruntime.so.1.17.3",
+      "expanded_limit": 19683395
+    },
+    {
+      "id": "runtime-linux-arm64",
+      "url": "https://github.com/VOICEVOX/onnxruntime-builder/releases/download/voicevox_onnxruntime-1.17.3/voicevox_onnxruntime-linux-arm64-1.17.3.tgz",
+      "bytes": 6177662,
+      "sha256": "276eedc007b694324f59bc35c2cf9041724eb786608437a649f096edea3943a9",
+      "library": "voicevox_onnxruntime-linux-arm64-1.17.3/lib/libvoicevox_onnxruntime.so.1.17.3",
+      "expanded_limit": 17753111
+    },
+    {
+      "id": "runtime-osx-arm64",
+      "url": "https://github.com/VOICEVOX/onnxruntime-builder/releases/download/voicevox_onnxruntime-1.17.3/voicevox_onnxruntime-osx-arm64-1.17.3.tgz",
+      "bytes": 5061505,
+      "sha256": "96d7ea1928a0a15485492d37621387df50f40a792e2a6817d4df73ecd18571f2",
+      "library": "voicevox_onnxruntime-osx-arm64-1.17.3/lib/libvoicevox_onnxruntime.1.17.3.dylib",
+      "expanded_limit": 15337207
+    },
+    {
+      "id": "runtime-osx-x86_64",
+      "url": "https://github.com/VOICEVOX/onnxruntime-builder/releases/download/voicevox_onnxruntime-1.17.3/voicevox_onnxruntime-osx-x86_64-1.17.3.tgz",
+      "bytes": 5886886,
+      "sha256": "59edc860252dbb7f64cc2eb72bd4b2904a6df7c35f33dc8082435b9f15a505df",
+      "library": "voicevox_onnxruntime-osx-x86_64-1.17.3/lib/libvoicevox_onnxruntime.1.17.3.dylib",
+      "expanded_limit": 17720059
+    },
+    {
+      "id": "runtime-win-x64",
+      "url": "https://github.com/VOICEVOX/onnxruntime-builder/releases/download/voicevox_onnxruntime-1.17.3/voicevox_onnxruntime-win-x64-1.17.3.tgz",
+      "bytes": 4650448,
+      "sha256": "32b07e7c6c59030434b54eb0255912510942faf193c7a14e0e1a168db5796265",
+      "library": "voicevox_onnxruntime-win-x64-1.17.3/lib/voicevox_onnxruntime.dll",
+      "expanded_limit": 13785273
+    },
+    {
+      "id": "dictionary",
+      "url": "https://github.com/r9y9/open_jtalk/releases/download/v1.11.1/open_jtalk_dic_utf_8-1.11.tar.gz",
+      "bytes": 23646843,
+      "sha256": "fe6ba0e43542cef98339abdffd903e062008ea170b04e7e2a35da805902f382a",
+      "library": null,
+      "expanded_limit": 108353389
+    }
+  ],
+  "models": [
+    {
+      "id": "0.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/0.vvm",
+      "bytes": 58214379,
+      "sha256": "917e592cae92a02fb7668bd9e168df4e39c8ab2f5302c2be71906c70ec4e2df2",
+      "entries": [
+        {
+          "character": "四国めたん",
+          "style": "ノーマル",
+          "style_id": 2
+        },
+        {
+          "character": "四国めたん",
+          "style": "あまあま",
+          "style_id": 0
+        },
+        {
+          "character": "四国めたん",
+          "style": "ツンツン",
+          "style_id": 6
+        },
+        {
+          "character": "四国めたん",
+          "style": "セクシー",
+          "style_id": 4
+        },
+        {
+          "character": "ずんだもん",
+          "style": "ノーマル",
+          "style_id": 3
+        },
+        {
+          "character": "ずんだもん",
+          "style": "あまあま",
+          "style_id": 1
+        },
+        {
+          "character": "ずんだもん",
+          "style": "ツンツン",
+          "style_id": 7
+        },
+        {
+          "character": "ずんだもん",
+          "style": "セクシー",
+          "style_id": 5
+        },
+        {
+          "character": "春日部つむぎ",
+          "style": "ノーマル",
+          "style_id": 8
+        },
+        {
+          "character": "雨晴はう",
+          "style": "ノーマル",
+          "style_id": 10
+        }
+      ]
+    },
+    {
+      "id": "1.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/1.vvm",
+      "bytes": 59477413,
+      "sha256": "8df20815be9a84a4b4723b9e778d2ef6a4df277e4872fe9efe29676a60e02774",
+      "entries": [
+        {
+          "character": "冥鳴ひまり",
+          "style": "ノーマル",
+          "style_id": 14
+        }
+      ]
+    },
+    {
+      "id": "2.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/2.vvm",
+      "bytes": 58214778,
+      "sha256": "4c97ff029895a819cee3ad431a77284d6af7e097ac42faa5af1c87d2bc5a9b5c",
+      "entries": [
+        {
+          "character": "九州そら",
+          "style": "ノーマル",
+          "style_id": 16
+        },
+        {
+          "character": "九州そら",
+          "style": "あまあま",
+          "style_id": 15
+        },
+        {
+          "character": "九州そら",
+          "style": "ツンツン",
+          "style_id": 18
+        },
+        {
+          "character": "九州そら",
+          "style": "セクシー",
+          "style_id": 17
+        }
+      ]
+    },
+    {
+      "id": "3.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/3.vvm",
+      "bytes": 61730024,
+      "sha256": "be05ba9a196bc5acc298daa2c85de1188f0795b46422581437e2b07071963e03",
+      "entries": [
+        {
+          "character": "波音リツ",
+          "style": "ノーマル",
+          "style_id": 9
+        },
+        {
+          "character": "波音リツ",
+          "style": "クイーン",
+          "style_id": 65
+        },
+        {
+          "character": "中国うさぎ",
+          "style": "ノーマル",
+          "style_id": 61
+        },
+        {
+          "character": "中国うさぎ",
+          "style": "おどろき",
+          "style_id": 62
+        },
+        {
+          "character": "中国うさぎ",
+          "style": "こわがり",
+          "style_id": 63
+        },
+        {
+          "character": "中国うさぎ",
+          "style": "へろへろ",
+          "style_id": 64
+        }
+      ]
+    },
+    {
+      "id": "4.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/4.vvm",
+      "bytes": 58211265,
+      "sha256": "da5aaad87d5b7ea5b346def2e610cc63e64a90088bb0fc2d27fb63a622113953",
+      "entries": [
+        {
+          "character": "玄野武宏",
+          "style": "ノーマル",
+          "style_id": 11
+        },
+        {
+          "character": "剣崎雌雄",
+          "style": "ノーマル",
+          "style_id": 21
+        }
+      ]
+    },
+    {
+      "id": "5.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/5.vvm",
+      "bytes": 56517330,
+      "sha256": "487856083c347e298b0b9bdabfc278dc14240c9365a7a0e4870aea965ce7b4d1",
+      "entries": [
+        {
+          "character": "四国めたん",
+          "style": "ささやき",
+          "style_id": 36
+        },
+        {
+          "character": "四国めたん",
+          "style": "ヒソヒソ",
+          "style_id": 37
+        },
+        {
+          "character": "ずんだもん",
+          "style": "ささやき",
+          "style_id": 22
+        },
+        {
+          "character": "ずんだもん",
+          "style": "ヒソヒソ",
+          "style_id": 38
+        },
+        {
+          "character": "九州そら",
+          "style": "ささやき",
+          "style_id": 19
+        }
+      ]
+    },
+    {
+      "id": "6.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/6.vvm",
+      "bytes": 58211181,
+      "sha256": "94f37ddfe76b8bc203642b6a38e071bee236a9409344a6392155b684e02611c3",
+      "entries": [
+        {
+          "character": "No.7",
+          "style": "ノーマル",
+          "style_id": 29
+        },
+        {
+          "character": "No.7",
+          "style": "アナウンス",
+          "style_id": 30
+        },
+        {
+          "character": "No.7",
+          "style": "読み聞かせ",
+          "style_id": 31
+        }
+      ]
+    },
+    {
+      "id": "7.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/7.vvm",
+      "bytes": 57232459,
+      "sha256": "d2201fa4ea5265cdf371fedf98de5a55c8c2802551289917ce6c58b125236b3e",
+      "entries": [
+        {
+          "character": "後鬼",
+          "style": "人間ver.",
+          "style_id": 27
+        },
+        {
+          "character": "後鬼",
+          "style": "ぬいぐるみver.",
+          "style_id": 28
+        }
+      ]
+    },
+    {
+      "id": "8.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/8.vvm",
+      "bytes": 58210984,
+      "sha256": "bde9cb507f62277a176cc2c7182db686294028d2adff4d3a49c39dd1498f2fed",
+      "entries": [
+        {
+          "character": "WhiteCUL",
+          "style": "ノーマル",
+          "style_id": 23
+        },
+        {
+          "character": "WhiteCUL",
+          "style": "たのしい",
+          "style_id": 24
+        },
+        {
+          "character": "WhiteCUL",
+          "style": "かなしい",
+          "style_id": 25
+        },
+        {
+          "character": "WhiteCUL",
+          "style": "びえーん",
+          "style_id": 26
+        }
+      ]
+    },
+    {
+      "id": "9.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/9.vvm",
+      "bytes": 57235017,
+      "sha256": "5145551d31ed4fab14d7921aafdd2db5c9e90da40d5b59f9418ee435c400c2fa",
+      "entries": [
+        {
+          "character": "白上虎太郎",
+          "style": "ふつう",
+          "style_id": 12
+        },
+        {
+          "character": "白上虎太郎",
+          "style": "わーい",
+          "style_id": 32
+        },
+        {
+          "character": "白上虎太郎",
+          "style": "びくびく",
+          "style_id": 33
+        },
+        {
+          "character": "白上虎太郎",
+          "style": "おこ",
+          "style_id": 34
+        },
+        {
+          "character": "白上虎太郎",
+          "style": "びえーん",
+          "style_id": 35
+        }
+      ]
+    },
+    {
+      "id": "10.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/10.vvm",
+      "bytes": 57235185,
+      "sha256": "b5f8a97c0b6be2b8eaa6f2c1af88b2e06f9072bb82dddd4e1b3a05e9de0c04d4",
+      "entries": [
+        {
+          "character": "玄野武宏",
+          "style": "喜び",
+          "style_id": 39
+        },
+        {
+          "character": "玄野武宏",
+          "style": "ツンギレ",
+          "style_id": 40
+        },
+        {
+          "character": "玄野武宏",
+          "style": "悲しみ",
+          "style_id": 41
+        },
+        {
+          "character": "ちび式じい",
+          "style": "ノーマル",
+          "style_id": 42
+        }
+      ]
+    },
+    {
+      "id": "11.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/11.vvm",
+      "bytes": 60231796,
+      "sha256": "46c209914812c13b1717331701d76491708448f90c7f8e87b5b286e5ca91341e",
+      "entries": [
+        {
+          "character": "櫻歌ミコ",
+          "style": "ノーマル",
+          "style_id": 43
+        },
+        {
+          "character": "櫻歌ミコ",
+          "style": "第二形態",
+          "style_id": 44
+        },
+        {
+          "character": "櫻歌ミコ",
+          "style": "ロリ",
+          "style_id": 45
+        },
+        {
+          "character": "ナースロボ＿タイプＴ",
+          "style": "ノーマル",
+          "style_id": 47
+        },
+        {
+          "character": "ナースロボ＿タイプＴ",
+          "style": "楽々",
+          "style_id": 48
+        },
+        {
+          "character": "ナースロボ＿タイプＴ",
+          "style": "恐怖",
+          "style_id": 49
+        },
+        {
+          "character": "ナースロボ＿タイプＴ",
+          "style": "内緒話",
+          "style_id": 50
+        }
+      ]
+    },
+    {
+      "id": "12.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/12.vvm",
+      "bytes": 58213390,
+      "sha256": "5961b7f7eecec1be9eb38c0868898483d9582e490e9d9631dca9ea5018bd0e70",
+      "entries": [
+        {
+          "character": "†聖騎士 紅桜†",
+          "style": "ノーマル",
+          "style_id": 51
+        },
+        {
+          "character": "雀松朱司",
+          "style": "ノーマル",
+          "style_id": 52
+        },
+        {
+          "character": "麒ヶ島宗麟",
+          "style": "ノーマル",
+          "style_id": 53
+        }
+      ]
+    },
+    {
+      "id": "13.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/13.vvm",
+      "bytes": 60231935,
+      "sha256": "f083dd1c3b67091fbbf1839c97d0cf817dbfae40ddc4fa8e88236ce6e2abe55d",
+      "entries": [
+        {
+          "character": "春歌ナナ",
+          "style": "ノーマル",
+          "style_id": 54
+        },
+        {
+          "character": "猫使アル",
+          "style": "ノーマル",
+          "style_id": 55
+        },
+        {
+          "character": "猫使アル",
+          "style": "おちつき",
+          "style_id": 56
+        },
+        {
+          "character": "猫使アル",
+          "style": "うきうき",
+          "style_id": 57
+        },
+        {
+          "character": "猫使ビィ",
+          "style": "ノーマル",
+          "style_id": 58
+        },
+        {
+          "character": "猫使ビィ",
+          "style": "おちつき",
+          "style_id": 59
+        },
+        {
+          "character": "猫使ビィ",
+          "style": "人見知り",
+          "style_id": 60
+        }
+      ]
+    },
+    {
+      "id": "14.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/14.vvm",
+      "bytes": 64664926,
+      "sha256": "baab280d80769f1d8fd5aead07137c5ed1b5e61acc5f0e26dff53439e907d085",
+      "entries": [
+        {
+          "character": "栗田まろん",
+          "style": "ノーマル",
+          "style_id": 67
+        },
+        {
+          "character": "あいえるたん",
+          "style": "ノーマル",
+          "style_id": 68
+        },
+        {
+          "character": "満別花丸",
+          "style": "ノーマル",
+          "style_id": 69
+        },
+        {
+          "character": "満別花丸",
+          "style": "元気",
+          "style_id": 70
+        },
+        {
+          "character": "満別花丸",
+          "style": "ささやき",
+          "style_id": 71
+        },
+        {
+          "character": "満別花丸",
+          "style": "ぶりっ子",
+          "style_id": 72
+        },
+        {
+          "character": "満別花丸",
+          "style": "ボーイ",
+          "style_id": 73
+        },
+        {
+          "character": "琴詠ニア",
+          "style": "ノーマル",
+          "style_id": 74
+        }
+      ]
+    },
+    {
+      "id": "15.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/15.vvm",
+      "bytes": 65647574,
+      "sha256": "1caa2a42417f6b9bbb1a3c8ec1370724d7e153862b4d12f8c317c4e37cea786f",
+      "entries": [
+        {
+          "character": "ずんだもん",
+          "style": "ヘロヘロ",
+          "style_id": 75
+        },
+        {
+          "character": "ずんだもん",
+          "style": "なみだめ",
+          "style_id": 76
+        },
+        {
+          "character": "青山龍星",
+          "style": "ノーマル",
+          "style_id": 13
+        },
+        {
+          "character": "青山龍星",
+          "style": "熱血",
+          "style_id": 81
+        },
+        {
+          "character": "青山龍星",
+          "style": "不機嫌",
+          "style_id": 82
+        },
+        {
+          "character": "青山龍星",
+          "style": "喜び",
+          "style_id": 83
+        },
+        {
+          "character": "青山龍星",
+          "style": "しっとり",
+          "style_id": 84
+        },
+        {
+          "character": "青山龍星",
+          "style": "かなしみ",
+          "style_id": 85
+        },
+        {
+          "character": "青山龍星",
+          "style": "囁き",
+          "style_id": 86
+        },
+        {
+          "character": "もち子さん",
+          "style": "ノーマル",
+          "style_id": 20
+        },
+        {
+          "character": "もち子さん",
+          "style": "セクシー／あん子",
+          "style_id": 66
+        },
+        {
+          "character": "もち子さん",
+          "style": "泣き",
+          "style_id": 77
+        },
+        {
+          "character": "もち子さん",
+          "style": "怒り",
+          "style_id": 78
+        },
+        {
+          "character": "もち子さん",
+          "style": "喜び",
+          "style_id": 79
+        },
+        {
+          "character": "もち子さん",
+          "style": "のんびり",
+          "style_id": 80
+        },
+        {
+          "character": "小夜/SAYO",
+          "style": "ノーマル",
+          "style_id": 46
+        }
+      ]
+    },
+    {
+      "id": "16.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/16.vvm",
+      "bytes": 58212115,
+      "sha256": "0fdfec981ba226478d0e3d8966e5418096c6fa64f354978e3ce8efe345cedbaf",
+      "entries": [
+        {
+          "character": "後鬼",
+          "style": "人間（怒り）ver.",
+          "style_id": 87
+        },
+        {
+          "character": "後鬼",
+          "style": "鬼ver.",
+          "style_id": 88
+        }
+      ]
+    },
+    {
+      "id": "17.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/17.vvm",
+      "bytes": 58212482,
+      "sha256": "20c566e53da6f3c1ea082afc8288ab684165dbce0847397b40f006c5b58f7f68",
+      "entries": [
+        {
+          "character": "Voidoll",
+          "style": "ノーマル",
+          "style_id": 89
+        }
+      ]
+    },
+    {
+      "id": "18.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/18.vvm",
+      "bytes": 61399262,
+      "sha256": "fbd69ebf1775e5e44e39db8580584601822686d0abd0383dee01dd3a0a5ffc9d",
+      "entries": [
+        {
+          "character": "ぞん子",
+          "style": "ノーマル",
+          "style_id": 90
+        },
+        {
+          "character": "ぞん子",
+          "style": "低血圧",
+          "style_id": 91
+        },
+        {
+          "character": "ぞん子",
+          "style": "覚醒",
+          "style_id": 92
+        },
+        {
+          "character": "ぞん子",
+          "style": "実況風",
+          "style_id": 93
+        },
+        {
+          "character": "中部つるぎ",
+          "style": "ノーマル",
+          "style_id": 94
+        },
+        {
+          "character": "中部つるぎ",
+          "style": "怒り",
+          "style_id": 95
+        },
+        {
+          "character": "中部つるぎ",
+          "style": "ヒソヒソ",
+          "style_id": 96
+        },
+        {
+          "character": "中部つるぎ",
+          "style": "おどおど",
+          "style_id": 97
+        },
+        {
+          "character": "中部つるぎ",
+          "style": "絶望と敗北",
+          "style_id": 98
+        }
+      ]
+    },
+    {
+      "id": "19.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/19.vvm",
+      "bytes": 59022148,
+      "sha256": "d6c8096606d462a26c7e7b093e0eab4452e52efd42af29e9cdc989e022ea9f0e",
+      "entries": [
+        {
+          "character": "離途",
+          "style": "ノーマル",
+          "style_id": 99
+        },
+        {
+          "character": "離途",
+          "style": "シリアス",
+          "style_id": 101
+        },
+        {
+          "character": "黒沢冴白",
+          "style": "ノーマル",
+          "style_id": 100
+        }
+      ]
+    },
+    {
+      "id": "20.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/20.vvm",
+      "bytes": 59535608,
+      "sha256": "76838e388d3c0bb5bfae7423077132c3a7b1bd9bffd7a2b581b2cc292d1c48d7",
+      "entries": [
+        {
+          "character": "ユーレイちゃん",
+          "style": "ノーマル",
+          "style_id": 102
+        },
+        {
+          "character": "ユーレイちゃん",
+          "style": "甘々",
+          "style_id": 103
+        },
+        {
+          "character": "ユーレイちゃん",
+          "style": "哀しみ",
+          "style_id": 104
+        },
+        {
+          "character": "ユーレイちゃん",
+          "style": "ささやき",
+          "style_id": 105
+        },
+        {
+          "character": "ユーレイちゃん",
+          "style": "ツクモちゃん",
+          "style_id": 106
+        }
+      ]
+    },
+    {
+      "id": "21.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/21.vvm",
+      "bytes": 62075160,
+      "sha256": "da1172da295f89e9733cde36468365f573133e1903a4fe9cd47b2ba4bdadbeac",
+      "entries": [
+        {
+          "character": "猫使アル",
+          "style": "つよつよ",
+          "style_id": 110
+        },
+        {
+          "character": "猫使アル",
+          "style": "へろへろ",
+          "style_id": 111
+        },
+        {
+          "character": "猫使ビィ",
+          "style": "つよつよ",
+          "style_id": 112
+        },
+        {
+          "character": "東北ずん子",
+          "style": "ノーマル",
+          "style_id": 107
+        },
+        {
+          "character": "東北きりたん",
+          "style": "ノーマル",
+          "style_id": 108
+        },
+        {
+          "character": "東北イタコ",
+          "style": "ノーマル",
+          "style_id": 109
+        }
+      ]
+    },
+    {
+      "id": "22.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/22.vvm",
+      "bytes": 62289486,
+      "sha256": "4b7f2ab58a14f163c95b4896ccf5116aa8bbf4adaf2b18632acbb279cca357c5",
+      "entries": [
+        {
+          "character": "あんこもん",
+          "style": "ノーマル",
+          "style_id": 113
+        },
+        {
+          "character": "あんこもん",
+          "style": "つよつよ",
+          "style_id": 114
+        },
+        {
+          "character": "あんこもん",
+          "style": "よわよわ",
+          "style_id": 115
+        },
+        {
+          "character": "あんこもん",
+          "style": "けだるげ",
+          "style_id": 116
+        }
+      ]
+    },
+    {
+      "id": "23.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/23.vvm",
+      "bytes": 59022909,
+      "sha256": "a5862259a0a3173a15fe83b56817f6e66386b5059864889d69b0a1a0b43f281f",
+      "entries": [
+        {
+          "character": "あんこもん",
+          "style": "ささやき",
+          "style_id": 117
+        }
+      ]
+    },
+    {
+      "id": "24.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/24.vvm",
+      "bytes": 59024323,
+      "sha256": "7a80eac3f27d33e45ac1c23534f9e5c5967a29f4d5ec28b898fc453871f1c341",
+      "entries": [
+        {
+          "character": "夜語トバリ",
+          "style": "ノーマル",
+          "style_id": 118
+        },
+        {
+          "character": "夜語トバリ",
+          "style": "明るい",
+          "style_id": 119
+        },
+        {
+          "character": "夜語トバリ",
+          "style": "哀しみ",
+          "style_id": 120
+        },
+        {
+          "character": "夜語トバリ",
+          "style": "呆れ",
+          "style_id": 121
+        },
+        {
+          "character": "暁記ミタマ",
+          "style": "ノーマル",
+          "style_id": 122
+        },
+        {
+          "character": "暁記ミタマ",
+          "style": "怒り",
+          "style_id": 123
+        },
+        {
+          "character": "暁記ミタマ",
+          "style": "哀しみ",
+          "style_id": 124
+        },
+        {
+          "character": "暁記ミタマ",
+          "style": "ささやき",
+          "style_id": 125
+        },
+        {
+          "character": "里石ユカ",
+          "style": "つぼみ",
+          "style_id": 126
+        }
+      ]
+    },
+    {
+      "id": "n0.vvm",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/n0.vvm",
+      "bytes": 73074437,
+      "sha256": "e91e2e6ed5cfa6940ff55b61234ba89c631fce3d0146c23685552e7f5d2fe437",
+      "entries": [
+        {
+          "character": "女声1",
+          "style": "ノーマル",
+          "style_id": 10005
+        },
+        {
+          "character": "女声2",
+          "style": "ノーマル",
+          "style_id": 10007
+        },
+        {
+          "character": "女声3",
+          "style": "ノーマル",
+          "style_id": 10004
+        },
+        {
+          "character": "女声4",
+          "style": "ノーマル",
+          "style_id": 10003
+        },
+        {
+          "character": "女声5",
+          "style": "ノーマル",
+          "style_id": 10008
+        },
+        {
+          "character": "女声6",
+          "style": "ノーマル",
+          "style_id": 10006
+        },
+        {
+          "character": "男声1",
+          "style": "ノーマル",
+          "style_id": 10001
+        },
+        {
+          "character": "男声2",
+          "style": "ノーマル",
+          "style_id": 10000
+        },
+        {
+          "character": "男声3",
+          "style": "ノーマル",
+          "style_id": 10002
+        }
+      ]
+    },
+    {
+      "id": "TERMS.txt",
+      "url": "https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/TERMS.txt",
+      "bytes": 15667,
+      "sha256": "57fc18afeebc8a08c303b2b4e3f05bf6453a37c482d17c04ec3fbc674e5fc5f4",
+      "entries": []
+    }
+  ]
+}

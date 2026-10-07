@@ -50,7 +50,7 @@ export function IconButton(props: IconButtonProps) {
       <Button
         {...buttonProps}
         aria-label={local.label}
-        class={`group ${buttonSize()} flex shrink-0 items-center justify-center rounded-md bg-transparent outline-none ui-disabled:(cursor-not-allowed opacity-50) focus-visible:ring-2 ${focusRing()} ${local.class ?? ""}`}
+        class={`group ${buttonSize()} flex shrink-0 items-center justify-center rounded-md bg-transparent outline-none ui-disabled:(cursor-not-allowed grayscale) focus-visible:ring-2 ${focusRing()} ${local.class ?? ""}`}
       >
         <div
           aria-hidden="true"

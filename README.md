@@ -34,7 +34,48 @@ Pre-built binary is provided in [Releases](https://github.com/Patchethium/Azalea
 
 ### Setting up the core
 
-Azalea only works with VOICEVOX version older than `0.14.0`, where they started to use `*vvm` models.
+Azalea uses VOICEVOX VVM models through the embedded Rust core. You can use an
+existing VOICEVOX installation or download a standalone CPU setup inside Azalea.
+
+#### Downloading only what you need
+
+Choose **Azalea-managed models** in the grouped voice setup control on first
+launch or in Config. Open **Manage models** on first launch, or use the download
+button immediately to the right of Config beneath the sidebar. That button is
+hidden when the VOICEVOX setup is selected. The dialog lists downloaded models
+and available packages from the pinned 0.16.4 catalog, with a refresh control to
+recheck their installation status. Select one or more voice packages; Azalea
+also downloads the missing CPU ONNX Runtime and Open JTalk
+system dictionary. Packages can contain several characters or styles. No voice
+package is preselected.
+
+The downloader pins VOICEVOX VVM 0.16.4, ONNX Runtime 1.17.3, and the Open JTalk
+1.11 dictionary from release v1.11.1. A starter package plus runtime and dictionary
+requires roughly 85 MB of downloads. GPU dependencies, portraits, and voice
+samples are not downloaded.
+
+Files are verified with SHA-256 and stored beneath
+`dirs::data_local_dir()/com.azalea.app/voicevox/` (typically
+`%LOCALAPPDATA%/com.azalea.app/voicevox` on Windows,
+`~/Library/Application Support/com.azalea.app/voicevox` on macOS, and
+`$XDG_DATA_HOME/com.azalea.app/voicevox` or
+`~/.local/share/com.azalea.app/voicevox` on Linux). Clearing the asset cache does
+not remove runtime, dictionary, or model files.
+
+Downloads support progress, cancellation, and retry. Completed components are
+kept, and icons are downloaded separately without blocking model installation.
+Review the linked usage terms before downloading; license files are preserved.
+
+After downloading, choose **Apply models** to load the downloaded voices. Existing and downloaded
+setups keep separate system dictionaries and models. Their custom
+user dictionary is shared. Use the grouped voice setup control in Config to
+switch back to **VOICEVOX**. Switching applies the new setup without restarting,
+refreshes the voice list and caches, and keeps the current setup if loading fails.
+Manual query edits and the open project are preserved.
+
+VOICEVOX Core loads ONNX Runtime once per process. Both setups reuse that first
+compatible library; managed models always use CPU. If the CPU-only runtime loads
+first, VOICEVOX installation mode also uses CPU for that session.
 
 #### Using VOICEVOX
 
@@ -51,7 +92,7 @@ You can refer to the [official VOICEVOX documentation](https://github.com/VOICEV
 
 The directory should contain the following files:
 
-- `libonnxruntime.so`(or .dylib/.dll), the ONNX Runtime library
+- `libvoicevox_onnxruntime.so.*` (or `.dylib`/`.dll`), the VOICEVOX ONNX Runtime library
 - `*.vvm`, the voice model files
 - `open_jtalk_dic_utf_8-1.11/`, the OpenJTalk dictionary directory
 

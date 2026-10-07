@@ -3,6 +3,7 @@ import { DictionaryDialog } from "@dialogs/Dictionary";
 import { ExportAllDialog } from "@dialogs/ExportAll";
 import { ShortcutReferenceDialog } from "@dialogs/ShortcutReference";
 import { UnsavedChangesDialog } from "@dialogs/UnsavedChanges";
+import { ModelManagerDialog } from "@dialogs/VoiceSetup";
 import { Tooltip } from "@components/tooltip";
 import { DropdownMenu } from "@kobalte/core/dropdown-menu";
 import { ToggleGroup } from "@kobalte/core/toggle-group";
@@ -10,10 +11,17 @@ import style from "@layout/sidebar/sidebar.module.css";
 import type { SidebarControls } from "@layout/sidebar/useSidebar";
 import { usei18n } from "@contexts/i18n";
 import type { PageType } from "@contexts/ui";
+import { useConfigStore } from "@contexts/config";
+import { createEffect, Show } from "solid-js";
 
 export function SidebarFooter(props: { controls: SidebarControls }) {
   const { t1 } = usei18n()!;
   const controls = props.controls;
+  const { setupSource, voicesReady } = useConfigStore()!;
+  createEffect(() => {
+    if (setupSource() !== "Downloaded" && controls.uiStore.page === "models")
+      controls.setUIStore("page", null);
+  });
   return (
     <>
       <div class="flex flex-row items-center gap-1">
@@ -22,8 +30,9 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
           onOpenChange={controls.setActionMenuOpen}
         >
           <DropdownMenu.Trigger
+            disabled={!voicesReady()}
             aria-label={t1("menu.project_actions")}
-            class="group p1 size-8 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-primary-5 data-[expanded]:bg-primary-5 transition-transform outline-none"
+            class="group p1 size-8 rounded-lg bg-white dark:bg-slate-8 shadow-md enabled:hover:bg-primary-5 disabled:(cursor-not-allowed grayscale) data-[expanded]:bg-primary-5 transition-transform outline-none"
           >
             <div class="i-lucide:kanban bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white group-data-[expanded]:!bg-white" />
           </DropdownMenu.Trigger>
@@ -81,8 +90,9 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
             <Tooltip content={t1("dictionary.open")}>
               <ToggleGroup.Item
                 value="dictionary"
+                disabled={!voicesReady()}
                 aria-label={t1("dictionary.open")}
-                class="group size-8 p1 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-primary-5 ui-pressed:bg-primary-5 transition-transform outline-none"
+                class="group size-8 p1 rounded-lg bg-white dark:bg-slate-8 shadow-md enabled:hover:bg-primary-5 disabled:(cursor-not-allowed grayscale) ui-pressed:bg-primary-5 transition-transform outline-none"
               >
                 <div class="i-lucide:notebook-tabs bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white ui-pressed:!bg-white" />
               </ToggleGroup.Item>
@@ -105,9 +115,28 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
                 <div class="i-lucide:cog bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white ui-pressed:!bg-white" />
               </ToggleGroup.Item>
             </Tooltip>
+            <Show when={setupSource() === "Downloaded"}>
+              <Tooltip content={t1("voice_setup.manage")}>
+                <ToggleGroup.Item
+                  value="models"
+                  aria-label={t1("voice_setup.manage")}
+                  class="group size-8 p1 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-primary-5 ui-pressed:bg-primary-5 transition-transform outline-none focus-visible:ring-2 focus-visible:ring-primary-3"
+                >
+                  <div class="i-lucide:download bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white ui-pressed:!bg-white" />
+                </ToggleGroup.Item>
+              </Tooltip>
+            </Show>
           </ToggleGroup>
         </div>
       </div>
+      <ModelManagerDialog
+        open={
+          controls.uiStore.page === "models" && setupSource() === "Downloaded"
+        }
+        onOpenChange={(open) =>
+          controls.setUIStore("page", open ? "models" : null)
+        }
+      />
       <AboutDialog
         open={controls.aboutOpen()}
         onOpenChange={controls.setAboutOpen}

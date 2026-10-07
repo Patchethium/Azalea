@@ -50,7 +50,7 @@ pub(crate) struct JobCancellation {
 }
 
 impl JobCancellation {
-  fn cancel(&self) {
+  pub(crate) fn cancel(&self) {
     if !self.cancelled.swap(true, Ordering::AcqRel) {
       self.notify.notify_waiters();
     }

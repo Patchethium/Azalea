@@ -2,6 +2,8 @@
 
 import {
   AzaleaConfig,
+  type CoreConfig,
+  type SetupSource,
   commands,
   PitchRange,
   StyleId,
@@ -9,7 +11,7 @@ import {
   TitlebarStyle,
 } from "$binding";
 import { createContextProvider } from "@solid-primitives/context";
-import { createEffect, createResource, createSignal } from "solid-js";
+import { batch, createEffect, createResource, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import {
   DEFAULT_CPU_NUM_THREADS,
@@ -24,7 +26,7 @@ import { useUIStore } from "@contexts/ui";
 
 const [ConfigProvider, useConfigStore] = createContextProvider(() => {
   const { uiStore, setUIStore } = useUIStore()!;
-  const { setMetas } = useMetaStore()!;
+  const { setMetas, availableStyleIds } = useMetaStore()!;
 
   const [config, setConfig] = createStore<AzaleaConfig>({
     core: null,
@@ -36,6 +38,45 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
 
   const [range, setRange] = createSignal<RangeMap | null>(null);
 
+  const [downloadedCore, setDownloadedCore] = createSignal<CoreConfig | null>(
+    null,
+  );
+  const [activeSetupSource, setActiveSetupSource] = createSignal<SetupSource>(
+    "ExistingInstallation",
+  );
+  const [coreSwitching, setCoreSwitching] = createSignal(false);
+  const [coreRevision, setCoreRevision] = createSignal(0);
+  const [coreError, setCoreError] = createSignal<string | null>(null);
+  const setupSource = () => config.setup_source ?? "ExistingInstallation";
+  const setupChangePending = () =>
+    uiStore.coreInitialized && setupSource() !== activeSetupSource();
+  const voicesReady = () =>
+    uiStore.coreInitialized &&
+    !setupChangePending() &&
+    !coreSwitching() &&
+    availableStyleIds().length > 0;
+  const effectiveCore = () =>
+    setupSource() === "Downloaded"
+      ? downloadedCore() && {
+          ...downloadedCore()!,
+          cache_size: config.downloaded_setup?.cache_size ?? 128,
+          cpu_num_threads:
+            config.downloaded_setup?.cpu_num_threads ?? DEFAULT_CPU_NUM_THREADS,
+        }
+      : config.core;
+  const cpuNumThreads = () =>
+    setupSource() === "Downloaded"
+      ? (config.downloaded_setup?.cpu_num_threads ?? DEFAULT_CPU_NUM_THREADS)
+      : (config.core?.cpu_num_threads ?? DEFAULT_CPU_NUM_THREADS);
+  const setCpuNumThreads = (threads: number) => {
+    if (setupSource() === "Downloaded") {
+      setConfig("downloaded_setup", {
+        cache_size: config.downloaded_setup?.cache_size ?? 128,
+        cpu_num_threads: threads,
+      });
+    } else if (config.core) setConfig("core", "cpu_num_threads", threads);
+  };
+
   const [configInitialized, setConfigInitialized] = createSignal(false);
   const [committedCpuNumThreads, setCommittedCpuNumThreads] = createSignal<
     number | undefined
@@ -46,7 +87,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
   createEffect(() => {
     if (!configInitialized() || !uiStore.coreInitialized) return;
     if (committedCpuNumThreads() !== undefined) return;
-    markCpuThreadsCommitted(config.core?.cpu_num_threads);
+    markCpuThreadsCommitted(cpuNumThreads());
   });
 
   const spectrogramPreviewEnabled = () =>
@@ -107,37 +148,60 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
   };
 
   const reinitializeCore = async (): Promise<boolean> => {
-    const coreConfig = config.core;
+    if (coreSwitching()) return false;
+    const coreConfig = effectiveCore();
     if (coreConfig === null) {
       console.error("Cannot reinitialize core: no core config is set");
       return false;
     }
-    const res = await commands.reinitCore(coreConfig);
-    if (res.status === "error") {
-      console.error("Failed to reinitialize core:", res.error);
+    const source = setupSource();
+    setCoreSwitching(true);
+    try {
+      const res = await commands.reinitCore(coreConfig);
+      if (res.status === "error") {
+        setCoreError(res.error);
+        setConfig("setup_source", activeSetupSource());
+        console.error("Failed to reinitialize core:", res.error);
+        return false;
+      }
+      await reloadCoreDependentState();
+      batch(() => {
+        setCoreError(null);
+        setActiveSetupSource(source);
+        markCpuThreadsCommitted(coreConfig.cpu_num_threads);
+        setCoreRevision((revision) => revision + 1);
+      });
+      return true;
+    } catch (error) {
+      setCoreError(String(error));
+      setConfig("setup_source", activeSetupSource());
       return false;
+    } finally {
+      setCoreSwitching(false);
     }
-    markCpuThreadsCommitted(coreConfig.cpu_num_threads);
-    await reloadCoreDependentState();
-    return true;
   };
 
   const [coreInitializeResource] = createResource(
-    () => (uiStore.coreInitialized ? undefined : config.core),
+    () => (uiStore.coreInitialized ? undefined : effectiveCore()),
     async (cfg) => {
+      const source = setupSource();
       const res = await commands.initCore(cfg);
+      setCoreError(null);
       if (res.status === "error") {
         if (res.error === "Core already loaded") {
           markCpuThreadsCommitted(cfg.cpu_num_threads);
           void reloadCoreDependentState();
+          setActiveSetupSource(source);
           setUIStore("coreInitialized", true);
         } else {
           setUIStore("coreInitialized", false);
+          setCoreError(res.error);
           console.error("Failed to initialize core:", res.error);
         }
       } else {
         markCpuThreadsCommitted(cfg.cpu_num_threads);
         void reloadCoreDependentState();
+        setActiveSetupSource(source);
         setUIStore("coreInitialized", true);
       }
     },
@@ -162,6 +226,18 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
   return {
     config,
     setConfig,
+    setDownloadedCore,
+    setupSource,
+    activeSetupSource,
+    setActiveSetupSource,
+    coreSwitching,
+    coreRevision,
+    coreError,
+    setCoreError,
+    setupChangePending,
+    voicesReady,
+    cpuNumThreads,
+    setCpuNumThreads,
     configInitialized,
     setConfigInitialized,
     committedCpuNumThreads,

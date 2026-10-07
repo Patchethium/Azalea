@@ -1,12 +1,9 @@
 {
   "title": "アザレア",
   "init_dialog": {
-    "intro": "VOICEVOXの非公式GUI、Azaleaへようこそ",
-    "before": "まずVOICEVOXはどこか教えていただければ",
-    "installed.desp": "インストール済みだ",
-    "installed.button": "選ぶ",
-    "later.desp": "今インストールしてくる",
-    "later.button": "ええで"
+    "intro": "音声が設定されていません",
+    "before": "設定で音声環境を設定すると、音声の作成を始められます。",
+    "installed.button": "選ぶ"
   },
   "loading": "ローディング中",
   "enabled": "有効",
@@ -278,12 +275,9 @@
     "delete": "削除"
   },
   "voice_setup": {
+    "close_setup": "音声環境の設定を閉じる",
     "title": "音声環境",
-    "existing": "既存のVOICEVOX環境",
-    "downloaded": "ダウンロードしたCPU環境",
-    "use_existing": "既存の環境を使用",
-    "download": "必要なファイルをダウンロード",
-    "close": "ダウンロード画面を閉じる",
+    "close": "モデル管理画面を閉じる",
     "description": "音声モデルを選択してください。未取得のCPUランタイムとシステム辞書もダウンロードします。ユーザー辞書は両方の環境で共有されます。",
     "model_terms": "音声モデルの利用規約",
     "runtime_terms": "ランタイムの利用規約",
@@ -296,10 +290,16 @@
     "start": "選択したモデルをダウンロード",
     "retry": "再試行",
     "cancel": "ダウンロードをキャンセル",
-    "use_downloaded": "ダウンロードした環境を使用",
-    "restart": "選択した環境を適用するにはAzaleaを再起動してください。",
+    "use_downloaded": "モデルを適用",
     "cancelled": "ダウンロードをキャンセルしました。取得済みのファイルは保持されます。",
-    "complete": "ダウンロードが完了しました。「ダウンロードした環境を使用」で有効にできます。",
-    "extracting": "展開中…"
+    "complete": "ダウンロードが完了しました。「モデルを適用」で読み込めます。",
+    "extracting": "展開中…",
+    "managed": "Azalea管理のモデル",
+    "manage": "モデル管理",
+    "downloaded_models": "ダウンロード済みモデル",
+    "available_models": "ダウンロード可能なモデル（0.16.4）",
+    "refresh": "モデル一覧を更新",
+    "switching": "音声環境を切り替え中…",
+    "incomplete": "必要なモデルをダウンロードして適用するか、VOICEVOXのインストール先を選択して切り替えを完了してください。"
   }
 }

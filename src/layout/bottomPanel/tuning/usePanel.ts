@@ -77,6 +77,7 @@ export function useTuningPanel(
     spectrogramPreviewEnabled,
     pitchCompletionActive,
     range,
+    coreRevision,
   } = useConfigStore()!;
   const {
     getCacheKey,
@@ -255,7 +256,11 @@ export function useTuningPanel(
     buffered: boolean,
   ) => {
     cancelSpectrogramRequest(activeSpectrogramRequest);
-    const { hash, signature } = renderRequestFingerprint(audioQuery, speakerId);
+    const { hash, signature } = renderRequestFingerprint(
+      audioQuery,
+      speakerId,
+      coreRevision(),
+    );
     spectrogramGenerationSequence += 1;
     const request: SpectrogramJobRequest = {
       blockId,
@@ -380,7 +385,11 @@ export function useTuningPanel(
       setSpectrogramStale(spectrogram() !== null);
       return;
     }
-    const { signature } = renderRequestFingerprint(query, preset.style_id);
+    const { signature } = renderRequestFingerprint(
+      query,
+      preset.style_id,
+      coreRevision(),
+    );
     const blockSignature = `${block.id}:${signature}`;
     if (blockSignature !== lastSpectrogramSignature) {
       scheduledSpectrogramRefresh?.clear();

@@ -12,10 +12,13 @@ import {
   createSignal,
   onCleanup,
   onMount,
+  untrack,
 } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { usei18n } from "@contexts/i18n";
 import { useMetaStore } from "@contexts/meta";
+import { useConfigStore } from "@contexts/config";
+import { useSpectrogramStore } from "@contexts/spectrogram";
 import { useUIStore } from "@contexts/ui";
 
 type TextBlockProps = ProjectTextBlockProps;
@@ -160,6 +163,8 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
   const { availableStyleIds, metas } = useMetaStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
   const { t1 } = usei18n()!;
+  const { coreRevision } = useConfigStore()!;
+  const spectrogramStore = useSpectrogramStore();
   const [project, setProject] = createStore<Project>({
     blocks: [
       createTextBlock(null, import.meta.env.DEV ? "こんにちは、世界！" : ""),
@@ -304,6 +309,14 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
       setQueryRefreshVersion((version) => version + 1);
     });
   };
+
+  createEffect(() => {
+    if (coreRevision() === 0) return;
+    untrack(() => {
+      spectrogramStore?.clearSpectrogramCache();
+      refreshGeneratedQueries();
+    });
+  });
 
   const resetQueryEdits = (index: number) => {
     batch(() => {

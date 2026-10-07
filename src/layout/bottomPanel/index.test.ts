@@ -2954,15 +2954,13 @@ describe("BottomPanel playback", () => {
       "size-8",
       "rounded-md",
       "bg-transparent",
-      "hover:bg-slate-1",
-      "dark:hover:bg-slate-7",
+      "enabled:hover:bg-slate-1",
+      "dark:enabled:hover:bg-slate-7",
     );
     expect(playAll.className).toContain(
       "focus-visible:(ring-2 ring-primary-2)",
     );
-    expect(playAll.className).toContain(
-      "disabled:(cursor-not-allowed opacity-50)",
-    );
+    expect(playAll.className).toContain("disabled:cursor-not-allowed");
     expect(playAll.firstElementChild).toHaveClass(
       "i-lucide:list-video",
       "size-4",

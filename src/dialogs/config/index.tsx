@@ -1,6 +1,7 @@
 import { commands } from "$binding";
 import { NumberField, NumberInput } from "@components/numberField";
 import { AppDialogContent } from "@dialogs/AppContent";
+import { VoiceSetup } from "@dialogs/VoiceSetup";
 import { AssetCacheSetting } from "@dialogs/config/AssetCacheSetting";
 import {
   FontSelect,
@@ -20,7 +21,6 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import _ from "lodash";
 import { createSignal, Show } from "solid-js";
 import {
-  DEFAULT_CPU_NUM_THREADS,
   DEFAULT_PITCH_NOISE_SIGMA,
   DEFAULT_SYNTHESIS_DELAY_MS,
   MAX_PITCH_NOISE_SIGMA,
@@ -210,6 +210,7 @@ export function ConfigPage() {
           </ConfigItem>
           <ConfigSectionTitle label={t1("config.storage")} />
           <AssetCacheSetting open={uiStore.page === "config"} />
+          <VoiceSetup />
           <ConfigSectionTitle label={t1("config.synthesis")} />
           <ConfigItem label={t1("config.cpu_num_threads")}>
             <CPUThreadSetting />
@@ -469,26 +470,27 @@ function SynthesisDelayField() {
 }
 
 function CPUThreadSetting() {
-  const { config, setConfig, reinitializeCore, committedCpuNumThreads } =
-    useConfigStore()!;
+  const {
+    cpuNumThreads,
+    setCpuNumThreads,
+    setupChangePending,
+    coreSwitching,
+    reinitializeCore,
+    committedCpuNumThreads,
+  } = useConfigStore()!;
   const { t1 } = usei18n()!;
   const [status, setStatus] = createSignal<"idle" | "loading" | "error">(
     "idle",
   );
-  const threads = () => config.core?.cpu_num_threads ?? DEFAULT_CPU_NUM_THREADS;
+  const threads = cpuNumThreads;
   const threadsChanged = () =>
     threads() !== (committedCpuNumThreads() ?? threads());
 
   const updateThreads = (value: string) => {
     if (status() === "error") setStatus("idle");
     const parsed = Number.parseInt(value, 10);
-    if (Number.isFinite(parsed) && config.core !== null) {
-      setConfig(
-        "core",
-        "cpu_num_threads",
-        Math.min(Math.max(parsed, 0), 65535),
-      );
-    }
+    if (Number.isFinite(parsed))
+      setCpuNumThreads(Math.min(Math.max(parsed, 0), 65535));
   };
 
   const reinit = async () => {
@@ -501,10 +503,12 @@ function CPUThreadSetting() {
     <div class="flex items-center gap-2">
       <Show when={threadsChanged()}>
         <Tooltip content={t1("config.reinitialize_core")}>
-          <button
+          <Button
             type="button"
             aria-label={t1("config.reinitialize_core")}
-            disabled={status() === "loading"}
+            disabled={
+              status() === "loading" || coreSwitching() || setupChangePending()
+            }
             onClick={() => void reinit()}
             class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) dark:hover:bg-slate-7"
           >
@@ -517,7 +521,7 @@ function CPUThreadSetting() {
                     : "i-lucide:refresh-cw size-4"
               }
             />
-          </button>
+          </Button>
         </Tooltip>
       </Show>
       <NumberField
