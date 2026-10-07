@@ -265,7 +265,7 @@ function App() {
           >
             <Resizable.Panel
               class="min-w-0 overflow-hidden"
-              minSize="175px"
+              minSize={`${MIN_SIDEBAR_WIDTH}px`}
               collapsible
               collapseThreshold={0.05}
             >

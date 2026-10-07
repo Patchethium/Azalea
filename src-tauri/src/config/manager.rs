@@ -130,7 +130,7 @@ impl ConfigManager {
     self.config = toml::from_str(&config)?;
     // guard out-of-range values
     // TODO: implement it in serde
-    if self.config.ui.side_width != 0 && self.config.ui.side_width < 175 {
+    if self.config.ui.side_width != 0 && self.config.ui.side_width < 200 {
       self.config.ui.side_width = side_width_default();
     }
     Ok(())
@@ -239,7 +239,7 @@ mod tests {
 
     assert_eq!(manager.config.ui.side_width, 0);
 
-    std::fs::write(&path, "[ui]\nside_width = 4\n").unwrap();
+    std::fs::write(&path, "[ui]\nside_width = 175\n").unwrap();
 
     manager.load_as(&path).unwrap();
 
