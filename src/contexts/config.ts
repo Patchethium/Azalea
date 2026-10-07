@@ -45,6 +45,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     "ExistingInstallation",
   );
   const [coreSwitching, setCoreSwitching] = createSignal(false);
+  const [setupSwitchPending, setSetupSwitchPending] = createSignal(false);
   const [coreRevision, setCoreRevision] = createSignal(0);
   const [coreError, setCoreError] = createSignal<string | null>(null);
   const setupSource = () => config.setup_source ?? "ExistingInstallation";
@@ -235,6 +236,8 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     coreError,
     setCoreError,
     setupChangePending,
+    setupSwitchPending,
+    setSetupSwitchPending,
     voicesReady,
     cpuNumThreads,
     setCpuNumThreads,

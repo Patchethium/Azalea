@@ -42,6 +42,8 @@ export function VoiceSetup(props: {
     config,
     setConfig,
     setupSource,
+    setupSwitchPending,
+    setSetupSwitchPending,
     setDownloadedCore,
     coreError,
     setCoreError,
@@ -57,20 +59,25 @@ export function VoiceSetup(props: {
   let disposed = false;
 
   const selectSource = async (source: string | null) => {
-    if (source === null || source === setupSource()) return;
-    const request = ++revision;
-    setConfig("setup_source", source as SetupSource);
-    setCoreError(null);
-    if (source !== "Downloaded") {
-      if (
-        uiStore.coreInitialized &&
-        config.core &&
-        source !== activeSetupSource()
-      )
-        await reinitializeCore();
+    // Hold the switch until the lookup and any core reinitialization settle.
+    // Every managed lookup hashes the downloaded models, so overlapping
+    // switches would stack heavy scans and freeze the app.
+    if (source === null || source === setupSource() || setupSwitchPending())
       return;
-    }
+    setSetupSwitchPending(true);
+    const request = ++revision;
     try {
+      setConfig("setup_source", source as SetupSource);
+      setCoreError(null);
+      if (source !== "Downloaded") {
+        if (
+          uiStore.coreInitialized &&
+          config.core &&
+          source !== activeSetupSource()
+        )
+          await reinitializeCore();
+        return;
+      }
       const result = await commands.getDownloadSetup();
       if (disposed || request !== revision) return;
       if (result.status === "ok") {
@@ -84,6 +91,8 @@ export function VoiceSetup(props: {
       } else setCoreError(result.error);
     } catch (cause) {
       if (!disposed && request === revision) setCoreError(String(cause));
+    } finally {
+      setSetupSwitchPending(false);
     }
   };
 
@@ -119,7 +128,11 @@ export function VoiceSetup(props: {
         value={setupSource()}
         onChange={(source) => void selectSource(source)}
         aria-label={t1("voice_setup.title")}
-        disabled={coreSwitching() || coreInitializeResource.loading}
+        disabled={
+          coreSwitching() ||
+          setupSwitchPending() ||
+          coreInitializeResource.loading
+        }
         class="flex overflow-hidden rounded-md b b-slate-2 dark:b-slate-6"
       >
         <For each={["Downloaded", "ExistingInstallation"]}>
@@ -138,7 +151,7 @@ export function VoiceSetup(props: {
           {t1("loading")}
         </p>
       </Show>
-      <Show when={coreSwitching()}>
+      <Show when={coreSwitching() || setupSwitchPending()}>
         <p role="status" class="m0 text-sm">
           {t1("voice_setup.switching")}
         </p>

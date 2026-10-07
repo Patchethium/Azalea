@@ -184,6 +184,7 @@ describe("VoiceSetup", () => {
     ).not.toBeInTheDocument();
     expect(store.config.core).toEqual(installedCore);
     expect(store.setupChangePending()).toBe(true);
+    await waitFor(() => expect(store.setupSwitchPending()).toBe(false));
     await user.click(screen.getByRole("button", { name: "VOICEVOX" }));
     expect(store.setupChangePending()).toBe(false);
     expect(store.config.core).toEqual(installedCore);
@@ -209,21 +210,29 @@ describe("VoiceSetup", () => {
     expect(commands.getDownloadSetup).not.toHaveBeenCalled();
   });
 
-  it("ignores stale setup checks after switching back or unmounting", async () => {
+  it("locks further switches while a setup check is pending and drops unmounted results", async () => {
     const lookup = deferred<{ status: "error"; error: string }>();
-    vi.mocked(commands.getDownloadSetup).mockReturnValue(lookup.promise);
+    vi.mocked(commands.getDownloadSetup).mockReturnValueOnce(lookup.promise);
     const view = mount();
-    fireEvent.click(screen.getByRole("button", { name: "VOICEVOX" }));
+    store.setConfig("setup_source", "ExistingInstallation");
+    const voicevox = screen.getByRole("button", { name: "VOICEVOX" });
     fireEvent.click(
       screen.getByRole("button", { name: "Azalea-managed models" }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "VOICEVOX" }));
-    lookup.resolve({ status: "error", error: "stale failure" });
-    await Promise.resolve();
-    expect(store.coreError()).toBeNull();
-    expect(store.setupSource()).toBe("ExistingInstallation");
+    expect(commands.getDownloadSetup).toHaveBeenCalledOnce();
+    expect(voicevox).toBeDisabled();
+    fireEvent.click(voicevox);
+    expect(store.setupSource()).toBe("Downloaded");
+    lookup.resolve({ status: "error", error: "setup check failed" });
+    await waitFor(() => expect(store.setupSwitchPending()).toBe(false));
+    expect(voicevox).toBeEnabled();
+    expect(store.setupSource()).toBe("Downloaded");
+    expect(store.coreError()).toBe("setup check failed");
+
     const late = deferred<{ status: "ok"; data: DownloadSetup }>();
     vi.mocked(commands.getDownloadSetup).mockReturnValueOnce(late.promise);
+    fireEvent.click(voicevox);
+    expect(store.setupSource()).toBe("ExistingInstallation");
     fireEvent.click(
       screen.getByRole("button", { name: "Azalea-managed models" }),
     );

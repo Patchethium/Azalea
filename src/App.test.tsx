@@ -437,6 +437,9 @@ describe("App initialization", () => {
       );
       fireEvent.click(screen.getByRole("button", { name: "Close config" }));
       await screen.findByRole("heading", { name: "No voices set up" });
+      await waitFor(() =>
+        expect(view.getConfigStore().setupSwitchPending()).toBe(false),
+      );
       expect(
         screen.queryByLabelText("Text to synthesize"),
       ).not.toBeInTheDocument();
