@@ -7,6 +7,7 @@ config_dev/config.json
 config_dev/config.toml
 config_dev/user_dictionary.json
 config_dev/assets/
+config_dev/voicevox/
 .DS_Store
 coverage/
 logs/

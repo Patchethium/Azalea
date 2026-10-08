@@ -54,6 +54,9 @@ pub(crate) fn init_config_dir(identifier: &str) {
 }
 
 pub(crate) fn downloaded_components_dir() -> Result<PathBuf, String> {
+  if cfg!(debug_assertions) {
+    return Ok(config_dir().join("voicevox"));
+  }
   local_components_dir(
     dirs::data_local_dir(),
     BUNDLE_IDENTIFIER
@@ -153,13 +156,26 @@ mod tests {
   use crate::config::types::{Locale, PitchScale, ThemeMode, TitlebarStyle};
 
   #[test]
-  fn downloaded_components_use_local_data_and_report_missing_base() {
+  fn release_downloaded_components_use_local_data_and_report_missing_base() {
     let directory = tempfile::tempdir().unwrap();
     assert_eq!(
       local_components_dir(Some(directory.path().to_owned()), "com.azalea.app").unwrap(),
       directory.path().join("com.azalea.app/voicevox")
     );
     assert!(local_components_dir(None, "com.azalea.app").is_err());
+  }
+
+  #[cfg(debug_assertions)]
+  #[test]
+  fn development_downloaded_components_are_isolated_from_release_data() {
+    let development_root = downloaded_components_dir().unwrap();
+    assert_eq!(
+      development_root,
+      PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .join("config_dev/voicevox")
+    );
   }
 
   #[test]

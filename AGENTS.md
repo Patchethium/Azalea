@@ -9,9 +9,10 @@ make them reusable with Kobalte primitives and UnoCSS styling. Avoid native brow
 controls and vanilla CSS for new UI. Preserve accessible labels, keyboard navigation,
 and focus handling.
 
-Downloaded VOICEVOX components belong under
-`dirs::data_local_dir()/{bundle_identifier}/voicevox`, outside the clearable asset
-cache. Existing-installation and downloaded setups keep separate models and system
+Downloaded VOICEVOX components belong under `config_dev/voicevox` in development
+builds and `dirs::data_local_dir()/{bundle_identifier}/voicevox` in release builds,
+outside the clearable asset cache. Keep development and release downloads isolated.
+Existing-installation and downloaded setups keep separate models and system
 dictionaries. Seamless switching reuses the first compatible ONNX Runtime loaded
 in the process; the shared runtime determines the available execution providers.
 Their custom user dictionary is shared.

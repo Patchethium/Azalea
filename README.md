@@ -54,7 +54,9 @@ The downloader pins VOICEVOX VVM 0.16.4, ONNX Runtime 1.17.3, and the Open JTalk
 requires roughly 85 MB of downloads. GPU dependencies, portraits, and voice
 samples are not downloaded.
 
-Files are verified with SHA-256 and stored beneath
+Files are verified with SHA-256. Development builds store downloads beneath
+the repository's `config_dev/voicevox/`, separately from release data.
+Release builds store downloads beneath
 `dirs::data_local_dir()/com.azalea.app/voicevox/` (typically
 `%LOCALAPPDATA%/com.azalea.app/voicevox` on Windows,
 `~/Library/Application Support/com.azalea.app/voicevox` on macOS, and
