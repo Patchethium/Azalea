@@ -1,7 +1,6 @@
 import { AppButton } from "@components/button";
 import { usei18n } from "@contexts/i18n";
 import { AppDialogContent } from "@dialogs/AppContent";
-import { I18NSelect } from "@dialogs/config/Basics";
 import { VoiceSetup } from "@dialogs/VoiceSetup";
 import { Dialog } from "@kobalte/core/dialog";
 import { createSignal } from "solid-js";
@@ -31,7 +30,6 @@ function InitPage() {
         >
           <div class="overflow-auto px4 pb4 text-left">
             <VoiceSetup modelManager="inline" />
-            <I18NSelect />
           </div>
         </AppDialogContent>
       </Dialog>
