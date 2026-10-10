@@ -19,6 +19,7 @@ const MAX_ICON_BYTES: usize = 2 * 1024 * 1024;
 const MAX_DIRECTORY_LIST_BYTES: usize = 8 * 1024 * 1024;
 const MAX_CONCURRENT_ICON_DOWNLOADS: usize = 8;
 const PNG_SIGNATURE: &[u8; 8] = b"\x89PNG\r\n\x1a\n";
+const MAX_DECODED_PORTRAIT_BYTES: usize = 32 * 1024 * 1024;
 const HTTP_TIMEOUT: Duration = Duration::from_secs(20);
 
 static ASSET_OPERATION_LOCK: LazyLock<tokio::sync::Mutex<()>> =
@@ -586,6 +587,80 @@ async fn download_speaker_portraits_at(
     .collect()
 }
 
+/// Crops a portrait to the bounding box of its non-transparent pixels.
+/// Images without an alpha channel, or with nothing to trim, are returned
+/// unchanged.
+fn crop_transparent_margins(bytes: &[u8]) -> Result<Vec<u8>, String> {
+  let decode_error = |error: png::DecodingError| format!("Failed to decode portrait: {error}");
+  let mut decoder = png::Decoder::new_with_limits(
+    std::io::Cursor::new(bytes),
+    png::Limits {
+      bytes: MAX_DECODED_PORTRAIT_BYTES,
+    },
+  );
+  decoder.set_transformations(png::Transformations::normalize_to_color8());
+  let mut reader = decoder.read_info().map_err(decode_error)?;
+  let mut pixels = vec![
+    0;
+    reader
+      .output_buffer_size()
+      .ok_or("Portrait is too large to decode")?
+  ];
+  let info = reader.next_frame(&mut pixels).map_err(decode_error)?;
+  let channels = match info.color_type {
+    png::ColorType::GrayscaleAlpha => 2,
+    png::ColorType::Rgba => 4,
+    _ => return Ok(bytes.to_vec()),
+  };
+  let (width, height) = (info.width as usize, info.height as usize);
+  let row = |y: usize| &pixels[y * info.line_size..][..width * channels];
+  let visible = |y: usize, x: usize| row(y)[x * channels + channels - 1] != 0;
+
+  let Some(top) = (0..height).find(|&y| (0..width).any(|x| visible(y, x))) else {
+    return Ok(bytes.to_vec());
+  };
+  let bottom = (top..height)
+    .rev()
+    .find(|&y| (0..width).any(|x| visible(y, x)))
+    .unwrap_or(top);
+  let left = (0..width)
+    .find(|&x| (top..=bottom).any(|y| visible(y, x)))
+    .unwrap_or(0);
+  let right = (left..width)
+    .rev()
+    .find(|&x| (top..=bottom).any(|y| visible(y, x)))
+    .unwrap_or(left);
+  if left == 0 && top == 0 && right + 1 == width && bottom + 1 == height {
+    return Ok(bytes.to_vec());
+  }
+
+  let cropped: Vec<u8> = (top..=bottom)
+    .flat_map(|y| {
+      row(y)[left * channels..(right + 1) * channels]
+        .iter()
+        .copied()
+    })
+    .collect();
+  let encode_error = |error: png::EncodingError| format!("Failed to encode portrait: {error}");
+  let mut output = Vec::new();
+  let mut encoder = png::Encoder::new(
+    &mut output,
+    (right + 1 - left) as u32,
+    (bottom + 1 - top) as u32,
+  );
+  encoder.set_color(info.color_type);
+  encoder.set_depth(png::BitDepth::Eight);
+  let mut writer = encoder.write_header().map_err(encode_error)?;
+  writer.write_image_data(&cropped).map_err(encode_error)?;
+  writer.finish().map_err(encode_error)?;
+  Ok(output)
+}
+
+fn portrait_data_url(bytes: Vec<u8>) -> String {
+  // An undecodable file is still shown as saved rather than hidden.
+  png_data_url(&crop_transparent_margins(&bytes).unwrap_or(bytes))
+}
+
 /// Prefers the style's portrait variant and falls back to the default one.
 fn speaker_portrait_at(
   assets_root: &Path,
@@ -593,10 +668,10 @@ fn speaker_portrait_at(
 ) -> Result<Option<String>, String> {
   let variant = speaker_portrait_path(assets_root, &request.speaker_uuid, Some(request.style_id))?;
   if let Ok(Some(bytes)) = read_cached_icon(&variant) {
-    return Ok(Some(png_data_url(&bytes)));
+    return Ok(Some(portrait_data_url(bytes)));
   }
   let default = speaker_portrait_path(assets_root, &request.speaker_uuid, None)?;
-  Ok(read_cached_icon(&default)?.map(|bytes| png_data_url(&bytes)))
+  Ok(read_cached_icon(&default)?.map(portrait_data_url))
 }
 
 fn assets_size_at(assets_root: &Path) -> Result<u64, String> {
@@ -668,7 +743,10 @@ pub async fn download_speaker_portraits(
 #[specta::specta]
 pub async fn get_speaker_portrait(request: SpeakerIconRequest) -> Result<Option<String>, String> {
   let _operation = ASSET_OPERATION_LOCK.lock().await;
-  speaker_portrait_at(&assets_dir(), &request)
+  // Cropping decodes and re-encodes the PNG, so keep it off the async runtime.
+  tauri::async_runtime::spawn_blocking(move || speaker_portrait_at(&assets_dir(), &request))
+    .await
+    .map_err(|error| format!("Portrait task failed: {error}"))?
 }
 
 #[tauri::command]
@@ -975,5 +1053,98 @@ mod tests {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path().join("assets");
     assert!(write_icon_atomically(&root, &directory.path().join("x.png"), VALID_PNG).is_err());
+  }
+  fn encode_png(
+    width: u32,
+    height: u32,
+    color: png::ColorType,
+    data: &[u8],
+    palette: Option<(&[u8], &[u8])>,
+  ) -> Vec<u8> {
+    let mut output = Vec::new();
+    let mut encoder = png::Encoder::new(&mut output, width, height);
+    encoder.set_color(color);
+    encoder.set_depth(png::BitDepth::Eight);
+    if let Some((palette, trns)) = palette {
+      encoder.set_palette(palette);
+      encoder.set_trns(trns);
+    }
+    let mut writer = encoder.write_header().unwrap();
+    writer.write_image_data(data).unwrap();
+    writer.finish().unwrap();
+    output
+  }
+
+  fn decode_png(bytes: &[u8]) -> (u32, u32, png::ColorType, Vec<u8>) {
+    let mut reader = png::Decoder::new(std::io::Cursor::new(bytes))
+      .read_info()
+      .unwrap();
+    let mut pixels = vec![0; reader.output_buffer_size().unwrap()];
+    let info = reader.next_frame(&mut pixels).unwrap();
+    pixels.truncate(info.buffer_size());
+    (info.width, info.height, info.color_type, pixels)
+  }
+
+  #[test]
+  fn portrait_crop_keeps_only_the_visible_bounding_box() {
+    // 4x3 RGBA with visible pixels at (1, 0) and (2, 1); one is barely visible.
+    let mut data = vec![0_u8; 4 * 3 * 4];
+    let pixel = |x: usize, y: usize| (y * 4 + x) * 4..(y * 4 + x) * 4 + 4;
+    data[pixel(1, 0)].copy_from_slice(&[10, 20, 30, 255]);
+    data[pixel(2, 1)].copy_from_slice(&[40, 50, 60, 1]);
+    let cropped =
+      crop_transparent_margins(&encode_png(4, 3, png::ColorType::Rgba, &data, None)).unwrap();
+    assert_eq!(
+      decode_png(&cropped),
+      (
+        2,
+        2,
+        png::ColorType::Rgba,
+        vec![10, 20, 30, 255, 0, 0, 0, 0, 0, 0, 0, 0, 40, 50, 60, 1]
+      )
+    );
+
+    let gray = encode_png(
+      3,
+      1,
+      png::ColorType::GrayscaleAlpha,
+      &[0, 0, 7, 9, 0, 0],
+      None,
+    );
+    assert_eq!(
+      decode_png(&crop_transparent_margins(&gray).unwrap()),
+      (1, 1, png::ColorType::GrayscaleAlpha, vec![7, 9])
+    );
+  }
+
+  #[test]
+  fn portrait_crop_expands_palette_transparency() {
+    let palette = [0, 0, 0, 255, 0, 0];
+    let indexed = encode_png(
+      3,
+      1,
+      png::ColorType::Indexed,
+      &[0, 1, 0],
+      Some((&palette, &[0, 255])),
+    );
+    assert_eq!(
+      decode_png(&crop_transparent_margins(&indexed).unwrap()),
+      (1, 1, png::ColorType::Rgba, vec![255, 0, 0, 255])
+    );
+  }
+
+  #[test]
+  fn portrait_crop_leaves_untrimmable_images_unchanged() {
+    let opaque = encode_png(2, 1, png::ColorType::Rgb, &[1, 2, 3, 4, 5, 6], None);
+    let invisible = encode_png(2, 1, png::ColorType::Rgba, &[0; 8], None);
+    let full = encode_png(1, 1, png::ColorType::Rgba, &[1, 2, 3, 4], None);
+    for image in [opaque, invisible, full] {
+      assert_eq!(crop_transparent_margins(&image).unwrap(), image);
+    }
+    assert!(crop_transparent_margins(VALID_PNG).is_err());
+    assert_eq!(
+      portrait_data_url(VALID_PNG.to_vec()),
+      png_data_url(VALID_PNG)
+    );
   }
 }
