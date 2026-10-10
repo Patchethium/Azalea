@@ -3,11 +3,13 @@ use crate::async_job::{run_cancellable, JobCancellation};
 use crate::config::manager::downloaded_components_dir;
 use crate::config::types::{AzaleaConfig, SetupSource};
 use crate::config::CoreConfig;
+use crate::AppState;
 use flate2::read::GzDecoder;
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use specta::Type;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
@@ -61,6 +63,9 @@ pub struct DownloadSetup {
   pub directory: String,
   pub components: Vec<DownloadComponent>,
   pub core_config: Option<CoreConfig>,
+  /// Model files loaded by the running core, or `None` when it is not using
+  /// the downloaded setup.
+  pub loaded_models: Option<Vec<String>>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Type, Event)]
@@ -160,6 +165,124 @@ fn verified_file(path: &Path, bytes: u64, sha256: &str) -> bool {
     && digest_file(path).is_ok_and(|(length, hash)| length == bytes && hash == sha256)
 }
 
+const VERIFIED_FILES: &str = ".verified.json";
+
+struct FileCheck {
+  path: PathBuf,
+  bytes: u64,
+  sha256: String,
+}
+
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
+struct VerifiedStamp {
+  bytes: u64,
+  modified: (u64, u32),
+  sha256: String,
+}
+
+/// Hashing every model on each status check is slow, so a successful hash is
+/// reused while the file keeps the same size and modification time.
+struct VerifiedFiles {
+  root: PathBuf,
+  previous: HashMap<PathBuf, VerifiedStamp>,
+  current: HashMap<PathBuf, VerifiedStamp>,
+}
+
+impl VerifiedFiles {
+  fn load(root: &Path) -> Self {
+    let path = root.join(VERIFIED_FILES);
+    let previous = regular_file(&path)
+      .then(|| fs::read(&path).ok())
+      .flatten()
+      .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+      .unwrap_or_default();
+    Self {
+      root: root.to_path_buf(),
+      previous,
+      current: HashMap::new(),
+    }
+  }
+
+  #[cfg(test)]
+  fn check(&mut self, path: &Path, bytes: u64, sha256: &str) -> bool {
+    self.check_all(&[FileCheck {
+      path: path.to_path_buf(),
+      bytes,
+      sha256: sha256.to_owned(),
+    }])[0]
+  }
+
+  /// Hashes uncached files in parallel and returns one result per file.
+  fn check_all(&mut self, files: &[FileCheck]) -> Vec<bool> {
+    let results: Vec<_> = files
+      .par_iter()
+      .map(|file| self.verify(&file.path, file.bytes, &file.sha256))
+      .collect();
+    results
+      .into_iter()
+      .map(|(valid, stamp)| {
+        if let Some((key, stamp)) = stamp {
+          self.current.insert(key, stamp);
+        }
+        valid
+      })
+      .collect()
+  }
+
+  fn verify(
+    &self,
+    path: &Path,
+    bytes: u64,
+    sha256: &str,
+  ) -> (bool, Option<(PathBuf, VerifiedStamp)>) {
+    // Read the metadata before hashing so a concurrent write invalidates the stamp.
+    let Ok(metadata) = fs::symlink_metadata(path) else {
+      return (false, None);
+    };
+    if !metadata.file_type().is_file() || metadata.len() != bytes {
+      return (false, None);
+    }
+    let Some(modified) = metadata
+      .modified()
+      .ok()
+      .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+    else {
+      return (verified_file(path, bytes, sha256), None);
+    };
+    let key = path.strip_prefix(&self.root).unwrap_or(path).to_path_buf();
+    let stamp = VerifiedStamp {
+      bytes,
+      modified: (modified.as_secs(), modified.subsec_nanos()),
+      sha256: sha256.to_owned(),
+    };
+    if self.previous.get(&key) == Some(&stamp) || verified_file(path, bytes, sha256) {
+      (true, Some((key, stamp)))
+    } else {
+      (false, None)
+    }
+  }
+
+  /// Persists only files verified by this check; failures are not fatal.
+  fn save(self) {
+    if self.current == self.previous
+      || !fs::symlink_metadata(&self.root).is_ok_and(|m| m.file_type().is_dir())
+    {
+      return;
+    }
+    let Ok(bytes) = serde_json::to_vec(&self.current) else {
+      return;
+    };
+    let staging = self
+      .root
+      .join(format!("{VERIFIED_FILES}.{}", uuid::Uuid::new_v4()));
+    if fs::write(&staging, bytes).is_err()
+      || fs::rename(&staging, self.root.join(VERIFIED_FILES)).is_err()
+    {
+      let _ = fs::remove_file(staging);
+    }
+  }
+}
+
 #[derive(Serialize, Deserialize)]
 struct Receipt {
   archive_sha256: String,
@@ -172,28 +295,38 @@ struct ReceiptFile {
   sha256: String,
 }
 
-fn archive_installed(root: &Path, archive: &Archive) -> bool {
+fn archive_installed(root: &Path, archive: &Archive, verified: &mut VerifiedFiles) -> bool {
+  archive_files(root, archive)
+    .is_some_and(|files| verified.check_all(&files).into_iter().all(|valid| valid))
+}
+
+/// Returns the receipt files that must hash correctly, or `None` when the
+/// extracted archive is already known to be incomplete.
+fn archive_files(root: &Path, archive: &Archive) -> Option<Vec<FileCheck>> {
   let directory = archive_directory(root, archive);
   if !fs::symlink_metadata(&directory).is_ok_and(|m| m.file_type().is_dir()) {
-    return false;
+    return None;
   }
   let receipt_path = directory.join(".receipt.json");
   if !regular_file(&receipt_path) {
-    return false;
+    return None;
   }
-  let Ok(bytes) = fs::read(receipt_path) else {
-    return false;
-  };
-  let Ok(receipt) = serde_json::from_slice::<Receipt>(&bytes) else {
-    return false;
-  };
-  receipt.archive_sha256 == archive.sha256
+  let receipt = serde_json::from_slice::<Receipt>(&fs::read(receipt_path).ok()?).ok()?;
+  (receipt.archive_sha256 == archive.sha256
     && !receipt.files.is_empty()
     && archive_contents_valid(&directory, archive)
-    && receipt.files.iter().all(|file| {
-      safe_relative(&file.path)
-        && verified_file(&directory.join(&file.path), file.bytes, &file.sha256)
-    })
+    && receipt.files.iter().all(|file| safe_relative(&file.path)))
+  .then(|| {
+    receipt
+      .files
+      .into_iter()
+      .map(|file| FileCheck {
+        path: directory.join(file.path),
+        bytes: file.bytes,
+        sha256: file.sha256,
+      })
+      .collect()
+  })
 }
 
 fn archive_contents_valid(directory: &Path, archive: &Archive) -> bool {
@@ -238,8 +371,38 @@ fn setup_at(
     .iter()
     .find(|a| a.id == "dictionary")
     .unwrap();
-  let runtime_ready = archive_installed(root, runtime);
-  let dictionary_ready = archive_installed(root, dictionary);
+  let terms = CATALOG.models.iter().find(|m| m.id == "TERMS.txt").unwrap();
+  let models: Vec<_> = CATALOG
+    .models
+    .iter()
+    .filter(|m| m.id.ends_with(".vvm"))
+    .collect();
+  // Hash every component in one parallel batch; each group records its range.
+  let mut files = Vec::new();
+  let mut groups = Vec::new();
+  for archive in [runtime, dictionary] {
+    let archive_files = archive_files(root, archive);
+    let start = files.len();
+    let complete = archive_files.is_some();
+    files.extend(archive_files.into_iter().flatten());
+    groups.push((complete, start..files.len()));
+  }
+  for model in std::iter::once(terms).chain(models.iter().copied()) {
+    let start = files.len();
+    files.push(FileCheck {
+      path: model_directory(root).join(&model.id),
+      bytes: model.bytes,
+      sha256: model.sha256.clone(),
+    });
+    groups.push((true, start..files.len()));
+  }
+  let mut verified = VerifiedFiles::load(root);
+  let results = verified.check_all(&files);
+  let ready: Vec<bool> = groups
+    .into_iter()
+    .map(|(complete, range)| complete && results[range].iter().all(|&valid| valid))
+    .collect();
+  let (runtime_ready, dictionary_ready, terms_ready) = (ready[0], ready[1], ready[2]);
   let mut components = vec![
     DownloadComponent {
       id: runtime.id.clone(),
@@ -253,27 +416,16 @@ fn setup_at(
       installed: dictionary_ready,
       entries: vec![],
     },
+    DownloadComponent {
+      id: terms.id.clone(),
+      bytes: terms.bytes,
+      installed: terms_ready,
+      entries: vec![],
+    },
   ];
-  let terms = CATALOG.models.iter().find(|m| m.id == "TERMS.txt").unwrap();
-  let terms_ready = verified_file(
-    &model_directory(root).join(&terms.id),
-    terms.bytes,
-    &terms.sha256,
-  );
-  components.push(DownloadComponent {
-    id: terms.id.clone(),
-    bytes: terms.bytes,
-    installed: terms_ready,
-    entries: vec![],
-  });
   let mut models_ready = false;
   let mut models_valid = true;
-  for model in CATALOG.models.iter().filter(|m| m.id.ends_with(".vvm")) {
-    let installed = verified_file(
-      &model_directory(root).join(&model.id),
-      model.bytes,
-      &model.sha256,
-    );
+  for (model, &installed) in models.iter().zip(&ready[3..]) {
     models_ready |= installed;
     models_valid &= installed
       || fs::symlink_metadata(model_directory(root).join(&model.id))
@@ -296,10 +448,12 @@ fn setup_at(
         setup_source: SetupSource::Downloaded,
       }
     });
+  verified.save();
   Ok(DownloadSetup {
     directory: root.display().to_string(),
     components,
     core_config,
+    loaded_models: None,
   })
 }
 
@@ -328,9 +482,25 @@ pub async fn get_download_setup(
     .map(|m| m.config.downloaded_setup.clone())
     .unwrap_or_default();
   let root = downloaded_components_dir()?;
-  tauri::async_runtime::spawn_blocking(move || setup_at(&root, &settings))
+  let mut setup = tauri::async_runtime::spawn_blocking(move || setup_at(&root, &settings))
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(|e| e.to_string())??;
+  setup.loaded_models = state
+    .core
+    .read()
+    .await
+    .as_ref()
+    .filter(|core| core.config.setup_source == SetupSource::Downloaded)
+    .map(|core| loaded_model_ids(core.metas.keys()));
+  Ok(setup)
+}
+
+fn loaded_model_ids<'a>(paths: impl Iterator<Item = &'a String>) -> Vec<String> {
+  let mut ids: Vec<String> = paths
+    .filter_map(|path| Some(Path::new(path).file_name()?.to_str()?.to_owned()))
+    .collect();
+  ids.sort();
+  ids
 }
 
 fn selected_packages(ids: &[String]) -> Result<Vec<Package>, String> {
@@ -350,6 +520,81 @@ fn selected_packages(ids: &[String]) -> Result<Vec<Package>, String> {
         .ok_or_else(|| format!("Unknown voice package: {id}"))
     })
     .collect()
+}
+
+fn delete_models_at(root: &Path, packages: &[Package]) -> Result<(), String> {
+  let directory = model_directory(root);
+  // Never traverse a substituted directory when deleting managed files.
+  for parent in [root.to_path_buf(), root.join("models"), directory.clone()] {
+    match fs::symlink_metadata(&parent) {
+      Ok(metadata) if metadata.file_type().is_dir() => {}
+      Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+      _ => return Err(format!("Expected a directory: {}", parent.display())),
+    }
+  }
+  for package in packages {
+    match fs::symlink_metadata(directory.join(&package.id)) {
+      Ok(metadata) if metadata.file_type().is_dir() => {
+        return Err(format!("Expected a model file: {}", package.id));
+      }
+      Ok(_) => {}
+      Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+      Err(error) => return Err(error.to_string()),
+    }
+  }
+  for package in packages {
+    match fs::remove_file(directory.join(&package.id)) {
+      Ok(()) => {}
+      Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+      Err(error) => return Err(error.to_string()),
+    }
+  }
+  Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn delete_downloaded_models(
+  app: tauri::AppHandle,
+  state: tauri::State<'_, AppState>,
+  package_ids: Vec<String>,
+) -> Result<(), String> {
+  let packages = selected_packages(&package_ids)?;
+  let root = downloaded_components_dir()?;
+  {
+    let mut running = OPERATION.lock().map_err(|e| e.to_string())?;
+    if running.is_some() {
+      return Err("A model operation is already running".into());
+    }
+    *running = Some((uuid::Uuid::new_v4().to_string(), Arc::default()));
+  }
+  let _operation = Operation;
+  let _permit = state
+    .core_task_gate
+    .acquire()
+    .await
+    .map_err(|e| e.to_string())?;
+  let active = state
+    .core
+    .read()
+    .await
+    .as_ref()
+    .filter(|core| core.config.setup_source == SetupSource::Downloaded)
+    .map(|core| core.config.clone());
+  let result = tauri::async_runtime::spawn_blocking(move || delete_models_at(&root, &packages))
+    .await
+    .map_err(|e| e.to_string())?;
+  if let Some(config) = active {
+    if let Err(error) = super::core::reinitialize_core_locked(&app, &state, config).await {
+      // Removed voices cannot remain available when rebuilding the core fails.
+      state.core.write().await.take();
+      super::core::discard_core_work(&app, &state).await?;
+      state.wav_lru.write().await.take();
+      state.query_lru.write().map_err(|e| e.to_string())?.take();
+      return Err(error);
+    }
+  }
+  result
 }
 
 async fn fetch_file(
@@ -571,9 +816,14 @@ async fn download_at(
     for archive in archives.drain(..) {
       let root_copy = root.clone();
       let archive_copy = archive.clone();
-      if tauri::async_runtime::spawn_blocking(move || archive_installed(&root_copy, &archive_copy))
-        .await
-        .map_err(|e| e.to_string())?
+      if tauri::async_runtime::spawn_blocking(move || {
+        let mut verified = VerifiedFiles::load(&root_copy);
+        let installed = archive_installed(&root_copy, &archive_copy, &mut verified);
+        verified.save();
+        installed
+      })
+      .await
+      .map_err(|e| e.to_string())?
       {
         continue;
       }
@@ -839,6 +1089,56 @@ mod tests {
   }
 
   #[test]
+  fn deletion_removes_only_selected_models_and_preserves_shared_components() {
+    let root = tempfile::tempdir().unwrap();
+    let models = model_directory(root.path());
+    fs::create_dir_all(&models).unwrap();
+    for name in ["0.vvm", "n0.vvm", "TERMS.txt"] {
+      fs::write(models.join(name), b"keep").unwrap();
+    }
+    fs::create_dir_all(root.path().join("dictionary")).unwrap();
+    fs::write(root.path().join("dictionary/sys.dic"), b"dictionary").unwrap();
+    fs::create_dir_all(root.path().join("runtime")).unwrap();
+    fs::write(root.path().join("runtime/lib.so"), b"runtime").unwrap();
+    let selected = selected_packages(&["0.vvm".into(), "0.vvm".into()]).unwrap();
+    delete_models_at(root.path(), &selected).unwrap();
+    delete_models_at(root.path(), &selected).unwrap();
+    assert!(!models.join("0.vvm").exists());
+    assert!(models.join("n0.vvm").is_file());
+    assert!(models.join("TERMS.txt").is_file());
+    assert!(root.path().join("dictionary/sys.dic").is_file());
+    assert!(root.path().join("runtime/lib.so").is_file());
+    fs::create_dir(models.join("0.vvm")).unwrap();
+    let selected = selected_packages(&["n0.vvm".into(), "0.vvm".into()]).unwrap();
+    assert!(delete_models_at(root.path(), &selected).is_err());
+    assert!(models.join("n0.vvm").is_file());
+    let missing = tempfile::tempdir().unwrap();
+    delete_models_at(missing.path(), &selected).unwrap();
+  }
+
+  #[cfg(unix)]
+  #[test]
+  fn deletion_rejects_linked_directories_and_never_deletes_link_targets() {
+    use std::os::unix::fs::symlink;
+    let root = tempfile::tempdir().unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    let target = outside.path().join("0.vvm");
+    fs::write(&target, b"keep").unwrap();
+    let selected = selected_packages(&["0.vvm".into()]).unwrap();
+    let models = model_directory(root.path());
+    fs::create_dir_all(models.parent().unwrap()).unwrap();
+    symlink(outside.path(), &models).unwrap();
+    assert!(delete_models_at(root.path(), &selected).is_err());
+    assert!(target.is_file());
+    fs::remove_file(&models).unwrap();
+    fs::create_dir(&models).unwrap();
+    symlink(&target, models.join("0.vvm")).unwrap();
+    delete_models_at(root.path(), &selected).unwrap();
+    assert!(target.is_file());
+    assert!(!models.join("0.vvm").exists());
+  }
+
+  #[test]
   fn extraction_receipt_detects_corruption_and_commit_leaves_no_staging() {
     let root = tempfile::tempdir().unwrap();
     let (path, archive) = fixture_archive(root.path(), b"library", 100);
@@ -848,9 +1148,17 @@ mod tests {
     let destination = archive_directory(root.path(), &archive);
     commit(&staging, &destination, &cancellation).unwrap();
     assert!(!staging.exists());
-    assert!(archive_installed(root.path(), &archive));
+    assert!(archive_installed(
+      root.path(),
+      &archive,
+      &mut VerifiedFiles::load(root.path())
+    ));
     fs::write(destination.join("root/lib.so"), b"corrupt").unwrap();
-    assert!(!archive_installed(root.path(), &archive));
+    assert!(!archive_installed(
+      root.path(),
+      &archive,
+      &mut VerifiedFiles::load(root.path())
+    ));
     assert!(!verified_file(&path, archive.bytes + 1, &archive.sha256));
     fs::write(&path, b"truncated").unwrap();
     assert!(!verified_file(&path, archive.bytes, &archive.sha256));
@@ -890,6 +1198,103 @@ mod tests {
       &JobCancellation::default()
     )
     .is_err());
+  }
+
+  #[test]
+  fn verified_files_reuse_hashes_until_size_or_modification_time_changes() {
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("model.vvm");
+    fs::write(&path, b"voice").unwrap();
+    let hash = format!("{:x}", Sha256::digest(b"voice"));
+    let mut verified = VerifiedFiles::load(root.path());
+    assert!(verified.check(&path, 5, &hash));
+    assert!(!verified.check(&path, 5, "wrong"));
+    verified.save();
+    assert!(regular_file(&root.path().join(VERIFIED_FILES)));
+
+    // Same size and timestamp: the stored hash is trusted without rereading.
+    let modified = fs::metadata(&path).unwrap().modified().unwrap();
+    fs::write(&path, b"VOICE").unwrap();
+    File::options()
+      .write(true)
+      .open(&path)
+      .unwrap()
+      .set_modified(modified)
+      .unwrap();
+    assert!(VerifiedFiles::load(root.path()).check(&path, 5, &hash));
+
+    // A new timestamp forces a full hash, which detects the change.
+    File::options()
+      .write(true)
+      .open(&path)
+      .unwrap()
+      .set_modified(modified + Duration::from_secs(1))
+      .unwrap();
+    assert!(!VerifiedFiles::load(root.path()).check(&path, 5, &hash));
+    assert!(!VerifiedFiles::load(root.path()).check(&path, 4, &hash));
+    assert!(!VerifiedFiles::load(root.path()).check(&root.path().join("missing"), 5, &hash));
+  }
+
+  #[test]
+  fn parallel_verification_keeps_results_in_input_order() {
+    let root = tempfile::tempdir().unwrap();
+    let files: Vec<_> = (0..16)
+      .map(|index| {
+        let content = format!("file {index}");
+        let path = root.path().join(format!("{index}.vvm"));
+        fs::write(&path, &content).unwrap();
+        let sha256 = if index % 3 == 0 {
+          "wrong".to_owned()
+        } else {
+          format!("{:x}", Sha256::digest(content.as_bytes()))
+        };
+        FileCheck {
+          path,
+          bytes: content.len() as u64,
+          sha256,
+        }
+      })
+      .collect();
+    let mut verified = VerifiedFiles::load(root.path());
+    let results = verified.check_all(&files);
+    assert_eq!(
+      results,
+      (0..16).map(|index| index % 3 != 0).collect::<Vec<_>>()
+    );
+    assert_eq!(verified.current.len(), 10);
+  }
+
+  #[test]
+  fn verified_files_ignore_corrupt_stamps_and_missing_roots() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(root.path().join(VERIFIED_FILES), b"not json").unwrap();
+    let path = root.path().join("terms.txt");
+    fs::write(&path, b"terms").unwrap();
+    let mut verified = VerifiedFiles::load(root.path());
+    assert!(verified.check(&path, 5, &format!("{:x}", Sha256::digest(b"terms"))));
+    verified.save();
+    assert!(serde_json::from_slice::<HashMap<PathBuf, VerifiedStamp>>(
+      &fs::read(root.path().join(VERIFIED_FILES)).unwrap()
+    )
+    .is_ok());
+    let missing = root.path().join("missing");
+    let mut verified = VerifiedFiles::load(&missing);
+    verified.current.insert(
+      PathBuf::from("file"),
+      VerifiedStamp {
+        bytes: 1,
+        modified: (0, 0),
+        sha256: String::new(),
+      },
+    );
+    verified.save();
+    assert!(!missing.exists());
+  }
+
+  #[test]
+  fn loaded_model_ids_use_sorted_file_names() {
+    let paths = ["/models/n0.vvm".to_owned(), "/models/0.vvm".to_owned()];
+    assert_eq!(loaded_model_ids(paths.iter()), ["0.vvm", "n0.vvm"]);
   }
 
   #[test]

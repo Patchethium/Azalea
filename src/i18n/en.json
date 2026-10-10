@@ -287,7 +287,6 @@
     "runtime": "CPU runtime",
     "installed": "Downloaded",
     "total": "Download size",
-    "start": "Download selected packages",
     "retry": "Retry",
     "cancel": "Cancel download",
     "use_downloaded": "Apply models",
@@ -299,7 +298,16 @@
     "downloaded_models": "Downloaded models",
     "available_models": "Available downloads (0.16.4)",
     "refresh": "Refresh available models",
-    "switching": "Switching voice setup…",
-    "incomplete": "Download and apply the required models, or choose a VOICEVOX installation, to finish switching."
+    "incomplete": "Download and apply the required models, or choose a VOICEVOX installation, to finish switching.",
+    "download": "Download",
+    "delete": "Delete",
+    "download_all": "Download selected",
+    "delete_all": "Delete selected",
+    "required_components": "Required components",
+    "selected_count": "{{ count }} selected",
+    "clear_selection": "Clear selection",
+    "location": "Download location",
+    "select_all_downloaded": "Select all downloaded models",
+    "select_all_available": "Select all available models"
   }
 }

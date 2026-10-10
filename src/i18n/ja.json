@@ -287,7 +287,6 @@
     "runtime": "CPUランタイム",
     "installed": "ダウンロード済み",
     "total": "ダウンロード容量",
-    "start": "選択したモデルをダウンロード",
     "retry": "再試行",
     "cancel": "ダウンロードをキャンセル",
     "use_downloaded": "モデルを適用",
@@ -299,7 +298,16 @@
     "downloaded_models": "ダウンロード済みモデル",
     "available_models": "ダウンロード可能なモデル（0.16.4）",
     "refresh": "モデル一覧を更新",
-    "switching": "音声環境を切り替え中…",
-    "incomplete": "必要なモデルをダウンロードして適用するか、VOICEVOXのインストール先を選択して切り替えを完了してください。"
+    "incomplete": "必要なモデルをダウンロードして適用するか、VOICEVOXのインストール先を選択して切り替えを完了してください。",
+    "download": "ダウンロード",
+    "delete": "削除",
+    "download_all": "選択したモデルをダウンロード",
+    "delete_all": "選択したモデルを削除",
+    "required_components": "必須コンポーネント",
+    "selected_count": "{{ count }}件を選択中",
+    "clear_selection": "選択を解除",
+    "location": "保存先",
+    "select_all_downloaded": "ダウンロード済みモデルをすべて選択",
+    "select_all_available": "ダウンロード可能なモデルをすべて選択"
   }
 }

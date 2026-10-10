@@ -287,7 +287,6 @@
     "runtime": "CPU 运行库",
     "installed": "已下载",
     "total": "下载大小",
-    "start": "下载所选模型包",
     "retry": "重试",
     "cancel": "取消下载",
     "use_downloaded": "应用模型",
@@ -299,7 +298,16 @@
     "downloaded_models": "已下载的模型",
     "available_models": "可下载的模型（0.16.4）",
     "refresh": "刷新模型列表",
-    "switching": "正在切换语音环境…",
-    "incomplete": "请下载并应用所需模型，或选择 VOICEVOX 安装位置，以完成切换。"
+    "incomplete": "请下载并应用所需模型，或选择 VOICEVOX 安装位置，以完成切换。",
+    "download": "下载",
+    "delete": "删除",
+    "download_all": "下载所选模型",
+    "delete_all": "删除所选模型",
+    "required_components": "必需组件",
+    "selected_count": "已选择 {{ count }} 项",
+    "clear_selection": "取消选择",
+    "location": "保存位置",
+    "select_all_downloaded": "全选已下载的模型",
+    "select_all_available": "全选可下载的模型"
   }
 }

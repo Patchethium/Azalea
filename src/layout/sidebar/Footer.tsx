@@ -12,7 +12,7 @@ import type { SidebarControls } from "@layout/sidebar/useSidebar";
 import { usei18n } from "@contexts/i18n";
 import type { PageType } from "@contexts/ui";
 import { useConfigStore } from "@contexts/config";
-import { createEffect, Show } from "solid-js";
+import { createEffect } from "solid-js";
 
 export function SidebarFooter(props: { controls: SidebarControls }) {
   const { t1 } = usei18n()!;
@@ -115,17 +115,6 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
                 <div class="i-lucide:cog bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white ui-pressed:!bg-white" />
               </ToggleGroup.Item>
             </Tooltip>
-            <Show when={setupSource() === "Downloaded"}>
-              <Tooltip content={t1("voice_setup.manage")}>
-                <ToggleGroup.Item
-                  value="models"
-                  aria-label={t1("voice_setup.manage")}
-                  class="group size-8 p1 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-primary-5 ui-pressed:bg-primary-5 transition-transform outline-none focus-visible:ring-2 focus-visible:ring-primary-3"
-                >
-                  <div class="i-lucide:download bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white ui-pressed:!bg-white" />
-                </ToggleGroup.Item>
-              </Tooltip>
-            </Show>
           </ToggleGroup>
         </div>
       </div>

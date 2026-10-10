@@ -40,21 +40,30 @@ existing VOICEVOX installation or download a standalone CPU setup inside Azalea.
 #### Downloading only what you need
 
 Choose **Azalea-managed models** in the grouped voice setup control on first
-launch or in Config. Open **Manage models** on first launch, or use the download
-button immediately to the right of Config beneath the sidebar. That button is
-hidden when the VOICEVOX setup is selected. The dialog lists downloaded models
-and available packages from the pinned 0.16.4 catalog, with a refresh control to
-recheck their installation status. Select one or more voice packages; Azalea
-also downloads the missing CPU ONNX Runtime and Open JTalk
-system dictionary. Packages can contain several characters or styles. No voice
-package is preselected.
+launch or in Config, then open **Manage models** from the same place. The dialog
+shows the required CPU ONNX Runtime and Open JTalk system dictionary, then lists
+downloaded models and available packages from the pinned 0.16.4 catalog, with a
+refresh control to recheck their installation status. Each package has its own
+Download or Delete button. Select packages individually or with each list's
+select-all checkbox to download or delete them together; downloading selected
+packages also repairs missing shared components. Azalea downloads the missing
+runtime and dictionary along with the first voice package. Packages can contain
+several characters or styles, and none is preselected.
+
+**Apply models** is enabled only when the installed models differ from those the
+running core has loaded, or when the managed setup is not loaded yet. Deleting
+packages reloads the active managed voices immediately, and removing the last
+package returns to the setup empty state. Deletion leaves the runtime, system
+dictionary, and custom user dictionary in place.
 
 The downloader pins VOICEVOX VVM 0.16.4, ONNX Runtime 1.17.3, and the Open JTalk
 1.11 dictionary from release v1.11.1. A starter package plus runtime and dictionary
 requires roughly 85 MB of downloads. GPU dependencies, portraits, and voice
 samples are not downloaded.
 
-Files are verified with SHA-256. Development builds store downloads beneath
+Files are verified with SHA-256. Verified hashes are cached in
+`.verified.json` with each file's size and modification time, so later checks
+rehash only new or changed files, in parallel. Development builds store downloads beneath
 the repository's `config_dev/voicevox/`, separately from release data.
 Release builds store downloads beneath
 `dirs::data_local_dir()/com.azalea.app/voicevox/` (typically

@@ -17,7 +17,7 @@ import { ConfigProvider, useConfigStore } from "@contexts/config";
 import { i18nProvider } from "@contexts/i18n";
 import { MetaProvider } from "@contexts/meta";
 import { UIProvider, useUIStore } from "@contexts/ui";
-import { config } from "../test/fixtures";
+import { config, metas } from "../test/fixtures";
 
 vi.mock("@tauri-apps/plugin-shell", () => ({ open: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }));
@@ -38,6 +38,7 @@ const installedCore = {
 const setup = (ready = false): DownloadSetup => ({
   directory: "/local/data/com.azalea.app/voicevox",
   core_config: ready ? core : null,
+  loaded_models: null,
   components: [
     {
       id: "runtime-linux-x64",
@@ -122,10 +123,7 @@ async function open() {
 }
 async function start() {
   await open();
-  fireEvent.click(screen.getByRole("checkbox", { name: /^0\.vvm/ }));
-  fireEvent.click(
-    screen.getByRole("button", { name: "Download selected packages" }),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Download 0.vvm" }));
   await waitFor(() => expect(commands.downloadCpuSetup).toHaveBeenCalled());
 }
 
@@ -142,6 +140,10 @@ describe("VoiceSetup", () => {
       data: { cancelled: false, icon_errors: [] },
     });
     vi.spyOn(commands, "cancelSetupDownload").mockResolvedValue({
+      status: "ok",
+      data: null,
+    });
+    vi.spyOn(commands, "deleteDownloadedModels").mockResolvedValue({
       status: "ok",
       data: null,
     });
@@ -259,12 +261,15 @@ describe("VoiceSetup", () => {
     await screen.findByText("Error: network failed");
   });
 
-  it("requires package selection, calculates missing bytes, and supports keyboard selection", async () => {
+  it("offers per-model actions, calculates missing bytes, and supports keyboard selection", async () => {
     mount();
     await open();
     expect(
-      screen.getByRole("button", { name: "Download selected packages" }),
-    ).toBeDisabled();
+      screen.queryByRole("button", { name: "Download selected" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Download 0.vvm" }),
+    ).toBeEnabled();
     expect(screen.getByRole("button", { name: "Apply models" })).toBeDisabled();
     expect(screen.getByText("Download size: 3 MB")).toBeInTheDocument();
     const user = userEvent.setup();
@@ -277,6 +282,16 @@ describe("VoiceSetup", () => {
     expect(screen.getByText("Download size: 6 MB")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("checkbox", { name: /^n0\.vvm/ }));
     expect(screen.getByText("Download size: 10 MB")).toBeInTheDocument();
+    expect(screen.getByText("2 selected")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Download 0.vvm" }),
+    ).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Download selected" }),
+    ).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Delete selected" }),
+    ).toBeDisabled();
     fireEvent.click(checkbox);
     expect(screen.getByText("Download size: 7 MB")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Model terms" })).toHaveAttribute(
@@ -311,12 +326,278 @@ describe("VoiceSetup", () => {
     );
     await screen.findByRole("heading", { name: "Downloaded models" });
     expect(screen.getByRole("checkbox", { name: /^0\.vvm/ })).toBeChecked();
-    expect(screen.getByRole("checkbox", { name: /^0\.vvm/ })).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: /^0\.vvm/ })).toBeEnabled();
     expect(screen.getByRole("checkbox", { name: /^n0\.vvm/ })).toBeEnabled();
-    expect(
-      screen.getByRole("button", { name: "Download selected packages" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Delete 0.vvm" })).toBeEnabled();
     expect(screen.getByText("Download size: 0 MB")).toBeInTheDocument();
+  });
+
+  it("uses only applicable selected packages for bulk download and deletion", async () => {
+    vi.mocked(commands.getDownloadSetup).mockResolvedValue({
+      status: "ok",
+      data: setup(true),
+    });
+    mount();
+    await open();
+    fireEvent.click(screen.getByRole("checkbox", { name: /^0\.vvm/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /^n0\.vvm/ }));
+    expect(screen.getByRole("button", { name: "Delete 0.vvm" })).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Download n0.vvm" }),
+    ).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Download selected" }));
+    await waitFor(() =>
+      expect(commands.downloadCpuSetup).toHaveBeenCalledWith(
+        expect.any(String),
+        ["n0.vvm"],
+      ),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Delete selected" }),
+      ).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Delete selected" }));
+    await waitFor(() =>
+      expect(commands.deleteDownloadedModels).toHaveBeenCalledWith(["0.vvm"]),
+    );
+    expect(commands.getMetas).not.toHaveBeenCalled();
+  });
+
+  it("enables Apply only when installed models differ from the loaded core", async () => {
+    vi.mocked(commands.getDownloadSetup).mockResolvedValue({
+      status: "ok",
+      data: { ...setup(true), loaded_models: ["0.vvm"] },
+    });
+    mount(true, true);
+    await open();
+    const apply = screen.getByRole("button", { name: "Apply models" });
+    expect(apply).toBeDisabled();
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Select all available models" }),
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: /^0\.vvm/ }));
+    expect(apply).toBeDisabled();
+    const downloaded = setup(true);
+    downloaded.components.find((c) => c.id === "n0.vvm")!.installed = true;
+    vi.mocked(commands.getDownloadSetup).mockResolvedValue({
+      status: "ok",
+      data: { ...downloaded, loaded_models: ["0.vvm"] },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Refresh available models" }),
+    );
+    await waitFor(() => expect(apply).toBeEnabled());
+    vi.mocked(commands.getDownloadSetup).mockResolvedValue({
+      status: "ok",
+      data: { ...downloaded, loaded_models: ["0.vvm", "n0.vvm"] },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Refresh available models" }),
+    );
+    await waitFor(() => expect(apply).toBeDisabled());
+  });
+
+  it("selects and unselects each package group from its heading", async () => {
+    vi.mocked(commands.getDownloadSetup).mockResolvedValue({
+      status: "ok",
+      data: setup(true),
+    });
+    mount();
+    await open();
+    const downloaded = screen.getByRole("checkbox", {
+      name: "Select all downloaded models",
+    });
+    const available = screen.getByRole("checkbox", {
+      name: "Select all available models",
+    });
+    fireEvent.click(available);
+    expect(screen.getByRole("checkbox", { name: /^n0\.vvm/ })).toBeChecked();
+    expect(available).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /^0\.vvm/ })).not.toBeChecked();
+    expect(downloaded).not.toBeChecked();
+    fireEvent.click(downloaded);
+    expect(screen.getByRole("checkbox", { name: /^0\.vvm/ })).toBeChecked();
+    expect(screen.getByText("2 selected")).toBeInTheDocument();
+    fireEvent.click(available);
+    expect(
+      screen.getByRole("checkbox", { name: /^n0\.vvm/ }),
+    ).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /^0\.vvm/ })).toBeChecked();
+    expect(screen.getByText("1 selected")).toBeInTheDocument();
+  });
+
+  it("marks a partially selected group as indeterminate", async () => {
+    const both = setup();
+    both.components.find((c) => c.id === "n0.vvm")!.installed = false;
+    vi.mocked(commands.getDownloadSetup).mockResolvedValue({
+      status: "ok",
+      data: both,
+    });
+    mount();
+    await open();
+    const available = screen.getByRole("checkbox", {
+      name: "Select all available models",
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: /^0\.vvm/ }));
+    expect(available).not.toBeChecked();
+    expect(available).toHaveProperty("indeterminate", true);
+    fireEvent.click(available);
+    expect(available).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /^n0\.vvm/ })).toBeChecked();
+  });
+
+  it("repairs missing dependencies when all selected models are already downloaded", async () => {
+    const broken = setup(true);
+    broken.core_config = null;
+    broken.components.find((c) => c.id === "dictionary")!.installed = false;
+    broken.components.find((c) => c.id === "n0.vvm")!.installed = true;
+    vi.mocked(commands.getDownloadSetup).mockResolvedValue({
+      status: "ok",
+      data: broken,
+    });
+    mount();
+    await open();
+    fireEvent.click(screen.getByRole("checkbox", { name: /^0\.vvm/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /^n0\.vvm/ }));
+    expect(
+      screen.getByRole("button", { name: "Download selected" }),
+    ).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Download selected" }));
+    await waitFor(() =>
+      expect(commands.downloadCpuSetup).toHaveBeenCalledWith(
+        expect.any(String),
+        ["0.vvm", "n0.vvm"],
+      ),
+    );
+  });
+
+  it("disables bulk download for a complete installation without missing selected models", async () => {
+    const complete = setup(true);
+    complete.components.find((c) => c.id === "n0.vvm")!.installed = true;
+    vi.mocked(commands.getDownloadSetup).mockResolvedValue({
+      status: "ok",
+      data: complete,
+    });
+    mount();
+    await open();
+    fireEvent.click(screen.getByRole("checkbox", { name: /^0\.vvm/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /^n0\.vvm/ }));
+    expect(
+      screen.getByRole("button", { name: "Download selected" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Delete selected" }),
+    ).toBeEnabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: /^n0\.vvm/ }));
+    expect(
+      screen.getByRole("button", { name: "Delete selected" }),
+    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Delete 0.vvm" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Clear selection" }));
+    expect(
+      screen.queryByRole("button", { name: "Delete selected" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /^0\.vvm/ })).not.toBeChecked();
+  });
+
+  it("deletes the last active downloaded model and returns to an unconfigured state", async () => {
+    vi.mocked(commands.getDownloadSetup).mockResolvedValue({
+      status: "ok",
+      data: setup(true),
+    });
+    vi.mocked(commands.getMetas).mockResolvedValueOnce({
+      status: "ok",
+      data: metas,
+    });
+    mount(true, true);
+    await store.reinitializeCore();
+    expect(store.voicesReady()).toBe(true);
+    await open();
+    vi.mocked(commands.getDownloadSetup).mockResolvedValue({
+      status: "ok",
+      data: setup(),
+    });
+    const revision = store.coreRevision();
+    fireEvent.click(screen.getByRole("button", { name: "Delete 0.vvm" }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Download 0.vvm" }),
+      ).toBeEnabled(),
+    );
+    expect(commands.deleteDownloadedModels).toHaveBeenCalledWith(["0.vvm"]);
+    expect(store.coreRevision()).toBe(revision + 1);
+    expect(store.voicesReady()).toBe(false);
+    expect(screen.getByRole("button", { name: "Apply models" })).toBeDisabled();
+    expect(store.config.core).toEqual(installedCore);
+  });
+
+  it("reports deletion errors and still refreshes model status", async () => {
+    vi.mocked(commands.getDownloadSetup).mockResolvedValue({
+      status: "ok",
+      data: setup(true),
+    });
+    vi.mocked(commands.deleteDownloadedModels)
+      .mockResolvedValueOnce({ status: "error", error: "Model is locked" })
+      .mockRejectedValueOnce(new Error("IPC failed"));
+    mount();
+    await open();
+    fireEvent.click(screen.getByRole("button", { name: "Delete 0.vvm" }));
+    await screen.findByText("Model is locked");
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Delete 0.vvm" }),
+      ).toBeEnabled(),
+    );
+    expect(commands.getDownloadSetup).toHaveBeenCalledTimes(2);
+    fireEvent.click(screen.getByRole("button", { name: "Delete 0.vvm" }));
+    await screen.findByText("Error: IPC failed");
+  });
+
+  it("refreshes the active core after deletion even when the manager has closed", async () => {
+    const deletion = deferred<{ status: "ok"; data: null }>();
+    vi.mocked(commands.deleteDownloadedModels).mockReturnValue(
+      deletion.promise,
+    );
+    vi.mocked(commands.getDownloadSetup).mockResolvedValue({
+      status: "ok",
+      data: setup(true),
+    });
+    mount(true, true);
+    await open();
+    fireEvent.click(screen.getByRole("button", { name: "Delete 0.vvm" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Close model manager" }),
+    );
+    deletion.resolve({ status: "ok", data: null });
+    await waitFor(() => expect(commands.getMetas).toHaveBeenCalled());
+    expect(commands.getDownloadSetup).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears unavailable voices when the core cannot reload after deletion", async () => {
+    vi.mocked(commands.getDownloadSetup).mockResolvedValue({
+      status: "ok",
+      data: setup(true),
+    });
+    mount(true, true);
+    await open();
+    vi.mocked(commands.getDownloadSetup).mockResolvedValue({
+      status: "ok",
+      data: setup(),
+    });
+    vi.mocked(commands.getMetas).mockResolvedValue({
+      status: "error",
+      error: "core is not initialized",
+    });
+    vi.mocked(commands.deleteDownloadedModels).mockResolvedValue({
+      status: "error",
+      error: "Reload failed",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Delete 0.vvm" }));
+    await screen.findByText("Reload failed");
+    expect(store.voicesReady()).toBe(false);
+    expect(uiStore.uiStore.coreInitialized).toBe(false);
+    expect(store.range()).toBeNull();
   });
 
   it("downloads, ignores stale events, and applies the managed setup without restarting", async () => {
@@ -399,7 +680,7 @@ describe("VoiceSetup", () => {
     });
     mount(false);
     await open();
-    expect(screen.getByRole("checkbox", { name: /^0\.vvm/ })).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: /^0\.vvm/ })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Apply models" }));
     await waitFor(() => expect(commands.initCore).toHaveBeenCalledWith(core));
     expect(store.config.core).toBeNull();
@@ -469,10 +750,10 @@ describe("VoiceSetup", () => {
     mount();
     await start();
     await screen.findByText("bad checksum");
-    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    fireEvent.click(screen.getByRole("button", { name: "Download 0.vvm" }));
     await screen.findByText("Error: network error");
     expect(unlisten).toHaveBeenCalledTimes(2);
-    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    fireEvent.click(screen.getByRole("button", { name: "Download 0.vvm" }));
     await screen.findByText(/Downloads complete/);
   });
 
@@ -523,10 +804,7 @@ describe("VoiceSetup", () => {
     vi.mocked(listen).mockReturnValueOnce(listening.promise);
     const view = mount();
     await open();
-    fireEvent.click(screen.getByRole("checkbox", { name: /^0\.vvm/ }));
-    fireEvent.click(
-      screen.getByRole("button", { name: "Download selected packages" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Download 0.vvm" }));
     fireEvent.click(
       screen.getByRole("button", { name: "Close model manager" }),
     );

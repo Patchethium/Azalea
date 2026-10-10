@@ -148,6 +148,23 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     await Promise.all([load_meta(), load_range()]);
   };
 
+  const refreshCoreAfterModelDeletion = async () => {
+    if (!uiStore.coreInitialized || activeSetupSource() !== "Downloaded")
+      return;
+    const result = await commands.getMetas();
+    batch(() => {
+      setMetas(result.status === "ok" ? result.data : []);
+      setCoreRevision((revision) => revision + 1);
+      if (result.status === "error") {
+        setDownloadedCore(null);
+        setRange(null);
+        setCoreError(result.error);
+        setUIStore("coreInitialized", false);
+      }
+    });
+    if (result.status === "ok") await load_range();
+  };
+
   const reinitializeCore = async (): Promise<boolean> => {
     if (coreSwitching()) return false;
     const coreConfig = effectiveCore();
@@ -248,6 +265,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     range,
     setRange,
     reinitializeCore,
+    refreshCoreAfterModelDeletion,
     spectrogramPreviewEnabled,
     setSpectrogramPreviewEnabled,
     playbackTimelineEnabled,

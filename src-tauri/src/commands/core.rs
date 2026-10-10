@@ -113,6 +113,15 @@ pub async fn reinitialize_core(
     .acquire()
     .await
     .map_err(|e| e.to_string())?;
+  reinitialize_core_locked(app, state, config).await
+}
+
+/// The caller must hold core_task_gate while changing model files or the core.
+pub(crate) async fn reinitialize_core_locked(
+  app: &AppHandle,
+  state: &AppState,
+  config: CoreConfig,
+) -> std::result::Result<(), String> {
   let core = tauri::async_runtime::spawn_blocking(move || Core::init(&config))
     .await
     .map_err(|e| format!("Core initialization task failed: {e}"))?
@@ -125,8 +134,13 @@ pub async fn reinitialize_core(
   .await
   .map_err(|e| format!("Dictionary initialization task failed: {e}"))??;
   // Commit only after both synthesizers and the shared user dictionary are ready.
-  state.core_generation.fetch_add(1, Ordering::SeqCst);
+  discard_core_work(app, state).await?;
   state.core.write().await.replace(Arc::new(core));
+  Ok(())
+}
+
+pub(crate) async fn discard_core_work(app: &AppHandle, state: &AppState) -> Result<(), String> {
+  state.core_generation.fetch_add(1, Ordering::SeqCst);
   emit_synthesis_events(app, state.synthesis_queue.discard_all());
   emit_spectrogram_events(app, state.spectrogram_queue.discard_all());
   if let Some(cache) = state.wav_lru.write().await.as_mut() {

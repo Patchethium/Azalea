@@ -48,6 +48,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
       clear_assets,
       get_download_setup,
       download_cpu_setup,
+      delete_downloaded_models,
       cancel_setup_download,
       pick_core,
       init_config,

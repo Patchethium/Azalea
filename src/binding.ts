@@ -61,6 +61,14 @@ async downloadCpuSetup(operationId: string, packageIds: string[]) : Promise<Resu
     else return { status: "error", error: e  as any };
 }
 },
+async deleteDownloadedModels(packageIds: string[]) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_downloaded_models", { packageIds }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async cancelSetupDownload(operationId: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("cancel_setup_download", { operationId }) };
@@ -639,7 +647,12 @@ export type DictionaryWordType = "PROPER_NOUN" | "COMMON_NOUN" | "VERB" | "ADJEC
 export type DownloadComponent = { id: string; bytes: number; installed: boolean; entries: PackageVoice[] }
 export type DownloadOutcome = { cancelled: boolean; icon_errors: string[] }
 export type DownloadProgressEvent = { operation_id: string; component_id: string; completed_bytes: number; total_bytes: number; extracting: boolean }
-export type DownloadSetup = { directory: string; components: DownloadComponent[]; core_config: CoreConfig | null }
+export type DownloadSetup = { directory: string; components: DownloadComponent[]; core_config: CoreConfig | null; 
+/**
+ * Model files loaded by the running core, or `None` when it is not using
+ * the downloaded setup.
+ */
+loaded_models: string[] | null }
 export type DownloadedSetupConfig = { cache_size?: number; cpu_num_threads?: number }
 export type FrontendReadyEvent = null
 export type InitializationEvent = { config: AzaleaConfig | null; core_initialized: boolean; metas: CharacterMeta[] | null; range: ([StyleId, PitchRange])[]; error: string | null; resolved_core?: CoreConfig | null; active_setup_source?: SetupSource | null }

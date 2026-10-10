@@ -166,10 +166,9 @@ describe("App initialization", () => {
         screen.getAllByRole("button", { name: "Open config" }),
       ).toHaveLength(2);
       expect(view.getTextStore().projectPresetStore).toHaveLength(0);
-      if (source === "Downloaded")
-        expect(
-          screen.getByRole("button", { name: "Manage models" }),
-        ).toBeEnabled();
+      expect(
+        screen.queryByRole("button", { name: "Manage models" }),
+      ).not.toBeInTheDocument();
     },
   );
 
@@ -246,7 +245,7 @@ describe("App initialization", () => {
     );
   });
 
-  it("places the model manager after Config and hides it for a VOICEVOX setup", async () => {
+  it("opens the model manager only from Config and closes it for a VOICEVOX setup", async () => {
     mockIPC(
       (command) => {
         if (command === "get_download_setup")
@@ -270,21 +269,15 @@ describe("App initialization", () => {
       range: [],
       error: null,
     });
-    const configButton = await screen.findByRole("button", {
-      name: "Open config",
-    });
+    await screen.findByLabelText("Text to synthesize");
     expect(
       screen.queryByRole("button", { name: "Manage models" }),
     ).not.toBeInTheDocument();
     view.getConfigStore().setConfig("setup_source", "Downloaded");
-    const modelsButton = await screen.findByRole("button", {
-      name: "Manage models",
-    });
-    expect(
-      configButton.compareDocumentPosition(modelsButton) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    fireEvent.click(modelsButton);
+    fireEvent.click(screen.getAllByRole("button", { name: "Open config" })[0]);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Manage models" }),
+    );
     expect(
       await screen.findByRole("dialog", { name: "Manage models" }),
     ).toBeVisible();
@@ -296,13 +289,12 @@ describe("App initialization", () => {
     view.getConfigStore().setConfig("setup_source", "ExistingInstallation");
     await waitFor(() =>
       expect(
-        screen.queryByRole("button", { name: "Manage models" }),
-      ).not.toBeInTheDocument(),
+        screen.getByRole("dialog", { name: "Manage models", hidden: true }),
+      ).toHaveAttribute("data-closed"),
     );
-    view.getConfigStore().setConfig("setup_source", "Downloaded");
     expect(
-      await screen.findByRole("button", { name: "Manage models" }),
-    ).toHaveAttribute("aria-pressed", "false");
+      screen.queryByRole("button", { name: "Manage models" }),
+    ).not.toBeInTheDocument();
   });
 
   it("opens the shared model manager from Config and closes the config dialog", async () => {
