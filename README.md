@@ -71,7 +71,9 @@ Release builds store downloads beneath
 `~/Library/Application Support/com.azalea.app/voicevox` on macOS, and
 `$XDG_DATA_HOME/com.azalea.app/voicevox` or
 `~/.local/share/com.azalea.app/voicevox` on Linux). Clearing the asset cache does
-not remove runtime, dictionary, or model files.
+not remove runtime, dictionary, or model files. Config hides the asset cache
+setting while Azalea-managed models are selected, because their speaker icons
+are downloaded with the models.
 
 Downloads support progress, cancellation, and retry. Completed components are
 kept, and icons are downloaded separately without blocking model installation.

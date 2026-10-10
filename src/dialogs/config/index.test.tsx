@@ -390,6 +390,10 @@ describe("ConfigPage", () => {
     expect(
       await screen.findByRole("dialog", { name: "Config" }),
     ).toBeInTheDocument();
+    expect(screen.queryByText("Downloaded assets")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Clear cache" }),
+    ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Manage models" }));
     await waitFor(() => expect(ui.uiStore.page).toBe("models"));
     expect(screen.getByRole("dialog", { name: "Config" })).toHaveAttribute(
@@ -432,6 +436,10 @@ describe("ConfigPage", () => {
     await user.click(await screen.findByRole("button", { name: /Theme/ }));
     await user.click(await screen.findByText("Dark"));
     expect(appConfig.themeMode()).toBe("Dark");
+    expect(appConfig.setupSource()).toBe("ExistingInstallation");
+    expect(
+      screen.getByRole("button", { name: "Clear cache" }),
+    ).toBeInTheDocument();
 
     const embeddedFont = screen.getByRole("button", { name: "Embedded" });
     expect(embeddedFont).toHaveAttribute("aria-pressed", "false");

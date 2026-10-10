@@ -333,7 +333,11 @@ export function ModelManagerDialog(props: {
       unlisten?.();
       if (operationId === id) {
         operationId = null;
-        if (!disposed) setBusy(false);
+        if (!disposed) {
+          // The last event (often speaker icons) never reports completion.
+          setProgress(null);
+          setBusy(false);
+        }
       }
     }
   };

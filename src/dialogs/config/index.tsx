@@ -42,6 +42,7 @@ export function ConfigPage() {
     setPlaybackTimelineEnabled,
     spectrogramPreviewEnabled,
     setSpectrogramPreviewEnabled,
+    setupSource,
   } = useConfigStore()!;
 
   return (
@@ -209,7 +210,10 @@ export function ConfigPage() {
             </NumberField>
           </ConfigItem>
           <ConfigSectionTitle label={t1("config.storage")} />
-          <AssetCacheSetting open={uiStore.page === "config"} />
+          {/* Managed downloads keep icons alongside their models. */}
+          <Show when={setupSource() !== "Downloaded"}>
+            <AssetCacheSetting open={uiStore.page === "config"} />
+          </Show>
           <VoiceSetup modelManager="sidebar" />
           <ConfigSectionTitle label={t1("config.synthesis")} />
           <ConfigItem label={t1("config.cpu_num_threads")}>

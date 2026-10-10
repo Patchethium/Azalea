@@ -657,6 +657,12 @@ describe("VoiceSetup", () => {
     job.resolve({ status: "ok", data: { cancelled: false, icon_errors: [] } });
     await screen.findByText(/Downloads complete/);
     await waitFor(() => expect(unlisten).toHaveBeenCalledOnce());
+    await waitFor(() =>
+      expect(screen.queryByRole("progressbar")).not.toBeInTheDocument(),
+    );
+    expect(
+      screen.queryByText(/Downloading speaker icons/),
+    ).not.toBeInTheDocument();
     expect(store.setupSource()).toBe("Downloaded");
     fireEvent.click(screen.getByRole("button", { name: "Apply models" }));
     expect(store.setupSource()).toBe("Downloaded");
