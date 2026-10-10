@@ -15,7 +15,7 @@ import { batch, createSignal, onMount } from "solid-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConfigProvider, useConfigStore } from "@contexts/config";
 import { i18nProvider } from "@contexts/i18n";
-import { MetaProvider } from "@contexts/meta";
+import { MetaProvider, useMetaStore } from "@contexts/meta";
 import { UIProvider, useUIStore } from "@contexts/ui";
 import { config, metas } from "../test/fixtures";
 
@@ -68,6 +68,7 @@ function deferred<T>() {
 let listener: (event: { payload: DownloadProgressEvent }) => void;
 let store: NonNullable<ReturnType<typeof useConfigStore>>;
 let uiStore: NonNullable<ReturnType<typeof useUIStore>>;
+let metaStore: NonNullable<ReturnType<typeof useMetaStore>>;
 const unlisten = vi.fn();
 function mount(
   existing = true,
@@ -76,6 +77,7 @@ function mount(
 ) {
   const Harness = () => {
     store = useConfigStore()!;
+    metaStore = useMetaStore()!;
     const [modelsOpen, setModelsOpen] = createSignal(false);
     const ui = useUIStore()!;
     uiStore = ui;
@@ -654,8 +656,10 @@ describe("VoiceSetup", () => {
       status: "ok",
       data: setup(true),
     });
+    const portraitRevision = metaStore.speakerPortraitRevision();
     job.resolve({ status: "ok", data: { cancelled: false, icon_errors: [] } });
     await screen.findByText(/Downloads complete/);
+    expect(metaStore.speakerPortraitRevision()).toBe(portraitRevision + 1);
     await waitFor(() => expect(unlisten).toHaveBeenCalledOnce());
     await waitFor(() =>
       expect(screen.queryByRole("progressbar")).not.toBeInTheDocument(),

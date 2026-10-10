@@ -309,5 +309,12 @@
     "location": "保存先",
     "select_all_downloaded": "ダウンロード済みモデルをすべて選択",
     "select_all_available": "ダウンロード可能なモデルをすべて選択"
+  },
+  "portrait": {
+    "alt": "{{ name }}（{{ style }}）の立ち絵",
+    "download": "立ち絵をダウンロード",
+    "downloading": "立ち絵をダウンロード中…",
+    "download_failed": "一部の立ち絵をダウンロードできませんでした。",
+    "resize": "立ち絵パネルのサイズを変更"
   }
 }

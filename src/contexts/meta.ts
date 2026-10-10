@@ -44,6 +44,8 @@ const [MetaProvider, useMetaStore] = createContextProvider(() => {
   const [allSpeakerIconsHydrated, setAllSpeakerIconsHydrated] =
     createSignal(false);
   const [speakerIconRevision, setSpeakerIconRevision] = createSignal(0);
+  // Bumped whenever portrait files may have changed so portraits reload.
+  const [speakerPortraitRevision, setSpeakerPortraitRevision] = createSignal(0);
 
   const revokeObjectUrls = (urls: Iterable<string>) => {
     for (const url of urls) URL.revokeObjectURL(url);
@@ -151,7 +153,19 @@ const [MetaProvider, useMetaStore] = createContextProvider(() => {
     setSpeakerIconUrls(new Map());
     setAllSpeakerIconsHydrated(true);
     setSpeakerIconRevision((revision) => revision + 1);
+    setSpeakerPortraitRevision((revision) => revision + 1);
     revokeObjectUrls(urls.values());
+  };
+
+  const invalidateSpeakerPortraits = () =>
+    setSpeakerPortraitRevision((revision) => revision + 1);
+
+  /** Rereads icons and portraits from disk after the backend downloaded them. */
+  const invalidateSpeakerAssets = () => {
+    setAllSpeakerIconsHydrated(false);
+    setHydratedSpeakerIconKeys(new Set<string>());
+    setSpeakerIconRevision((revision) => revision + 1);
+    setSpeakerPortraitRevision((revision) => revision + 1);
   };
   const setMetas = (newMetas: CharacterMeta[]) => {
     // combine all styles for metas with the same speaker_uuid
@@ -193,6 +207,9 @@ const [MetaProvider, useMetaStore] = createContextProvider(() => {
     mergeSpeakerIcons,
     removeSpeakerIcon,
     clearSpeakerIcons,
+    speakerPortraitRevision,
+    invalidateSpeakerAssets,
+    invalidateSpeakerPortraits,
   };
 });
 

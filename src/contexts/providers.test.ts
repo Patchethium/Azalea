@@ -83,7 +83,12 @@ describe("MetaProvider", () => {
     const request = { speaker_uuid: "speaker", style_id: 7 };
     const missingRequest = { speaker_uuid: "missing", style_id: 8 };
     const result = (dataUrl: string) => [
-      { speaker_uuid: "speaker", data_url: dataUrl, error: null },
+      {
+        speaker_uuid: "speaker",
+        data_url: dataUrl,
+        error: null,
+        portrait: false,
+      },
     ];
     const firstRevision = store.speakerIconRevision();
 
@@ -92,7 +97,11 @@ describe("MetaProvider", () => {
         [request, missingRequest],
         [
           ...result("data:image/png;base64,Zmlyc3Q="),
-          { speaker_uuid: "missing", data_url: null, error: null },
+          {
+            speaker_uuid: "missing",
+            data_url: null,
+            error: null,
+          },
         ],
         firstRevision,
       ),
@@ -113,7 +122,13 @@ describe("MetaProvider", () => {
     expect(
       store.mergeSpeakerIcons(
         [request],
-        [{ speaker_uuid: "speaker", data_url: null, error: null }],
+        [
+          {
+            speaker_uuid: "speaker",
+            data_url: null,
+            error: null,
+          },
+        ],
         firstRevision,
       ),
     ).toBe(true);
@@ -145,6 +160,30 @@ describe("MetaProvider", () => {
     expect(revokeObjectUrl).toHaveBeenCalledWith("blob:cleanup");
   });
 
+  it("invalidates hydrated icons and displayed portraits", () => {
+    const { store } = renderMetaStore();
+    const request = { speaker_uuid: "speaker", style_id: 7 };
+    const portraitRevision = store.speakerPortraitRevision();
+    store.hydrateSpeakerIcons(
+      [request],
+      [{ speaker_uuid: "speaker", data_url: null, error: null }],
+      store.speakerIconRevision(),
+    );
+    expect(store.speakerIconsAreHydrated([request])).toBe(true);
+
+    store.invalidateSpeakerPortraits();
+    expect(store.speakerPortraitRevision()).toBe(portraitRevision + 1);
+    expect(store.speakerIconsAreHydrated([request])).toBe(true);
+
+    store.invalidateSpeakerAssets();
+    expect(store.speakerIconsAreHydrated([request])).toBe(false);
+    expect(store.speakerPortraitRevision()).toBe(portraitRevision + 2);
+
+    store.clearSpeakerIcons();
+    expect(store.speakerPortraitRevision()).toBe(portraitRevision + 3);
+    expect(store.speakerIconsAreHydrated([request])).toBe(true);
+  });
+
   it("rejects invalid icon data and stale work without leaking Blob URLs", () => {
     const { store } = renderMetaStore();
     const request = { speaker_uuid: "speaker", style_id: 7 };
@@ -152,7 +191,13 @@ describe("MetaProvider", () => {
     expect(() =>
       store.hydrateSpeakerIcons(
         [request],
-        [{ speaker_uuid: "speaker", data_url: "invalid", error: null }],
+        [
+          {
+            speaker_uuid: "speaker",
+            data_url: "invalid",
+            error: null,
+          },
+        ],
         revision,
       ),
     ).toThrow("Invalid speaker icon data URL");

@@ -58,8 +58,8 @@ dictionary, and custom user dictionary in place.
 
 The downloader pins VOICEVOX VVM 0.16.4, ONNX Runtime 1.17.3, and the Open JTalk
 1.11 dictionary from release v1.11.1. A starter package plus runtime and dictionary
-requires roughly 85 MB of downloads. GPU dependencies, portraits, and voice
-samples are not downloaded.
+requires roughly 85 MB of downloads. GPU dependencies and voice samples are not
+downloaded.
 
 Files are verified with SHA-256. Verified hashes are cached in
 `.verified.json` with each file's size and modification time, so later checks
@@ -77,6 +77,19 @@ are downloaded with the models.
 
 Downloads support progress, cancellation, and retry. Completed components are
 kept, and icons are downloaded separately without blocking model installation.
+
+#### Character portraits
+
+The main workspace shows the portrait of the selected text block's character
+beside the text blocks. When no portrait is saved, the panel offers a
+**Download portraits** button that fetches the portraits of every available
+speaker from the
+[VOICEVOX resource repository](https://github.com/VOICEVOX/voicevox_resource).
+A style-specific portrait is used when the character provides one, and the
+character's default portrait otherwise. Portraits are kept in the asset cache.
+Like the sidebar, the portrait panel can be resized or collapsed by dragging its
+handle, or collapsed and restored by pressing Enter on the focused handle; its
+size is remembered.
 Review the linked usage terms before downloading; license files are preserved.
 
 After downloading, choose **Apply models** to load the downloaded voices. Existing and downloaded

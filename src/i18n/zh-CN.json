@@ -309,5 +309,12 @@
     "location": "保存位置",
     "select_all_downloaded": "全选已下载的模型",
     "select_all_available": "全选可下载的模型"
+  },
+  "portrait": {
+    "alt": "{{ name }}（{{ style }}）的立绘",
+    "download": "下载立绘",
+    "downloading": "正在下载立绘…",
+    "download_failed": "部分立绘无法下载。",
+    "resize": "调整立绘面板大小"
   }
 }

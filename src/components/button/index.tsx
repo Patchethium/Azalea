@@ -2,12 +2,15 @@ import { Button } from "@kobalte/core/button";
 import { type JSX, splitProps } from "solid-js";
 
 interface AppButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "default" | "primary";
+  /** `surface` adds the app's card background for buttons over the canvas. */
+  variant?: "default" | "primary" | "surface";
 }
 
 const variants = {
   default:
     "b b-slate-2 bg-transparent hover:(b-primary-5 bg-primary-5 text-white) dark:b-slate-6",
+  surface:
+    "b b-slate-2 bg-white shadow-sm hover:(b-primary-5 bg-primary-5 text-white) dark:(b-slate-6 bg-slate-8 hover:(b-primary-5 bg-primary-5))",
   primary:
     "b b-primary-5 bg-primary-5 font-medium text-white hover:(b-primary-6 bg-primary-6)",
 };

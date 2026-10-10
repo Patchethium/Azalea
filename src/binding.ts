@@ -29,6 +29,22 @@ async downloadSpeakerIcons(requests: SpeakerIconRequest[]) : Promise<Result<Spea
     else return { status: "error", error: e  as any };
 }
 },
+async downloadSpeakerPortraits(speakerUuids: string[]) : Promise<Result<SpeakerPortraitResult[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("download_speaker_portraits", { speakerUuids }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getSpeakerPortrait(request: SpeakerIconRequest) : Promise<Result<string | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_speaker_portrait", { request }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async getAssetsSize() : Promise<Result<number, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_assets_size") };
@@ -729,6 +745,11 @@ export type Project = { blocks: TextBlockProps[]; presets: Preset[] }
 export type SetupSource = "ExistingInstallation" | "Downloaded"
 export type SpeakerIconRequest = { speaker_uuid: string; style_id: number }
 export type SpeakerIconResult = { speaker_uuid: string; data_url: string | null; error: string | null }
+export type SpeakerPortraitResult = { speaker_uuid: string; 
+/**
+ * Whether the speaker's default portrait is cached after the download.
+ */
+cached: boolean; error: string | null }
 export type SpectrogramJobEvent = { blockId: string; generationId: number; hash: string; state: SynthesisJobState; error: string | null; preview: SpectrogramPreview | null }
 export type SpectrogramJobRequest = { blockId: string; generationId: number; audioQuery: AudioQuery; speakerId: StyleId; hash: string }
 export type SpectrogramPreview = { values: number[]; frameCount: number; melBins: number; durationSeconds: number }
@@ -833,7 +854,11 @@ export type SynthesisJobState = "Queued" | "Running" | "Completed" | "Failed" | 
 export type TextBlockProps = { id: string; text: string; query: AudioQuery | null; accent_is_modified?: boolean; duration_is_modified?: boolean; pitch_is_modified?: boolean; pitch_noise_seed: number; preset_id: string | null }
 export type ThemeMode = "System" | "Light" | "Dark"
 export type TitlebarStyle = "Native" | "Custom" | "Hidden"
-export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; embedded_font?: boolean; titlebar_style?: TitlebarStyle; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; bottom_duration_height?: number; side_width?: number; buffer_render?: boolean; nonblocking_synthesis?: boolean; pitch_noise_enabled?: boolean; pitch_completion_enabled?: boolean; pitch_completion_locked?: boolean; pitch_noise_sigma?: number; synthesis_delay_ms?: number; spectrogram_preview?: boolean; playback_timeline?: boolean; pitch_scale?: PitchScale; pitch_ruler?: boolean; name_truncation_len?: number; default_export_dir?: string | null; default_export_dir_enabled?: boolean; silent_save?: boolean; prevent_overwrite?: boolean; last_exported_dir?: string | null; shortcuts?: KeyboardShortcuts }
+export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; embedded_font?: boolean; titlebar_style?: TitlebarStyle; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; bottom_duration_height?: number; side_width?: number; 
+/**
+ * Share of the editor width used by the portrait panel; 0 is collapsed.
+ */
+portrait_ratio?: number; buffer_render?: boolean; nonblocking_synthesis?: boolean; pitch_noise_enabled?: boolean; pitch_completion_enabled?: boolean; pitch_completion_locked?: boolean; pitch_noise_sigma?: number; synthesis_delay_ms?: number; spectrogram_preview?: boolean; playback_timeline?: boolean; pitch_scale?: PitchScale; pitch_ruler?: boolean; name_truncation_len?: number; default_export_dir?: string | null; default_export_dir_enabled?: boolean; silent_save?: boolean; prevent_overwrite?: boolean; last_exported_dir?: string | null; shortcuts?: KeyboardShortcuts }
 
 /** tauri-specta globals **/
 

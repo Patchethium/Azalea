@@ -309,5 +309,12 @@
     "location": "Download location",
     "select_all_downloaded": "Select all downloaded models",
     "select_all_available": "Select all available models"
+  },
+  "portrait": {
+    "alt": "Portrait of {{ name }} ({{ style }})",
+    "download": "Download portraits",
+    "downloading": "Downloading portraits…",
+    "download_failed": "Some portraits could not be downloaded.",
+    "resize": "Resize portrait panel"
   }
 }

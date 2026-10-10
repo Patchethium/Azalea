@@ -128,6 +128,9 @@ pub struct UIConfig {
   pub bottom_duration_height: u32,
   #[serde(default = "side_width_default")]
   pub side_width: u32,
+  /// Share of the editor width used by the portrait panel; 0 is collapsed.
+  #[serde(default = "portrait_ratio_default")]
+  pub portrait_ratio: f32,
   #[serde(default = "buffer_render_default")]
   pub buffer_render: bool,
   #[serde(default)]
@@ -182,6 +185,7 @@ impl Default for UIConfig {
       bottom_ratio: bottom_ratio_default(),
       bottom_duration_height: bottom_duration_height_default(),
       side_width: side_width_default(),
+      portrait_ratio: portrait_ratio_default(),
       buffer_render: buffer_render_default(),
       nonblocking_synthesis: false,
       pitch_noise_enabled: false,
@@ -242,6 +246,10 @@ fn bottom_scale_default() -> usize {
 
 fn bottom_ratio_default() -> f32 {
   0.3
+}
+
+pub(super) fn portrait_ratio_default() -> f32 {
+  0.25
 }
 
 fn bottom_duration_height_default() -> u32 {
@@ -572,6 +580,7 @@ mod tests {
     assert_eq!(config.ui.primary_color, "#3b82f6");
     assert_eq!(config.ui.bottom_ratio, 0.3);
     assert_eq!(config.ui.side_width, 200);
+    assert_eq!(config.ui.portrait_ratio, 0.25);
   }
 
   #[test]

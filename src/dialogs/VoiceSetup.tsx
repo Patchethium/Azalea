@@ -23,6 +23,7 @@ import {
   Show,
 } from "solid-js";
 import { useConfigStore } from "@contexts/config";
+import { useMetaStore } from "@contexts/meta";
 import { usei18n } from "@contexts/i18n";
 import { useUIStore } from "@contexts/ui";
 
@@ -205,6 +206,7 @@ export function ModelManagerDialog(props: {
     coreSwitching,
     setupSwitchPending,
   } = useConfigStore()!;
+  const { invalidateSpeakerAssets } = useMetaStore()!;
   const { uiStore } = useUIStore()!;
   const open = () => props.open;
   const [setup, setSetup] = createSignal<DownloadSetup | null>(null);
@@ -316,6 +318,8 @@ export function ModelManagerDialog(props: {
       });
       if (disposed || !open()) return;
       const result = await commands.downloadCpuSetup(id, ids);
+      // The job may have saved icons even if it failed later.
+      invalidateSpeakerAssets();
       if (disposed || !open() || operationId !== id) return;
       if (result.status === "error") setError(result.error);
       else

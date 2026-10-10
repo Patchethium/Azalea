@@ -11,12 +11,12 @@ use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 use std::time::Duration;
 
-const CHARACTER_INFO_URL: &str =
-  "https://api.github.com/repos/VOICEVOX/voicevox_resource/contents/character_info?ref=main";
+// One recursive tree lists every character directory and portrait variant.
+const CHARACTER_INFO_URL: &str = "https://api.github.com/repos/VOICEVOX/voicevox_resource/git/trees/main:character_info?recursive=1";
 const RAW_CHARACTER_INFO_URL: &str =
   "https://raw.githubusercontent.com/VOICEVOX/voicevox_resource/main/character_info";
 const MAX_ICON_BYTES: usize = 2 * 1024 * 1024;
-const MAX_DIRECTORY_LIST_BYTES: usize = 2 * 1024 * 1024;
+const MAX_DIRECTORY_LIST_BYTES: usize = 8 * 1024 * 1024;
 const MAX_CONCURRENT_ICON_DOWNLOADS: usize = 8;
 const PNG_SIGNATURE: &[u8; 8] = b"\x89PNG\r\n\x1a\n";
 const HTTP_TIMEOUT: Duration = Duration::from_secs(20);
@@ -37,14 +37,19 @@ pub struct SpeakerIconResult {
   pub error: Option<String>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Type)]
+pub struct SpeakerPortraitResult {
+  pub speaker_uuid: String,
+  /// Whether the speaker's default portrait is cached after the download.
+  pub cached: bool,
+  pub error: Option<String>,
+}
+
 impl SpeakerIconResult {
   fn cached(request: &SpeakerIconRequest, bytes: &[u8]) -> Self {
     Self {
       speaker_uuid: request.speaker_uuid.clone(),
-      data_url: Some(format!(
-        "data:image/png;base64,{}",
-        BASE64_STANDARD.encode(bytes)
-      )),
+      data_url: Some(png_data_url(bytes)),
       error: None,
     }
   }
@@ -66,15 +71,88 @@ impl SpeakerIconResult {
   }
 }
 
+fn png_data_url(bytes: &[u8]) -> String {
+  format!("data:image/png;base64,{}", BASE64_STANDARD.encode(bytes))
+}
+
 #[derive(Deserialize)]
-struct CharacterInfoEntry {
-  name: String,
+struct CharacterTree {
+  tree: Vec<CharacterTreeEntry>,
+}
+
+#[derive(Deserialize)]
+struct CharacterTreeEntry {
+  path: String,
   #[serde(rename = "type")]
   kind: String,
 }
 
+/// A `character_info/{name}_{uuid}` directory and the portraits it provides.
+#[derive(Debug, Default, PartialEq)]
+struct CharacterResource {
+  directory: String,
+  portrait: bool,
+  portrait_styles: Vec<u32>,
+}
+
+fn parse_character_tree(entries: Vec<CharacterTreeEntry>) -> Vec<CharacterResource> {
+  let mut resources: Vec<CharacterResource> = Vec::new();
+  for entry in entries {
+    let parts: Vec<&str> = entry.path.split('/').collect();
+    let Some(directory) = parts.first().filter(|name| !name.is_empty()) else {
+      continue;
+    };
+    let index = match resources.iter().position(|r| r.directory == *directory) {
+      Some(index) => index,
+      None if parts.len() == 1 && entry.kind == "tree" => {
+        resources.push(CharacterResource {
+          directory: (*directory).to_owned(),
+          ..Default::default()
+        });
+        resources.len() - 1
+      }
+      None => continue,
+    };
+    if entry.kind != "blob" {
+      continue;
+    }
+    match parts[1..] {
+      ["portrait.png"] => resources[index].portrait = true,
+      ["portraits", file] => {
+        if let Some(style_id) = file
+          .strip_suffix(".png")
+          .and_then(|id| id.parse::<u32>().ok())
+        {
+          resources[index].portrait_styles.push(style_id);
+        }
+      }
+      _ => {}
+    }
+  }
+  resources
+}
+
 fn speaker_icon_dir(assets_root: &Path) -> PathBuf {
   assets_root.join("speaker-icons")
+}
+
+/// The default portrait (`style_id = None`) or a style-specific variant.
+fn speaker_portrait_path(
+  assets_root: &Path,
+  speaker_uuid: &str,
+  style_id: Option<u32>,
+) -> Result<PathBuf, String> {
+  validate_speaker_uuid(speaker_uuid)?;
+  let directory = assets_root.join("speaker-portraits").join(speaker_uuid);
+  Ok(match style_id {
+    Some(style_id) => directory.join(format!("{style_id}.png")),
+    None => directory.join("portrait.png"),
+  })
+}
+
+fn portrait_is_cached(assets_root: &Path, speaker_uuid: &str) -> bool {
+  speaker_portrait_path(assets_root, speaker_uuid, None)
+    .is_ok_and(|path| matches!(read_cached_icon(&path), Ok(Some(_))))
 }
 
 fn validate_speaker_uuid(speaker_uuid: &str) -> Result<(), String> {
@@ -153,7 +231,15 @@ fn ensure_directory(path: &Path) -> Result<(), String> {
 fn write_icon_atomically(assets_root: &Path, path: &Path, bytes: &[u8]) -> Result<(), String> {
   validate_png(bytes)?;
   ensure_directory(assets_root)?;
-  ensure_directory(&speaker_icon_dir(assets_root))?;
+  let parent = path.parent().ok_or("Cached icon path has no parent")?;
+  let relative = parent
+    .strip_prefix(assets_root)
+    .map_err(|_| "Cached icon path is outside the asset directory")?;
+  let mut directory = assets_root.to_path_buf();
+  for component in relative.components() {
+    directory.push(component);
+    ensure_directory(&directory)?;
+  }
 
   let file_name = path
     .file_name()
@@ -212,7 +298,7 @@ async fn response_bytes_limited(mut response: Response, limit: usize) -> Result<
   Ok(bytes)
 }
 
-async fn fetch_character_directories(client: &Client) -> Result<Vec<String>, String> {
+async fn fetch_character_resources(client: &Client) -> Result<Vec<CharacterResource>, String> {
   let response = client
     .get(CHARACTER_INFO_URL)
     .send()
@@ -225,38 +311,45 @@ async fn fetch_character_directories(client: &Client) -> Result<Vec<String>, Str
     ));
   }
   let bytes = response_bytes_limited(response, MAX_DIRECTORY_LIST_BYTES).await?;
-  let entries: Vec<CharacterInfoEntry> = serde_json::from_slice(&bytes)
+  let tree: CharacterTree = serde_json::from_slice(&bytes)
     .map_err(|error| format!("Character resource lookup returned invalid data: {error}"))?;
-  Ok(
-    entries
-      .into_iter()
-      .filter(|entry| entry.kind == "dir")
-      .map(|entry| entry.name)
-      .collect(),
-  )
+  Ok(parse_character_tree(tree.tree))
 }
 
-fn find_character_directory<'a>(directories: &'a [String], speaker_uuid: &str) -> Option<&'a str> {
+fn find_character_resource<'a>(
+  resources: &'a [CharacterResource],
+  speaker_uuid: &str,
+) -> Option<&'a CharacterResource> {
   let suffix = format!("_{speaker_uuid}");
-  directories
+  resources
     .iter()
-    .find(|directory| directory.ends_with(&suffix))
-    .map(String::as_str)
+    .find(|resource| resource.directory.ends_with(&suffix))
 }
 
-fn icon_download_url(directory: &str, style_id: u32) -> Result<Url, String> {
+fn resource_url(segments: &[&str]) -> Result<Url, String> {
   let mut url = Url::parse(RAW_CHARACTER_INFO_URL)
-    .map_err(|error| format!("Invalid icon resource URL: {error}"))?;
+    .map_err(|error| format!("Invalid character resource URL: {error}"))?;
   url
     .path_segments_mut()
-    .map_err(|_| "Icon resource URL cannot contain path segments")?
-    .extend([directory, "icons", &format!("{style_id}.png")]);
+    .map_err(|_| "Character resource URL cannot contain path segments")?
+    .extend(segments);
   Ok(url)
 }
 
-async fn download_icon(client: &Client, directory: &str, style_id: u32) -> Result<Vec<u8>, String> {
+fn icon_download_url(directory: &str, style_id: u32) -> Result<Url, String> {
+  resource_url(&[directory, "icons", &format!("{style_id}.png")])
+}
+
+fn portrait_download_url(directory: &str, style_id: Option<u32>) -> Result<Url, String> {
+  match style_id {
+    Some(style_id) => resource_url(&[directory, "portraits", &format!("{style_id}.png")]),
+    None => resource_url(&[directory, "portrait.png"]),
+  }
+}
+
+async fn download_png(client: &Client, url: Url) -> Result<Vec<u8>, String> {
   let response = client
-    .get(icon_download_url(directory, style_id)?)
+    .get(url)
     .send()
     .await
     .map_err(|error| format!("Icon download failed: {error}"))?;
@@ -300,6 +393,38 @@ fn cached_speaker_icons_at(
     .collect()
 }
 
+fn http_client() -> Result<Client, String> {
+  Client::builder()
+    .timeout(HTTP_TIMEOUT)
+    .user_agent(concat!("Azalea/", env!("CARGO_PKG_VERSION")))
+    .build()
+    .map_err(|error| format!("Failed to create HTTP client: {error}"))
+}
+
+/// Downloads and caches PNG files, returning one result per job in input order.
+async fn download_pngs(
+  client: &Client,
+  assets_root: &Path,
+  jobs: Vec<(PathBuf, Url)>,
+) -> Vec<Result<Vec<u8>, String>> {
+  let mut completed = stream::iter(jobs.into_iter().enumerate())
+    .map(|(index, (path, url))| {
+      let client = client.clone();
+      async move {
+        let written = download_png(&client, url).await.and_then(|bytes| {
+          write_icon_atomically(assets_root, &path, &bytes)?;
+          Ok(bytes)
+        });
+        (index, written)
+      }
+    })
+    .buffer_unordered(MAX_CONCURRENT_ICON_DOWNLOADS)
+    .collect::<Vec<_>>()
+    .await;
+  completed.sort_by_key(|(index, _)| *index);
+  completed.into_iter().map(|(_, written)| written).collect()
+}
+
 async fn download_speaker_icons_at(
   assets_root: &Path,
   requests: Vec<SpeakerIconRequest>,
@@ -326,68 +451,47 @@ async fn download_speaker_icons_at(
   }
 
   if !pending.is_empty() {
-    let client = Client::builder()
-      .timeout(HTTP_TIMEOUT)
-      .user_agent(concat!("Azalea/", env!("CARGO_PKG_VERSION")))
-      .build();
-    match client {
+    let lookup = match http_client() {
+      Ok(client) => fetch_character_resources(&client)
+        .await
+        .map(|resources| (client, resources)),
+      Err(error) => Err(error),
+    };
+    match lookup {
       Err(error) => {
         for (index, _) in pending {
-          results[index] = Some(SpeakerIconResult::failed(
-            &requests[index],
-            format!("Failed to create HTTP client: {error}"),
-          ));
+          results[index] = Some(SpeakerIconResult::failed(&requests[index], &error));
         }
       }
-      Ok(client) => match fetch_character_directories(&client).await {
-        Err(error) => {
-          for (index, _) in pending {
-            results[index] = Some(SpeakerIconResult::failed(&requests[index], &error));
+      Ok((client, resources)) => {
+        let mut jobs = Vec::new();
+        let mut job_indices = Vec::new();
+        for (index, path) in pending {
+          let request = &requests[index];
+          if let Ok(Some(bytes)) = read_cached_icon(&path) {
+            results[index] = Some(SpeakerIconResult::cached(request, &bytes));
+            continue;
           }
-        }
-        Ok(directories) => {
-          let mut downloads = Vec::new();
-          for (index, path) in pending {
-            let request = &requests[index];
-            if let Ok(Some(bytes)) = read_cached_icon(&path) {
-              results[index] = Some(SpeakerIconResult::cached(request, &bytes));
-              continue;
+          let url = find_character_resource(&resources, &request.speaker_uuid)
+            .ok_or_else(|| "No icon resource was found for this speaker".to_owned())
+            .and_then(|resource| icon_download_url(&resource.directory, request.style_id));
+          match url {
+            Ok(url) => {
+              jobs.push((path, url));
+              job_indices.push(index);
             }
-            let Some(directory) = find_character_directory(&directories, &request.speaker_uuid)
-            else {
-              results[index] = Some(SpeakerIconResult::failed(
-                request,
-                "No icon resource was found for this speaker",
-              ));
-              continue;
-            };
-            downloads.push((index, path, directory.to_owned(), request.style_id));
-          }
-
-          let completed = stream::iter(downloads)
-            .map(|(index, path, directory, style_id)| {
-              let client = client.clone();
-              async move {
-                let downloaded = download_icon(&client, &directory, style_id).await;
-                (index, path, downloaded)
-              }
-            })
-            .buffer_unordered(MAX_CONCURRENT_ICON_DOWNLOADS)
-            .collect::<Vec<_>>()
-            .await;
-
-          for (index, path, downloaded) in completed {
-            let request = &requests[index];
-            results[index] = Some(match downloaded {
-              Ok(bytes) => match write_icon_atomically(assets_root, &path, &bytes) {
-                Ok(()) => SpeakerIconResult::cached(request, &bytes),
-                Err(error) => SpeakerIconResult::failed(request, error),
-              },
-              Err(error) => SpeakerIconResult::failed(request, error),
-            });
+            Err(error) => results[index] = Some(SpeakerIconResult::failed(request, error)),
           }
         }
-      },
+        let written = download_pngs(&client, assets_root, jobs).await;
+        for (index, written) in job_indices.into_iter().zip(written) {
+          let request = &requests[index];
+          results[index] = Some(match written {
+            Ok(bytes) => SpeakerIconResult::cached(request, &bytes),
+            Err(error) => SpeakerIconResult::failed(request, error),
+          });
+        }
+      }
     }
   }
 
@@ -400,6 +504,99 @@ async fn download_speaker_icons_at(
       })
     })
     .collect()
+}
+
+/// Downloads each uncached speaker's default and style-specific portraits.
+async fn download_speaker_portraits_at(
+  assets_root: &Path,
+  speaker_uuids: Vec<String>,
+) -> Vec<SpeakerPortraitResult> {
+  let mut errors: Vec<Option<String>> = vec![None; speaker_uuids.len()];
+  let pending: Vec<usize> = (0..speaker_uuids.len())
+    .filter(|&index| {
+      let uuid = &speaker_uuids[index];
+      match validate_speaker_uuid(uuid) {
+        Err(error) => {
+          errors[index] = Some(error);
+          false
+        }
+        Ok(()) => !portrait_is_cached(assets_root, uuid) && !speaker_uuids[..index].contains(uuid),
+      }
+    })
+    .collect();
+
+  if !pending.is_empty() {
+    let lookup = match http_client() {
+      Ok(client) => fetch_character_resources(&client)
+        .await
+        .map(|resources| (client, resources)),
+      Err(error) => Err(error),
+    };
+    match lookup {
+      Err(error) => {
+        for index in pending {
+          errors[index] = Some(error.clone());
+        }
+      }
+      Ok((client, resources)) => {
+        let mut jobs = Vec::new();
+        let mut job_indices = Vec::new();
+        for index in pending {
+          let speaker_uuid = &speaker_uuids[index];
+          let Some(resource) =
+            find_character_resource(&resources, speaker_uuid).filter(|resource| resource.portrait)
+          else {
+            errors[index] = Some("No portrait resource was found for this speaker".into());
+            continue;
+          };
+          let styles =
+            std::iter::once(None).chain(resource.portrait_styles.iter().copied().map(Some));
+          for style_id in styles {
+            match speaker_portrait_path(assets_root, speaker_uuid, style_id)
+              .and_then(|path| Ok((path, portrait_download_url(&resource.directory, style_id)?)))
+            {
+              Ok(job) => {
+                jobs.push(job);
+                job_indices.push(index);
+              }
+              Err(error) => {
+                errors[index].get_or_insert(error);
+              }
+            }
+          }
+        }
+        let written = download_pngs(&client, assets_root, jobs).await;
+        for (index, written) in job_indices.into_iter().zip(written) {
+          if let Err(error) = written {
+            errors[index].get_or_insert(error);
+          }
+        }
+      }
+    }
+  }
+
+  speaker_uuids
+    .into_iter()
+    .zip(errors)
+    .map(|(speaker_uuid, error)| SpeakerPortraitResult {
+      cached: portrait_is_cached(assets_root, &speaker_uuid),
+      speaker_uuid,
+      error,
+    })
+    .collect()
+}
+
+/// Prefers the style's portrait variant and falls back to the default one.
+fn speaker_portrait_at(
+  assets_root: &Path,
+  request: &SpeakerIconRequest,
+) -> Result<Option<String>, String> {
+  let variant = speaker_portrait_path(assets_root, &request.speaker_uuid, Some(request.style_id))?;
+  if let Ok(Some(bytes)) = read_cached_icon(&variant) {
+    return Ok(Some(png_data_url(&bytes)));
+  }
+  let default = speaker_portrait_path(assets_root, &request.speaker_uuid, None)?;
+  Ok(read_cached_icon(&default)?.map(|bytes| png_data_url(&bytes)))
 }
 
 fn assets_size_at(assets_root: &Path) -> Result<u64, String> {
@@ -456,6 +653,22 @@ pub async fn download_speaker_icons(
 ) -> Result<Vec<SpeakerIconResult>, String> {
   let _operation = ASSET_OPERATION_LOCK.lock().await;
   Ok(download_speaker_icons_at(&assets_dir(), requests).await)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn download_speaker_portraits(
+  speaker_uuids: Vec<String>,
+) -> Result<Vec<SpeakerPortraitResult>, String> {
+  let _operation = ASSET_OPERATION_LOCK.lock().await;
+  Ok(download_speaker_portraits_at(&assets_dir(), speaker_uuids).await)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_speaker_portrait(request: SpeakerIconRequest) -> Result<Option<String>, String> {
+  let _operation = ASSET_OPERATION_LOCK.lock().await;
+  speaker_portrait_at(&assets_dir(), &request)
 }
 
 #[tauri::command]
@@ -601,17 +814,166 @@ mod tests {
     assert_eq!(fs::read(outside.join("preserved.bin")).unwrap().len(), 101);
   }
 
+  fn tree_entry(path: &str, kind: &str) -> CharacterTreeEntry {
+    CharacterTreeEntry {
+      path: path.into(),
+      kind: kind.into(),
+    }
+  }
+
+  fn resource(directory: &str) -> CharacterResource {
+    CharacterResource {
+      directory: directory.into(),
+      ..Default::default()
+    }
+  }
+
   #[test]
   fn directory_matching_requires_the_complete_uuid_suffix() {
-    let directories = vec![
-      "001_not-the-speaker".into(),
-      "002_target-speaker-extra".into(),
-      "003_target-speaker".into(),
+    let resources = vec![
+      resource("001_not-the-speaker"),
+      resource("002_target-speaker-extra"),
+      resource("003_target-speaker"),
     ];
 
     assert_eq!(
-      find_character_directory(&directories, "target-speaker"),
+      find_character_resource(&resources, "target-speaker").map(|r| r.directory.as_str()),
       Some("003_target-speaker")
     );
+  }
+
+  #[test]
+  fn character_tree_lists_default_and_style_portraits() {
+    let resources = parse_character_tree(vec![
+      tree_entry("A_one", "tree"),
+      tree_entry("A_one/icons", "tree"),
+      tree_entry("A_one/icons/1.png", "blob"),
+      tree_entry("A_one/portrait.png", "blob"),
+      tree_entry("A_one/portraits", "tree"),
+      tree_entry("A_one/portraits/3.png", "blob"),
+      tree_entry("A_one/portraits/30.png", "blob"),
+      tree_entry("A_one/portraits/readme.md", "blob"),
+      tree_entry("A_one/portraits/x.png", "blob"),
+      tree_entry("B_two", "tree"),
+      tree_entry("B_two/policy.md", "blob"),
+      tree_entry("orphan/portrait.png", "blob"),
+      tree_entry("README.md", "blob"),
+    ]);
+
+    assert_eq!(
+      resources,
+      vec![
+        CharacterResource {
+          directory: "A_one".into(),
+          portrait: true,
+          portrait_styles: vec![3, 30],
+        },
+        resource("B_two"),
+      ]
+    );
+  }
+
+  #[test]
+  fn portrait_paths_reject_traversal_and_resource_urls_are_encoded() {
+    let root = Path::new("assets");
+    assert!(speaker_portrait_path(root, "../speaker", None).is_err());
+    assert_eq!(
+      speaker_portrait_path(root, "speaker", None).unwrap(),
+      root.join("speaker-portraits/speaker/portrait.png")
+    );
+    assert_eq!(
+      speaker_portrait_path(root, "speaker", Some(3)).unwrap(),
+      root.join("speaker-portraits/speaker/3.png")
+    );
+    assert!(portrait_download_url("ず_a", None)
+      .unwrap()
+      .as_str()
+      .ends_with("/character_info/%E3%81%9A_a/portrait.png"));
+    assert!(portrait_download_url("a b", Some(7))
+      .unwrap()
+      .as_str()
+      .ends_with("/character_info/a%20b/portraits/7.png"));
+  }
+
+  #[test]
+  fn portraits_prefer_style_variants_and_fall_back_to_the_default() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path().join("assets");
+    let default = speaker_portrait_path(&root, "speaker", None).unwrap();
+    let variant = speaker_portrait_path(&root, "speaker", Some(3)).unwrap();
+    let variant_png = b"\x89PNG\r\n\x1a\nvariant";
+
+    assert_eq!(
+      speaker_portrait_at(&root, &request("speaker", 1)).unwrap(),
+      None
+    );
+    assert!(!portrait_is_cached(&root, "speaker"));
+
+    write_icon_atomically(&root, &default, VALID_PNG).unwrap();
+    write_icon_atomically(&root, &variant, variant_png).unwrap();
+    assert!(portrait_is_cached(&root, "speaker"));
+    assert_eq!(
+      speaker_portrait_at(&root, &request("speaker", 1)).unwrap(),
+      Some(png_data_url(VALID_PNG))
+    );
+    assert_eq!(
+      speaker_portrait_at(&root, &request("speaker", 3)).unwrap(),
+      Some(png_data_url(variant_png))
+    );
+
+    // A corrupt variant still falls back to the valid default portrait.
+    fs::write(&variant, b"not png").unwrap();
+    assert_eq!(
+      speaker_portrait_at(&root, &request("speaker", 3)).unwrap(),
+      Some(png_data_url(VALID_PNG))
+    );
+    fs::write(&default, b"not png").unwrap();
+    assert!(speaker_portrait_at(&root, &request("speaker", 1)).is_err());
+    assert!(speaker_portrait_at(&root, &request("../x", 1)).is_err());
+  }
+
+  #[test]
+  fn portrait_downloads_skip_cached_duplicate_and_invalid_speakers() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path().join("assets");
+    write_icon_atomically(
+      &root,
+      &speaker_portrait_path(&root, "cached", None).unwrap(),
+      VALID_PNG,
+    )
+    .unwrap();
+
+    // Every speaker is cached, duplicated or invalid, so no lookup is made.
+    let results = tauri::async_runtime::block_on(download_speaker_portraits_at(
+      &root,
+      vec!["cached".into(), "cached".into(), "../bad".into()],
+    ));
+    assert_eq!(
+      results,
+      vec![
+        SpeakerPortraitResult {
+          speaker_uuid: "cached".into(),
+          cached: true,
+          error: None,
+        },
+        SpeakerPortraitResult {
+          speaker_uuid: "cached".into(),
+          cached: true,
+          error: None,
+        },
+        SpeakerPortraitResult {
+          speaker_uuid: "../bad".into(),
+          cached: false,
+          error: Some("Speaker UUID contains invalid filename characters".into()),
+        },
+      ]
+    );
+  }
+
+  #[test]
+  fn writes_outside_the_asset_root_are_rejected() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path().join("assets");
+    assert!(write_icon_atomically(&root, &directory.path().join("x.png"), VALID_PNG).is_err());
   }
 }

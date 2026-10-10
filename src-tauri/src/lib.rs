@@ -44,6 +44,8 @@ fn specta_builder() -> Builder<tauri::Wry> {
       clear_caches,
       get_cached_speaker_icons,
       download_speaker_icons,
+      download_speaker_portraits,
+      get_speaker_portrait,
       get_assets_size,
       clear_assets,
       get_download_setup,

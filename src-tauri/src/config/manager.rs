@@ -1,4 +1,4 @@
-use super::types::side_width_default;
+use super::types::{portrait_ratio_default, side_width_default};
 use anyhow::Result;
 use std::fs::{create_dir_all, File};
 use std::path::PathBuf;
@@ -136,6 +136,9 @@ impl ConfigManager {
     if self.config.ui.side_width != 0 && self.config.ui.side_width < 200 {
       self.config.ui.side_width = side_width_default();
     }
+    if !(0.0..=1.0).contains(&self.config.ui.portrait_ratio) {
+      self.config.ui.portrait_ratio = portrait_ratio_default();
+    }
     Ok(())
   }
 
@@ -242,6 +245,24 @@ mod tests {
       crate::config::types::SetupSource::Downloaded
     );
     assert_eq!(loaded.config.downloaded_setup.cpu_num_threads, 4);
+  }
+
+  #[test]
+  fn load_preserves_collapsed_and_repairs_invalid_portrait_ratio() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("config.toml");
+    let mut manager = ConfigManager::default();
+    for (stored, expected) in [
+      ("0.0", 0.0),
+      ("0.4", 0.4),
+      ("nan", 0.25),
+      ("1.5", 0.25),
+      ("-0.1", 0.25),
+    ] {
+      std::fs::write(&path, format!("[ui]\nportrait_ratio = {stored}\n")).unwrap();
+      manager.load_as(&path).unwrap();
+      assert_eq!(manager.config.ui.portrait_ratio, expected, "{stored}");
+    }
   }
 
   #[test]

@@ -297,6 +297,77 @@ describe("App initialization", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows the selected block's character portrait beside the text blocks", async () => {
+    const requests: unknown[] = [];
+    mockIPC(
+      (command, args) => {
+        if (command === "get_speaker_portrait") {
+          requests.push(args);
+          return "data:image/png;base64,cG9ydHJhaXQ=";
+        }
+        if (command.includes("theme")) return "light";
+        return null;
+      },
+      { shouldMockEvents: true },
+    );
+    mockWindows("main");
+    // jsdom has no layout, so give panels a width for pixel minimum sizes.
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(800);
+    const view = renderApp();
+    await events.initializationEvent.emit({
+      config: config(),
+      core_initialized: true,
+      active_setup_source: "ExistingInstallation",
+      metas,
+      range: [],
+      error: null,
+    });
+    await screen.findByLabelText("Text to synthesize");
+    expect(
+      await screen.findByRole("img", { name: "Portrait of Speaker (Normal)" }),
+    ).toHaveAttribute("src", "data:image/png;base64,cG9ydHJhaXQ=");
+    expect(requests).toContainEqual({
+      request: { speaker_uuid: "speaker-1", style_id: 1 },
+    });
+
+    // The portrait panel reaches the window edge without an outer margin.
+    const editorPanel = screen
+      .getByLabelText("Text to synthesize")
+      .closest("[data-corvu-resizable-panel]")!
+      .parentElement!.closest("[data-corvu-resizable-panel]") as HTMLElement;
+    expect(editorPanel).toHaveClass("mr0");
+
+    // Enter on the handle collapses and restores the panel, like the sidebar.
+    const handle = screen.getByRole("separator", {
+      name: "Resize portrait panel",
+    });
+    expect(view.getConfigStore().config.ui.portrait_ratio).toBe(0.25);
+    fireEvent.keyDown(handle, { key: "Enter" });
+    await waitFor(() =>
+      expect(view.getConfigStore().config.ui.portrait_ratio).toBe(0),
+    );
+    fireEvent.keyDown(handle, { key: "Enter" });
+    await waitFor(() =>
+      expect(view.getConfigStore().config.ui.portrait_ratio).toBeGreaterThan(0),
+    );
+    const ratio = view.getConfigStore().config.ui.portrait_ratio;
+
+    // Without a speaker the panel unmounts and the text blocks take the full
+    // width again, without changing the stored portrait size.
+    const textPanel = screen
+      .getByLabelText("Text to synthesize")
+      .closest("[data-corvu-resizable-panel]") as HTMLElement;
+    view.getTextStore().setTextStore(0, "preset_id", null);
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("separator", { name: "Resize portrait panel" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(textPanel.style.flexBasis).toBe("100%");
+    expect(editorPanel).toHaveClass("mr2");
+    expect(view.getConfigStore().config.ui.portrait_ratio).toBe(ratio);
+  });
+
   it("opens the shared model manager from Config and closes the config dialog", async () => {
     mockIPC(
       (command) => {
