@@ -3,6 +3,7 @@ import { createStore } from "solid-js/store";
 
 type PageType = "config" | "dictionary" | "shortcuts" | "models" | null; // null means main page
 type BottomPanelType = "accent" | "tuning";
+type ConfigSection = "interface" | "project" | "voice" | "synthesis";
 type PendingProjectAction = "new" | "open" | "close" | "quit";
 type LastFocusedCaret = { blockId: string; offset: number } | null;
 
@@ -12,6 +13,8 @@ type UIStoreType = {
   coreInitialized: boolean;
   page: PageType;
   bottomPanel: BottomPanelType;
+  /** Last opened config section; kept for the session only. */
+  configSection: ConfigSection;
   bottom_scroll_pos: number;
   pendingProjectAction: PendingProjectAction | null;
   lastFocusedCaret: LastFocusedCaret;
@@ -24,6 +27,7 @@ const [UIProvider, useUIStore] = createContextProvider(() => {
     coreInitialized: false,
     page: null,
     bottomPanel: "accent",
+    configSection: "interface",
     bottom_scroll_pos: 0,
     pendingProjectAction: null,
     lastFocusedCaret: null,
@@ -35,4 +39,4 @@ const [UIProvider, useUIStore] = createContextProvider(() => {
 });
 
 export { UIProvider, useUIStore };
-export type { PageType, BottomPanelType, PendingProjectAction };
+export type { PageType, BottomPanelType, ConfigSection, PendingProjectAction };

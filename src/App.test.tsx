@@ -46,6 +46,14 @@ const renderApp = () => {
   };
 };
 
+async function openConfigSection(name: string) {
+  const tab = await screen.findByRole("tab", { name });
+  // Synchronous events keep the surrounding async timing unchanged.
+  fireEvent.pointerDown(tab, { pointerType: "mouse", button: 0 });
+  fireEvent.pointerUp(tab, { pointerType: "mouse", button: 0 });
+  fireEvent.click(tab);
+}
+
 describe("App initialization", () => {
   it("opens the voice setup wizard on demand and manages downloads inside it", async () => {
     mockIPC(
@@ -275,6 +283,7 @@ describe("App initialization", () => {
     ).not.toBeInTheDocument();
     view.getConfigStore().setConfig("setup_source", "Downloaded");
     fireEvent.click(screen.getAllByRole("button", { name: "Open config" })[0]);
+    await openConfigSection("Voice");
     fireEvent.click(
       await screen.findByRole("button", { name: "Manage models" }),
     );
@@ -394,6 +403,7 @@ describe("App initialization", () => {
     });
     await screen.findByLabelText("Text to synthesize");
     fireEvent.click(screen.getByRole("button", { name: "Open config" }));
+    await openConfigSection("Voice");
     fireEvent.click(
       await screen.findByRole("button", { name: "Manage models" }),
     );
@@ -490,6 +500,7 @@ describe("App initialization", () => {
           screen.getAllByRole("button", { name: "Open config" })[0],
         );
       openConfig();
+      await openConfigSection("Voice");
       fireEvent.click(
         await screen.findByRole("button", {
           name:
@@ -609,6 +620,7 @@ describe("App initialization", () => {
     const blockId = text.textStore[0].id;
     const presetId = text.projectPresetStore[0].id;
     fireEvent.click(screen.getByRole("button", { name: "Open config" }));
+    await openConfigSection("Voice");
     fireEvent.click(await screen.findByRole("button", { name: "VOICEVOX" }));
     fireEvent.click(screen.getByRole("button", { name: "Close config" }));
     await screen.findByRole("heading", { name: "No voices set up" });
@@ -709,6 +721,7 @@ describe("App initialization", () => {
 
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     fireEvent.click(screen.getAllByRole("button", { name: "打开设置" })[0]);
+    await openConfigSection("语音");
     screen.getByRole("button", { name: "选择位置" }).click();
     await waitFor(() => expect(warn).toHaveBeenCalledOnce());
   });
@@ -735,6 +748,7 @@ describe("App initialization", () => {
     await screen.findByRole("heading", { name: "No voices set up" });
     expect(screen.queryByText("Loading")).not.toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button", { name: "Open config" })[0]);
+    await openConfigSection("Voice");
     expect(
       await screen.findByRole("button", { name: "Pick it" }),
     ).toBeEnabled();

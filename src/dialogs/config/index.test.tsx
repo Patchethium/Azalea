@@ -29,6 +29,10 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: vi.fn(),
 }));
 
+async function openSection(name: string) {
+  await userEvent.click(screen.getByRole("tab", { name }));
+}
+
 describe("ConfigPage", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -75,14 +79,6 @@ describe("ConfigPage", () => {
     expect(
       await screen.findByRole("dialog", { name: "Config" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getAllByRole("button", { name: "Experimental Features" }),
-    ).toHaveLength(4);
-    expect(
-      screen.queryByRole("switch", { name: "Non-blocking synthesis" }),
-    ).not.toBeInTheDocument();
-    expect(appConfig.config.ui.nonblocking_synthesis).toBe(true);
-
     const linearPitch = screen.getByRole("button", {
       name: "Linear",
     });
@@ -103,6 +99,22 @@ describe("ConfigPage", () => {
     await userEvent.keyboard(" ");
     expect(appConfig.config.ui.pitch_scale).toBe("DensityAware");
     expect(densityPitch).toHaveAttribute("aria-pressed", "true");
+
+    const ruler = screen.getByRole("switch", { name: "Pitch ruler" });
+    expect(ruler).toBeChecked();
+    fireEvent.click(ruler);
+    expect(appConfig.pitchRulerEnabled()).toBe(false);
+    fireEvent.click(ruler);
+    expect(appConfig.pitchRulerEnabled()).toBe(true);
+
+    await openSection("Synthesis");
+    expect(
+      screen.getAllByRole("button", { name: "Experimental Features" }),
+    ).toHaveLength(4);
+    expect(
+      screen.queryByRole("switch", { name: "Non-blocking synthesis" }),
+    ).not.toBeInTheDocument();
+    expect(appConfig.config.ui.nonblocking_synthesis).toBe(true);
 
     const buffering = screen.getByRole("switch", {
       name: "Background Buffering for Audio Generation",
@@ -153,13 +165,6 @@ describe("ConfigPage", () => {
     fireEvent.click(preview);
     expect(appConfig.spectrogramPreviewEnabled()).toBe(false);
 
-    const ruler = screen.getByRole("switch", { name: "Pitch ruler" });
-    expect(ruler).toBeChecked();
-    fireEvent.click(ruler);
-    expect(appConfig.pitchRulerEnabled()).toBe(false);
-    fireEvent.click(ruler);
-    expect(appConfig.pitchRulerEnabled()).toBe(true);
-
     const noise = screen.getByRole("switch", {
       name: "Noised pitch generation",
     });
@@ -168,9 +173,8 @@ describe("ConfigPage", () => {
       within(noiseItem).getByRole("button", { name: "Experimental Features" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Synthesis").compareDocumentPosition(noiseItem) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+      screen.getByRole("tabpanel", { name: "Synthesis" }),
+    ).toContainElement(noiseItem);
     expect(
       noiseItem.compareDocumentPosition(buffering) &
         Node.DOCUMENT_POSITION_FOLLOWING,
@@ -298,6 +302,7 @@ describe("ConfigPage", () => {
     ));
 
     await screen.findByRole("dialog", { name: "Config" });
+    await openSection("Synthesis");
     expect(
       screen.queryByText(en.config.pitch_noise_description),
     ).not.toBeInTheDocument();
@@ -355,6 +360,73 @@ describe("ConfigPage", () => {
     await waitFor(() => expect(openConfigDir).toHaveBeenCalledTimes(1));
   });
 
+  it("switches sections from the keyboard and remembers the last one", async () => {
+    vi.spyOn(commands, "getAssetsSize").mockResolvedValue({
+      status: "ok",
+      data: 0,
+    });
+    let ui!: NonNullable<ReturnType<typeof useUIStore>>;
+    const Harness: Component = () => {
+      ui = useUIStore()!;
+      onMount(() => ui.setUIStore("page", "config"));
+      return <ConfigPage />;
+    };
+
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [i18nProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+
+    await screen.findByRole("dialog", { name: "Config" });
+    const list = screen.getByRole("tablist", { name: "Config sections" });
+    expect(list).toHaveAttribute("aria-orientation", "vertical");
+    const interfaceTab = screen.getByRole("tab", { name: "Interface" });
+    expect(interfaceTab).toHaveAttribute("aria-selected", "true");
+    expect(
+      screen.getByRole("switch", { name: "Pitch ruler" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("switch", { name: "Auto Save" }),
+    ).not.toBeInTheDocument();
+
+    await userEvent.click(interfaceTab);
+    expect(interfaceTab).toHaveFocus();
+    await userEvent.keyboard("{ArrowDown}");
+    const projectTab = screen.getByRole("tab", { name: "Project & Export" });
+    expect(projectTab).toHaveFocus();
+    expect(projectTab).toHaveAttribute("aria-selected", "true");
+    expect(ui.uiStore.configSection).toBe("project");
+    expect(interfaceTab).toHaveAttribute("aria-selected", "false");
+    expect(
+      within(
+        screen.getByRole("tabpanel", { name: "Project & Export" }),
+      ).getByRole("switch", { name: "Auto Save" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close config" }));
+    await waitFor(() => expect(ui.uiStore.page).toBeNull());
+    ui.setUIStore("page", "config");
+    await waitFor(() =>
+      expect(
+        screen.getByRole("dialog", { name: "Config" }),
+      ).not.toHaveAttribute("data-closed"),
+    );
+    expect(
+      screen.getByRole("tab", { name: "Project & Export" }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(
+      screen.getByRole("switch", { name: "Auto Save" }),
+    ).toBeInTheDocument();
+  });
+
   it("closes Config and opens the shared model manager from the managed voice setup", async () => {
     vi.spyOn(commands, "getAssetsSize").mockResolvedValue({
       status: "ok",
@@ -390,6 +462,7 @@ describe("ConfigPage", () => {
     expect(
       await screen.findByRole("dialog", { name: "Config" }),
     ).toBeInTheDocument();
+    await openSection("Voice");
     expect(screen.queryByText("Downloaded assets")).not.toBeInTheDocument();
     expect(screen.queryByText("Storage")).not.toBeInTheDocument();
     expect(
@@ -438,10 +511,6 @@ describe("ConfigPage", () => {
     await user.click(await screen.findByText("Dark"));
     expect(appConfig.themeMode()).toBe("Dark");
     expect(appConfig.setupSource()).toBe("ExistingInstallation");
-    expect(screen.getByText("Storage")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Clear cache" }),
-    ).toBeInTheDocument();
 
     const embeddedFont = screen.getByRole("button", { name: "Embedded" });
     expect(embeddedFont).toHaveAttribute("aria-pressed", "false");
@@ -460,11 +529,6 @@ describe("ConfigPage", () => {
     expect(playbackTimeline).toBeChecked();
     await user.click(playbackTimeline);
     expect(appConfig.playbackTimelineEnabled()).toBe(false);
-
-    const autoSave = screen.getByRole("switch", { name: "Auto Save" });
-    expect(autoSave).not.toBeChecked();
-    await user.click(autoSave);
-    expect(appConfig.config.ui.auto_save).toBe(true);
 
     const resetPrimaryColor = screen.getByRole("button", {
       name: "Restore default primary color",
@@ -497,6 +561,12 @@ describe("ConfigPage", () => {
     expect(appConfig.config.ui.primary_color).toMatch(/^#[0-9a-f]{6}$/);
     expect(appConfig.config.ui.primary_color).not.toBe("#808080");
 
+    await openSection("Project & Export");
+    const autoSave = screen.getByRole("switch", { name: "Auto Save" });
+    expect(autoSave).not.toBeChecked();
+    await user.click(autoSave);
+    expect(appConfig.config.ui.auto_save).toBe(true);
+
     const truncation = screen.getAllByRole("spinbutton")[0];
     fireEvent.input(truncation, { target: { value: "12" } });
     fireEvent.change(truncation, { target: { value: "12" } });
@@ -508,6 +578,13 @@ describe("ConfigPage", () => {
     expect(truncation).toHaveValue("12");
     expect(appConfig.config.ui.name_truncation_len).toBe(12);
 
+    await openSection("Voice");
+    expect(screen.getByText("Storage")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Clear cache" }),
+    ).toBeInTheDocument();
+
+    await openSection("Interface");
     await user.click(screen.getByRole("button", { name: /Language/ }));
     await user.click(await screen.findByText(/日本語/));
     expect(appConfig.config.ui.locale).toBe("Ja");
@@ -525,6 +602,7 @@ describe("ConfigPage", () => {
       onMount(() => {
         batch(() => {
           appConfig.setConfig(config());
+          ui.setUIStore("configSection", "project");
           ui.setUIStore("page", "config");
         });
       });
@@ -646,6 +724,7 @@ describe("ConfigPage", () => {
       onMount(() => {
         batch(() => {
           appConfig.setConfig(config());
+          ui.setUIStore("configSection", "project");
           ui.setUIStore("page", "config");
         });
       });
@@ -693,6 +772,7 @@ describe("ConfigPage", () => {
       onMount(() => {
         batch(() => {
           appConfig.setConfig(config());
+          ui.setUIStore("configSection", "voice");
           ui.setUIStore("page", "config");
         });
       });
@@ -739,6 +819,7 @@ describe("ConfigPage", () => {
       onMount(() => {
         batch(() => {
           appConfig.setConfig(config());
+          ui.setUIStore("configSection", "voice");
           ui.setUIStore("page", "config");
         });
       });
@@ -797,6 +878,7 @@ describe("ConfigPage", () => {
       onMount(() => {
         batch(() => {
           appConfig.setConfig(config());
+          ui.setUIStore("configSection", "voice");
           ui.setUIStore("page", "config");
         });
       });
@@ -841,6 +923,7 @@ describe("ConfigPage", () => {
       onMount(() => {
         batch(() => {
           appConfig.setConfig(config());
+          ui.setUIStore("configSection", "voice");
           ui.setUIStore("page", "config");
         });
       });
@@ -967,6 +1050,7 @@ describe("ConfigPage", () => {
             cache_size: 128,
             cpu_num_threads: 4,
           });
+          ui.setUIStore("configSection", "synthesis");
           ui.setUIStore("page", "config");
         });
       });
@@ -1056,6 +1140,7 @@ describe("ConfigPage", () => {
             cache_size: 128,
             cpu_num_threads: 4,
           });
+          ui.setUIStore("configSection", "synthesis");
           ui.setUIStore("page", "config");
         });
       });
@@ -1135,6 +1220,7 @@ describe("ConfigPage", () => {
           });
           ui.setUIStore("coreInitialized", true);
           appConfig.setConfigInitialized(true);
+          ui.setUIStore("configSection", "synthesis");
           ui.setUIStore("page", "config");
         });
       });
@@ -1206,6 +1292,7 @@ describe("ConfigPage", () => {
             cache_size: 128,
             cpu_num_threads: 4,
           });
+          ui.setUIStore("configSection", "synthesis");
           ui.setUIStore("page", "config");
         });
       });
@@ -1274,6 +1361,7 @@ describe("ConfigPage", () => {
       onMount(() => {
         batch(() => {
           appConfig.setConfig(config());
+          ui.setUIStore("configSection", "synthesis");
           ui.setUIStore("page", "config");
         });
       });
