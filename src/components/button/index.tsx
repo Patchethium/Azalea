@@ -4,7 +4,14 @@ import { type JSX, splitProps } from "solid-js";
 interface AppButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement> {
   /** `surface` adds the app's card background for buttons over the canvas. */
   variant?: "default" | "primary" | "surface";
+  /** `sm` fits compact toolbars and action bars. */
+  size?: "sm" | "md";
 }
+
+const sizes = {
+  sm: "px2 py1",
+  md: "px3 py2",
+};
 
 const variants = {
   default:
@@ -16,12 +23,12 @@ const variants = {
 };
 
 export function AppButton(props: AppButtonProps) {
-  const [local, rest] = splitProps(props, ["class", "variant"]);
+  const [local, rest] = splitProps(props, ["class", "variant", "size"]);
   return (
     <Button
       type="button"
       {...rest}
-      class={`rounded-md px3 py2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary-3 disabled:(cursor-not-allowed opacity-50) ${variants[local.variant ?? "default"]} ${local.class ?? ""}`}
+      class={`rounded-md ${sizes[local.size ?? "md"]} text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary-3 disabled:(cursor-not-allowed opacity-50) ${variants[local.variant ?? "default"]} ${local.class ?? ""}`}
     />
   );
 }

@@ -427,11 +427,24 @@ describe("ConfigPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("closes Config and opens the shared model manager from the managed voice setup", async () => {
+  it("embeds the model manager in the managed voice section and keeps it across sections", async () => {
     vi.spyOn(commands, "getAssetsSize").mockResolvedValue({
       status: "ok",
       data: 0,
     });
+    const getDownloadSetup = vi
+      .spyOn(commands, "getDownloadSetup")
+      .mockResolvedValue({
+        status: "ok",
+        data: {
+          directory: "/data/voicevox",
+          core_config: null,
+          loaded_models: null,
+          components: [
+            { id: "0.vvm", bytes: 1024, installed: false, entries: [] },
+          ],
+        },
+      });
     let ui!: NonNullable<ReturnType<typeof useUIStore>>;
     const Harness: Component = () => {
       const appConfig = useConfigStore()!;
@@ -468,10 +481,34 @@ describe("ConfigPage", () => {
     expect(
       screen.queryByRole("button", { name: "Clear cache" }),
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Manage models" }));
-    await waitFor(() => expect(ui.uiStore.page).toBe("models"));
-    expect(screen.getByRole("dialog", { name: "Config" })).toHaveAttribute(
-      "data-closed",
+    expect(
+      screen.queryByRole("button", { name: "Manage models" }),
+    ).not.toBeInTheDocument();
+    const manager = screen.getByRole("region", { name: "Manage models" });
+    expect(
+      await within(manager).findByRole("checkbox", { name: /^0\.vvm/ }),
+    ).toBeInTheDocument();
+    expect(getDownloadSetup).toHaveBeenCalledTimes(1);
+
+    await openSection("Synthesis");
+    expect(
+      screen.queryByRole("region", { name: "Manage models" }),
+    ).not.toBeInTheDocument();
+    await openSection("Voice");
+    expect(
+      within(screen.getByRole("region", { name: "Manage models" })).getByRole(
+        "checkbox",
+        { name: /^0\.vvm/ },
+      ),
+    ).toBeInTheDocument();
+    expect(getDownloadSetup).toHaveBeenCalledTimes(1);
+    expect(ui.uiStore.page).toBe("config");
+
+    ui.setUIStore("page", null);
+    await waitFor(() =>
+      expect(screen.getByRole("dialog", { name: "Config" })).toHaveAttribute(
+        "data-closed",
+      ),
     );
   });
 

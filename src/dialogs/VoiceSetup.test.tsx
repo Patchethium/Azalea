@@ -5,11 +5,17 @@ import {
   type DownloadOutcome,
 } from "$binding";
 import { AppButton } from "@components/button";
-import { VoiceSetup, ModelManagerDialog } from "@dialogs/VoiceSetup";
+import { ModelManager, VoiceSetup } from "@dialogs/VoiceSetup";
 import { open as openExternal } from "@tauri-apps/plugin-shell";
 import { listen } from "@tauri-apps/api/event";
 import { MultiProvider } from "@solid-primitives/context";
-import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@solidjs/testing-library";
 import userEvent from "@testing-library/user-event";
 import { batch, createSignal, onMount } from "solid-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -70,11 +76,7 @@ let store: NonNullable<ReturnType<typeof useConfigStore>>;
 let uiStore: NonNullable<ReturnType<typeof useUIStore>>;
 let metaStore: NonNullable<ReturnType<typeof useMetaStore>>;
 const unlisten = vi.fn();
-function mount(
-  existing = true,
-  downloaded = false,
-  modelManager?: "inline" | "sidebar",
-) {
+function mount(existing = true, downloaded = false) {
   const Harness = () => {
     store = useConfigStore()!;
     metaStore = useMetaStore()!;
@@ -98,11 +100,14 @@ function mount(
     );
     return (
       <>
-        <VoiceSetup modelManager={modelManager} />
+        <VoiceSetup />
         <AppButton onClick={() => setModelsOpen(true)}>
           Open model manager
         </AppButton>
-        <ModelManagerDialog open={modelsOpen()} onOpenChange={setModelsOpen} />
+        <AppButton onClick={() => setModelsOpen(false)}>
+          Close model manager
+        </AppButton>
+        <ModelManager active={modelsOpen()} />
       </>
     );
   };
@@ -171,7 +176,7 @@ describe("VoiceSetup", () => {
     });
   });
 
-  it("switches setups with the keyboard without rendering a manager trigger by default", async () => {
+  it("switches setups with the keyboard without rendering a manager trigger", async () => {
     mount();
     store.setConfig("setup_source", "ExistingInstallation");
     const user = userEvent.setup();
@@ -192,26 +197,6 @@ describe("VoiceSetup", () => {
     await user.click(screen.getByRole("button", { name: "VOICEVOX" }));
     expect(store.setupChangePending()).toBe(false);
     expect(store.config.core).toEqual(installedCore);
-  });
-
-  it("opens the shared model manager page in sidebar mode", async () => {
-    mount(true, false, "sidebar");
-    expect(
-      await screen.findByRole("button", { name: "Manage models" }),
-    ).toBeInTheDocument();
-    store.setConfig("setup_source", "ExistingInstallation");
-    expect(
-      screen.queryByRole("button", { name: "Manage models" }),
-    ).not.toBeInTheDocument();
-    store.setConfig("setup_source", "Downloaded");
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Manage models" }),
-    );
-    expect(uiStore.uiStore.page).toBe("models");
-    expect(
-      screen.queryByRole("dialog", { name: "Manage models" }),
-    ).not.toBeInTheDocument();
-    expect(commands.getDownloadSetup).not.toHaveBeenCalled();
   });
 
   it("locks further switches while a setup check is pending and drops unmounted results", async () => {
@@ -331,7 +316,44 @@ describe("VoiceSetup", () => {
     expect(screen.getByRole("checkbox", { name: /^0\.vvm/ })).toBeEnabled();
     expect(screen.getByRole("checkbox", { name: /^n0\.vvm/ })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Delete 0.vvm" })).toBeEnabled();
+    // Downloaded packages keep their size and add only a labelled icon.
+    const installed = screen
+      .getByRole("checkbox", { name: /^0\.vvm/ })
+      .closest("li")!;
+    expect(installed).toHaveTextContent("3 MB");
+    expect(
+      within(installed).getByRole("img", { name: "Downloaded" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Downloaded")).not.toBeInTheDocument();
     expect(screen.getByText("Download size: 0 MB")).toBeInTheDocument();
+  });
+
+  it("lists speakers on collapsed packages and expands them for styles", async () => {
+    const catalog = setup();
+    catalog.components[2].entries = [
+      { character: "ずんだもん", style: "ノーマル", style_id: 3 },
+      { character: "四国めたん", style: "ノーマル", style_id: 2 },
+      { character: "ずんだもん", style: "あまあま", style_id: 1 },
+    ];
+    vi.mocked(commands.getDownloadSetup).mockResolvedValue({
+      status: "ok",
+      data: catalog,
+    });
+    mount();
+    await open();
+    const card = screen.getByRole("button", { name: /^0\.vvm/ });
+    expect(card).toHaveTextContent("ずんだもん、四国めたん");
+    expect(card).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("ノーマル、あまあま")).not.toBeInTheDocument();
+    // A package without styles has nothing to expand.
+    expect(screen.getByRole("button", { name: /^n0\.vvm/ })).toBeDisabled();
+
+    fireEvent.click(card);
+    expect(card).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("ノーマル、あまあま")).toBeInTheDocument();
+    expect(screen.getByText("四国めたん", { selector: "dt" })).toBeVisible();
+    // Expanding a card leaves its selection alone.
+    expect(screen.getByRole("checkbox", { name: /^0\.vvm/ })).not.toBeChecked();
   });
 
   it("uses only applicable selected packages for bulk download and deletion", async () => {
@@ -804,8 +826,12 @@ describe("VoiceSetup", () => {
     );
     lookup.resolve({ status: "ok", data: setup(true) });
     await waitFor(() =>
-      expect(screen.getByRole("dialog")).toHaveAttribute("data-closed"),
+      expect(commands.getDownloadSetup).toHaveBeenCalledTimes(3),
     );
+    await Promise.resolve();
+    expect(
+      screen.queryByRole("checkbox", { name: /^0\.vvm/ }),
+    ).not.toBeInTheDocument();
     expect(store.setupSource()).toBe("Downloaded");
   });
 

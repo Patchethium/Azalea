@@ -7,9 +7,8 @@ import {
 } from "$binding";
 import { AppButton } from "@components/button";
 import { IconButton } from "@components/iconButton";
-import { AppDialogContent } from "@dialogs/AppContent";
 import { Checkbox } from "@kobalte/core/checkbox";
-import { Dialog } from "@kobalte/core/dialog";
+import { Collapsible } from "@kobalte/core/collapsible";
 import { Link } from "@kobalte/core/link";
 import { open as openExternal } from "@tauri-apps/plugin-shell";
 import { ToggleGroup } from "@kobalte/core/toggle-group";
@@ -18,6 +17,7 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  createUniqueId,
   For,
   onCleanup,
   Show,
@@ -31,14 +31,7 @@ export function formatDownloadSize(bytes: number) {
   return `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(bytes / 1024 / 1024)} MB`;
 }
 
-export function VoiceSetup(props: {
-  /**
-   * Renders the manage-models button for the managed setup. `inline` opens a
-   * nested dialog (the setup wizard), `sidebar` switches to the shared sidebar
-   * page and closes the surrounding dialog.
-   */
-  modelManager?: "inline" | "sidebar";
-}) {
+export function VoiceSetup() {
   const { t1 } = usei18n()!;
   const {
     config,
@@ -54,9 +47,8 @@ export function VoiceSetup(props: {
     coreSwitching,
     coreInitializeResource,
   } = useConfigStore()!;
-  const { uiStore, setUIStore } = useUIStore()!;
+  const { uiStore } = useUIStore()!;
   const [busy, setBusy] = createSignal(false);
-  const [modelsOpen, setModelsOpen] = createSignal(false);
   let revision = 0;
   let disposed = false;
 
@@ -171,32 +163,17 @@ export function VoiceSetup(props: {
           {t1("init_dialog.installed.button")}
         </AppButton>
       </Show>
-      <Show when={props.modelManager && setupSource() === "Downloaded"}>
-        <AppButton
-          onClick={() =>
-            props.modelManager === "sidebar"
-              ? setUIStore("page", "models")
-              : setModelsOpen(true)
-          }
-        >
-          {t1("voice_setup.manage")}
-        </AppButton>
-        <Show when={props.modelManager === "inline"}>
-          <ModelManagerDialog
-            open={modelsOpen()}
-            onOpenChange={setModelsOpen}
-          />
-        </Show>
-      </Show>
     </section>
   );
 }
 
-/** Installed packages and available downloads share the fixed CPU catalog. */
-export function ModelManagerDialog(props: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
+/**
+ * Installed packages and available downloads share the fixed CPU catalog.
+ * `active` is false while the surrounding page is closed; running downloads
+ * are cancelled and stale responses are ignored.
+ */
+export function ModelManager(props: { active: boolean }) {
+  const titleId = createUniqueId();
   const { t1, t2 } = usei18n()!;
   const {
     setDownloadedCore,
@@ -208,7 +185,7 @@ export function ModelManagerDialog(props: {
   } = useConfigStore()!;
   const { invalidateSpeakerAssets } = useMetaStore()!;
   const { uiStore } = useUIStore()!;
-  const open = () => props.open;
+  const open = () => props.active;
   const [setup, setSetup] = createSignal<DownloadSetup | null>(null);
   const [selected, setSelected] = createSignal<string[]>([]);
   const [downloading, setDownloading] = createSignal<string[]>([]);
@@ -387,7 +364,7 @@ export function ModelManagerDialog(props: {
         if (!disposed) setError(coreError() ?? t1("voice_setup.incomplete"));
         return;
       }
-      if (!disposed) props.onOpenChange(false);
+      if (!disposed && open()) await refresh();
     } catch (cause) {
       if (!disposed) setError(String(cause));
     } finally {
@@ -444,273 +421,316 @@ export function ModelManagerDialog(props: {
     );
 
   return (
-    <Dialog open={open()} onOpenChange={props.onOpenChange}>
-      <AppDialogContent
-        title={t1("voice_setup.manage")}
-        closeLabel={t1("voice_setup.close")}
-        class="w-[min(90vw,48rem)]"
-      >
-        <div class="flex min-h-0 flex-1 flex-col gap4 overflow-auto p4">
-          <div class="flex items-start gap2">
-            <p class="m0 flex-1 text-sm text-slate-6 dark:text-slate-3">
-              {t1("voice_setup.description")}
-            </p>
-            <Show when={setup()}>
-              <IconButton
-                icon="i-lucide:refresh-cw"
-                iconSize="sm"
-                label={t1("voice_setup.refresh")}
-                disabled={busy() || loading()}
-                onClick={() => {
-                  setError(null);
-                  void refresh();
-                }}
-              />
-            </Show>
-          </div>
-          <Show when={loading()}>
-            <p role="status" class="m0 text-sm">
-              {t1("voice_setup.loading")}
-            </p>
-          </Show>
-          <Show when={error()}>
-            <p role="alert" class="m0 text-sm text-red-6 dark:text-red-4">
-              {error()}
-            </p>
-          </Show>
-          <Show when={notice()}>
-            <p role="status" class="m0 text-sm">
-              {notice()}
-            </p>
-          </Show>
+    <section
+      aria-labelledby={titleId}
+      class="flex flex-col gap3 b-t b-slate-2 pt3 dark:b-slate-6"
+    >
+      <h3 id={titleId} class="m0 font-semibold">
+        {t1("voice_setup.manage")}
+      </h3>
+      <div class="flex flex-col gap4">
+        <div class="flex items-start gap2">
+          <p class="m0 flex-1 text-sm text-slate-6 dark:text-slate-3">
+            {t1("voice_setup.description")}
+          </p>
           <Show when={setup()}>
-            <section class="flex flex-col gap2">
-              <h3 class="m0 text-sm font-semibold">
-                {t1("voice_setup.required_components")}
-              </h3>
-              <ul class="m0 flex flex-col list-none overflow-hidden rounded-md b b-slate-2 p0 dark:b-slate-6">
-                <For each={required()}>
-                  {(component) => (
-                    <li class="flex items-center gap2 px3 py2 text-sm [&+li]:(b-t b-slate-2 dark:b-slate-6)">
-                      <span class="flex-1">{requiredLabel(component.id)}</span>
-                      <PackageStatus
-                        installed={component.installed}
-                        bytes={component.bytes}
-                      />
-                    </li>
-                  )}
-                </For>
-              </ul>
-            </section>
-            <For each={[true, false]}>
-              {(installed) => (
-                <Show when={packages().some((c) => c.installed === installed)}>
-                  <section class="flex flex-col gap2">
-                    <div class="flex items-center gap2 b b-transparent px3">
-                      <Checkbox
-                        checked={groupSelection(installed) === "all"}
-                        indeterminate={groupSelection(installed) === "some"}
-                        disabled={actionDisabled()}
-                        onChange={(checked) => selectGroup(installed, checked)}
-                        class="flex"
-                      >
-                        <Checkbox.Input
-                          aria-label={t1(
-                            installed
-                              ? "voice_setup.select_all_downloaded"
-                              : "voice_setup.select_all_available",
-                          )}
-                        />
-                        <SelectionControl
-                          indeterminate={groupSelection(installed) === "some"}
-                        />
-                      </Checkbox>
-                      <h3 class="m0 text-sm font-semibold">
-                        {t1(
-                          installed
-                            ? "voice_setup.downloaded_models"
-                            : "voice_setup.available_models",
-                        )}
-                      </h3>
-                      <span class="text-xs text-slate-5">
-                        {
-                          packages().filter((c) => c.installed === installed)
-                            .length
-                        }
-                      </span>
-                    </div>
-                    <ul class="m0 flex flex-col list-none overflow-hidden rounded-md b b-slate-2 p0 dark:b-slate-6">
-                      <For
-                        each={packages().filter(
-                          (c) => c.installed === installed,
-                        )}
-                      >
-                        {(component) => (
-                          <li class="flex items-center gap3 px3 py2 hover:bg-slate-50 dark:hover:bg-slate-7/50 [&+li]:(b-t b-slate-2 dark:b-slate-6)">
-                            <Checkbox
-                              checked={selected().includes(component.id)}
-                              disabled={actionDisabled()}
-                              onChange={(checked) =>
-                                toggleSelected(component.id, checked)
-                              }
-                              class="min-w-0 flex flex-1 items-start gap2"
-                            >
-                              <Checkbox.Input aria-label={component.id} />
-                              <SelectionControl class="mt0.5" />
-                              <Checkbox.Label class="min-w-0 flex flex-1 flex-col gap0.5 cursor-pointer text-sm">
-                                <span class="font-semibold">
-                                  {component.id}
-                                </span>
-                                <span
-                                  lang="ja"
-                                  class="text-xs text-slate-6 dark:text-slate-3"
-                                >
-                                  {component.entries
-                                    .map((e) => `${e.character}（${e.style}）`)
-                                    .join("、")}
-                                </span>
-                              </Checkbox.Label>
-                            </Checkbox>
-                            <PackageStatus
-                              installed={component.installed}
-                              bytes={component.bytes}
-                            />
-                            <IconButton
-                              icon={
-                                component.installed
-                                  ? "i-lucide:trash-2"
-                                  : "i-lucide:download"
-                              }
-                              iconSize="sm"
-                              size="md"
-                              tone={component.installed ? "danger" : "primary"}
-                              label={`${t1(component.installed ? "voice_setup.delete" : "voice_setup.download")} ${component.id}`}
-                              disabled={actionDisabled()}
-                              onClick={() =>
-                                void (component.installed
-                                  ? deleteModels([component.id])
-                                  : download([component.id]))
-                              }
-                            />
-                          </li>
-                        )}
-                      </For>
-                    </ul>
-                  </section>
-                </Show>
-              )}
-            </For>
-            <div class="flex flex-col gap1 text-xs text-slate-5">
-              <div class="flex flex-wrap gap3">
-                <For each={terms}>
-                  {(item) => (
-                    <Link
-                      href={item.href}
-                      onClick={(event) => {
-                        event.preventDefault();
-                        void openExternal(item.href).catch((cause) => {
-                          if (!disposed) setError(String(cause));
-                        });
-                      }}
-                      class="text-primary-6 underline outline-none focus-visible:ring-2 focus-visible:ring-primary-3"
-                    >
-                      {t1(item.label)}
-                    </Link>
-                  )}
-                </For>
-              </div>
-              <p class="m0 break-all">
-                {t1("voice_setup.location")}: {setup()!.directory}
-              </p>
-            </div>
+            <IconButton
+              icon="i-lucide:refresh-cw"
+              iconSize="sm"
+              label={t1("voice_setup.refresh")}
+              disabled={busy() || loading()}
+              onClick={() => {
+                setError(null);
+                void refresh();
+              }}
+            />
           </Show>
         </div>
-        <div class="flex shrink-0 flex-col gap3 b-t b-slate-2 p4 dark:b-slate-6">
-          <Show when={setup() && selected().length}>
-            <div class="flex flex-wrap items-center gap2 rounded-md bg-slate-1 px3 py2 text-sm dark:bg-slate-7">
-              <span class="flex-1">
-                {t2("voice_setup.selected_count", {
-                  count: selected().length,
-                })}
-              </span>
-              <AppButton
-                disabled={
-                  actionDisabled() ||
-                  (!selectedDownloads().length &&
-                    required().every((c) => c.installed))
-                }
-                onClick={() =>
-                  void download(
-                    selectedDownloads().length
-                      ? selectedDownloads()
-                      : selected(),
-                  )
-                }
-              >
-                {t1("voice_setup.download_all")}
-              </AppButton>
-              <AppButton
-                class="hover:(!b-red-5 !bg-red-5)"
-                disabled={actionDisabled() || !selectedDeletes().length}
-                onClick={() => void deleteModels(selectedDeletes())}
-              >
-                {t1("voice_setup.delete_all")}
-              </AppButton>
-              <AppButton
-                disabled={actionDisabled()}
-                onClick={() => setSelected([])}
-              >
-                {t1("voice_setup.clear_selection")}
-              </AppButton>
-            </div>
-          </Show>
-          <Show when={progress()}>
-            {(p) => (
-              <Progress
-                value={p().completed_bytes}
-                maxValue={p().total_bytes}
-                class="flex flex-col gap1"
-              >
-                <Progress.Label class="text-sm">
-                  {p().component_id === "speaker-icons"
-                    ? t1("speaker_selection.downloading_icons")
-                    : `${p().component_id} — ${p().extracting ? t1("voice_setup.extracting") : formatDownloadSize(p().completed_bytes)}`}
-                </Progress.Label>
-                <Progress.Track class="h2 overflow-hidden rounded bg-slate-2 dark:bg-slate-6">
-                  <Progress.Fill class="h-full w-[var(--kb-progress-fill-width)] bg-primary-5" />
-                </Progress.Track>
-              </Progress>
+        <Show when={loading()}>
+          <p role="status" class="m0 text-sm">
+            {t1("voice_setup.loading")}
+          </p>
+        </Show>
+        <Show when={error()}>
+          <p role="alert" class="m0 text-sm text-red-6 dark:text-red-4">
+            {error()}
+          </p>
+        </Show>
+        <Show when={notice()}>
+          <p role="status" class="m0 text-sm">
+            {notice()}
+          </p>
+        </Show>
+        <Show when={setup()}>
+          <section class="flex flex-col gap2">
+            <h3 class="m0 text-sm font-semibold">
+              {t1("voice_setup.required_components")}
+            </h3>
+            <ul class="m0 flex flex-col list-none overflow-hidden rounded-md b b-slate-2 p0 dark:b-slate-6">
+              <For each={required()}>
+                {(component) => (
+                  <li class="flex items-center gap2 px3 py2 text-sm [&+li]:(b-t b-slate-2 dark:b-slate-6)">
+                    <span class="flex-1">{requiredLabel(component.id)}</span>
+                    <PackageStatus
+                      installed={component.installed}
+                      bytes={component.bytes}
+                    />
+                  </li>
+                )}
+              </For>
+            </ul>
+          </section>
+          <For each={[true, false]}>
+            {(installed) => (
+              <Show when={packages().some((c) => c.installed === installed)}>
+                <section class="flex flex-col gap2">
+                  <div class="flex items-center gap2 b b-transparent px3">
+                    <Checkbox
+                      checked={groupSelection(installed) === "all"}
+                      indeterminate={groupSelection(installed) === "some"}
+                      disabled={actionDisabled()}
+                      onChange={(checked) => selectGroup(installed, checked)}
+                      class="flex"
+                    >
+                      <Checkbox.Input
+                        aria-label={t1(
+                          installed
+                            ? "voice_setup.select_all_downloaded"
+                            : "voice_setup.select_all_available",
+                        )}
+                      />
+                      <SelectionControl
+                        indeterminate={groupSelection(installed) === "some"}
+                      />
+                    </Checkbox>
+                    <h3 class="m0 text-sm font-semibold">
+                      {t1(
+                        installed
+                          ? "voice_setup.downloaded_models"
+                          : "voice_setup.available_models",
+                      )}
+                    </h3>
+                    <span class="text-xs text-slate-5">
+                      {
+                        packages().filter((c) => c.installed === installed)
+                          .length
+                      }
+                    </span>
+                  </div>
+                  <ul class="m0 flex flex-col list-none overflow-hidden rounded-md b b-slate-2 p0 dark:b-slate-6">
+                    <For
+                      each={packages().filter((c) => c.installed === installed)}
+                    >
+                      {(component) => (
+                        <li class="[&+li]:(b-t b-slate-2 dark:b-slate-6)">
+                          <Collapsible disabled={!component.entries.length}>
+                            <div class="flex items-center gap3 px3 py2 hover:bg-slate-50 dark:hover:bg-slate-7/50">
+                              <Checkbox
+                                checked={selected().includes(component.id)}
+                                disabled={actionDisabled()}
+                                onChange={(checked) =>
+                                  toggleSelected(component.id, checked)
+                                }
+                                class="flex shrink-0"
+                              >
+                                <Checkbox.Input aria-label={component.id} />
+                                <SelectionControl />
+                              </Checkbox>
+                              <Collapsible.Trigger class="group min-w-0 flex flex-1 items-center gap2 rounded bg-transparent p0 text-left outline-none enabled:cursor-pointer focus-visible:(ring-2 ring-primary-3)">
+                                <span class="min-w-0 flex flex-1 flex-col gap0.5 text-sm">
+                                  <span class="font-semibold">
+                                    {component.id}
+                                  </span>
+                                  <span
+                                    lang="ja"
+                                    class="truncate text-xs text-slate-6 dark:text-slate-3"
+                                  >
+                                    {groupStyles(component.entries)
+                                      .map(([character]) => character)
+                                      .join("、")}
+                                  </span>
+                                </span>
+                                <Show when={component.entries.length}>
+                                  <div
+                                    aria-hidden="true"
+                                    class="i-lucide:chevron-down size-4 shrink-0 text-slate-5 transition-transform group-data-[expanded]:rotate-180"
+                                  />
+                                </Show>
+                              </Collapsible.Trigger>
+                              <PackageStatus
+                                installed={component.installed}
+                                bytes={component.bytes}
+                              />
+                              <IconButton
+                                icon={
+                                  component.installed
+                                    ? "i-lucide:trash-2"
+                                    : "i-lucide:download"
+                                }
+                                iconSize="sm"
+                                size="md"
+                                tone={
+                                  component.installed ? "danger" : "primary"
+                                }
+                                label={`${t1(component.installed ? "voice_setup.delete" : "voice_setup.download")} ${component.id}`}
+                                disabled={actionDisabled()}
+                                onClick={() =>
+                                  void (component.installed
+                                    ? deleteModels([component.id])
+                                    : download([component.id]))
+                                }
+                              />
+                            </div>
+                            <Collapsible.Content class="pb2 pl-11 pr3">
+                              <dl
+                                lang="ja"
+                                class="m0 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs"
+                              >
+                                <For each={groupStyles(component.entries)}>
+                                  {([character, styles]) => (
+                                    <>
+                                      <dt class="font-semibold">{character}</dt>
+                                      <dd class="m0 text-slate-6 dark:text-slate-3">
+                                        {styles.join("、")}
+                                      </dd>
+                                    </>
+                                  )}
+                                </For>
+                              </dl>
+                            </Collapsible.Content>
+                          </Collapsible>
+                        </li>
+                      )}
+                    </For>
+                  </ul>
+                </section>
+              </Show>
             )}
-          </Show>
-          <div class="flex flex-wrap items-center gap2">
-            <Show when={setup()}>
-              <p class="m0 text-sm">
-                {t1("voice_setup.total")}: {formatDownloadSize(totalBytes())}
-              </p>
-            </Show>
-            <div class="flex-1" />
-            <Show when={busy() && operationId}>
-              <AppButton onClick={() => void cancel()}>
-                {t1("voice_setup.cancel")}
-              </AppButton>
-            </Show>
-            <Show when={!setup() && !loading()}>
-              <AppButton onClick={() => void refresh()}>
-                {t1("voice_setup.retry")}
-              </AppButton>
-            </Show>
+          </For>
+          <div class="flex flex-col gap1 text-xs text-slate-5">
+            <div class="flex flex-wrap gap3">
+              <For each={terms}>
+                {(item) => (
+                  <Link
+                    href={item.href}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      void openExternal(item.href).catch((cause) => {
+                        if (!disposed) setError(String(cause));
+                      });
+                    }}
+                    class="text-primary-6 underline outline-none focus-visible:ring-2 focus-visible:ring-primary-3"
+                  >
+                    {t1(item.label)}
+                  </Link>
+                )}
+              </For>
+            </div>
+            <p class="m0 break-all">
+              {t1("voice_setup.location")}: {setup()!.directory}
+            </p>
+          </div>
+        </Show>
+      </div>
+      {/* Keep the actions in view while the surrounding page scrolls. */}
+      <div class="sticky bottom-0 flex flex-col gap2 b-t b-slate-2 bg-white py2 dark:(b-slate-6 bg-slate-8)">
+        <Show when={setup() && selected().length}>
+          <div class="flex flex-wrap items-center gap1 rounded-md bg-slate-1 py1 pl3 pr1 text-sm dark:bg-slate-7">
+            <span class="flex-1">
+              {t2("voice_setup.selected_count", {
+                count: selected().length,
+              })}
+            </span>
             <AppButton
-              variant="primary"
-              disabled={busy() || loading() || !applyPending()}
-              onClick={() => void activate()}
+              size="sm"
+              disabled={
+                actionDisabled() ||
+                (!selectedDownloads().length &&
+                  required().every((c) => c.installed))
+              }
+              onClick={() =>
+                void download(
+                  selectedDownloads().length ? selectedDownloads() : selected(),
+                )
+              }
             >
-              {t1("voice_setup.use_downloaded")}
+              {t1("voice_setup.download_all")}
+            </AppButton>
+            <AppButton
+              size="sm"
+              class="hover:(!b-red-5 !bg-red-5)"
+              disabled={actionDisabled() || !selectedDeletes().length}
+              onClick={() => void deleteModels(selectedDeletes())}
+            >
+              {t1("voice_setup.delete_all")}
+            </AppButton>
+            <AppButton
+              size="sm"
+              disabled={actionDisabled()}
+              onClick={() => setSelected([])}
+            >
+              {t1("voice_setup.clear_selection")}
             </AppButton>
           </div>
+        </Show>
+        <Show when={progress()}>
+          {(p) => (
+            <Progress
+              value={p().completed_bytes}
+              maxValue={p().total_bytes}
+              class="flex flex-col gap1"
+            >
+              <Progress.Label class="text-sm">
+                {p().component_id === "speaker-icons"
+                  ? t1("speaker_selection.downloading_icons")
+                  : `${p().component_id} — ${p().extracting ? t1("voice_setup.extracting") : formatDownloadSize(p().completed_bytes)}`}
+              </Progress.Label>
+              <Progress.Track class="h2 overflow-hidden rounded bg-slate-2 dark:bg-slate-6">
+                <Progress.Fill class="h-full w-[var(--kb-progress-fill-width)] bg-primary-5" />
+              </Progress.Track>
+            </Progress>
+          )}
+        </Show>
+        <div class="flex flex-wrap items-center gap2">
+          <Show when={setup()}>
+            <p class="m0 text-sm">
+              {t1("voice_setup.total")}: {formatDownloadSize(totalBytes())}
+            </p>
+          </Show>
+          <div class="flex-1" />
+          <Show when={busy() && operationId}>
+            <AppButton size="sm" onClick={() => void cancel()}>
+              {t1("voice_setup.cancel")}
+            </AppButton>
+          </Show>
+          <Show when={!setup() && !loading()}>
+            <AppButton size="sm" onClick={() => void refresh()}>
+              {t1("voice_setup.retry")}
+            </AppButton>
+          </Show>
+          <AppButton
+            size="sm"
+            variant="primary"
+            disabled={busy() || loading() || !applyPending()}
+            onClick={() => void activate()}
+          >
+            {t1("voice_setup.use_downloaded")}
+          </AppButton>
         </div>
-      </AppDialogContent>
-    </Dialog>
+      </div>
+    </section>
   );
+}
+
+/** Groups a package's styles by speaker, keeping catalog order. */
+function groupStyles(entries: DownloadSetup["components"][number]["entries"]) {
+  const groups = new Map<string, string[]>();
+  for (const { character, style } of entries) {
+    const styles = groups.get(character);
+    if (styles) styles.push(style);
+    else groups.set(character, [style]);
+  }
+  return [...groups];
 }
 
 /** Shared box for model checkboxes, with a dash for partial group selection. */
@@ -731,18 +751,15 @@ function SelectionControl(props: { class?: string; indeterminate?: boolean }) {
 function PackageStatus(props: { installed: boolean; bytes: number }) {
   const { t1 } = usei18n()!;
   return (
-    <Show
-      when={props.installed}
-      fallback={
-        <span class="shrink-0 whitespace-nowrap text-sm tabular-nums text-slate-6 dark:text-slate-3">
-          {formatDownloadSize(props.bytes)}
-        </span>
-      }
-    >
-      <span class="flex shrink-0 items-center gap1 whitespace-nowrap text-sm text-green-7 dark:text-green-4">
-        <div aria-hidden="true" class="i-lucide:circle-check size-4" />
-        {t1("voice_setup.installed")}
-      </span>
-    </Show>
+    <span class="flex shrink-0 items-center gap1 whitespace-nowrap text-sm tabular-nums text-slate-6 dark:text-slate-3">
+      {formatDownloadSize(props.bytes)}
+      <Show when={props.installed}>
+        <span
+          role="img"
+          aria-label={t1("voice_setup.installed")}
+          class="i-lucide:circle-check size-4 text-green-7 dark:text-green-4"
+        />
+      </Show>
+    </span>
   );
 }

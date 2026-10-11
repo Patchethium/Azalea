@@ -3,7 +3,6 @@ import { DictionaryDialog } from "@dialogs/Dictionary";
 import { ExportAllDialog } from "@dialogs/ExportAll";
 import { ShortcutReferenceDialog } from "@dialogs/ShortcutReference";
 import { UnsavedChangesDialog } from "@dialogs/UnsavedChanges";
-import { ModelManagerDialog } from "@dialogs/VoiceSetup";
 import { Tooltip } from "@components/tooltip";
 import { DropdownMenu } from "@kobalte/core/dropdown-menu";
 import { ToggleGroup } from "@kobalte/core/toggle-group";
@@ -12,16 +11,11 @@ import type { SidebarControls } from "@layout/sidebar/useSidebar";
 import { usei18n } from "@contexts/i18n";
 import type { PageType } from "@contexts/ui";
 import { useConfigStore } from "@contexts/config";
-import { createEffect } from "solid-js";
 
 export function SidebarFooter(props: { controls: SidebarControls }) {
   const { t1 } = usei18n()!;
   const controls = props.controls;
-  const { setupSource, voicesReady } = useConfigStore()!;
-  createEffect(() => {
-    if (setupSource() !== "Downloaded" && controls.uiStore.page === "models")
-      controls.setUIStore("page", null);
-  });
+  const { voicesReady } = useConfigStore()!;
   return (
     <>
       <div class="flex flex-row items-center gap-1">
@@ -118,14 +112,6 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
           </ToggleGroup>
         </div>
       </div>
-      <ModelManagerDialog
-        open={
-          controls.uiStore.page === "models" && setupSource() === "Downloaded"
-        }
-        onOpenChange={(open) =>
-          controls.setUIStore("page", open ? "models" : null)
-        }
-      />
       <AboutDialog
         open={controls.aboutOpen()}
         onOpenChange={controls.setAboutOpen}

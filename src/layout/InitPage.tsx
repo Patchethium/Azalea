@@ -1,13 +1,10 @@
 import { AppButton } from "@components/button";
 import { usei18n } from "@contexts/i18n";
-import { AppDialogContent } from "@dialogs/AppContent";
-import { VoiceSetup } from "@dialogs/VoiceSetup";
-import { Dialog } from "@kobalte/core/dialog";
-import { createSignal } from "solid-js";
+import { useUIStore } from "@contexts/ui";
 
 function InitPage() {
   const { t1 } = usei18n()!;
-  const [open, setOpen] = createSignal(false);
+  const { setUIStore } = useUIStore()!;
 
   return (
     <div class="size-full flex flex-col items-center justify-center gap-3 px-6 text-center">
@@ -21,18 +18,11 @@ function InitPage() {
           {t1("init_dialog.before")}
         </p>
       </div>
-      <AppButton onClick={() => setOpen(true)}>{t1("config.open")}</AppButton>
-      <Dialog open={open()} onOpenChange={setOpen}>
-        <AppDialogContent
-          title={t1("voice_setup.title")}
-          closeLabel={t1("voice_setup.close_setup")}
-          class="w-[min(90vw,32rem)]"
-        >
-          <div class="overflow-auto px4 pb4 text-left">
-            <VoiceSetup modelManager="inline" />
-          </div>
-        </AppDialogContent>
-      </Dialog>
+      <AppButton
+        onClick={() => setUIStore({ page: "config", configSection: "voice" })}
+      >
+        {t1("config.open")}
+      </AppButton>
     </div>
   );
 }

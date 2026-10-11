@@ -277,9 +277,7 @@
     "delete": "Delete"
   },
   "voice_setup": {
-    "close_setup": "Close voice setup",
     "title": "Voice setup",
-    "close": "Close model manager",
     "description": "Choose voice packages. Missing CPU runtime and system dictionary are included automatically. Your custom dictionary is shared between setups.",
     "model_terms": "Model terms",
     "runtime_terms": "Runtime terms",

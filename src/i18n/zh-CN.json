@@ -277,9 +277,7 @@
     "delete": "删除"
   },
   "voice_setup": {
-    "close_setup": "关闭语音设置",
     "title": "语音环境",
-    "close": "关闭模型管理",
     "description": "请选择语音模型包。缺失的 CPU 运行库和系统词典会自动下载。两个环境共享用户词典。",
     "model_terms": "模型使用条款",
     "runtime_terms": "运行库使用条款",

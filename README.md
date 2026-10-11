@@ -39,9 +39,9 @@ existing VOICEVOX installation or download a standalone CPU setup inside Azalea.
 
 #### Downloading only what you need
 
-Choose **Azalea-managed models** in the grouped voice setup control on first
-launch or in Config, then open **Manage models** from the same place. The dialog
-shows the required CPU ONNX Runtime and Open JTalk system dictionary, then lists
+Choose **Azalea-managed models** in the grouped voice setup control in the
+**Voice** section of Config, which the first-launch button opens directly. The
+**Manage models** list below it shows the required CPU ONNX Runtime and Open JTalk system dictionary, then lists
 downloaded models and available packages from the pinned 0.16.4 catalog, with a
 refresh control to recheck their installation status. Each package has its own
 Download or Delete button. Select packages individually or with each list's

@@ -1,7 +1,7 @@
 import { commands } from "$binding";
 import { NumberField, NumberInput } from "@components/numberField";
 import { AppDialogContent } from "@dialogs/AppContent";
-import { VoiceSetup } from "@dialogs/VoiceSetup";
+import { ModelManager, VoiceSetup } from "@dialogs/VoiceSetup";
 import { AssetCacheSetting } from "@dialogs/config/AssetCacheSetting";
 import {
   FontSelect,
@@ -272,8 +272,20 @@ export function ConfigPage() {
               </NumberField>
             </ConfigItem>
           </Tabs.Content>
-          <Tabs.Content value="voice" class={contentClass}>
-            <VoiceSetup modelManager="sidebar" />
+          {/* Stay mounted so switching sections keeps running downloads. */}
+          <Tabs.Content
+            value="voice"
+            forceMount
+            hidden={uiStore.configSection !== "voice"}
+            class={contentClass}
+            // The model manager's sticky footer sits flush with the bottom
+            // edge; scroll padding would leave a gap below it.
+            classList={{ "!pb0": setupSource() === "Downloaded" }}
+          >
+            <VoiceSetup />
+            <Show when={setupSource() === "Downloaded"}>
+              <ModelManager active={uiStore.page === "config"} />
+            </Show>
             {/* Managed downloads keep icons alongside their models. */}
             <Show when={setupSource() !== "Downloaded"}>
               <ConfigSectionTitle label={t1("config.storage")} />

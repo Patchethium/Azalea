@@ -1,7 +1,7 @@
 import { createContextProvider } from "@solid-primitives/context";
 import { createStore } from "solid-js/store";
 
-type PageType = "config" | "dictionary" | "shortcuts" | "models" | null; // null means main page
+type PageType = "config" | "dictionary" | "shortcuts" | null; // null means main page
 type BottomPanelType = "accent" | "tuning";
 type ConfigSection = "interface" | "project" | "voice" | "synthesis";
 type PendingProjectAction = "new" | "open" | "close" | "quit";

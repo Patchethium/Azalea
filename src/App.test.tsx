@@ -55,7 +55,7 @@ async function openConfigSection(name: string) {
 }
 
 describe("App initialization", () => {
-  it("opens the voice setup wizard on demand and manages downloads inside it", async () => {
+  it("opens Config on the voice section from the empty state and manages downloads inside it", async () => {
     mockIPC(
       (command) => {
         if (command === "get_download_setup")
@@ -86,48 +86,52 @@ describe("App initialization", () => {
       screen.queryByRole("button", { name: "Pick it" }),
     ).not.toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button", { name: "Open config" })[1]);
-    expect(
-      await screen.findByRole("dialog", { name: "Voice setup" }),
-    ).toBeVisible();
-    expect(
-      screen.queryByRole("dialog", { name: "Config" }),
-    ).not.toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "Config" })).toBeVisible();
+    expect(screen.getByRole("tab", { name: "Voice" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
     await screen.findByRole("button", { name: "Pick it" });
     expect(
-      screen.queryByRole("button", { name: "Manage models" }),
+      screen.queryByRole("heading", { name: "Manage models" }),
     ).not.toBeInTheDocument();
     fireEvent.click(
       screen.getByRole("button", { name: "Azalea-managed models" }),
-    );
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Manage models" }),
     );
     expect(
       await screen.findByRole("checkbox", { name: /^0\.vvm/ }),
     ).not.toBeChecked();
     expect(
+      screen.getByRole("heading", { name: "Manage models" }),
+    ).toBeInTheDocument();
+    expect(
       screen.getByRole("heading", { name: "Available downloads (0.16.4)" }),
     ).toBeInTheDocument();
     expect(view.getConfigStore().setupSource()).toBe("Downloaded");
-    fireEvent.click(
-      screen.getByRole("button", { name: "Close model manager" }),
-    );
     fireEvent.click(await screen.findByRole("button", { name: "VOICEVOX" }));
     expect(view.getConfigStore().setupSource()).toBe("ExistingInstallation");
     expect(screen.getByRole("button", { name: "Pick it" })).toBeEnabled();
     expect(
-      screen.queryByRole("button", { name: "Manage models" }),
+      screen.queryByRole("heading", { name: "Manage models" }),
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Close voice setup" }));
+    await openConfigSection("Interface");
+    fireEvent.click(screen.getByRole("button", { name: "Close config" }));
     await waitFor(() =>
-      expect(
-        screen.getByRole("dialog", { name: "Voice setup" }),
-      ).toHaveAttribute("data-closed"),
+      expect(screen.getByRole("dialog", { name: "Config" })).toHaveAttribute(
+        "data-closed",
+      ),
     );
+    // The empty state always reopens Config on the voice section.
     fireEvent.click(screen.getAllByRole("button", { name: "Open config" })[1]);
-    expect(
-      await screen.findByRole("dialog", { name: "Voice setup" }),
-    ).toBeVisible();
+    await waitFor(() =>
+      expect(screen.getByRole("tab", { name: "Voice" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      ),
+    );
+    expect(screen.getByRole("dialog", { name: "Config" })).not.toHaveAttribute(
+      "data-closed",
+    );
   });
   it.each([
     ["ExistingInstallation", false],
@@ -205,7 +209,7 @@ describe("App initialization", () => {
     );
   });
 
-  it("keeps the wizard open while initialization is pending and after failure", async () => {
+  it("keeps Config open while initialization is pending and after failure", async () => {
     mockIPC((command) => (command.includes("theme") ? "light" : null), {
       shouldMockEvents: true,
     });
@@ -235,25 +239,32 @@ describe("App initialization", () => {
     await screen.findByRole("heading", { name: "No voices set up" });
     fireEvent.click(screen.getAllByRole("button", { name: "Open config" })[1]);
     fireEvent.click(await screen.findByRole("button", { name: "Pick it" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Loading");
-    expect(screen.getByRole("dialog", { name: "Voice setup" })).toBeVisible();
+    // Storage's asset-size output is also a status in the voice section.
+    await waitFor(() =>
+      expect(
+        screen
+          .getAllByRole("status")
+          .some((status) => status.textContent === "Loading"),
+      ).toBe(true),
+    );
+    expect(screen.getByRole("dialog", { name: "Config" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Pick it" })).toBeDisabled();
     finish({ status: "error", error: "Core could not start" });
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Core could not start",
     );
     expect(screen.getByRole("button", { name: "Pick it" })).toBeEnabled();
-    fireEvent.keyDown(screen.getByRole("dialog", { name: "Voice setup" }), {
+    fireEvent.keyDown(screen.getByRole("dialog", { name: "Config" }), {
       key: "Escape",
     });
     await waitFor(() =>
-      expect(
-        screen.getByRole("dialog", { name: "Voice setup" }),
-      ).toHaveAttribute("data-closed"),
+      expect(screen.getByRole("dialog", { name: "Config" })).toHaveAttribute(
+        "data-closed",
+      ),
     );
   });
 
-  it("opens the model manager only from Config and closes it for a VOICEVOX setup", async () => {
+  it("shows the model manager only in Config and hides it for a VOICEVOX setup", async () => {
     mockIPC(
       (command) => {
         if (command === "get_download_setup")
@@ -284,11 +295,8 @@ describe("App initialization", () => {
     view.getConfigStore().setConfig("setup_source", "Downloaded");
     fireEvent.click(screen.getAllByRole("button", { name: "Open config" })[0]);
     await openConfigSection("Voice");
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Manage models" }),
-    );
     expect(
-      await screen.findByRole("dialog", { name: "Manage models" }),
+      await screen.findByRole("heading", { name: "Manage models" }),
     ).toBeVisible();
     await waitFor(() =>
       expect(
@@ -298,12 +306,9 @@ describe("App initialization", () => {
     view.getConfigStore().setConfig("setup_source", "ExistingInstallation");
     await waitFor(() =>
       expect(
-        screen.getByRole("dialog", { name: "Manage models", hidden: true }),
-      ).toHaveAttribute("data-closed"),
+        screen.queryByRole("heading", { name: "Manage models" }),
+      ).not.toBeInTheDocument(),
     );
-    expect(
-      screen.queryByRole("button", { name: "Manage models" }),
-    ).not.toBeInTheDocument();
   });
 
   it("shows the selected block's character portrait beside the text blocks", async () => {
@@ -377,7 +382,7 @@ describe("App initialization", () => {
     expect(view.getConfigStore().config.ui.portrait_ratio).toBe(ratio);
   });
 
-  it("opens the shared model manager from Config and closes the config dialog", async () => {
+  it("embeds the model manager in Config for the active managed setup", async () => {
     mockIPC(
       (command) => {
         if (command === "get_download_setup")
@@ -404,15 +409,12 @@ describe("App initialization", () => {
     await screen.findByLabelText("Text to synthesize");
     fireEvent.click(screen.getByRole("button", { name: "Open config" }));
     await openConfigSection("Voice");
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Manage models" }),
-    );
     expect(
-      await screen.findByRole("dialog", { name: "Manage models" }),
+      await screen.findByRole("heading", { name: "Manage models" }),
     ).toBeVisible();
-    expect(
-      screen.queryByRole("dialog", { name: "Config" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Config" })).not.toHaveAttribute(
+      "data-closed",
+    );
   });
 
   it.each(["Downloaded", "ExistingInstallation"] as const)(
@@ -541,6 +543,13 @@ describe("App initialization", () => {
         }),
       );
       await screen.findByLabelText("Text to synthesize");
+      // Config stays open after the voices become ready.
+      fireEvent.click(screen.getByRole("button", { name: "Close config" }));
+      await waitFor(() =>
+        expect(screen.getByRole("dialog", { name: "Config" })).toHaveAttribute(
+          "data-closed",
+        ),
+      );
       expect(
         screen.queryByRole("heading", { name: "No voices set up" }),
       ).not.toBeInTheDocument();
@@ -814,9 +823,15 @@ describe("App initialization", () => {
         { timeout: 3_000 },
       ),
     ).toBeInTheDocument();
+    // Config stays open after the voices become ready.
+    fireEvent.click(screen.getByRole("button", { name: "Close config" }));
+    await waitFor(() =>
+      expect(screen.getByRole("dialog", { name: "Config" })).toHaveAttribute(
+        "data-closed",
+      ),
+    );
     expect(screen.getByRole("tab", { name: "Accent" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Create preset" })).toBeEnabled();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     getTextStore().setTextStore([]);
     const create = await screen.findByRole("button", {
