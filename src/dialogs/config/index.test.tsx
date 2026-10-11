@@ -391,6 +391,7 @@ describe("ConfigPage", () => {
       await screen.findByRole("dialog", { name: "Config" }),
     ).toBeInTheDocument();
     expect(screen.queryByText("Downloaded assets")).not.toBeInTheDocument();
+    expect(screen.queryByText("Storage")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Clear cache" }),
     ).not.toBeInTheDocument();
@@ -437,6 +438,7 @@ describe("ConfigPage", () => {
     await user.click(await screen.findByText("Dark"));
     expect(appConfig.themeMode()).toBe("Dark");
     expect(appConfig.setupSource()).toBe("ExistingInstallation");
+    expect(screen.getByText("Storage")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Clear cache" }),
     ).toBeInTheDocument();

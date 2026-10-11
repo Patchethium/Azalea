@@ -209,9 +209,9 @@ export function ConfigPage() {
               </div>
             </NumberField>
           </ConfigItem>
-          <ConfigSectionTitle label={t1("config.storage")} />
           {/* Managed downloads keep icons alongside their models. */}
           <Show when={setupSource() !== "Downloaded"}>
+            <ConfigSectionTitle label={t1("config.storage")} />
             <AssetCacheSetting open={uiStore.page === "config"} />
           </Show>
           <VoiceSetup modelManager="sidebar" />
