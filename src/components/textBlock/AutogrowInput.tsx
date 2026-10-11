@@ -113,10 +113,15 @@ export function AutogrowInput(props: AutogrowInputProps) {
 
   createEffect(() => {
     const request = local.focusRequest ?? null;
+    const active = inputRef?.ownerDocument.activeElement;
+    // Never pull focus out of an open dialog: its focus trap would move it
+    // back and re-run this effect forever.
+    const dialog = active?.closest('[role="dialog"]');
     if (
       local.focused &&
       inputRef !== undefined &&
-      inputRef.ownerDocument.activeElement !== inputRef
+      active !== inputRef &&
+      (dialog == null || dialog.contains(inputRef))
     ) {
       inputRef.focus();
       if (request?.offset != null) placeCaretAtOffset(inputRef, request.offset);

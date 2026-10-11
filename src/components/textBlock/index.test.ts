@@ -78,6 +78,30 @@ describe("TextBlock", () => {
     expect(editor).not.toHaveFocus();
   });
 
+  it("does not pull focus out of an open dialog", async () => {
+    const dialog = document.createElement("div");
+    dialog.setAttribute("role", "dialog");
+    const button = document.createElement("button");
+    dialog.appendChild(button);
+    document.body.appendChild(dialog);
+    button.focus();
+    try {
+      renderAutogrowInput({
+        historyKey: "dialog-editor",
+        text: "hello",
+        setText: vi.fn(),
+        focused: true,
+        placeholder: "Placeholder",
+        "aria-label": "Dialog editor",
+      });
+      await Promise.resolve();
+      expect(screen.getByLabelText("Dialog editor")).not.toHaveFocus();
+      expect(button).toHaveFocus();
+    } finally {
+      dialog.remove();
+    }
+  });
+
   it("reports caret offsets from selection and key events", () => {
     const onCaretChange = vi.fn();
     renderAutogrowInput({
