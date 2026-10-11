@@ -4,16 +4,22 @@ import { PresetManagerDialog } from "@dialogs/PresetManager";
 import { UnsavedChangesDialog } from "@dialogs/UnsavedChanges";
 import { Dialog } from "@kobalte/core/dialog";
 import { MultiProvider } from "@solid-primitives/context";
-import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@solidjs/testing-library";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { batch, createSignal, type Component, onMount } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
 import { ConfigProvider, useConfigStore } from "@contexts/config";
 import { i18nProvider } from "@contexts/i18n";
-import { MetaProvider } from "@contexts/meta";
+import { MetaProvider, useMetaStore } from "@contexts/meta";
 import { TextProvider, useTextStore } from "@contexts/text";
 import { UIProvider } from "@contexts/ui";
-import { config, preset } from "../test/fixtures";
+import { config, metas, preset } from "../test/fixtures";
 
 describe("AppDialogContent", () => {
   it("renders without optional content or classes", () => {
@@ -163,21 +169,21 @@ describe("PresetManagerDialog", () => {
       </MultiProvider>
     ));
 
-    const projectItem = (await screen.findByText("Project Only"))
-      .parentElement!;
-    fireEvent.mouseEnter(projectItem);
-    const copyToSystem = await screen.findByRole("button", {
-      name: "Copy to System",
-    });
+    const row = (name: string, column: string) =>
+      within(screen.getByRole("region", { name: column }))
+        .getByText(name)
+        .closest("li")!;
+    await screen.findByText("Project Only");
+    const copyToSystem = within(
+      row("Project Only", "Project Presets"),
+    ).getByRole("button", { name: "Copy to System" });
     expect(document.querySelector("[title]")).toBeNull();
     fireEvent.focusIn(copyToSystem);
     expect(await screen.findByRole("tooltip")).toHaveTextContent(
       "Copy to System",
     );
     fireEvent.focusOut(copyToSystem);
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Copy to System" }),
-    );
+    fireEvent.click(copyToSystem);
     expect(appConfig.config.system_presets?.map((item) => item.name)).toEqual([
       "System Only",
       "Project Only",
@@ -187,10 +193,10 @@ describe("PresetManagerDialog", () => {
     text.setProjectPresetStore(0, "name", "Changed Project");
     expect(appConfig.config.system_presets?.[1].name).toBe("Project Only");
 
-    const systemItem = screen.getByText("System Only").parentElement!;
-    fireEvent.mouseEnter(systemItem);
     fireEvent.click(
-      await screen.findByRole("button", { name: "Copy to Project" }),
+      within(row("System Only", "System Presets")).getByRole("button", {
+        name: "Copy to Project",
+      }),
     );
     expect(text.projectPresetStore.map((item) => item.name)).toEqual([
       "Changed Project",
@@ -198,24 +204,77 @@ describe("PresetManagerDialog", () => {
     ]);
     expect(text.projectPresetStore[1].id).not.toBe("preset-1");
 
-    fireEvent.mouseEnter(screen.getByText("Changed Project").parentElement!);
     fireEvent.click(
-      (await screen.findAllByRole("button", { name: "Delete" }))[0],
+      within(row("Changed Project", "Project Presets")).getByRole("button", {
+        name: "Delete",
+      }),
     );
     expect(text.projectPresetStore.map((item) => item.name)).toEqual([
       "System Only",
     ]);
     expect(text.textStore[0].preset_id).toBeNull();
 
-    const systemCopies = screen.getAllByText("System Only");
-    fireEvent.mouseEnter(systemCopies[systemCopies.length - 1].parentElement!);
-    const deleteButtons = await screen.findAllByRole("button", {
-      name: "Delete",
-    });
-    fireEvent.click(deleteButtons[deleteButtons.length - 1]);
+    fireEvent.click(
+      within(row("System Only", "System Presets")).getByRole("button", {
+        name: "Delete",
+      }),
+    );
     expect(appConfig.config.system_presets?.map((item) => item.name)).toEqual([
       "Project Only",
     ]);
+  });
+
+  it("collapses preset details until a preset is expanded", async () => {
+    const Harness: Component = () => {
+      const appConfig = useConfigStore()!;
+      const text = useTextStore()!;
+      const meta = useMetaStore()!;
+      onMount(() => {
+        meta.setMetas(metas);
+        appConfig.setConfig({ ...config(), system_presets: [] });
+        text.setProjectPresetStore([
+          preset({ name: "Detailed", speed: 120, pitch: 0.05 }),
+        ]);
+      });
+      return <PresetManagerDialog open onOpenChange={() => {}} />;
+    };
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [i18nProvider, null],
+          [TextProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+
+    const card = await screen.findByRole("button", { name: /^Detailed/ });
+    expect(card).toHaveTextContent("Speaker › Normal");
+    expect(card).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("120%")).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("region", { name: "Project Presets" })).getByText(
+        "1",
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.click(card);
+    expect(card).toHaveAttribute("aria-expanded", "true");
+    for (const [label, value] of [
+      ["Speed", "120%"],
+      ["Pitch", "0.05"],
+      ["Volume", "1"],
+      ["Start Sli.", "100 ms"],
+      ["End Sli.", "200 ms"],
+    ]) {
+      expect(
+        screen.getByText(label, { selector: "dt" }).nextElementSibling,
+      ).toHaveTextContent(value);
+    }
   });
 
   it("handles a missing system preset list", async () => {
@@ -243,17 +302,18 @@ describe("PresetManagerDialog", () => {
       </MultiProvider>
     ));
 
-    const project = (await screen.findByText("Project")).parentElement!;
-    fireEvent.mouseEnter(project);
+    const systemColumn = await screen.findByRole("region", {
+      name: "System Presets",
+    });
+    expect(within(systemColumn).getByText("No presets")).toBeInTheDocument();
     fireEvent.click(
       await screen.findByRole("button", { name: "Copy to System" }),
     );
     expect(appConfig.config.system_presets).toHaveLength(1);
-    fireEvent.mouseLeave(project);
 
-    const system = screen.getAllByText("Project")[1].parentElement!;
-    fireEvent.mouseEnter(system);
-    const remove = await screen.findByRole("button", { name: "Delete" });
+    const remove = within(systemColumn).getByRole("button", {
+      name: "Delete",
+    });
     appConfig.setConfig("system_presets", undefined);
     document.body.append(remove);
     fireEvent.click(remove);

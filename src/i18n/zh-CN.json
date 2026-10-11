@@ -265,6 +265,7 @@
     "icon_download_failed": "部分说话人图标无法下载。"
   },
   "preset_manager": {
+    "empty": "暂无预设",
     "title": "预设管理",
     "close": "关闭预设管理器",
     "project_presets": "项目预设",

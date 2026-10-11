@@ -265,6 +265,7 @@
     "icon_download_failed": "Some speaker icons could not be downloaded."
   },
   "preset_manager": {
+    "empty": "No presets",
     "title": "Preset Manager",
     "close": "Close preset manager",
     "project_presets": "Project Presets",

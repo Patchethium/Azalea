@@ -265,6 +265,7 @@
     "icon_download_failed": "一部の話者アイコンをダウンロードできませんでした。"
   },
   "preset_manager": {
+    "empty": "プリセットはありません",
     "title": "プリセット管理",
     "close": "プリセット管理を閉じる",
     "project_presets": "プロジェクト",
