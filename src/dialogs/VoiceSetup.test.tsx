@@ -5,7 +5,13 @@ import {
   type DownloadOutcome,
 } from "$binding";
 import { AppButton } from "@components/button";
-import { ModelManager, VoiceSetup } from "@dialogs/VoiceSetup";
+import {
+  abbreviatePath,
+  clipPath,
+  commonParent,
+  ModelManager,
+  VoiceSetup,
+} from "@dialogs/VoiceSetup";
 import { open as openExternal } from "@tauri-apps/plugin-shell";
 import { listen } from "@tauri-apps/api/event";
 import { MultiProvider } from "@solid-primitives/context";
@@ -326,6 +332,139 @@ describe("VoiceSetup", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText("Downloaded")).not.toBeInTheDocument();
     expect(screen.getByText("Download size: 0 MB")).toBeInTheDocument();
+  });
+
+  it("shows the installation's core paths and re-picks a running installation", async () => {
+    const picked = {
+      ...installedCore,
+      ort_path: "/new/VOICEVOX/vv-engine/runtime/lib.so",
+      ojt_dir: "/new/VOICEVOX/vv-engine/dict",
+      vvm_dir: "/new/VOICEVOX/vv-engine/models/vvms",
+    };
+    const pickCore = vi.spyOn(commands, "pickCore").mockResolvedValue(picked);
+    mount();
+    store.setConfig("setup_source", "ExistingInstallation");
+    for (const [label, path] of [
+      ["Runtime", installedCore.ort_path],
+      ["Dictionary", installedCore.ojt_dir],
+      ["Models", installedCore.vvm_dir],
+    ]) {
+      expect(
+        screen.getByRole("button", { name: `${label} ${path}` }),
+      ).toBeInTheDocument();
+    }
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Choose VOICEVOX folder" }),
+    );
+    await waitFor(() => expect(store.config.core).toEqual(picked));
+    expect(pickCore).toHaveBeenCalledOnce();
+    await waitFor(() =>
+      expect(commands.reinitCore).toHaveBeenCalledWith(picked),
+    );
+    // Rows start from the shared parent and elide the rest of the path.
+    expect(screen.getByText("…/vv-engine/…/lib.so")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
+    expect(
+      screen.getByText("…/vv-engine/dict", { selector: "[aria-hidden]" }),
+    ).toBeInTheDocument();
+    const models = screen.getByText("…/vv-engine/…/vvms");
+    vi.useFakeTimers();
+    fireEvent.pointerEnter(models.closest("button")!.parentElement!, {
+      pointerType: "mouse",
+    });
+    await vi.advanceTimersByTimeAsync(400);
+    vi.useRealTimers();
+    const tooltip = screen.getByRole("tooltip", { hidden: true });
+    expect(tooltip).toHaveTextContent(picked.vvm_dir);
+    expect(tooltip).not.toHaveTextContent("Click");
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Choose VOICEVOX folder" }),
+      ).toBeEnabled(),
+    );
+  });
+
+  it("opens a core path's folder and reports failures", async () => {
+    const openLocation = vi
+      .spyOn(commands, "openPathLocation")
+      .mockResolvedValueOnce({ status: "ok", data: null })
+      .mockResolvedValueOnce({ status: "error", error: "No such folder" })
+      .mockRejectedValueOnce(new Error("opener crashed"));
+    mount();
+    store.setConfig("setup_source", "ExistingInstallation");
+    const models = screen.getByRole("button", {
+      name: `Models ${installedCore.vvm_dir}`,
+    });
+
+    fireEvent.click(models);
+    await waitFor(() =>
+      expect(openLocation).toHaveBeenCalledWith(installedCore.vvm_dir),
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+    fireEvent.click(models);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No such folder",
+    );
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: `Runtime ${installedCore.ort_path}`,
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("opener crashed"),
+    );
+    expect(openLocation).toHaveBeenLastCalledWith(installedCore.ort_path);
+  });
+
+  it("abbreviates paths from their shared parent", () => {
+    expect(clipPath("/opt/VOICEVOX/vv-engine/vvms")).toBe("…/vv-engine/vvms");
+    expect(clipPath("C:\\VOICEVOX\\vv-engine\\vvms")).toBe(
+      "…\\vv-engine\\vvms",
+    );
+    expect(clipPath("lib.so")).toBe("lib.so");
+
+    const paths = [
+      "/opt/VOICEVOX/vv-engine/lib.so",
+      "/opt/VOICEVOX/vv-engine/dict/open_jtalk",
+      "/opt/VOICEVOX/vv-engine/models/vvms",
+    ];
+    const parent = commonParent(paths);
+    expect(parent).toEqual({ path: "/opt/VOICEVOX/vv-engine", depth: 3 });
+    expect(paths.map((path) => abbreviatePath(path, parent))).toEqual([
+      "…/vv-engine/lib.so",
+      "…/vv-engine/…/open_jtalk",
+      "…/vv-engine/…/vvms",
+    ]);
+
+    const windows = ["C:\\VOICEVOX\\a\\lib.dll", "C:\\VOICEVOX\\b\\vvms"];
+    const windowsParent = commonParent(windows);
+    expect(windowsParent).toEqual({ path: "C:\\VOICEVOX", depth: 2 });
+    expect(abbreviatePath(windows[1], windowsParent)).toBe(
+      "…\\VOICEVOX\\…\\vvms",
+    );
+
+    // A single shared folder is shown whole, as nothing is elided.
+    const shallow = commonParent(["/opt/a/lib.so", "/opt/vvms"]);
+    expect(abbreviatePath("/opt/a/lib.so", shallow)).toBe("/opt/…/lib.so");
+    expect(abbreviatePath("/opt/vvms", shallow)).toBe("/opt/vvms");
+
+    // Without a shared parent, fall back to the last two segments.
+    expect(commonParent(["/a/x/lib.so", "/b/y/vvms"])).toBeNull();
+    expect(commonParent([])).toBeNull();
+    expect(abbreviatePath("/a/x/y/lib.so", null)).toBe("…/y/lib.so");
+  });
+
+  it("marks the installation path as not set before a core is picked", () => {
+    mount(false);
+    store.setConfig("setup_source", "ExistingInstallation");
+    expect(screen.getByText("Not set")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Choose VOICEVOX folder" }),
+    ).toBeEnabled();
   });
 
   it("lists speakers on collapsed packages and expands them for styles", async () => {

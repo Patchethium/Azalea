@@ -140,3 +140,51 @@ pub async fn open_config_dir() -> std::result::Result<(), String> {
   )
   .map_err(|error| error.to_string())
 }
+
+/// Resolves a path to the folder a file manager should show: the path itself
+/// for a directory, or the containing folder for a file.
+fn folder_to_open(path: &std::path::Path) -> std::result::Result<std::path::PathBuf, String> {
+  if !path.is_absolute() {
+    return Err(format!("{} is not an absolute path", path.display()));
+  }
+  let metadata = std::fs::metadata(path).map_err(|error| error.to_string())?;
+  if metadata.is_dir() {
+    return Ok(path.to_path_buf());
+  }
+  path
+    .parent()
+    .map(std::path::Path::to_path_buf)
+    .ok_or_else(|| format!("{} has no parent folder", path.display()))
+}
+
+/// Opens the folder containing a core component in the system file manager.
+/// Only folders are opened, so files are never executed.
+#[tauri::command]
+#[specta::specta]
+#[allow(deprecated)]
+pub async fn open_path_location(path: String) -> std::result::Result<(), String> {
+  let folder = folder_to_open(std::path::Path::new(&path))?;
+  tauri_plugin_shell::open::open(None, folder.to_string_lossy().to_string(), None)
+    .map_err(|error| error.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+  use super::folder_to_open;
+
+  #[test]
+  fn folder_to_open_keeps_directories_and_uses_a_files_parent() {
+    let root = tempfile::tempdir().unwrap();
+    let file = root.path().join("libvoicevox_onnxruntime.so");
+    std::fs::write(&file, b"").unwrap();
+    assert_eq!(folder_to_open(root.path()).unwrap(), root.path());
+    assert_eq!(folder_to_open(&file).unwrap(), root.path());
+  }
+
+  #[test]
+  fn folder_to_open_rejects_relative_and_missing_paths() {
+    let root = tempfile::tempdir().unwrap();
+    assert!(folder_to_open(std::path::Path::new("relative/models")).is_err());
+    assert!(folder_to_open(&root.path().join("missing")).is_err());
+  }
+}

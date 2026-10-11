@@ -29,6 +29,9 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: vi.fn(),
 }));
 
+const projectPanel = () =>
+  screen.getByRole("tabpanel", { name: "Project & Export" });
+
 async function openSection(name: string) {
   await userEvent.click(screen.getByRole("tab", { name }));
 }
@@ -667,7 +670,9 @@ describe("ConfigPage", () => {
     });
     expect(toggle).not.toBeChecked();
     expect(screen.queryByText("Directory")).not.toBeInTheDocument();
-    expect(screen.queryByText("Not set")).not.toBeInTheDocument();
+    expect(
+      within(projectPanel()).queryByText("Not set"),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Choose export directory" }),
     ).not.toBeInTheDocument();
@@ -689,7 +694,7 @@ describe("ConfigPage", () => {
     fireEvent.click(toggle);
     expect(appConfig.config.ui.default_export_dir_enabled).toBe(true);
     expect(screen.getByText("Directory")).toBeInTheDocument();
-    expect(screen.getByText("Not set")).toBeInTheDocument();
+    expect(within(projectPanel()).getByText("Not set")).toBeInTheDocument();
     const silentSave = screen.getByRole("switch", { name: "Silent save" });
     expect(silentSave).toBeDisabled();
     expect(silentSave).not.toBeChecked();
@@ -705,7 +710,9 @@ describe("ConfigPage", () => {
       multiple: false,
       defaultPath: undefined,
     });
-    expect(screen.queryByText("Not set")).not.toBeInTheDocument();
+    expect(
+      within(projectPanel()).queryByText("Not set"),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("/exports")).toBeInTheDocument();
     expect(toggle).toBeChecked();
     expect(silentSave).toBeEnabled();

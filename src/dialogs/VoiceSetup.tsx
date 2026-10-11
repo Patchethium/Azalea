@@ -7,6 +7,8 @@ import {
 } from "$binding";
 import { AppButton } from "@components/button";
 import { IconButton } from "@components/iconButton";
+import { Tooltip } from "@components/tooltip";
+import { Button } from "@kobalte/core/button";
 import { Checkbox } from "@kobalte/core/checkbox";
 import { Collapsible } from "@kobalte/core/collapsible";
 import { Link } from "@kobalte/core/link";
@@ -31,6 +33,59 @@ export function formatDownloadSize(bytes: number) {
   return `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(bytes / 1024 / 1024)} MB`;
 }
 
+const pathSeparator = (path: string) =>
+  path.includes("\\") && !path.includes("/") ? "\\" : "/";
+const pathSegments = (path: string) => path.split(/[\\/]/).filter(Boolean);
+
+/** Keeps the last two path segments, e.g. `…/vv-engine/vvms`. */
+export function clipPath(path: string) {
+  const separator = pathSeparator(path);
+  const segments = pathSegments(path);
+  if (segments.length <= 2) return path;
+  return `…${separator}${segments.slice(-2).join(separator)}`;
+}
+
+/** The deepest folder shared by every path, excluding their final names. */
+export function commonParent(paths: string[]) {
+  if (!paths.length) return null;
+  const segments = paths.map(pathSegments);
+  const depth = Math.min(...segments.map((s) => s.length - 1));
+  let shared = 0;
+  while (
+    shared < depth &&
+    segments.every((s) => s[shared] === segments[0][shared])
+  )
+    shared += 1;
+  if (!shared) return null;
+  const separator = pathSeparator(paths[0]);
+  const root = /^[\\/]/.test(paths[0]) ? separator : "";
+  return {
+    path: root + segments[0].slice(0, shared).join(separator),
+    depth: shared,
+  };
+}
+
+/**
+ * Shows the shared parent's last folder and the name, e.g.
+ * `…/voicevox_core/…/{name}`, or the clipped path without a shared parent.
+ */
+export function abbreviatePath(
+  path: string,
+  parent: ReturnType<typeof commonParent>,
+) {
+  if (!parent) return clipPath(path);
+  const separator = pathSeparator(path);
+  const segments = pathSegments(path);
+  const folder =
+    parent.depth > 1
+      ? `…${separator}${segments[parent.depth - 1]}`
+      : parent.path;
+  const rest = segments.slice(parent.depth);
+  return rest.length > 1
+    ? `${folder}${separator}…${separator}${rest[rest.length - 1]}`
+    : `${folder}${separator}${rest[0]}`;
+}
+
 export function VoiceSetup() {
   const { t1 } = usei18n()!;
   const {
@@ -49,6 +104,7 @@ export function VoiceSetup() {
   } = useConfigStore()!;
   const { uiStore } = useUIStore()!;
   const [busy, setBusy] = createSignal(false);
+  const [pathError, setPathError] = createSignal<string | null>(null);
   let revision = 0;
   let disposed = false;
 
@@ -110,6 +166,16 @@ export function VoiceSetup() {
       if (!disposed) setBusy(false);
     }
   };
+  const openLocation = async (path: string) => {
+    setPathError(null);
+    try {
+      const result = await commands.openPathLocation(path);
+      if (!disposed && result.status === "error") setPathError(result.error);
+    } catch (cause) {
+      if (!disposed) setPathError(String(cause));
+    }
+  };
+
   onCleanup(() => {
     disposed = true;
     revision += 1;
@@ -150,18 +216,83 @@ export function VoiceSetup() {
           {coreError()}
         </p>
       </Show>
-      <Show
-        when={
-          setupSource() === "ExistingInstallation" &&
-          (!uiStore.coreInitialized || !config.core)
-        }
-      >
-        <AppButton
-          disabled={busy() || coreInitializeResource.loading}
-          onClick={() => void pickInstallation()}
-        >
-          {t1("init_dialog.installed.button")}
-        </AppButton>
+      <Show when={setupSource() === "ExistingInstallation"}>
+        <div class="flex flex-col gap1 rounded-md b b-slate-2 p2 dark:b-slate-6">
+          <div class="flex items-center gap2">
+            <div class="flex-1 text-sm font-semibold">
+              {t1("voice_setup.core_paths")}
+            </div>
+            <Button
+              type="button"
+              disabled={busy() || coreInitializeResource.loading}
+              aria-busy={busy()}
+              onClick={() => void pickInstallation()}
+              class="shrink-0 flex items-center gap1 rounded-md b b-slate-2 bg-transparent px2 py1 text-sm outline-none hover:(b-primary-5 bg-primary-5 text-white) focus-visible:(ring-2 ring-primary-3) disabled:(cursor-not-allowed opacity-60) dark:b-slate-6"
+            >
+              <div
+                aria-hidden="true"
+                class={
+                  busy()
+                    ? "i-lucide:loader-circle size-4 animate-spin"
+                    : "i-lucide:folder-open size-4"
+                }
+              />
+              {t1("voice_setup.pick_installation")}
+            </Button>
+          </div>
+          <Show
+            when={config.core}
+            fallback={
+              <span class="text-sm text-slate-5 dark:text-slate-4">
+                {t1("voice_setup.not_set")}
+              </span>
+            }
+          >
+            {(core) => {
+              const items = () => [
+                [t1("voice_setup.path_runtime"), core().ort_path],
+                [t1("voice_setup.path_dictionary"), core().ojt_dir],
+                [t1("voice_setup.path_models"), core().vvm_dir],
+              ];
+              const parent = () => commonParent(items().map(([, p]) => p));
+              return (
+                <ul class="m0 flex list-none flex-col p0 text-xs">
+                  <For each={items()}>
+                    {([label, path]) => (
+                      <li class="min-w-0">
+                        <Tooltip
+                          content={<span class="font-mono">{path}</span>}
+                          class="w-full min-w-0"
+                        >
+                          <Button
+                            type="button"
+                            onClick={() => void openLocation(path)}
+                            class="grid w-full min-w-0 cursor-pointer grid-cols-[5.5rem_minmax(0,1fr)] items-baseline gap-x-3 rounded-sm bg-transparent px1 py0.5 text-left outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-3) dark:hover:bg-slate-7"
+                          >
+                            <span class="text-slate-6 dark:text-slate-3">
+                              {label}
+                            </span>
+                            <span class="truncate font-mono">
+                              <span aria-hidden="true">
+                                {abbreviatePath(path, parent())}
+                              </span>
+                              <span class="sr-only">{path}</span>
+                            </span>
+                          </Button>
+                        </Tooltip>
+                      </li>
+                    )}
+                  </For>
+                </ul>
+              );
+            }}
+          </Show>
+          <Show when={pathError()}>
+            <p role="alert" class="m0 text-xs text-red-6 dark:text-red-4">
+              {pathError()}
+            </p>
+          </Show>
+        </div>
       </Show>
     </section>
   );

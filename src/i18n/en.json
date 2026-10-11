@@ -2,8 +2,7 @@
   "title": "Azalea",
   "init_dialog": {
     "intro": "No voices set up",
-    "before": "Set up voices in Config to start creating speech.",
-    "installed.button": "Pick it"
+    "before": "Set up voices in Config to start creating speech."
   },
   "loading": "Loading",
   "enabled": "Enabled",
@@ -277,6 +276,12 @@
     "delete": "Delete"
   },
   "voice_setup": {
+    "core_paths": "Core paths",
+    "path_runtime": "Runtime",
+    "path_dictionary": "Dictionary",
+    "path_models": "Models",
+    "not_set": "Not set",
+    "pick_installation": "Choose VOICEVOX folder",
     "title": "Voice setup",
     "description": "Choose voice packages. Missing CPU runtime and system dictionary are included automatically. Your custom dictionary is shared between setups.",
     "model_terms": "Model terms",

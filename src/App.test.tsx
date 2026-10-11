@@ -83,7 +83,7 @@ describe("App initialization", () => {
     await screen.findByRole("heading", { name: "No voices set up" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Pick it" }),
+      screen.queryByRole("button", { name: "Choose VOICEVOX folder" }),
     ).not.toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button", { name: "Open config" })[1]);
     expect(await screen.findByRole("dialog", { name: "Config" })).toBeVisible();
@@ -91,7 +91,7 @@ describe("App initialization", () => {
       "aria-selected",
       "true",
     );
-    await screen.findByRole("button", { name: "Pick it" });
+    await screen.findByRole("button", { name: "Choose VOICEVOX folder" });
     expect(
       screen.queryByRole("heading", { name: "Manage models" }),
     ).not.toBeInTheDocument();
@@ -110,7 +110,9 @@ describe("App initialization", () => {
     expect(view.getConfigStore().setupSource()).toBe("Downloaded");
     fireEvent.click(await screen.findByRole("button", { name: "VOICEVOX" }));
     expect(view.getConfigStore().setupSource()).toBe("ExistingInstallation");
-    expect(screen.getByRole("button", { name: "Pick it" })).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Choose VOICEVOX folder" }),
+    ).toBeEnabled();
     expect(
       screen.queryByRole("heading", { name: "Manage models" }),
     ).not.toBeInTheDocument();
@@ -238,7 +240,9 @@ describe("App initialization", () => {
     });
     await screen.findByRole("heading", { name: "No voices set up" });
     fireEvent.click(screen.getAllByRole("button", { name: "Open config" })[1]);
-    fireEvent.click(await screen.findByRole("button", { name: "Pick it" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Choose VOICEVOX folder" }),
+    );
     // Storage's asset-size output is also a status in the voice section.
     await waitFor(() =>
       expect(
@@ -248,12 +252,16 @@ describe("App initialization", () => {
       ).toBe(true),
     );
     expect(screen.getByRole("dialog", { name: "Config" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Pick it" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Choose VOICEVOX folder" }),
+    ).toBeDisabled();
     finish({ status: "error", error: "Core could not start" });
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Core could not start",
     );
-    expect(screen.getByRole("button", { name: "Pick it" })).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Choose VOICEVOX folder" }),
+    ).toBeEnabled();
     fireEvent.keyDown(screen.getByRole("dialog", { name: "Config" }), {
       key: "Escape",
     });
@@ -634,7 +642,9 @@ describe("App initialization", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close config" }));
     await screen.findByRole("heading", { name: "No voices set up" });
     fireEvent.click(screen.getAllByRole("button", { name: "Open config" })[1]);
-    fireEvent.click(await screen.findByRole("button", { name: "Pick it" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Choose VOICEVOX folder" }),
+    );
     await screen.findByLabelText("Text to synthesize");
     expect(reinit).toHaveBeenCalledWith(installation);
     expect(view.getConfigStore().voicesReady()).toBe(true);
@@ -731,7 +741,7 @@ describe("App initialization", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     fireEvent.click(screen.getAllByRole("button", { name: "打开设置" })[0]);
     await openConfigSection("语音");
-    screen.getByRole("button", { name: "选择位置" }).click();
+    screen.getByRole("button", { name: "选择 VOICEVOX 文件夹" }).click();
     await waitFor(() => expect(warn).toHaveBeenCalledOnce());
   });
 
@@ -759,7 +769,7 @@ describe("App initialization", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Open config" })[0]);
     await openConfigSection("Voice");
     expect(
-      await screen.findByRole("button", { name: "Pick it" }),
+      await screen.findByRole("button", { name: "Choose VOICEVOX folder" }),
     ).toBeEnabled();
     expect(screen.getByRole("alert")).toHaveTextContent("core failed");
   });
@@ -813,7 +823,9 @@ describe("App initialization", () => {
 
     await screen.findByRole("heading", { name: "No voices set up" });
     fireEvent.click(screen.getAllByRole("button", { name: "Open config" })[1]);
-    const pickCore = await screen.findByRole("button", { name: "Pick it" });
+    const pickCore = await screen.findByRole("button", {
+      name: "Choose VOICEVOX folder",
+    });
     pickCore.click();
 
     expect(

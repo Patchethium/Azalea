@@ -2,8 +2,7 @@
   "title": "Azalea",
   "init_dialog": {
     "intro": "尚未设置语音",
-    "before": "请在设置中配置语音环境以开始生成语音。",
-    "installed.button": "选择位置"
+    "before": "请在设置中配置语音环境以开始生成语音。"
   },
   "loading": "加载中",
   "enabled": "已启用",
@@ -277,6 +276,12 @@
     "delete": "删除"
   },
   "voice_setup": {
+    "core_paths": "核心路径",
+    "path_runtime": "运行库",
+    "path_dictionary": "词典",
+    "path_models": "模型",
+    "not_set": "未设置",
+    "pick_installation": "选择 VOICEVOX 文件夹",
     "title": "语音环境",
     "description": "请选择语音模型包。缺失的 CPU 运行库和系统词典会自动下载。两个环境共享用户词典。",
     "model_terms": "模型使用条款",

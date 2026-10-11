@@ -2,8 +2,7 @@
   "title": "アザレア",
   "init_dialog": {
     "intro": "音声が設定されていません",
-    "before": "設定で音声環境を設定すると、音声の作成を始められます。",
-    "installed.button": "選ぶ"
+    "before": "設定で音声環境を設定すると、音声の作成を始められます。"
   },
   "loading": "ローディング中",
   "enabled": "有効",
@@ -277,6 +276,12 @@
     "delete": "削除"
   },
   "voice_setup": {
+    "core_paths": "コアのパス",
+    "path_runtime": "ランタイム",
+    "path_dictionary": "辞書",
+    "path_models": "モデル",
+    "not_set": "未設定",
+    "pick_installation": "VOICEVOXのフォルダーを選択",
     "title": "音声環境",
     "description": "音声モデルを選択してください。未取得のCPUランタイムとシステム辞書もダウンロードします。ユーザー辞書は両方の環境で共有されます。",
     "model_terms": "音声モデルの利用規約",

@@ -170,6 +170,18 @@ async openConfigDir() : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Opens the folder containing a core component in the system file manager.
+ * Only folders are opened, so files are never executed.
+ */
+async openPathLocation(path: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("open_path_location", { path }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async getDictionaryEntries() : Promise<Result<DictionaryEntry[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_dictionary_entries") };
