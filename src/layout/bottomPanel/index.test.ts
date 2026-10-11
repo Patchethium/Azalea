@@ -303,7 +303,7 @@ describe("BottomPanel playback", () => {
     });
 
     expect(timeline).toHaveAttribute("data-playback-anchor", "unset");
-    expect(timeline.parentElement?.parentElement).toHaveClass("h-6");
+    expect(timeline.parentElement).toHaveClass("h-6");
     expect(firstPhrase).toHaveStyle({ width: "5rem" });
     expect(secondPhrase).toHaveStyle({ width: "8rem" });
     expect(secondPhrase).toHaveClass("bg-transparent");

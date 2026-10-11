@@ -26,7 +26,6 @@
     "play_all_from_selection": "播放选中的单元格及下方所有单元格",
     "stop": "停止播放",
     "playback_timeline": "播放起始重音短语",
-    "playback_timeline_hint": "选择重音短语可设置播放起点，再次选择可将其清除。",
     "playback_phrase_anchor": "从重音短语 {{ index }} 开始播放",
     "jump_to_playback_anchor": "显示播放起始重音短语",
     "reset_accent_edits": "重置重音短语编辑（音高和时长也会重置）",
