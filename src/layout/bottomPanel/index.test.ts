@@ -3333,7 +3333,7 @@ describe("Pitch completion", () => {
       expect(fireEvent.keyDown(window, { key: "k", ...primary })).toBe(true);
       expect(getConfigStore().config.ui.pitch_completion_locked).toBe(true);
       getConfigStore().setConfig("ui", "pitch_completion_enabled", true);
-      getUiStore().setUIStore("page", "shortcuts");
+      getUiStore().setUIStore("page", "config");
       fireEvent.keyDown(window, { key: "k", ...primary });
       expect(getConfigStore().config.ui.pitch_completion_locked).toBe(true);
       getUiStore().setUIStore("page", null);

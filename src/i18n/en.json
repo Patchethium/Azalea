@@ -32,8 +32,6 @@
   },
   "shortcuts": {
     "title": "Keyboard Shortcuts",
-    "open": "Show keyboard shortcuts",
-    "close": "Close keyboard shortcuts",
     "instructions": "Select a shortcut, then press the new key combination.",
     "edit": "Edit shortcut",
     "recording": "Press keys… (Esc to cancel)",

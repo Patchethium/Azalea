@@ -425,6 +425,42 @@ describe("App initialization", () => {
     );
   });
 
+  it("edits keyboard shortcuts from a Config section", async () => {
+    mockIPC(
+      (command) =>
+        command === "get_os"
+          ? "Linux"
+          : command.includes("theme")
+            ? "light"
+            : null,
+      { shouldMockEvents: true },
+    );
+    mockWindows("main");
+    const view = renderApp();
+    await events.initializationEvent.emit({
+      config: config(),
+      core_initialized: true,
+      active_setup_source: "ExistingInstallation",
+      metas,
+      range: [],
+      error: null,
+    });
+    await screen.findByLabelText("Text to synthesize");
+    expect(
+      screen.queryByRole("button", { name: "Show keyboard shortcuts" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Open config" }));
+    await openConfigSection("Keyboard Shortcuts");
+    const save = await screen.findByRole("button", {
+      name: /^Save project: /,
+    });
+    fireEvent.click(save);
+    fireEvent.keyDown(save, { key: "S", ctrlKey: true, shiftKey: true });
+    expect(
+      view.getConfigStore().config.ui.shortcuts?.save_project,
+    ).toMatchObject({ key: "S", primary: true, shift: true });
+  });
+
   it.each(["Downloaded", "ExistingInstallation"] as const)(
     "keeps a pending source switch separate from the active %s setup",
     async (active) => {

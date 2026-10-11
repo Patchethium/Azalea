@@ -1,7 +1,6 @@
 import { AboutDialog } from "@dialogs/About";
 import { DictionaryDialog } from "@dialogs/Dictionary";
 import { ExportAllDialog } from "@dialogs/ExportAll";
-import { ShortcutReferenceDialog } from "@dialogs/ShortcutReference";
 import { UnsavedChangesDialog } from "@dialogs/UnsavedChanges";
 import { Tooltip } from "@components/tooltip";
 import { DropdownMenu } from "@kobalte/core/dropdown-menu";
@@ -91,15 +90,6 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
                 <div class="i-lucide:notebook-tabs bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white ui-pressed:!bg-white" />
               </ToggleGroup.Item>
             </Tooltip>
-            <Tooltip content={t1("shortcuts.open")}>
-              <ToggleGroup.Item
-                value="shortcuts"
-                aria-label={t1("shortcuts.open")}
-                class="group size-8 p1 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-primary-5 ui-pressed:bg-primary-5 transition-transform outline-none"
-              >
-                <div class="i-lucide:keyboard bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white ui-pressed:!bg-white" />
-              </ToggleGroup.Item>
-            </Tooltip>
             <Tooltip content={t1("config.open")}>
               <ToggleGroup.Item
                 value="config"
@@ -120,12 +110,6 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
         open={controls.uiStore.page === "dictionary"}
         onOpenChange={(open) =>
           controls.setUIStore("page", open ? "dictionary" : null)
-        }
-      />
-      <ShortcutReferenceDialog
-        open={controls.uiStore.page === "shortcuts"}
-        onOpenChange={(open) =>
-          controls.setUIStore("page", open ? "shortcuts" : null)
         }
       />
       <UnsavedChangesDialog

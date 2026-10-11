@@ -12,6 +12,7 @@ import {
   TitlebarStyleSelect,
 } from "@dialogs/config/Basics";
 import { ConfigItem } from "@dialogs/config/Item";
+import { ShortcutSettings } from "@dialogs/config/Shortcuts";
 import { IconButton } from "@components/iconButton";
 import { Tooltip } from "@components/tooltip";
 import { Button } from "@kobalte/core/button";
@@ -51,6 +52,11 @@ const configSections = [
     value: "synthesis",
     label: "config.synthesis",
     icon: "i-lucide:cpu",
+  },
+  {
+    value: "shortcuts",
+    label: "shortcuts.title",
+    icon: "i-lucide:keyboard",
   },
 ] as const satisfies readonly {
   value: ConfigSection;
@@ -437,6 +443,9 @@ export function ConfigPage() {
                 </Switch.Control>
               </Switch>
             </ConfigItem>
+          </Tabs.Content>
+          <Tabs.Content value="shortcuts" class={contentClass}>
+            <ShortcutSettings />
           </Tabs.Content>
         </Tabs>
         <div class="flex justify-end b-t b-slate-2 px3 py2 dark:b-slate-6">

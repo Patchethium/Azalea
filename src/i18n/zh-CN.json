@@ -32,8 +32,6 @@
   },
   "shortcuts": {
     "title": "键盘快捷键",
-    "open": "显示键盘快捷键",
-    "close": "关闭键盘快捷键",
     "instructions": "选择一个快捷键，然后按下新的组合键。",
     "edit": "编辑快捷键",
     "recording": "请按键…（按 Esc 取消）",
