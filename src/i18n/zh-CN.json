@@ -100,8 +100,7 @@
       "add_below": "在下方添加文本单元格",
       "split": "拆分文本单元格",
       "save_audio": "保存音频",
-      "move_up": "上移文本单元格",
-      "move_down": "下移文本单元格",
+      "reorder": "拖动以重新排列文本单元",
       "delete": "删除文本单元格"
     },
     "empty_project": {
@@ -235,8 +234,7 @@
     "new_preset": "新建预设",
     "controls": {
       "create": "创建预设",
-      "move_up": "上移预设",
-      "move_down": "下移预设",
+      "reorder": "拖动以重新排列预设",
       "manage": "管理预设",
       "delete": "删除预设",
       "increase": "增加{{ label }}",

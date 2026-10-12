@@ -1,5 +1,6 @@
 import { Tooltip } from "@components/tooltip";
 import { IconButton } from "@components/iconButton";
+import { createSortable, SortableDropIndicator } from "@components/sortable";
 import { NumberInput } from "@components/numberField";
 import { usei18n } from "@contexts/i18n";
 import Resizable from "@corvu/resizable";
@@ -18,6 +19,10 @@ const RESIZE_EPSILON = 0.000001;
 
 export function PresetSidebar(props: { controls: SidebarControls }) {
   const { t1 } = usei18n()!;
+  const presetSortable = createSortable({
+    count: () => props.controls.projectPresetStore.length,
+    onMove: (from, to) => props.controls.movePreset(from, to),
+  });
   const controls = props.controls;
   const [presetPanelSizes, setPresetPanelSizes] = createSignal([0.3, 0.7]);
   const [presetPanelMaxSize, setPresetPanelMaxSize] = createSignal(1);
@@ -99,11 +104,26 @@ export function PresetSidebar(props: { controls: SidebarControls }) {
             <div class="size-full gap-1 overflow-auto pl-0 pr-2 pt-1">
               <For each={controls.projectPresetStore}>
                 {(preset, index) => (
-                  <PresetCard
-                    presetIndex={index()}
-                    selected={preset.id === controls.currentText()?.preset_id}
-                    onClick={() => controls.setTextPresetIdx(index())}
-                  />
+                  <div
+                    ref={(element) =>
+                      presetSortable.registerItem(element, index)
+                    }
+                    class="relative"
+                    classList={{
+                      "opacity-50": presetSortable.isDragging(index()),
+                    }}
+                  >
+                    <SortableDropIndicator
+                      sortable={presetSortable}
+                      index={index()}
+                    />
+                    <PresetCard
+                      presetIndex={index()}
+                      selected={preset.id === controls.currentText()?.preset_id}
+                      sortable={presetSortable}
+                      onClick={() => controls.setTextPresetIdx(index())}
+                    />
+                  </div>
                 )}
               </For>
             </div>

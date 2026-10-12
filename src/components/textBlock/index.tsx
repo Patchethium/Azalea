@@ -1,4 +1,9 @@
 import { type AudioQuery, commands } from "$binding";
+import {
+  createSortable,
+  type Sortable,
+  SortableDropIndicator,
+} from "@components/sortable";
 import { showSuccessToast } from "@components/toast";
 import { useTextBlockSynthesis } from "@components/textBlock/useSynthesis";
 import { TextBlockView } from "@components/textBlock/View";
@@ -9,6 +14,7 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  For,
   on,
   onCleanup,
   onMount,
@@ -30,7 +36,7 @@ import { createAudioFileName, getModifiedQuery } from "$utils";
 
 export { renderRequestFingerprint as synthesisRequestFingerprint } from "$utils";
 
-function TextBlock(props: { index: number }) {
+function TextBlock(props: { index: number; sortable?: Sortable }) {
   const {
     textStore,
     setTextStore,
@@ -279,24 +285,6 @@ function TextBlock(props: { index: number }) {
     onCleanup(() => window.removeEventListener("keydown", handleKeyDown));
   });
 
-  const moveUp = () => {
-    if (props.index > 0) {
-      const previous = _.cloneDeep(textStore[props.index - 1]);
-      setTextStore(props.index - 1, currentText());
-      setTextStore(props.index, previous);
-      setSelected(props.index - 1);
-    }
-  };
-
-  const moveDown = () => {
-    if (props.index < textStore.length - 1) {
-      const next = _.cloneDeep(textStore[props.index + 1]);
-      setTextStore(props.index + 1, currentText());
-      setTextStore(props.index, next);
-      setSelected(props.index + 1);
-    }
-  };
-
   const splitDisabled = createMemo(() => {
     const text = currentText().text;
     if (text === "") return true;
@@ -370,7 +358,6 @@ function TextBlock(props: { index: number }) {
   return (
     <TextBlockView
       index={props.index}
-      blockCount={textStore.length}
       currentText={currentText()}
       currentPreset={currentPreset()}
       presetAvailable={currentPresetStyle() !== null}
@@ -383,8 +370,7 @@ function TextBlock(props: { index: number }) {
       splitDisabled={splitDisabled()}
       splitText={splitText}
       saveAudio={saveAudio}
-      moveUp={moveUp}
-      moveDown={moveDown}
+      sortable={props.sortable}
       remove={remove}
       onCaretChange={handleCaretChange}
       onNavigate={navigateBlock}
@@ -394,6 +380,29 @@ function TextBlock(props: { index: number }) {
       synthStateText={synthStateText}
       synthStateIcon={synthStateIcon}
     />
+  );
+}
+
+/** All text blocks, reorderable by dragging their grip handles. */
+export function TextBlockList() {
+  const { textStore, moveTextBlock } = useTextStore()!;
+  const sortable = createSortable({
+    count: () => textStore.length,
+    onMove: moveTextBlock,
+  });
+  return (
+    <For each={textStore}>
+      {(_block, index) => (
+        <div
+          ref={(element) => sortable.registerItem(element, index)}
+          class="relative"
+          classList={{ "opacity-50": sortable.isDragging(index()) }}
+        >
+          <SortableDropIndicator sortable={sortable} index={index()} />
+          <TextBlock index={index()} sortable={sortable} />
+        </div>
+      )}
+    </For>
   );
 }
 

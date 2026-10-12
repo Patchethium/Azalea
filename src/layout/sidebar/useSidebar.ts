@@ -31,6 +31,7 @@ import {
   createAudioFileName,
   createUniqueName,
   getModifiedQuery,
+  moveItem,
   parseSrt,
 } from "$utils";
 
@@ -515,14 +516,12 @@ export function useSidebar() {
     }
   });
 
-  const movePreset = (index: number, offset: -1 | 1) => {
-    const nextIndex = index + offset;
-    if (index < 0 || nextIndex < 0 || nextIndex >= projectPresetStore.length) {
+  const movePreset = (from: number, to: number) => {
+    const count = projectPresetStore.length;
+    if (from === to || from < 0 || from >= count || to < 0 || to >= count) {
       return;
     }
-    const presets = [...projectPresetStore];
-    [presets[index], presets[nextIndex]] = [presets[nextIndex], presets[index]];
-    setProjectPresetStore(presets);
+    setProjectPresetStore(moveItem(projectPresetStore, from, to));
   };
 
   return {

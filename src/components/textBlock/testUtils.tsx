@@ -1,4 +1,4 @@
-import TextBlock from "@components/textBlock";
+import TextBlock, { TextBlockList } from "@components/textBlock";
 import { AutogrowInput } from "@components/textBlock/AutogrowInput";
 import { AppToastRegion } from "@components/toast";
 import { BottomPanel } from "@layout/bottomPanel";
@@ -6,7 +6,7 @@ import type { AzaleaConfig, KeyboardShortcuts } from "$binding";
 import { MultiProvider } from "@solid-primitives/context";
 import { render } from "@solidjs/testing-library";
 import { mockIPC } from "@tauri-apps/api/mocks";
-import { batch, type Component, For, onMount } from "solid-js";
+import { batch, type Component, onMount } from "solid-js";
 import { ConfigProvider, useConfigStore } from "@contexts/config";
 import { i18nProvider } from "@contexts/i18n";
 import { MetaProvider, useMetaStore } from "@contexts/meta";
@@ -96,13 +96,7 @@ export const renderBlock = (
     return (
       <>
         <AppToastRegion />
-        {renderAllBlocks ? (
-          <For each={text.textStore}>
-            {(_, index) => <TextBlock index={index()} />}
-          </For>
-        ) : (
-          <TextBlock index={0} />
-        )}
+        {renderAllBlocks ? <TextBlockList /> : <TextBlock index={0} />}
         {withBottomPanel && <BottomPanel />}
       </>
     );

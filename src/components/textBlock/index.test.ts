@@ -605,11 +605,8 @@ describe("TextBlock", () => {
       screen.getByRole("button", { name: "Save audio" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Move text cell up" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Move text cell down" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "Move text cell up" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Delete text cell" }),
     ).toBeInTheDocument();
@@ -1459,15 +1456,36 @@ describe("TextBlock", () => {
     const { getTextStore, getUiStore } = renderBlock(false, false, true);
     const editors = await screen.findAllByLabelText("Text to synthesize");
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Move text cell down" }),
-    );
+    const handles = screen.getAllByRole("button", {
+      name: "Drag to reorder text cell",
+    });
+    expect(handles).toHaveLength(2);
+    const handle = handles[0];
+    // Grips appear only while their block is hovered, even when selected.
+    expect(handle).toHaveClass("opacity-0", "-mr-3");
+    const firstBlock = editors[0].parentElement!.parentElement!.parentElement!;
+    fireEvent.mouseEnter(firstBlock);
+    expect(handle).not.toHaveClass("opacity-0");
+    expect(handles[1]).toHaveClass("opacity-0");
+    fireEvent.mouseLeave(firstBlock);
+    expect(handle).toHaveClass("opacity-0");
+    // Moving the selected block keeps the selection on its content.
+    getTextStore().moveTextBlock(0, 1);
     expect(getTextStore().textStore.map((block) => block.id)).toEqual([
       "second-text-block",
       "text-block",
     ]);
     expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(1);
-    fireEvent.click(screen.getByRole("button", { name: "Move text cell up" }));
+    getTextStore().moveTextBlock(1, 0);
+    expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(0);
+
+    // Moving a block that is not selected keeps the selection on its content.
+    getTextStore().moveTextBlock(1, 0);
+    expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(1);
+    getTextStore().moveTextBlock(0, 0);
+    getTextStore().moveTextBlock(0, 2);
+    expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(1);
+    getTextStore().moveTextBlock(1, 0);
     expect(getTextStore().textStore.map((block) => block.id)).toEqual([
       "text-block",
       "second-text-block",

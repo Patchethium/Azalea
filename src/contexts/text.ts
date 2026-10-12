@@ -20,6 +20,7 @@ import { useMetaStore } from "@contexts/meta";
 import { useConfigStore } from "@contexts/config";
 import { useSpectrogramStore } from "@contexts/spectrogram";
 import { useUIStore } from "@contexts/ui";
+import { indexAfterMove } from "$utils";
 
 type TextBlockProps = ProjectTextBlockProps;
 
@@ -219,6 +220,23 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
       setUIStore("selectedTextBlockIndex", nextIndex);
     });
     return nextIndex;
+  };
+
+  const moveTextBlock = (from: number, to: number) => {
+    const count = textStore.length;
+    if (from === to || from < 0 || from >= count || to < 0 || to >= count) {
+      return;
+    }
+    const selected = selectedTextBlockIndex();
+    batch(() => {
+      setTextStore(
+        produce((blocks) => {
+          const [block] = blocks.splice(from, 1);
+          blocks.splice(to, 0, block);
+        }),
+      );
+      setUIStore("selectedTextBlockIndex", indexAfterMove(selected, from, to));
+    });
   };
 
   createEffect(() => {
@@ -446,6 +464,7 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     projectPath,
     setProjectPath,
     insertTextBlockBelow,
+    moveTextBlock,
     selectedTextBlock,
     selectedTextBlockIndex,
     createFirstTextBlock,

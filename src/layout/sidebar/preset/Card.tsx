@@ -1,19 +1,27 @@
+import { type Sortable, SortableHandle } from "@components/sortable";
 import { useMetaStore } from "@contexts/meta";
 import { usei18n } from "@contexts/i18n";
 import { findPresetStyle, useTextStore } from "@contexts/text";
-import { createMemo, type JSX } from "solid-js";
+import { createMemo, createSignal, type JSX, splitProps } from "solid-js";
 
 interface PresetCardProps extends JSX.HTMLAttributes<HTMLDivElement> {
   presetIndex: number;
   selected: boolean;
+  sortable: Sortable;
 }
 
 export function PresetCard(props: PresetCardProps) {
+  const [local, divProps] = splitProps(props, [
+    "presetIndex",
+    "selected",
+    "sortable",
+  ]);
   const { t1 } = usei18n()!;
+  const [hovered, setHovered] = createSignal(false);
   const { metas } = useMetaStore()!;
   const { projectPresetStore } = useTextStore()!;
   const preset = createMemo(
-    () => projectPresetStore[props.presetIndex] ?? null,
+    () => projectPresetStore[local.presetIndex] ?? null,
   );
   const identity = createMemo(() => {
     const value = preset();
@@ -21,20 +29,38 @@ export function PresetCard(props: PresetCardProps) {
   });
 
   return (
-    <div class="p1 group" {...props}>
+    <div
+      class="p1 group/card"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      {...divProps}
+    >
       <div
-        class="items-start rounded-r-md p1 pl2 group-hover:bg-slate-2 dark:group-hover:bg-slate-7 overflow-hidden bg-white dark:bg-slate-8 border-l-2 border-slate-1 dark:border-slate-7
-        cursor-default select-none w-full min-h-[fit-content] group-active:bg-white dark:group-active:bg-slate-8 flex flex-col"
+        class="flex rounded-r-md p1 pl2 group-hover/card:bg-slate-2 dark:group-hover/card:bg-slate-7 overflow-hidden bg-white dark:bg-slate-8 border-l-2 border-slate-1 dark:border-slate-7
+        cursor-default select-none w-full min-h-[fit-content] group-active/card:bg-white dark:group-active/card:bg-slate-8"
         classList={{
-          "shadow-md group-hover:bg-white dark:group-hover:bg-slate-8 !border-primary-5":
-            props.selected,
+          "shadow-md group-hover/card:bg-white dark:group-hover/card:bg-slate-8 !border-primary-5":
+            local.selected,
         }}
       >
-        <div>{preset()?.name || t1("preset.placeholder_name")}</div>
-        <div class="text-xs text-slate-5 flex flex-row items-center">
-          {identity()?.speaker.name}
-          <span class="mx-1">{">"}</span>
-          {identity()?.style.name}
+        <div class="min-w-0 flex-1 flex flex-col">
+          <div class="flex items-center gap1">
+            <div class="min-w-0 flex-1 truncate">
+              {preset()?.name || t1("preset.placeholder_name")}
+            </div>
+            <SortableHandle
+              sortable={local.sortable}
+              index={local.presetIndex}
+              label={t1("preset.controls.reorder")}
+              visible={hovered()}
+              class="text-slate-4"
+            />
+          </div>
+          <div class="text-xs text-slate-5 flex flex-row items-center">
+            {identity()?.speaker.name}
+            <span class="mx-1">{">"}</span>
+            {identity()?.style.name}
+          </div>
         </div>
       </div>
     </div>

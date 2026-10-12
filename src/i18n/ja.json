@@ -100,8 +100,7 @@
       "add_below": "下にテキストセルを追加",
       "split": "テキストセルを分割",
       "save_audio": "音声を保存",
-      "move_up": "テキストセルを上へ移動",
-      "move_down": "テキストセルを下へ移動",
+      "reorder": "ドラッグでテキストセルを並べ替え",
       "delete": "テキストセルを削除"
     },
     "empty_project": {
@@ -235,8 +234,7 @@
     "new_preset": "新しいプリセット",
     "controls": {
       "create": "プリセットを作成",
-      "move_up": "プリセットを上へ移動",
-      "move_down": "プリセットを下へ移動",
+      "reorder": "ドラッグでプリセットを並べ替え",
       "manage": "プリセットを管理",
       "delete": "プリセットを削除",
       "increase": "{{ label }}を増やす",

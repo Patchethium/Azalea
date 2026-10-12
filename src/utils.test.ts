@@ -5,6 +5,8 @@ import {
   createAudioFileName,
   createUniqueName,
   getModifiedQuery,
+  indexAfterMove,
+  moveItem,
   parseSrt,
   splitJapaneseMoras,
   toHalfWidthAscii,
@@ -167,5 +169,32 @@ describe("createUniqueName", () => {
         "New Preset",
       ]),
     ).toBe("New Preset (1)");
+  });
+});
+
+describe("moveItem", () => {
+  it("moves an item forwards and backwards without mutating the source", () => {
+    const items = ["a", "b", "c", "d"];
+    expect(moveItem(items, 0, 2)).toEqual(["b", "c", "a", "d"]);
+    expect(moveItem(items, 3, 1)).toEqual(["a", "d", "b", "c"]);
+    expect(moveItem(items, 1, 1)).toEqual(items);
+    expect(items).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("ignores out-of-range indices", () => {
+    expect(moveItem(["a", "b"], -1, 0)).toEqual(["a", "b"]);
+    expect(moveItem(["a", "b"], 0, 2)).toEqual(["a", "b"]);
+  });
+});
+
+describe("indexAfterMove", () => {
+  it("tracks the moved item and the items it passed", () => {
+    expect(indexAfterMove(0, 0, 2)).toBe(2);
+    expect(indexAfterMove(1, 0, 2)).toBe(0);
+    expect(indexAfterMove(2, 0, 2)).toBe(1);
+    expect(indexAfterMove(3, 0, 2)).toBe(3);
+    expect(indexAfterMove(1, 3, 1)).toBe(2);
+    expect(indexAfterMove(2, 3, 1)).toBe(3);
+    expect(indexAfterMove(0, 3, 1)).toBe(0);
   });
 });

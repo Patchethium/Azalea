@@ -364,16 +364,17 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
               createLabel={t1("dictionary.add")}
               onCreate={startNewEntry}
               createDisabled={controlsBusy()}
-              moveUpLabel={t1("dictionary.move_up")}
-              onMoveUp={() => void move(-1)}
-              moveUpDisabled={controlsBusy() || selectedIndex() <= 0}
-              moveDownLabel={t1("dictionary.move_down")}
-              onMoveDown={() => void move(1)}
-              moveDownDisabled={
-                controlsBusy() ||
-                selectedIndex() === -1 ||
-                selectedIndex() === entries().length - 1
-              }
+              move={{
+                upLabel: t1("dictionary.move_up"),
+                onUp: () => void move(-1),
+                upDisabled: controlsBusy() || selectedIndex() <= 0,
+                downLabel: t1("dictionary.move_down"),
+                onDown: () => void move(1),
+                downDisabled:
+                  controlsBusy() ||
+                  selectedIndex() === -1 ||
+                  selectedIndex() === entries().length - 1,
+              }}
               deleteLabel={t1("dictionary.delete")}
               onDelete={() => void remove()}
               deleteDisabled={controlsBusy() || selectedId() === null}

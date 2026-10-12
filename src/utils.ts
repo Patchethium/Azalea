@@ -42,6 +42,25 @@ export function createUniqueName(base: string, existingNames: string[]) {
   return `${base} (${suffix})`;
 }
 
+/** Returns a copy of `items` with the item at `from` moved to index `to`. */
+export function moveItem<T>(items: readonly T[], from: number, to: number) {
+  const moved = [...items];
+  if (from < 0 || from >= moved.length || to < 0 || to >= moved.length) {
+    return moved;
+  }
+  const [item] = moved.splice(from, 1);
+  moved.splice(to, 0, item);
+  return moved;
+}
+
+/** Follows the item at `index` after the item at `from` moves to `to`. */
+export function indexAfterMove(index: number, from: number, to: number) {
+  if (index === from) return to;
+  if (from < index && index <= to) return index - 1;
+  if (to <= index && index < from) return index + 1;
+  return index;
+}
+
 export function getModifiedQuery(
   query: AudioQuery,
   preset: Preset,

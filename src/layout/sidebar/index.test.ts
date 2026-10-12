@@ -415,9 +415,10 @@ describe("Sidebar controls", () => {
       end_slience: 400,
     });
 
-    controls.movePreset(-1, 1);
+    controls.movePreset(-1, 0);
+    controls.movePreset(1, 2);
     controls.movePreset(1, 1);
-    controls.movePreset(1, -1);
+    controls.movePreset(1, 0);
     expect(text.textStore.map((block) => block.preset_id)).toEqual([
       "preset-2",
       "preset-2",
@@ -614,11 +615,13 @@ describe("Sidebar controls", () => {
     drag(1_000, 700);
     expect(presetPanel).not.toHaveAttribute("data-collapsed");
     expect(
-      screen.getByRole("button", { name: "Move preset up" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "Move preset up" }),
+    ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Move preset down" }),
-    ).toBeInTheDocument();
+      screen.getAllByRole("button", {
+        name: "Drag to reorder preset",
+      }),
+    ).toHaveLength(1);
     expect(
       screen.getByRole("button", { name: "Manage presets" }),
     ).toBeInTheDocument();
@@ -716,15 +719,38 @@ describe("Sidebar controls", () => {
     expect(text.projectPresetStore).toHaveLength(2);
     const createdPresetId = text.projectPresetStore[1].id;
     expect(text.textStore[0].preset_id).toBe(createdPresetId);
-    const moveUp = screen.getByRole("button", { name: "Move preset up" });
-    const moveDown = screen.getByRole("button", { name: "Move preset down" });
-    expect(moveUp).not.toBeDisabled();
-    expect(moveDown).toBeDisabled();
-    await user.click(moveUp);
+    const presetIds = () => text.projectPresetStore.map((item) => item.id);
+    const createdHandle = screen.getAllByRole("button", {
+      name: "Drag to reorder preset",
+    })[1];
+    expect(createdHandle).toHaveClass("opacity-0");
+    await user.hover(createdHandle);
+    expect(createdHandle).not.toHaveClass("opacity-0");
+    await user.unhover(createdHandle);
+    expect(createdHandle).toHaveClass("opacity-0");
+    // Drag the created preset above the first one.
+    vi.stubGlobal(
+      "PointerEvent",
+      class extends MouseEvent {
+        readonly pointerId = 1;
+      },
+    );
+    screen
+      .getAllByRole("button", { name: "Drag to reorder preset" })
+      .forEach((grip, index) => {
+        grip.closest<HTMLElement>(".relative")!.getBoundingClientRect = () =>
+          ({ top: index * 40, height: 40 }) as DOMRect;
+      });
+    fireEvent.pointerDown(createdHandle, { button: 0, clientY: 60 });
+    fireEvent.pointerMove(createdHandle, { clientY: 5 });
+    fireEvent.pointerUp(createdHandle, { clientY: 5 });
+    vi.unstubAllGlobals();
+    expect(presetIds()).toEqual([createdPresetId, "preset-1"]);
     expect(text.textStore[0].preset_id).toBe(createdPresetId);
-    expect(moveUp).toBeDisabled();
-    expect(moveDown).not.toBeDisabled();
-    await user.click(moveDown);
+    // The grip must not select its preset when clicked.
+    await user.click(
+      screen.getAllByRole("button", { name: "Drag to reorder preset" })[1],
+    );
     expect(text.textStore[0].preset_id).toBe(createdPresetId);
 
     await user.click(screen.getByText("Edited"));

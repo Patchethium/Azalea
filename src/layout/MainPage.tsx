@@ -1,10 +1,10 @@
 import InitPage from "@layout/InitPage";
 import { SpeakerPortraitPanel } from "@components/portrait";
-import TextBlock from "@components/textBlock";
+import { TextBlockList } from "@components/textBlock";
 import Resizable from "@corvu/resizable";
 import { Button } from "@kobalte/core/button";
 import { BottomPanel } from "@layout/bottomPanel";
-import { createMemo, For, Show } from "solid-js";
+import { createMemo, Show } from "solid-js";
 import {
   DEFAULT_BOTTOM_RATIO,
   DEFAULT_PORTRAIT_RATIO,
@@ -101,13 +101,7 @@ function MainPage() {
                   }
                 >
                   <div class="h-2 w-full" />
-                  <For each={textStore}>
-                    {(_, index) => (
-                      <div>
-                        <TextBlock index={index()} />
-                      </div>
-                    )}
-                  </For>
+                  <TextBlockList />
                 </Show>
               </Show>
             </Resizable.Panel>

@@ -1,5 +1,6 @@
 import type { Preset, SynthesisJobState } from "$binding";
 import { IconButton } from "@components/iconButton";
+import { type Sortable, SortableHandle } from "@components/sortable";
 import { AutogrowInput } from "@components/textBlock/AutogrowInput";
 import { Tooltip } from "@components/tooltip";
 import { createSignal, Show } from "solid-js";
@@ -9,7 +10,6 @@ import type { TextBlockProps } from "@contexts/text";
 
 export function TextBlockView(props: {
   index: number;
-  blockCount: number;
   currentText: TextBlockProps;
   currentPreset: Preset | null;
   presetAvailable: boolean;
@@ -22,8 +22,7 @@ export function TextBlockView(props: {
   splitDisabled: boolean;
   splitText: () => void;
   saveAudio: () => void;
-  moveUp: () => void;
-  moveDown: () => void;
+  sortable?: Sortable;
   remove: () => void;
   onCaretChange?: (offset: number) => void;
   onNavigate: (direction: "up" | "down") => void;
@@ -77,18 +76,6 @@ export function TextBlockView(props: {
                 onClick={props.saveAudio}
               />
               <IconButton
-                icon="i-lucide:chevron-up"
-                label={t1("text_block.controls.move_up")}
-                disabled={props.index === 0}
-                onClick={props.moveUp}
-              />
-              <IconButton
-                icon="i-lucide:chevron-down"
-                label={t1("text_block.controls.move_down")}
-                disabled={props.index === props.blockCount - 1}
-                onClick={props.moveDown}
-              />
-              <IconButton
                 icon="i-lucide:trash2"
                 label={t1("text_block.controls.delete")}
                 tone="danger"
@@ -116,7 +103,10 @@ export function TextBlockView(props: {
             onFocusPlacementConsumed={props.onFocusPlacementConsumed}
           />
         </div>
-        <div class="flex flex-row flex-1 w-full" onClick={props.setSelected}>
+        <div
+          class="flex flex-row flex-1 items-center w-full"
+          onClick={props.setSelected}
+        >
           <div class="flex-1 pointer-events-none" />
           <div class="text-sm text-slate-8 dark:text-slate-2 select-none pointer-events-none">
             <Show
@@ -130,6 +120,18 @@ export function TextBlockView(props: {
               </p>
             </Show>
           </div>
+          <Show when={props.sortable}>
+            {(sortable) => (
+              <SortableHandle
+                sortable={sortable()}
+                index={props.index}
+                label={t1("text_block.controls.reorder")}
+                visible={hovered() || toolbarHovered()}
+                // Sit flush with the block's right edge when nothing follows.
+                class={`ml-1 text-slate-4 ${config.ui.buffer_render ? "" : "-mr-3"}`}
+              />
+            )}
+          </Show>
           <Show when={config.ui.buffer_render}>
             <Tooltip content={props.synthStateText()}>
               <output

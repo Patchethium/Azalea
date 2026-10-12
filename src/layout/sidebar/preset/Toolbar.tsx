@@ -2,18 +2,21 @@ import { IconButton } from "@components/iconButton";
 import { useConfigStore } from "@contexts/config";
 import { usei18n } from "@contexts/i18n";
 import type { SidebarControls } from "@layout/sidebar/useSidebar";
-import type { JSX } from "solid-js";
+import { type JSX, Show } from "solid-js";
 
 interface ListToolbarProps {
   createLabel: string;
   onCreate: () => void;
   createDisabled?: boolean;
-  moveUpLabel: string;
-  onMoveUp: () => void;
-  moveUpDisabled?: boolean;
-  moveDownLabel: string;
-  onMoveDown: () => void;
-  moveDownDisabled?: boolean;
+  /** Omit the move buttons for lists that reorder by dragging. */
+  move?: {
+    upLabel: string;
+    onUp: () => void;
+    upDisabled?: boolean;
+    downLabel: string;
+    onDown: () => void;
+    downDisabled?: boolean;
+  };
   deleteLabel: string;
   onDelete: () => void;
   deleteDisabled?: boolean;
@@ -32,18 +35,24 @@ export function ListToolbar(props: ListToolbarProps) {
         disabled={props.createDisabled}
         onClick={props.onCreate}
       />
-      <IconButton
-        icon="i-lucide:chevron-up"
-        label={props.moveUpLabel}
-        disabled={props.moveUpDisabled}
-        onClick={props.onMoveUp}
-      />
-      <IconButton
-        icon="i-lucide:chevron-down"
-        label={props.moveDownLabel}
-        disabled={props.moveDownDisabled}
-        onClick={props.onMoveDown}
-      />
+      <Show when={props.move}>
+        {(move) => (
+          <>
+            <IconButton
+              icon="i-lucide:chevron-up"
+              label={move().upLabel}
+              disabled={move().upDisabled}
+              onClick={move().onUp}
+            />
+            <IconButton
+              icon="i-lucide:chevron-down"
+              label={move().downLabel}
+              disabled={move().downDisabled}
+              onClick={move().onDown}
+            />
+          </>
+        )}
+      </Show>
       <div class="flex-1" />
       {props.extra}
       <IconButton
@@ -66,16 +75,6 @@ export function PresetToolbar(props: { controls: SidebarControls }) {
       createLabel={t1("preset.controls.create")}
       onCreate={controls.createPreset}
       createDisabled={!voicesReady()}
-      moveUpLabel={t1("preset.controls.move_up")}
-      onMoveUp={() => controls.movePreset(controls.currentPresetIndex(), -1)}
-      moveUpDisabled={!voicesReady() || controls.currentPresetIndex() <= 0}
-      moveDownLabel={t1("preset.controls.move_down")}
-      onMoveDown={() => controls.movePreset(controls.currentPresetIndex(), 1)}
-      moveDownDisabled={
-        !voicesReady() ||
-        controls.currentPresetIndex() === -1 ||
-        controls.currentPresetIndex() === controls.projectPresetStore.length - 1
-      }
       deleteLabel={t1("preset.controls.delete")}
       onDelete={controls.removePreset}
       deleteDisabled={
