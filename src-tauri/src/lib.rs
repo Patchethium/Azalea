@@ -85,7 +85,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
       resolve_audio_save_path,
       save_audio,
       get_os,
-      join_path,
+      audio_export_path,
       parent_path,
       home_dir,
       read_text_file,
@@ -320,7 +320,11 @@ mod tests {
   #[test]
   fn mock_runtime_dispatches_registered_path_commands() {
     let app = mock_builder()
-      .invoke_handler(tauri::generate_handler![join_path, parent_path, home_dir])
+      .invoke_handler(tauri::generate_handler![
+        audio_export_path,
+        parent_path,
+        home_dir
+      ])
       .build(mock_context(noop_assets()))
       .unwrap();
     let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
@@ -329,14 +333,17 @@ mod tests {
 
     let joined = get_ipc_response(
       &webview,
-      invoke_request("join_path", json!({ "p1": "workspace", "p2": "audio.wav" })),
+      invoke_request(
+        "audio_export_path",
+        json!({ "dir": "workspace", "name": "../audio" }),
+      ),
     )
     .unwrap()
     .deserialize::<String>()
     .unwrap();
     assert_eq!(
       joined,
-      format!("workspace{}audio.wav", std::path::MAIN_SEPARATOR)
+      format!("workspace{}.._audio.wav", std::path::MAIN_SEPARATOR)
     );
 
     let parent = get_ipc_response(

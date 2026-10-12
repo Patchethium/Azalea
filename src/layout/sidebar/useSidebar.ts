@@ -413,8 +413,10 @@ export function useSidebar() {
               }
             }
             if (query !== null) {
-              const fileName = `${createAudioFileName(block.text, config.ui.name_truncation_len)}.wav`;
-              const targetPath = await commands.joinPath(dir, fileName);
+              const targetPath = await commands.audioExportPath(
+                dir,
+                createAudioFileName(block.text, config.ui.name_truncation_len),
+              );
               const result = await commands.saveAudio(
                 targetPath,
                 getModifiedQuery(unwrap(query), preset),

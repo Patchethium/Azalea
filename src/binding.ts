@@ -407,8 +407,12 @@ async saveAudio(path: string, audioQuery: AudioQuery, speakerId: StyleId, preven
 async getOs() : Promise<OS> {
     return await TAURI_INVOKE("get_os");
 },
-async joinPath(p1: string, p2: string) : Promise<string> {
-    return await TAURI_INVOKE("join_path", { p1, p2 });
+/**
+ * Joins `dir` with a `.wav` file named after `name`, sanitized so the result
+ * always stays directly inside `dir`.
+ */
+async audioExportPath(dir: string, name: string) : Promise<string> {
+    return await TAURI_INVOKE("audio_export_path", { dir, name });
 },
 async parentPath(p: string) : Promise<string | null> {
     return await TAURI_INVOKE("parent_path", { p });

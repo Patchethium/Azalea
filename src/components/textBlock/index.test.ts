@@ -1146,7 +1146,9 @@ describe("TextBlock", () => {
       status: "ok",
       data: audioQuery(),
     });
-    vi.spyOn(commands, "joinPath").mockResolvedValue("/exports/hello");
+    vi.spyOn(commands, "audioExportPath").mockResolvedValue(
+      "/exports/hello.wav",
+    );
     vi.mocked(saveDialog).mockResolvedValue("/exports/rendered");
     const saveAudio = vi
       .spyOn(commands, "saveAudio")
@@ -1195,7 +1197,9 @@ describe("TextBlock", () => {
       status: "ok",
       data: audioQuery(),
     });
-    vi.spyOn(commands, "joinPath").mockResolvedValue("/exports/hello");
+    vi.spyOn(commands, "audioExportPath").mockResolvedValue(
+      "/exports/hello.wav",
+    );
     vi.mocked(saveDialog).mockResolvedValue("/exports/rendered.wav");
     const saveAudio = vi
       .spyOn(commands, "saveAudio")
@@ -1222,9 +1226,9 @@ describe("TextBlock", () => {
       status: "ok",
       data: audioQuery(),
     });
-    const joinPath = vi
-      .spyOn(commands, "joinPath")
-      .mockResolvedValue("/pinned/hello");
+    const audioExportPath = vi
+      .spyOn(commands, "audioExportPath")
+      .mockResolvedValue("/pinned/hello.wav");
     vi.mocked(saveDialog).mockResolvedValue("/pinned/rendered.wav");
     const saveAudio = vi
       .spyOn(commands, "saveAudio")
@@ -1242,7 +1246,7 @@ describe("TextBlock", () => {
     fireEvent.click(saveButton);
 
     await waitFor(() => expect(saveAudio).toHaveBeenCalledOnce());
-    expect(joinPath).toHaveBeenCalledWith("/pinned", "hello");
+    expect(audioExportPath).toHaveBeenCalledWith("/pinned", "hello");
     expect(saveAudio.mock.calls[0]).toMatchObject([
       "/pinned/rendered.wav",
       expect.any(Object),
@@ -1257,9 +1261,9 @@ describe("TextBlock", () => {
       status: "ok",
       data: audioQuery(),
     });
-    const joinPath = vi
-      .spyOn(commands, "joinPath")
-      .mockResolvedValue("/pinned/hello");
+    const audioExportPath = vi
+      .spyOn(commands, "audioExportPath")
+      .mockResolvedValue("/pinned/hello.wav");
     const saveAudio = vi
       .spyOn(commands, "saveAudio")
       .mockResolvedValueOnce({ status: "ok", data: "/pinned/hello.wav" })
@@ -1280,7 +1284,7 @@ describe("TextBlock", () => {
 
     await waitFor(() => expect(saveAudio).toHaveBeenCalledOnce());
     expect(saveDialog).not.toHaveBeenCalled();
-    expect(joinPath).toHaveBeenCalledWith("/pinned", "hello");
+    expect(audioExportPath).toHaveBeenCalledWith("/pinned", "hello");
     expect(saveAudio).toHaveBeenNthCalledWith(
       1,
       "/pinned/hello.wav",
@@ -1309,9 +1313,9 @@ describe("TextBlock", () => {
       status: "ok",
       data: audioQuery(),
     });
-    const joinPath = vi
-      .spyOn(commands, "joinPath")
-      .mockResolvedValue("/last/hello");
+    const audioExportPath = vi
+      .spyOn(commands, "audioExportPath")
+      .mockResolvedValue("/last/hello.wav");
     const resolveAudioSavePath = vi
       .spyOn(commands, "resolveAudioSavePath")
       .mockResolvedValue({ status: "ok", data: "/last/hello(2).wav" });
@@ -1334,7 +1338,7 @@ describe("TextBlock", () => {
     fireEvent.click(saveButton);
 
     await waitFor(() => expect(saveAudio).toHaveBeenCalledOnce());
-    expect(joinPath).toHaveBeenCalledWith("/last", "hello");
+    expect(audioExportPath).toHaveBeenCalledWith("/last", "hello");
     expect(resolveAudioSavePath).toHaveBeenCalledWith("/last/hello.wav");
     expect(saveDialog).toHaveBeenCalledWith({
       title: "Save Audio",
@@ -1359,9 +1363,9 @@ describe("TextBlock", () => {
     const homeDir = vi
       .spyOn(commands, "homeDir")
       .mockResolvedValue("/home/user");
-    const joinPath = vi
-      .spyOn(commands, "joinPath")
-      .mockResolvedValue("/home/user/hello");
+    const audioExportPath = vi
+      .spyOn(commands, "audioExportPath")
+      .mockResolvedValue("/home/user/hello.wav");
     vi.mocked(saveDialog).mockResolvedValue("/home/user/rendered.wav");
     const saveAudio = vi
       .spyOn(commands, "saveAudio")
@@ -1379,7 +1383,7 @@ describe("TextBlock", () => {
 
     await waitFor(() => expect(saveAudio).toHaveBeenCalledOnce());
     expect(homeDir).toHaveBeenCalledOnce();
-    expect(joinPath).toHaveBeenCalledWith("/home/user", "hello");
+    expect(audioExportPath).toHaveBeenCalledWith("/home/user", "hello");
     expect(saveAudio.mock.calls[0]).toMatchObject([
       "/home/user/rendered.wav",
       expect.any(Object),
@@ -1395,9 +1399,9 @@ describe("TextBlock", () => {
       status: "ok",
       data: audioQuery(),
     });
-    const joinPath = vi
-      .spyOn(commands, "joinPath")
-      .mockResolvedValue("/custom/hello");
+    const audioExportPath = vi
+      .spyOn(commands, "audioExportPath")
+      .mockResolvedValue("/custom/hello.wav");
     const resolveAudioSavePath = vi
       .spyOn(commands, "resolveAudioSavePath")
       .mockResolvedValue({
@@ -1427,7 +1431,7 @@ describe("TextBlock", () => {
     getConfigStore().setConfig("ui", "name_truncation_len", 10);
     fireEvent.click(saveButton);
     await waitFor(() => expect(saveAudio).toHaveBeenCalledOnce());
-    expect(joinPath).toHaveBeenLastCalledWith("/custom", "hello");
+    expect(audioExportPath).toHaveBeenLastCalledWith("/custom", "hello");
     expect(resolveAudioSavePath).toHaveBeenLastCalledWith("/custom/hello.wav");
     expect(saveDialog).toHaveBeenLastCalledWith({
       title: "Save Audio",

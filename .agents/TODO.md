@@ -13,14 +13,9 @@ it without help.
 
 ### Data safety
 
-- [ ] **Sanitize generated WAV filenames.** `createAudioFileName` uses the raw
-      block text and `join_path` (`src-tauri/src/commands/process.rs`) calls
-      `PathBuf::push`, so text such as `1/2` creates subdirectories and text
-      starting with `/` or `C:\` replaces the export folder during silent
-      export. Replace separators and invalid characters, handle reserved and
-      empty names, keep the result inside the chosen folder, and keep the
-      existing `(n)` collision suffixes. Applies to single-block export and
-      Export All.
+- [x] **Sanitize generated WAV filenames.** `audio_export_path`
+      (`src-tauri/src/commands/process.rs`) reduces block text to one
+      portable file stem for single-block and Export All exports.
 - [ ] **Save projects and settings atomically.** `commands/project.rs` and
       `config/manager.rs` write the destination directly with `fs::write`.
       Write a temporary sibling file, rename it into place, and keep one

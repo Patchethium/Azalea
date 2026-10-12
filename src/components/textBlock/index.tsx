@@ -227,15 +227,14 @@ function TextBlock(props: { index: number; sortable?: Sortable }) {
     const preventOverwriteOnSave = silentExportDir != null && preventOverwrite;
     let path: string;
     if (silentExportDir != null) {
-      path = await commands.joinPath(silentExportDir, fileName);
+      path = await commands.audioExportPath(silentExportDir, fileName);
     } else {
       let lastSavedDir = pinnedDir ?? config.ui.last_exported_dir;
       if (lastSavedDir == null) {
         const home = await commands.homeDir();
         lastSavedDir = home ?? ".";
       }
-      let targetPath = await commands.joinPath(lastSavedDir, fileName);
-      if (!targetPath.endsWith(".wav")) targetPath = targetPath.concat(".wav");
+      let targetPath = await commands.audioExportPath(lastSavedDir, fileName);
       if (preventOverwrite) {
         const resolvedPath = await commands.resolveAudioSavePath(targetPath);
         if (resolvedPath.status === "ok") {

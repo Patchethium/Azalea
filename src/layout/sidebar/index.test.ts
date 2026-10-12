@@ -1070,10 +1070,10 @@ describe("Sidebar export all", () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
     vi.spyOn(commands, "homeDir").mockResolvedValue("/home/user");
-    const joinPath = vi
-      .spyOn(commands, "joinPath")
+    const audioExportPath = vi
+      .spyOn(commands, "audioExportPath")
       .mockImplementation(
-        async (dir: string, name: string) => `${dir}/${name}`,
+        async (dir: string, name: string) => `${dir}/${name}.wav`,
       );
     const saveAudio = vi
       .spyOn(commands, "saveAudio")
@@ -1121,9 +1121,9 @@ describe("Sidebar export all", () => {
       title: "Export all",
       defaultPath: "/home/user",
     });
-    expect(joinPath.mock.calls).toEqual([
-      ["/exports", "First block.wav"],
-      ["/exports", "Second block.wav"],
+    expect(audioExportPath.mock.calls).toEqual([
+      ["/exports", "First block"],
+      ["/exports", "Second block"],
     ]);
     expect(saveAudio.mock.calls[0][0]).toBe("/exports/First block.wav");
     expect(saveAudio.mock.calls[1][0]).toBe("/exports/Second block.wav");
@@ -1141,8 +1141,8 @@ describe("Sidebar export all", () => {
   it("writes silently to the pinned directory and forwards overwrite prevention", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
-    const joinPath = vi
-      .spyOn(commands, "joinPath")
+    const audioExportPath = vi
+      .spyOn(commands, "audioExportPath")
       .mockResolvedValue("/pinned/hello.wav");
     const saveAudio = vi
       .spyOn(commands, "saveAudio")
@@ -1174,7 +1174,7 @@ describe("Sidebar export all", () => {
 
     await waitFor(() => expect(saveAudio).toHaveBeenCalledOnce());
     expect(dialogs.open).not.toHaveBeenCalled();
-    expect(joinPath).toHaveBeenCalledWith("/pinned", "hello.wav");
+    expect(audioExportPath).toHaveBeenCalledWith("/pinned", "hello");
     expect(saveAudio).toHaveBeenCalledWith(
       "/pinned/hello.wav",
       expect.any(Object),
@@ -1193,8 +1193,8 @@ describe("Sidebar export all", () => {
   it("generates missing queries and reports failed blocks with their errors", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
-    vi.spyOn(commands, "joinPath").mockImplementation(
-      async (dir: string, name: string) => `${dir}/${name}`,
+    vi.spyOn(commands, "audioExportPath").mockImplementation(
+      async (dir: string, name: string) => `${dir}/${name}.wav`,
     );
     const audioQueryCommand = vi
       .spyOn(commands, "audioQuery")
@@ -1267,10 +1267,10 @@ describe("Sidebar export all", () => {
     const errorSpy = vi
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
-    vi.spyOn(commands, "joinPath").mockImplementation(
+    vi.spyOn(commands, "audioExportPath").mockImplementation(
       async (dir: string, name: string) => {
         if (name.startsWith("Broken")) throw new Error("ipc down");
-        return `${dir}/${name}`;
+        return `${dir}/${name}.wav`;
       },
     );
     const saveAudio = vi
@@ -1318,8 +1318,8 @@ describe("Sidebar export all", () => {
   it("stops after the running block when cancelled", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
-    vi.spyOn(commands, "joinPath").mockImplementation(
-      async (dir: string, name: string) => `${dir}/${name}`,
+    vi.spyOn(commands, "audioExportPath").mockImplementation(
+      async (dir: string, name: string) => `${dir}/${name}.wav`,
     );
     let resolveFirst!: (value: { status: "ok"; data: string }) => void;
     const saveAudio = vi.spyOn(commands, "saveAudio").mockReturnValueOnce(
