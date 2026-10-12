@@ -29,7 +29,7 @@ function ToolbarButton(props: {
         aria-pressed={props.ariaPressed}
         onClick={() => props.onClick?.()}
         disabled={props.disabled}
-        class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none enabled:hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) disabled:cursor-not-allowed dark:enabled:hover:bg-slate-7"
+        class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none enabled:hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) disabled:(cursor-not-allowed text-slate-3) dark:enabled:hover:bg-slate-7 dark:disabled:text-slate-5"
       >
         <div class={`${props.icon} size-4`} />
       </button>

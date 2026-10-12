@@ -170,6 +170,13 @@ describe("App initialization", () => {
       expect(
         screen.getByRole("button", { name: "Play selected cell" }),
       ).toBeDisabled();
+      const previousButton = screen.getByRole("button", {
+        name: "Select previous text cell",
+      });
+      expect(previousButton).toBeDisabled();
+      expect(previousButton.className).toContain(
+        "disabled:(cursor-not-allowed text-slate-3)",
+      );
       expect(
         screen.getAllByRole("separator", { name: "Resize Handle" }),
       ).toHaveLength(2);

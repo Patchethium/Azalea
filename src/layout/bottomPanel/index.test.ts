@@ -2960,7 +2960,9 @@ describe("BottomPanel playback", () => {
     expect(playAll.className).toContain(
       "focus-visible:(ring-2 ring-primary-2)",
     );
-    expect(playAll.className).toContain("disabled:cursor-not-allowed");
+    expect(playAll.className).toContain(
+      "disabled:(cursor-not-allowed text-slate-3)",
+    );
     expect(playAll.firstElementChild).toHaveClass(
       "i-lucide:list-video",
       "size-4",

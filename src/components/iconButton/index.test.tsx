@@ -35,6 +35,10 @@ describe("IconButton", () => {
     expect(icon).toHaveAttribute("aria-hidden", "true");
     expect(icon).toHaveClass("group-hover:bg-red-5");
     expect(icon).toHaveClass("group-active:bg-red-6");
+    expect(icon).toHaveClass(
+      "group-disabled:!bg-slate-3",
+      "dark:group-disabled:!bg-slate-5",
+    );
 
     fireEvent.pointerEnter(button.parentElement!, { pointerType: "mouse" });
     expect(await screen.findByRole("tooltip")).toHaveTextContent("Delete item");

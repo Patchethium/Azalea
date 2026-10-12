@@ -50,11 +50,11 @@ export function IconButton(props: IconButtonProps) {
       <Button
         {...buttonProps}
         aria-label={local.label}
-        class={`group ${buttonSize()} flex shrink-0 items-center justify-center rounded-md bg-transparent outline-none ui-disabled:(cursor-not-allowed grayscale) focus-visible:ring-2 ${focusRing()} ${local.class ?? ""}`}
+        class={`group ${buttonSize()} flex shrink-0 items-center justify-center rounded-md bg-transparent outline-none ui-disabled:cursor-not-allowed focus-visible:ring-2 ${focusRing()} ${local.class ?? ""}`}
       >
         <div
           aria-hidden="true"
-          class={`${local.icon} ${iconSize()} ${iconInteraction()}`}
+          class={`${local.icon} ${iconSize()} ${iconInteraction()} group-disabled:!bg-slate-3 dark:group-disabled:!bg-slate-5`}
         />
       </Button>
     </Tooltip>
