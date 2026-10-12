@@ -239,7 +239,7 @@ Keep frontend statement, function, and line coverage at or above 90%, and
 branch coverage at or above 80%. `pnpm test:coverage` enforces these thresholds.
 Rust coverage is informational; `pnpm test:coverage:rust` does not enforce a
 threshold. Future Rust coverage enforcement is tracked in
-`.agents/todos/roadmap.md`.
+`.agents/TODO.md`.
 
 ## Commit & Pull Request Guidelines
 
