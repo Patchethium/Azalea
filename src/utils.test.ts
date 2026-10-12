@@ -3,6 +3,7 @@ import { audioQuery, preset } from "./test/fixtures";
 import {
   countJapaneseMoras,
   createAudioFileName,
+  createUniqueName,
   getModifiedQuery,
   parseSrt,
   splitJapaneseMoras,
@@ -141,5 +142,30 @@ Keep me
 Still here`;
     expect(parseSrt(content)).toEqual(["Keep me", "Still here"]);
     expect(parseSrt("")).toEqual([]);
+  });
+});
+
+describe("createUniqueName", () => {
+  it("keeps the base name when it is free", () => {
+    expect(createUniqueName("New Preset", [])).toBe("New Preset");
+    expect(createUniqueName("New Preset", ["New Preset (1)"])).toBe(
+      "New Preset",
+    );
+  });
+
+  it("appends the smallest unused numeric suffix", () => {
+    expect(createUniqueName("New Preset", ["New Preset"])).toBe(
+      "New Preset (1)",
+    );
+    expect(
+      createUniqueName("New Preset", ["New Preset", "New Preset (1)"]),
+    ).toBe("New Preset (2)");
+    expect(
+      createUniqueName("New Preset", [
+        "New Preset",
+        "New Preset (2)",
+        "New Preset",
+      ]),
+    ).toBe("New Preset (1)");
   });
 });

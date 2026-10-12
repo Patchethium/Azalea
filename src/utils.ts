@@ -33,6 +33,15 @@ export function createAudioFileName(
   });
 }
 
+/** Appends the smallest free ` (n)` suffix when `base` is already taken. */
+export function createUniqueName(base: string, existingNames: string[]) {
+  const taken = new Set(existingNames);
+  if (!taken.has(base)) return base;
+  let suffix = 1;
+  while (taken.has(`${base} (${suffix})`)) suffix += 1;
+  return `${base} (${suffix})`;
+}
+
 export function getModifiedQuery(
   query: AudioQuery,
   preset: Preset,

@@ -27,7 +27,12 @@ import {
   useTextStore,
 } from "@contexts/text";
 import { type PendingProjectAction, useUIStore } from "@contexts/ui";
-import { createAudioFileName, getModifiedQuery, parseSrt } from "$utils";
+import {
+  createAudioFileName,
+  createUniqueName,
+  getModifiedQuery,
+  parseSrt,
+} from "$utils";
 
 export function useSidebar() {
   const { availableStyleIds, metas } = useMetaStore()!;
@@ -174,7 +179,10 @@ export function useSidebar() {
         style_name: null,
       }),
       id: createPresetId(),
-      name: t1("preset.new_preset"),
+      name: createUniqueName(
+        t1("preset.new_preset"),
+        projectPresetStore.map((preset) => preset.name),
+      ),
     };
     setProjectPresetStore(presetIndex, preset);
     setTextPresetIdx(presetIndex);

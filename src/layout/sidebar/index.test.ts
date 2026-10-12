@@ -448,6 +448,25 @@ describe("Sidebar controls", () => {
       speed: 100,
       style_id: 1,
     });
+    controls.createPreset();
+    controls.createPreset();
+    expect(text.projectPresetStore.map((preset) => preset.name)).toEqual([
+      "New Preset",
+      "New Preset (1)",
+      "New Preset (2)",
+    ]);
+    text.setTextStore([
+      {
+        id: "renamed",
+        text: "Renamed",
+        query: null,
+        pitch_noise_seed: 0,
+        preset_id: text.projectPresetStore[1].id ?? null,
+      },
+    ]);
+    controls.setPresetName("New Preset");
+    expect(text.projectPresetStore[1].name).toBe("New Preset");
+    text.setTextStore([]);
 
     await controls.loadProject();
     await controls.saveProject();
