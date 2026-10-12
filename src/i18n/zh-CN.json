@@ -10,7 +10,8 @@
   "toast": {
     "notifications": "通知",
     "close": "关闭通知",
-    "audio_exported": "音频导出成功"
+    "audio_exported": "音频导出成功",
+    "unsupported_system_locale": "不支持系统语言（{{ locale }}），Azalea 将使用英语。"
   },
   "bottom": {
     "regenerate_pitch_noise_seed": "重新生成噪声种子",

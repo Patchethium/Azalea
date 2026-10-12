@@ -82,6 +82,21 @@ impl Default for Locale {
   }
 }
 
+impl Locale {
+  /// Maps a BCP 47 language tag such as `ja-JP` or `zh-Hant-TW` to a
+  /// supported locale. Every Chinese variant uses Simplified Chinese until a
+  /// Traditional Chinese translation exists.
+  pub fn from_language_tag(tag: &str) -> Option<Self> {
+    let tag = tag.replace('_', "-").to_ascii_lowercase();
+    match tag.split('-').next()? {
+      "ja" => Some(Locale::Ja),
+      "en" => Some(Locale::En),
+      "zh" => Some(Locale::ZhCn),
+      _ => None,
+    }
+  }
+}
+
 #[derive(Clone, Default, Deserialize, Serialize, Type)]
 pub enum ThemeMode {
   #[default]
@@ -447,9 +462,44 @@ pub struct Project {
 #[cfg(test)]
 mod tests {
   use super::{
-    cache_size_default, cpu_num_threads_default, AzaleaConfig, KeyboardShortcut, PitchScale,
-    TitlebarStyle, UIConfig,
+    cache_size_default, cpu_num_threads_default, AzaleaConfig, KeyboardShortcut, Locale,
+    PitchScale, TitlebarStyle, UIConfig,
   };
+
+  #[test]
+  fn language_tags_map_to_supported_locales() {
+    for tag in ["ja", "ja-JP", "ja_JP"] {
+      assert!(
+        matches!(Locale::from_language_tag(tag), Some(Locale::Ja)),
+        "{tag}"
+      );
+    }
+    for tag in ["en", "en-US", "EN-gb"] {
+      assert!(
+        matches!(Locale::from_language_tag(tag), Some(Locale::En)),
+        "{tag}"
+      );
+    }
+    for tag in [
+      "zh",
+      "zh-CN",
+      "zh_SG",
+      "zh-Hans",
+      "zh-Hans-HK",
+      "zh-TW",
+      "zh-HK",
+      "zh-MO",
+      "zh-Hant",
+    ] {
+      assert!(
+        matches!(Locale::from_language_tag(tag), Some(Locale::ZhCn)),
+        "{tag}"
+      );
+    }
+    for tag in ["fr-FR", "", "-"] {
+      assert!(Locale::from_language_tag(tag).is_none(), "{tag}");
+    }
+  }
 
   #[test]
   fn missing_settings_use_defaults() {

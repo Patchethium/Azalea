@@ -17,6 +17,10 @@ pub struct InitializationEvent {
   pub resolved_core: Option<crate::config::CoreConfig>,
   #[serde(default)]
   pub active_setup_source: Option<crate::config::types::SetupSource>,
+  /// The system language tag, set only on the first launch when that language
+  /// is unsupported and the UI fell back to English.
+  #[serde(default)]
+  pub unsupported_system_locale: Option<String>,
 }
 
 #[derive(Clone, serde::Deserialize, serde::Serialize, specta::Type, tauri_specta::Event)]
@@ -35,10 +39,12 @@ pub async fn initialize(app: tauri::AppHandle) -> InitializationEvent {
         error: Some(error.to_string()),
         resolved_core: None,
         active_setup_source: None,
+        unsupported_system_locale: None,
       }
     }
   };
   let config = config_manager.config.clone();
+  let unsupported_system_locale = config_manager.unsupported_system_locale.clone();
   state
     .config_manager
     .write()
@@ -86,6 +92,7 @@ pub async fn initialize(app: tauri::AppHandle) -> InitializationEvent {
     range: _get_range().into_iter().collect(),
     error,
     resolved_core,
+    unsupported_system_locale,
   }
 }
 

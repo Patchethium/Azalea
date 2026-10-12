@@ -1,7 +1,7 @@
 import { events, type TitlebarStyle } from "$binding";
 import Resizable from "@corvu/resizable";
 import ConfigPage from "@dialogs/config";
-import { AppToastRegion } from "@components/toast";
+import { AppToastRegion, showWarningToast } from "@components/toast";
 import { TitleBar } from "@components/titleBar";
 import MainPage from "@layout/MainPage";
 import Sidebar from "@layout/sidebar";
@@ -46,7 +46,7 @@ function App() {
     titlebarStyle,
   } = useConfigStore()!;
   const { setMetas, availableStyleIds } = useMetaStore()!;
-  const { t1 } = usei18n()!;
+  const { t1, t2 } = usei18n()!;
   const { systemStore } = useSystemStore()!;
   const { setUIStore } = useUIStore()!;
   const { newProject, isProjectDirty } = useTextStore()!;
@@ -82,6 +82,14 @@ function App() {
         if (payload.metas) setMetas(payload.metas);
         setConfig(payload.config);
         setConfigInitialized(true);
+        if (payload.unsupported_system_locale) {
+          showWarningToast(
+            t2("toast.unsupported_system_locale", {
+              locale: payload.unsupported_system_locale,
+            }),
+            t1("toast.close"),
+          );
+        }
       }
       setInitializing(false);
     });

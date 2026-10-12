@@ -683,7 +683,12 @@ export type DownloadSetup = { directory: string; components: DownloadComponent[]
 loaded_models: string[] | null }
 export type DownloadedSetupConfig = { cache_size?: number; cpu_num_threads?: number }
 export type FrontendReadyEvent = null
-export type InitializationEvent = { config: AzaleaConfig | null; core_initialized: boolean; metas: CharacterMeta[] | null; range: ([StyleId, PitchRange])[]; error: string | null; resolved_core?: CoreConfig | null; active_setup_source?: SetupSource | null }
+export type InitializationEvent = { config: AzaleaConfig | null; core_initialized: boolean; metas: CharacterMeta[] | null; range: ([StyleId, PitchRange])[]; error: string | null; resolved_core?: CoreConfig | null; active_setup_source?: SetupSource | null; 
+/**
+ * The system language tag, set only on the first launch when that language
+ * is unsupported and the UI fell back to English.
+ */
+unsupported_system_locale?: string | null }
 export type KeyboardShortcut = { key: string; primary?: boolean; secondary?: boolean; shift?: boolean; alt?: boolean }
 export type KeyboardShortcuts = { undo?: KeyboardShortcut; redo?: KeyboardShortcut; save_project?: KeyboardShortcut; export_audio?: KeyboardShortcut; toggle_playback?: KeyboardShortcut; play_current?: KeyboardShortcut; play_next?: KeyboardShortcut; toggle_pitch_completion?: KeyboardShortcut }
 export type Locale = "Ja" | "En" | "ZhCn"

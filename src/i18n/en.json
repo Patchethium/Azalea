@@ -10,7 +10,8 @@
   "toast": {
     "notifications": "Notifications",
     "close": "Close notification",
-    "audio_exported": "Audio exported successfully"
+    "audio_exported": "Audio exported successfully",
+    "unsupported_system_locale": "Your system language ({{ locale }}) is not supported, so Azalea is using English."
   },
   "bottom": {
     "regenerate_pitch_noise_seed": "Regenerate noise seed",

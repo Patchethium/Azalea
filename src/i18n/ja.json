@@ -10,7 +10,8 @@
   "toast": {
     "notifications": "通知",
     "close": "通知を閉じる",
-    "audio_exported": "音声を書き出しました"
+    "audio_exported": "音声を書き出しました",
+    "unsupported_system_locale": "システムの言語（{{ locale }}）には対応していないため、英語で表示します。"
   },
   "bottom": {
     "regenerate_pitch_noise_seed": "ノイズのシードを再生成",

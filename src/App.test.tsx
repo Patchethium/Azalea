@@ -788,6 +788,33 @@ describe("App initialization", () => {
     await waitFor(() => expect(warn).toHaveBeenCalledOnce());
   });
 
+  it("warns once when the system language fell back to English", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    mockWindows("main");
+    renderApp();
+    await events.initializationEvent.emit({
+      config: config({ locale: "En" }),
+      core_initialized: false,
+      metas: null,
+      range: [],
+      error: null,
+      unsupported_system_locale: "fr-FR",
+    });
+
+    const message =
+      "Your system language (fr-FR) is not supported, so Azalea is using English.";
+    const warningToast = await screen.findByRole("status", { name: message });
+    expect(screen.getAllByRole("status", { name: message })).toHaveLength(1);
+    expect(warningToast).toHaveClass("border-amber-3");
+    const progressTrack = warningToast.querySelector('[role="presentation"]');
+    expect(progressTrack).toHaveClass("bg-amber-2");
+    expect(progressTrack?.firstElementChild).toHaveClass("bg-amber-5");
+    fireEvent.click(screen.getByRole("button", { name: "Close notification" }));
+    expect(warningToast).toHaveAttribute("data-closed");
+  });
+
   it("still completes initialization when the backend reports an error", async () => {
     const calls: string[] = [];
     mockIPC(

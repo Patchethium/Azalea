@@ -1,4 +1,4 @@
-use super::types::{portrait_ratio_default, side_width_default};
+use super::types::{portrait_ratio_default, side_width_default, Locale};
 use anyhow::Result;
 use std::fs::{create_dir_all, File};
 use std::path::PathBuf;
@@ -85,24 +85,43 @@ pub(crate) fn user_dictionary_path() -> PathBuf {
 pub struct ConfigManager {
   pub config: AzaleaConfig,
   config_path: PathBuf,
+  /// The system language tag when the config was first created with an
+  /// unsupported system language and fell back to English.
+  pub unsupported_system_locale: Option<String>,
 }
 
 impl Default for ConfigManager {
   fn default() -> Self {
-    let config_path = config_dir().join("config.toml");
     Self {
       config: AzaleaConfig::default(),
-      config_path,
+      config_path: config_dir().join("config.toml"),
+      unsupported_system_locale: None,
     }
   }
 }
 
 impl ConfigManager {
   pub fn new() -> Result<Self> {
-    let mut config_manager = Self::default();
+    Self::open(config_dir().join("config.toml"), sys_locale::get_locale)
+  }
+
+  /// Loads the config at `config_path`, or creates it on first launch with
+  /// the UI locale taken from `system_locale`.
+  fn open(config_path: PathBuf, system_locale: impl FnOnce() -> Option<String>) -> Result<Self> {
+    let mut config_manager = Self {
+      config: AzaleaConfig::default(),
+      config_path,
+      unsupported_system_locale: None,
+    };
     if config_manager.config_path.exists() {
       config_manager.load()?;
     } else {
+      if let Some(tag) = system_locale() {
+        match Locale::from_language_tag(&tag) {
+          Some(locale) => config_manager.config.ui.locale = locale,
+          None => config_manager.unsupported_system_locale = Some(tag),
+        }
+      }
       create_dir_all(
         config_manager
           .config_path
@@ -156,7 +175,7 @@ impl ConfigManager {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::config::types::{Locale, PitchScale, ThemeMode, TitlebarStyle};
+  use crate::config::types::{PitchScale, ThemeMode, TitlebarStyle};
 
   #[test]
   fn release_downloaded_components_use_local_data_and_report_missing_base() {
@@ -295,5 +314,59 @@ mod tests {
     assert!(manager.load_as(&malformed).is_err());
     assert_eq!(manager.config.ui.primary_color, "#abcdef");
     assert!(manager.load_as(&missing).is_err());
+  }
+
+  #[test]
+  fn first_launch_uses_supported_system_locale() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("nested/config.toml");
+
+    let manager = ConfigManager::open(path.clone(), || Some("ja-JP".into())).unwrap();
+
+    assert!(matches!(manager.config.ui.locale, Locale::Ja));
+    assert!(manager.unsupported_system_locale.is_none());
+    let mut saved = ConfigManager::default();
+    saved.load_as(&path).unwrap();
+    assert!(matches!(saved.config.ui.locale, Locale::Ja));
+  }
+
+  #[test]
+  fn first_launch_falls_back_to_english_for_unsupported_system_locale() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("config.toml");
+
+    let manager = ConfigManager::open(path.clone(), || Some("fr-FR".into())).unwrap();
+
+    assert!(matches!(manager.config.ui.locale, Locale::En));
+    assert_eq!(manager.unsupported_system_locale.as_deref(), Some("fr-FR"));
+    let mut saved = ConfigManager::default();
+    saved.load_as(&path).unwrap();
+    assert!(matches!(saved.config.ui.locale, Locale::En));
+  }
+
+  #[test]
+  fn first_launch_without_system_locale_uses_english_silently() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("config.toml");
+
+    let manager = ConfigManager::open(path, || None).unwrap();
+
+    assert!(matches!(manager.config.ui.locale, Locale::En));
+    assert!(manager.unsupported_system_locale.is_none());
+  }
+
+  #[test]
+  fn existing_config_ignores_system_locale() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("config.toml");
+    std::fs::write(&path, "[ui]\nlocale = \"En\"\n").unwrap();
+
+    let manager = ConfigManager::open(path, || {
+      panic!("the system locale must only be read on first launch")
+    })
+    .unwrap();
+
+    assert!(matches!(manager.config.ui.locale, Locale::En));
+    assert!(manager.unsupported_system_locale.is_none());
   }
 }
