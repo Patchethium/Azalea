@@ -12,6 +12,7 @@ import {
   within,
 } from "@solidjs/testing-library";
 import { mockIPC } from "@tauri-apps/api/mocks";
+import userEvent from "@testing-library/user-event";
 import { batch, createSignal, type Component, onMount } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
 import { ConfigProvider, useConfigStore } from "@contexts/config";
@@ -222,6 +223,151 @@ describe("PresetManagerDialog", () => {
     expect(appConfig.config.system_presets?.map((item) => item.name)).toEqual([
       "Project Only",
     ]);
+  });
+
+  it("edits a preset in place of the opposite list", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
+    let text!: NonNullable<ReturnType<typeof useTextStore>>;
+    const [open, setOpen] = createSignal(true);
+    const Harness: Component = () => {
+      appConfig = useConfigStore()!;
+      text = useTextStore()!;
+      const meta = useMetaStore()!;
+      onMount(() => {
+        batch(() => {
+          meta.setMetas(metas);
+          appConfig.setConfig({
+            ...config(),
+            system_presets: [
+              preset({ id: "system-1", name: "System One" }),
+              preset({ id: "system-2", name: "System Two" }),
+            ],
+          });
+          text.setProjectPresetStore([
+            preset({ name: "Project One" }),
+            preset({ id: "preset-2", name: "Project Two" }),
+          ]);
+          text.replaceTextBlocks([
+            {
+              id: "block-1",
+              text: "",
+              query: null,
+              pitch_noise_seed: 0,
+              preset_id: "preset-1",
+              pitch_is_modified: true,
+            },
+          ]);
+        });
+      });
+      return <PresetManagerDialog open={open()} onOpenChange={setOpen} />;
+    };
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [i18nProvider, null],
+          [TextProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+
+    const region = (name: string) => screen.queryByRole("region", { name });
+    const editButton = (name: string, column: string) =>
+      within(within(region(column)!).getByText(name).closest("li")!).getByRole(
+        "button",
+        { name: "Edit" },
+      );
+    const nameField = () =>
+      within(region("Edit Preset")!).getByPlaceholderText("Untitled Preset");
+
+    await screen.findByText("Project One");
+    expect(region("Edit Preset")).toBeNull();
+
+    // Editing a project preset replaces the system list.
+    const editProjectOne = editButton("Project One", "Project Presets");
+    expect(editProjectOne).toHaveAttribute("aria-pressed", "false");
+    await user.click(editProjectOne);
+    expect(region("System Presets")).toBeNull();
+    expect(region("Project Presets")).not.toBeNull();
+    expect(editProjectOne).toHaveAttribute("aria-pressed", "true");
+    expect(nameField()).toHaveValue("Project One");
+    await user.clear(nameField());
+    await user.type(nameField(), "Renamed");
+    expect(text.projectPresetStore[0].name).toBe("Renamed");
+    await user.click(
+      within(region("Edit Preset")!).getByRole("button", {
+        name: "Style Normal",
+      }),
+    );
+    // The dialog marks the Select's portal aria-hidden, as with Config selects.
+    await user.click(
+      await screen.findByRole("option", { name: "Happy", hidden: true }),
+    );
+    expect(text.projectPresetStore[0]).toMatchObject({
+      style_id: 2,
+      style_name: "Happy",
+    });
+    // A new voice invalidates the edits of blocks using the preset.
+    expect(text.textStore[0].pitch_is_modified).toBe(false);
+
+    // Edit switches between presets and toggles the editor off.
+    await user.click(editButton("Project Two", "Project Presets"));
+    expect(nameField()).toHaveValue("Project Two");
+    await user.click(editButton("Project Two", "Project Presets"));
+    expect(region("Edit Preset")).toBeNull();
+    expect(region("System Presets")).not.toBeNull();
+
+    // Editing a system preset replaces the project list.
+    await user.click(editButton("System Two", "System Presets"));
+    expect(region("Project Presets")).toBeNull();
+    await user.clear(nameField());
+    await user.type(nameField(), "Edited System");
+    expect(appConfig.config.system_presets?.map((item) => item.name)).toEqual([
+      "System One",
+      "Edited System",
+    ]);
+    expect(text.projectPresetStore.map((item) => item.name)).toEqual([
+      "Renamed",
+      "Project Two",
+    ]);
+
+    // Deleting another preset keeps the editor on the same preset.
+    await user.click(
+      within(
+        within(region("System Presets")!)
+          .getByText("System One")
+          .closest("li")!,
+      ).getByRole("button", { name: "Delete" }),
+    );
+    expect(nameField()).toHaveValue("Edited System");
+    await user.click(
+      screen.getByRole("button", { name: "Close preset editor" }),
+    );
+    expect(region("Project Presets")).not.toBeNull();
+
+    // Deleting the edited preset closes its editor.
+    await user.click(editButton("Project Two", "Project Presets"));
+    await user.click(
+      within(
+        within(region("Project Presets")!)
+          .getByText("Project Two")
+          .closest("li")!,
+      ).getByRole("button", { name: "Delete" }),
+    );
+    expect(region("Edit Preset")).toBeNull();
+    expect(region("System Presets")).not.toBeNull();
+
+    // Closing the dialog closes the editor.
+    await user.click(editButton("Renamed", "Project Presets"));
+    setOpen(false);
+    setOpen(true);
+    await screen.findByText("Renamed");
+    expect(region("Edit Preset")).toBeNull();
   });
 
   it("collapses preset details until a preset is expanded", async () => {

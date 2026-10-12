@@ -106,6 +106,24 @@ export const resolvePresetIdentity = (
   };
 };
 
+/** The preset identity fields for a style, or null when it is unknown. */
+export const styleIdentityPatch = (
+  styleId: number,
+  metas: CharacterMeta[],
+): Pick<Preset, "style_id" | "speaker_uuid" | "style_name"> | null => {
+  for (const speaker of metas) {
+    const style = speaker.styles.find((candidate) => candidate.id === styleId);
+    if (style !== undefined) {
+      return {
+        style_id: style.id,
+        speaker_uuid: speaker.speaker_uuid,
+        style_name: style.name,
+      };
+    }
+  }
+  return null;
+};
+
 export const findPresetById = (
   presets: readonly Preset[],
   presetId: string | null | undefined,
@@ -220,6 +238,35 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
       setUIStore("selectedTextBlockIndex", nextIndex);
     });
     return nextIndex;
+  };
+
+  /**
+   * Applies `patch` to a project preset. Changing its style clears the query
+   * edits of every block that uses it, since they no longer match the voice.
+   */
+  const updateProjectPreset = (presetId: string, patch: Partial<Preset>) => {
+    const index = projectPresetStore.findIndex(
+      (preset) => preset.id === presetId,
+    );
+    if (index === -1) return;
+    const styleChanged =
+      patch.style_id !== undefined &&
+      patch.style_id !== projectPresetStore[index].style_id;
+    batch(() => {
+      setProjectPresetStore(index, (preset) => ({ ...preset, ...patch }));
+      if (!styleChanged) return;
+      setTextStore(
+        produce((blocks) => {
+          for (const block of blocks) {
+            if (block.preset_id === presetId) {
+              block.accent_is_modified = false;
+              block.duration_is_modified = false;
+              block.pitch_is_modified = false;
+            }
+          }
+        }),
+      );
+    });
   };
 
   const moveTextBlock = (from: number, to: number) => {
@@ -465,6 +512,7 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     setProjectPath,
     insertTextBlockBelow,
     moveTextBlock,
+    updateProjectPreset,
     selectedTextBlock,
     selectedTextBlockIndex,
     createFirstTextBlock,

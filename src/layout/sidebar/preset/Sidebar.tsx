@@ -1,14 +1,9 @@
-import { Tooltip } from "@components/tooltip";
-import { IconButton } from "@components/iconButton";
 import { createSortable, SortableDropIndicator } from "@components/sortable";
-import { NumberInput } from "@components/numberField";
 import { usei18n } from "@contexts/i18n";
 import Resizable from "@corvu/resizable";
 import { PresetManagerDialog } from "@dialogs/PresetManager";
-import { SpeakerSelectionDialog } from "@dialogs/SpeakerSelection";
-import { TextField } from "@kobalte/core/text-field";
 import { PresetCard } from "@layout/sidebar/preset/Card";
-import { OptionSelector, PresetSlider } from "@layout/sidebar/preset/Fields";
+import { PresetEditor } from "@layout/sidebar/preset/Editor";
 import { PresetToolbar } from "@layout/sidebar/preset/Toolbar";
 import type { SidebarControls } from "@layout/sidebar/useSidebar";
 import { batch, createSignal, For, onCleanup, onMount, Show } from "solid-js";
@@ -181,116 +176,18 @@ export function PresetSidebar(props: { controls: SidebarControls }) {
                     </div>
                   }
                 >
-                  <div class="w-full h-1" />
-                  <span class="text-sm select-none cursor-default">
-                    {t1("preset.name")}
-                  </span>
-                  <TextField
-                    class="w-full"
-                    value={controls.currentPreset()?.name}
-                    onChange={controls.setPresetName}
-                  >
-                    <TextField.Input
-                      placeholder={t1("preset.placeholder_name")}
-                      class="p1 px2 w-full b b-slate-2 dark:(b-slate-6 bg-slate-7) rounded-md outline-none focus:b-primary-5"
+                  {(preset) => (
+                    <PresetEditor
+                      preset={preset()}
+                      onChange={controls.updateCurrentPreset}
                     />
-                  </TextField>
-                  <OptionSelector
-                    name={t1("preset.speaker")}
-                    options={controls.availableSpeakerNames()}
-                    value={controls.curMeta()?.name ?? ""}
-                    onChange={controls.selectSpeakerByName}
-                    optionLang="ja"
-                    action={
-                      <IconButton
-                        icon="i-lucide:layout-grid"
-                        iconSize="sm"
-                        label={t1("speaker_selection.open")}
-                        size="lg"
-                        class="b b-slate-2 dark:b-slate-6"
-                        onClick={() => controls.setSpeakerSelectionOpen(true)}
-                      />
-                    }
-                  />
-                  <OptionSelector
-                    name={t1("preset.style")}
-                    options={controls.availableStyleNames()}
-                    value={controls.curStyle()?.name ?? ""}
-                    onChange={controls.setStyleByName}
-                    optionLang="ja"
-                  />
-                  <PresetSlider
-                    name={t1("preset.speed")}
-                    min={50}
-                    max={200}
-                    step={1}
-                    appendix="%"
-                    value={controls.speed()!}
-                    setValue={controls.setSpeed}
-                  />
-                  <PresetSlider
-                    name={t1("preset.pitch")}
-                    min={-0.5}
-                    max={0.5}
-                    step={0.01}
-                    value={controls.pitch()!}
-                    setValue={controls.setPitch}
-                  />
-                  <PresetSlider
-                    name={t1("preset.intonation")}
-                    min={0}
-                    max={2}
-                    step={0.01}
-                    value={controls.intonation()!}
-                    setValue={controls.setIntonation}
-                  />
-                  <PresetSlider
-                    name={t1("preset.volume")}
-                    min={0}
-                    max={2}
-                    step={0.01}
-                    value={controls.volume()!}
-                    setValue={controls.setVolume}
-                  />
-                  <div class="flex flex-row gap2">
-                    <Tooltip content="in millisecond" class="min-w-0 flex-1">
-                      <NumberInput
-                        label={t1("preset.start_sli")}
-                        value={controls.startSli()}
-                        setValue={controls.setStartSli}
-                        min={0}
-                        max={1500}
-                        step={100}
-                      />
-                    </Tooltip>
-                    <Tooltip content="in millisecond" class="min-w-0 flex-1">
-                      <NumberInput
-                        label={t1("preset.end_sli")}
-                        value={controls.endSli()}
-                        setValue={controls.setEndSli}
-                        min={0}
-                        max={1500}
-                        step={100}
-                      />
-                    </Tooltip>
-                  </div>
-                  <div class="h-2 w-full" />
+                  )}
                 </Show>
               </div>
             </div>
           </section>
         </Resizable.Panel>
       </Resizable>
-      <SpeakerSelectionDialog
-        open={controls.speakerSelectionOpen()}
-        onOpenChange={controls.setSpeakerSelectionOpen}
-        speakers={controls.metas}
-        selectedSpeakerUuid={controls.curMeta()?.speaker_uuid ?? null}
-        onSelect={(speaker) => {
-          controls.setStyleId(speaker.styles[0].id);
-          controls.setSpeakerSelectionOpen(false);
-        }}
-      />
     </>
   );
 }

@@ -3,7 +3,8 @@ import { Preset } from "$binding";
 import { AppDialogContent } from "@dialogs/AppContent";
 import { Collapsible } from "@kobalte/core/collapsible";
 import { Dialog } from "@kobalte/core/dialog";
-import { createMemo, For, Show } from "solid-js";
+import { PresetEditor } from "@layout/sidebar/preset/Editor";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { useConfigStore } from "@contexts/config";
 import { usei18n } from "@contexts/i18n";
 import { useMetaStore } from "@contexts/meta";
@@ -14,11 +15,63 @@ interface PresetManagerDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+type PresetList = "project" | "system";
+
+/** The preset being edited; its editor replaces the opposite list. */
+interface EditTarget {
+  list: PresetList;
+  index: number;
+}
+
 export function PresetManagerDialog(props: PresetManagerDialogProps) {
   const { t1 } = usei18n()!;
-  const { projectPresetStore, setProjectPresetStore, removeProjectPreset } =
-    useTextStore()!;
+  const {
+    projectPresetStore,
+    setProjectPresetStore,
+    removeProjectPreset,
+    updateProjectPreset,
+  } = useTextStore()!;
   const { config, setConfig } = useConfigStore()!;
+  const [editing, setEditing] = createSignal<EditTarget | null>(null);
+  createEffect(() => {
+    if (!props.open) setEditing(null);
+  });
+
+  const presetsOf = (list: PresetList): readonly Preset[] =>
+    list === "project" ? projectPresetStore : (config.system_presets ?? []);
+  const editedPreset = () => {
+    const target = editing();
+    return target === null
+      ? null
+      : (presetsOf(target.list)[target.index] ?? null);
+  };
+  const toggleEdit = (list: PresetList, index: number) => {
+    const target = editing();
+    setEditing(
+      target?.list === list && target.index === index ? null : { list, index },
+    );
+  };
+  const updateEdited = (patch: Partial<Preset>) => {
+    const target = editing();
+    if (target === null) return;
+    if (target.list === "project") {
+      const presetId = projectPresetStore[target.index]?.id;
+      if (presetId !== undefined) updateProjectPreset(presetId, patch);
+    } else {
+      setConfig("system_presets", target.index, (preset) => ({
+        ...preset,
+        ...patch,
+      }));
+    }
+  };
+  /** Keeps the edit target on the same preset after one is deleted. */
+  const afterDelete = (list: PresetList, index: number) => {
+    const target = editing();
+    if (target?.list !== list || target.index < index) return;
+    setEditing(
+      target.index === index ? null : { list, index: target.index - 1 },
+    );
+  };
 
   const copyToSystem = (preset: Preset) => {
     const newPreset = { ...preset, id: createPresetId() };
@@ -35,35 +88,84 @@ export function PresetManagerDialog(props: PresetManagerDialogProps) {
       "system_presets",
       (config.system_presets ?? []).filter((_, i) => i !== index),
     );
+    afterDelete("system", index);
   };
 
   const deleteFromProject = (index: number) => {
     const presetId = projectPresetStore[index]?.id;
-    if (presetId !== undefined) removeProjectPreset(presetId);
+    if (presetId === undefined) return;
+    removeProjectPreset(presetId);
+    afterDelete("project", index);
   };
+
+  const editorPanel = () => (
+    <Show when={editedPreset()}>
+      {(preset) => (
+        <section
+          aria-label={t1("preset_manager.editor")}
+          class="min-w-0 flex flex-1 flex-col overflow-hidden rounded-md b b-slate-2 dark:b-slate-6"
+        >
+          <h3 class="m0 flex items-center gap2 b-b b-slate-2 bg-slate-1 px3 py1 text-sm font-semibold dark:(b-slate-6 bg-slate-7)">
+            <span class="min-w-0 flex-1 truncate">
+              {t1("preset_manager.editor")}
+            </span>
+            <IconButton
+              icon="i-lucide:x"
+              iconSize="sm"
+              size="sm"
+              label={t1("preset_manager.close_editor")}
+              onClick={() => setEditing(null)}
+            />
+          </h3>
+          <div class="min-h-0 flex flex-1 flex-col overflow-y-auto px3">
+            <PresetEditor preset={preset()} onChange={updateEdited} />
+          </div>
+        </section>
+      )}
+    </Show>
+  );
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <AppDialogContent
         title={t1("preset_manager.title")}
         closeLabel={t1("preset_manager.close")}
-        class="min-h-[min(80vh,28rem)] w-[min(90vw,44rem)]"
+        // Fixed to the preset editor height so toggling edit mode keeps the size.
+        class="h-[min(80vh,32rem)] w-[min(90vw,44rem)]"
       >
         <div class="flex min-h-0 flex-1 flex-row gap3 p3">
-          <PresetColumn
-            title={t1("preset_manager.project_presets")}
-            presets={projectPresetStore}
-            direction="right"
-            copyTo={copyToSystem}
-            delete={deleteFromProject}
-          />
-          <PresetColumn
-            title={t1("preset_manager.system_presets")}
-            presets={config.system_presets ?? []}
-            direction="left"
-            copyTo={copyToProject}
-            delete={deleteFromSystem}
-          />
+          <Show
+            when={editing()?.list !== "system" || editedPreset() === null}
+            fallback={editorPanel()}
+          >
+            <PresetColumn
+              title={t1("preset_manager.project_presets")}
+              presets={projectPresetStore}
+              direction="right"
+              copyTo={copyToSystem}
+              delete={deleteFromProject}
+              editingIndex={
+                editing()?.list === "project" ? editing()!.index : null
+              }
+              edit={(index) => toggleEdit("project", index)}
+            />
+          </Show>
+          <Show
+            when={editing()?.list !== "project" || editedPreset() === null}
+            fallback={editorPanel()}
+          >
+            <PresetColumn
+              title={t1("preset_manager.system_presets")}
+              presets={config.system_presets ?? []}
+              direction="left"
+              copyTo={copyToProject}
+              delete={deleteFromSystem}
+              editingIndex={
+                editing()?.list === "system" ? editing()!.index : null
+              }
+              edit={(index) => toggleEdit("system", index)}
+            />
+          </Show>
         </div>
       </AppDialogContent>
     </Dialog>
@@ -76,6 +178,8 @@ interface PresetColumnProps {
   direction: "left" | "right";
   copyTo: (preset: Preset) => void;
   delete: (index: number) => void;
+  editingIndex: number | null;
+  edit: (index: number) => void;
 }
 
 function PresetColumn(props: PresetColumnProps) {
@@ -108,6 +212,8 @@ function PresetColumn(props: PresetColumnProps) {
                 direction={props.direction}
                 copyTo={props.copyTo}
                 delete={props.delete}
+                editing={props.editingIndex === i()}
+                edit={props.edit}
               />
             )}
           </For>
@@ -123,6 +229,8 @@ interface PresetItemProps {
   direction: "left" | "right";
   copyTo: (preset: Preset) => void;
   delete: (index: number) => void;
+  editing: boolean;
+  edit: (index: number) => void;
 }
 
 const formatNumber = (value: number) =>
@@ -172,6 +280,16 @@ function PresetItem(props: PresetItemProps) {
               </Show>
             </span>
           </Collapsible.Trigger>
+          <IconButton
+            icon="i-lucide:pencil"
+            iconSize="sm"
+            size="md"
+            tone="primary"
+            label={t1("preset_manager.edit")}
+            aria-pressed={props.editing}
+            class="aria-pressed:bg-primary-1 dark:aria-pressed:bg-primary-9"
+            onClick={() => props.edit(props.index)}
+          />
           <IconButton
             icon={
               props.direction === "right"

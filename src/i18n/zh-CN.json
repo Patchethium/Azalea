@@ -271,7 +271,10 @@
     "system_presets": "系统预设",
     "copy_to_system": "复制到系统",
     "copy_to_project": "复制到项目",
-    "delete": "删除"
+    "delete": "删除",
+    "edit": "编辑",
+    "editor": "编辑预设",
+    "close_editor": "关闭预设编辑"
   },
   "voice_setup": {
     "core_paths": "核心路径",

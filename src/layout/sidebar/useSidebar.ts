@@ -24,6 +24,7 @@ import {
   createTextBlock,
   findPresetById,
   findPresetStyle,
+  styleIdentityPatch,
   useTextStore,
 } from "@contexts/text";
 import { type PendingProjectAction, useUIStore } from "@contexts/ui";
@@ -50,6 +51,7 @@ export function useSidebar() {
     selectedTextBlockIndex,
     replaceTextBlocks,
     removeProjectPreset,
+    updateProjectPreset,
     newProject,
     isProjectDirty,
     markProjectSaved,
@@ -64,45 +66,16 @@ export function useSidebar() {
 
   const setStyleId = (styleId: StyleId) => {
     const presetId = currentText()?.preset_id;
-    const presetIndex = projectPresetStore.findIndex(
-      (preset) => preset.id === presetId,
-    );
-    const styleChanged =
-      presetIndex !== -1 &&
-      projectPresetStore[presetIndex]?.style_id !== styleId;
-    const speaker = metas.find((candidate) =>
-      candidate.styles.some((style) => style.id === styleId),
-    );
-    const style = speaker?.styles.find((candidate) => candidate.id === styleId);
-    if (
-      presetId == null ||
-      presetIndex === -1 ||
-      speaker === undefined ||
-      style === undefined
-    )
-      return;
-    batch(() => {
-      setProjectPresetStore(presetIndex, "style_id", styleId);
-      setProjectPresetStore(presetIndex, "speaker_uuid", speaker.speaker_uuid);
-      setProjectPresetStore(presetIndex, "style_name", style.name);
-      if (styleChanged) {
-        setTextStore(
-          produce((blocks) => {
-            for (const block of blocks) {
-              if (block.preset_id === presetId) {
-                block.accent_is_modified = false;
-                block.duration_is_modified = false;
-                block.pitch_is_modified = false;
-              }
-            }
-          }),
-        );
-      }
-    });
+    const patch = styleIdentityPatch(styleId, metas);
+    if (presetId == null || patch === null) return;
+    updateProjectPreset(presetId, patch);
+  };
+  const updateCurrentPreset = (patch: Partial<Preset>) => {
+    const presetId = currentText()?.preset_id;
+    if (presetId != null) updateProjectPreset(presetId, patch);
   };
 
   const [presetManagerOpen, setPresetManagerOpen] = createSignal(false);
-  const [speakerSelectionOpen, setSpeakerSelectionOpen] = createSignal(false);
   const [aboutOpen, setAboutOpen] = createSignal(false);
 
   const currentPreset = createMemo(() =>
@@ -539,6 +512,7 @@ export function useSidebar() {
     selectSpeakerByName,
     setStyleByName,
     setStyleId,
+    updateCurrentPreset,
     pitch,
     speed,
     intonation,
@@ -558,8 +532,6 @@ export function useSidebar() {
     movePreset,
     presetManagerOpen,
     setPresetManagerOpen,
-    speakerSelectionOpen,
-    setSpeakerSelectionOpen,
     aboutOpen,
     setAboutOpen,
     actionMenuOpen,

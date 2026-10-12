@@ -271,7 +271,10 @@
     "system_presets": "システム",
     "copy_to_system": "システムにコピー",
     "copy_to_project": "プロジェクトにコピー",
-    "delete": "削除"
+    "delete": "削除",
+    "edit": "編集",
+    "editor": "プリセットを編集",
+    "close_editor": "プリセットの編集を閉じる"
   },
   "voice_setup": {
     "core_paths": "コアのパス",

@@ -271,7 +271,10 @@
     "system_presets": "System Presets",
     "copy_to_system": "Copy to System",
     "copy_to_project": "Copy to Project",
-    "delete": "Delete"
+    "delete": "Delete",
+    "edit": "Edit",
+    "editor": "Edit Preset",
+    "close_editor": "Close preset editor"
   },
   "voice_setup": {
     "core_paths": "Core paths",
