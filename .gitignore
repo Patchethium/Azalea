@@ -5,6 +5,7 @@ vendor/
 .env
 config_dev/config.json
 config_dev/config.toml
+config_dev/config.toml.bak
 config_dev/user_dictionary.json
 config_dev/assets/
 config_dev/voicevox/

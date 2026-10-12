@@ -1,6 +1,7 @@
 use super::types::{portrait_ratio_default, side_width_default, Locale};
+use crate::atomic_file::write_with_backup;
 use anyhow::Result;
-use std::fs::{create_dir_all, File};
+use std::fs::create_dir_all;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
@@ -128,7 +129,6 @@ impl ConfigManager {
           .parent()
           .expect("Config path has no parent directory"),
       )?;
-      File::create(&config_manager.config_path)?;
       config_manager.save()?;
     }
     Ok(config_manager)
@@ -167,7 +167,7 @@ impl ConfigManager {
 
   pub fn save_as(&self, path: &PathBuf) -> Result<()> {
     let config = toml::to_string_pretty(&self.config)?;
-    std::fs::write(path, config)?;
+    write_with_backup(path, config.as_bytes())?;
     Ok(())
   }
 }
@@ -314,6 +314,29 @@ mod tests {
     assert!(manager.load_as(&malformed).is_err());
     assert_eq!(manager.config.ui.primary_color, "#abcdef");
     assert!(manager.load_as(&missing).is_err());
+  }
+
+  #[test]
+  fn saving_keeps_the_previous_config_as_a_backup() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("config.toml");
+    let mut manager = ConfigManager::open(path.clone(), || None).unwrap();
+    assert!(!crate::atomic_file::backup_path(&path).exists());
+
+    manager.config.ui.primary_color = "#abcdef".into();
+    manager.save().unwrap();
+
+    let mut backup = ConfigManager::default();
+    backup
+      .load_as(&crate::atomic_file::backup_path(&path))
+      .unwrap();
+    assert_eq!(
+      backup.config.ui.primary_color,
+      AzaleaConfig::default().ui.primary_color
+    );
+    let mut saved = ConfigManager::default();
+    saved.load_as(&path).unwrap();
+    assert_eq!(saved.config.ui.primary_color, "#abcdef");
   }
 
   #[test]

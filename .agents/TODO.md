@@ -16,10 +16,9 @@ it without help.
 - [x] **Sanitize generated WAV filenames.** `audio_export_path`
       (`src-tauri/src/commands/process.rs`) reduces block text to one
       portable file stem for single-block and Export All exports.
-- [ ] **Save projects and settings atomically.** `commands/project.rs` and
-      `config/manager.rs` write the destination directly with `fs::write`.
-      Write a temporary sibling file, rename it into place, and keep one
-      last-good backup.
+- [x] **Save projects and settings atomically.** `atomic_file::write_with_backup`
+      writes a synced temporary sibling, keeps the previous version as
+      `<name>.bak`, and renames into place.
 - [ ] **Autosave unsaved drafts and offer Restore Draft on launch.** Autosave
       only runs once a project has a path; recover text, preset assignments,
       and manual tuning for never-saved projects after a crash.

@@ -54,6 +54,7 @@ tauri-plugin-prevent-default = "4.0.3"
 tokio = { version = "1" }
 uuid = { version = "1", features = ["v4"] }
 sys-locale = "0.3.2"
+tempfile = "3"
 
 [dependencies.voicevox_core]
 git = "https://github.com/Patchethium/voicevox_core.git"
@@ -63,7 +64,6 @@ features = ["specta", "load-onnxruntime"]
 [dev-dependencies]
 hound = "3.5"
 tauri = { version = "2.1.1", features = ["test"] }
-tempfile = "3"
 
 [profile.dev]
 debug = "line-tables-only"

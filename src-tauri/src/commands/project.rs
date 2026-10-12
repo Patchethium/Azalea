@@ -1,6 +1,7 @@
+use crate::atomic_file::write_with_backup;
 use crate::config::types::{Preset, Project, TextBlockProps};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashSet, fs, path::Path, result::Result};
+use std::{collections::HashSet, path::Path, result::Result};
 use voicevox_core::AudioQuery;
 
 const CURRENT_PROJECT_SCHEMA_VERSION: u32 = 1;
@@ -136,7 +137,7 @@ pub async fn save_project(
     path
   };
   if Path::new(&path).exists() || allow_create {
-    fs::write(&path, project_toml).map_err(|e| e.to_string())?;
+    write_with_backup(Path::new(&path), project_toml.as_bytes()).map_err(|e| e.to_string())?;
   } else {
     return Err(format!("Project File {path} does not exist").to_string());
   }
@@ -294,6 +295,41 @@ mod tests {
       "outputStereo": false
     }))
     .unwrap()
+  }
+
+  #[test]
+  fn save_keeps_the_previous_project_as_a_backup() {
+    tauri::async_runtime::block_on(async {
+      let directory = tempfile::tempdir().unwrap();
+      let path = directory.path().join("project.azp");
+      let path_string = path.to_string_lossy().into_owned();
+
+      save_project(project(), path_string.clone(), true)
+        .await
+        .unwrap();
+      assert!(!crate::atomic_file::backup_path(&path).exists());
+      let first = std::fs::read_to_string(&path).unwrap();
+      let mut edited = project();
+      edited.blocks[0].text = "edited".into();
+      save_project(edited, path_string.clone(), false)
+        .await
+        .unwrap();
+
+      assert_eq!(
+        std::fs::read_to_string(crate::atomic_file::backup_path(&path)).unwrap(),
+        first
+      );
+      assert_eq!(
+        load_project(path_string).await.unwrap().blocks[0].text,
+        "edited"
+      );
+      let mut names: Vec<_> = std::fs::read_dir(directory.path())
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name())
+        .collect();
+      names.sort();
+      assert_eq!(names, ["project.azp", "project.azp.bak"]);
+    });
   }
 
   #[test]

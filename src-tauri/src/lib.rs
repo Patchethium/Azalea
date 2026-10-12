@@ -1,5 +1,6 @@
 //! TODO: there's no reason we pass the audio to frontend, we can keep it in the buffer and avoid the IPC overhead
 mod async_job;
+mod atomic_file;
 pub mod audio;
 pub mod commands;
 pub mod config;
