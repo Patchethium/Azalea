@@ -7,6 +7,7 @@ import {
   getModifiedQuery,
   indexAfterMove,
   moveItem,
+  addRecentProject,
   parseSrt,
   splitJapaneseMoras,
   toHalfWidthAscii,
@@ -196,5 +197,25 @@ describe("indexAfterMove", () => {
     expect(indexAfterMove(1, 3, 1)).toBe(2);
     expect(indexAfterMove(2, 3, 1)).toBe(3);
     expect(indexAfterMove(0, 3, 1)).toBe(0);
+  });
+});
+
+describe("addRecentProject", () => {
+  it("moves the path to the front without duplicates and keeps the limit", () => {
+    expect(addRecentProject([], "/a.azp")).toEqual(["/a.azp"]);
+    expect(addRecentProject(["/a.azp", "/b.azp"], "/b.azp")).toEqual([
+      "/b.azp",
+      "/a.azp",
+    ]);
+    expect(
+      addRecentProject(
+        ["/a.azp", "/b.azp", "/c.azp", "/d.azp", "/e.azp"],
+        "/f.azp",
+      ),
+    ).toEqual(["/f.azp", "/a.azp", "/b.azp", "/c.azp", "/d.azp"]);
+    expect(addRecentProject(["/a.azp", "/b.azp"], "/c.azp", 2)).toEqual([
+      "/c.azp",
+      "/a.azp",
+    ]);
   });
 });

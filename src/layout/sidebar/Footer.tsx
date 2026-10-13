@@ -10,6 +10,10 @@ import type { SidebarControls } from "@layout/sidebar/useSidebar";
 import { usei18n } from "@contexts/i18n";
 import type { PageType } from "@contexts/ui";
 import { useConfigStore } from "@contexts/config";
+import { For } from "solid-js";
+
+const projectFileName = (path: string) =>
+  path.split(/[\\/]/).filter(Boolean).pop() ?? path;
 
 export function SidebarFooter(props: { controls: SidebarControls }) {
   const { t1 } = usei18n()!;
@@ -44,6 +48,49 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
               >
                 {t1("menu.load_project")}
               </DropdownMenu.Item>
+              <DropdownMenu.Item
+                class={style.menu_item}
+                disabled={controls.previousProject() === null}
+                onClick={controls.openPreviousProject}
+              >
+                {t1("menu.open_previous_project")}
+              </DropdownMenu.Item>
+              <DropdownMenu.Sub overlap gutter={4}>
+                <DropdownMenu.SubTrigger
+                  class={style.menu_item}
+                  disabled={controls.recentProjects().length === 0}
+                >
+                  {t1("menu.open_recent")}
+                  <div class="i-lucide:chevron-right size-4 shrink-0" />
+                </DropdownMenu.SubTrigger>
+                <DropdownMenu.Portal>
+                  <DropdownMenu.SubContent class="max-w-[min(90vw,28rem)] bg-slate-1 dark:bg-slate-7 p-1 outline-none rounded-md ring-1 ring-slate-3 dark:ring-slate-5 shadow-xl">
+                    <For each={controls.recentProjects()}>
+                      {(path) => (
+                        <DropdownMenu.Item
+                          class={style.recent_item}
+                          textValue={projectFileName(path)}
+                          onClick={() => controls.openRecentProject(path)}
+                        >
+                          <span class="truncate text-sm">
+                            {projectFileName(path)}
+                          </span>
+                          <span class="truncate text-xs opacity-70">
+                            {path}
+                          </span>
+                        </DropdownMenu.Item>
+                      )}
+                    </For>
+                    <DropdownMenu.Separator class="mx-2 my-1" />
+                    <DropdownMenu.Item
+                      class={style.menu_item}
+                      onClick={controls.clearRecentProjects}
+                    >
+                      {t1("menu.clear_recent")}
+                    </DropdownMenu.Item>
+                  </DropdownMenu.SubContent>
+                </DropdownMenu.Portal>
+              </DropdownMenu.Sub>
               <DropdownMenu.Item
                 class={style.menu_item}
                 onClick={controls.saveProject}

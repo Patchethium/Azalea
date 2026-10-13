@@ -1405,3 +1405,214 @@ describe("Sidebar export all", () => {
     expect(dialog).toHaveAttribute("data-closed");
   });
 });
+
+describe("Sidebar recent projects", () => {
+  const loadedProject = {
+    blocks: [
+      {
+        id: "loaded-block",
+        text: "Loaded block",
+        query: null,
+        pitch_noise_seed: 0,
+        preset_id: "preset-1",
+      },
+    ],
+    presets: [preset({ name: "Loaded preset" })],
+  };
+
+  const renderRecentSidebar = (recent: string[]) => {
+    let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
+    let text!: NonNullable<ReturnType<typeof useTextStore>>;
+    const result = renderSidebarHook(
+      ({ config: configStore, meta, text: textStore }) => {
+        appConfig = configStore;
+        text = textStore;
+        batch(() => {
+          configStore.setConfig(
+            config({ auto_save: false, recent_projects: recent }),
+          );
+          meta.setMetas(metas);
+          textStore.setProjectPresetStore([preset()]);
+          textStore.replaceTextBlocks([
+            {
+              id: "block",
+              text: "Original",
+              query: audioQuery(),
+              pitch_noise_seed: 0,
+              preset_id: "preset-1",
+            },
+          ]);
+        });
+        textStore.markProjectSaved();
+      },
+    );
+    return {
+      ...result,
+      getRecent: () => appConfig.config.ui.recent_projects,
+      getText: () => text,
+    };
+  };
+
+  it("records saved and loaded projects, most recent first", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    vi.spyOn(commands, "saveProject").mockResolvedValue({
+      status: "ok",
+      data: null,
+    });
+    vi.spyOn(commands, "loadProject").mockResolvedValue({
+      status: "ok",
+      data: loadedProject,
+    });
+    dialogs.save.mockResolvedValueOnce("/tmp/saved.azp");
+    dialogs.open.mockResolvedValueOnce("/tmp/opened.azp");
+    const { getControls, getRecent } = renderRecentSidebar(["/tmp/old.azp"]);
+    await Promise.resolve();
+    const controls = getControls();
+
+    expect(await controls.saveProject()).toBe(true);
+    expect(getRecent()).toEqual(["/tmp/saved.azp", "/tmp/old.azp"]);
+
+    await controls.loadProject();
+    expect(getRecent()).toEqual([
+      "/tmp/opened.azp",
+      "/tmp/saved.azp",
+      "/tmp/old.azp",
+    ]);
+  });
+
+  it("opens the previous project other than the current one and removes failed entries", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    const loadProject = vi
+      .spyOn(commands, "loadProject")
+      .mockResolvedValue({ status: "ok", data: loadedProject });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { getControls, getRecent, getText } = renderRecentSidebar([
+      "/tmp/current.azp",
+      "/tmp/previous.azp",
+      "/tmp/missing.azp",
+    ]);
+    await Promise.resolve();
+    const controls = getControls();
+    const text = getText();
+    text.setProjectPath("/tmp/current.azp");
+
+    expect(controls.previousProject()).toBe("/tmp/previous.azp");
+    controls.openPreviousProject();
+    await waitFor(() => expect(text.projectPath()).toBe("/tmp/previous.azp"));
+    expect(loadProject).toHaveBeenCalledWith("/tmp/previous.azp");
+    expect(text.textStore[0].text).toBe("Loaded block");
+    expect(text.isProjectDirty()).toBe(false);
+    expect(getRecent()).toEqual([
+      "/tmp/previous.azp",
+      "/tmp/current.azp",
+      "/tmp/missing.azp",
+    ]);
+    expect(controls.previousProject()).toBe("/tmp/current.azp");
+
+    loadProject.mockResolvedValueOnce({
+      status: "error",
+      error: "file not found",
+    });
+    controls.openRecentProject("/tmp/missing.azp");
+    await waitFor(() =>
+      expect(getRecent()).toEqual(["/tmp/previous.azp", "/tmp/current.azp"]),
+    );
+    expect(text.projectPath()).toBe("/tmp/previous.azp");
+
+    controls.clearRecentProjects();
+    expect(getRecent()).toEqual([]);
+    expect(controls.previousProject()).toBeNull();
+    loadProject.mockClear();
+    controls.openPreviousProject();
+    expect(loadProject).not.toHaveBeenCalled();
+  });
+
+  it("asks about unsaved changes before opening a recent project", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    const loadProject = vi
+      .spyOn(commands, "loadProject")
+      .mockResolvedValue({ status: "ok", data: loadedProject });
+    const { getControls, getText } = renderRecentSidebar(["/tmp/recent.azp"]);
+    await Promise.resolve();
+    const controls = getControls();
+    const text = getText();
+    text.setTextStore(0, "text", "Edited");
+
+    controls.openRecentProject("/tmp/recent.azp");
+    expect(controls.uiStore.pendingProjectAction).toEqual({
+      kind: "open_recent",
+      path: "/tmp/recent.azp",
+    });
+    await controls.resolveProjectAction("cancel");
+    expect(loadProject).not.toHaveBeenCalled();
+    expect(text.textStore[0].text).toBe("Edited");
+
+    controls.openRecentProject("/tmp/recent.azp");
+    await controls.resolveProjectAction("discard");
+    expect(loadProject).toHaveBeenCalledWith("/tmp/recent.azp");
+    expect(text.projectPath()).toBe("/tmp/recent.azp");
+    expect(text.textStore[0].text).toBe("Loaded block");
+  });
+
+  it("lists recent projects in the project menu", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const loaded: string[] = [];
+    mockIPC((cmd, args) => {
+      if (cmd === "get_os") return "Linux";
+      if (cmd === "load_project") {
+        loaded.push((args as { path: string }).path);
+        return loadedProject;
+      }
+      return null;
+    });
+    let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
+    renderSidebar(({ config: configStore, meta, text }) => {
+      appConfig = configStore;
+      batch(() => {
+        configStore.setConfig(
+          config({
+            recent_projects: ["/home/user/first.azp", "C:\\work\\second.azp"],
+          }),
+        );
+        meta.setMetas(metas);
+        text.setProjectPresetStore([preset()]);
+      });
+      text.markProjectSaved();
+    });
+
+    await user.click(
+      await screen.findByRole("button", { name: "Project actions" }),
+    );
+    expect(
+      await screen.findByRole("menuitem", { name: "Open Previous Project" }),
+    ).not.toHaveAttribute("data-disabled");
+    const recent = screen.getByRole("menuitem", { name: "Open Recent" });
+    await user.click(recent);
+    expect(await screen.findByText("second.azp")).toBeInTheDocument();
+    expect(screen.getByText("C:\\work\\second.azp")).toBeInTheDocument();
+    await user.click(screen.getByRole("menuitem", { name: /first\.azp/ }));
+    await waitFor(() => expect(loaded).toEqual(["/home/user/first.azp"]));
+    await waitFor(() =>
+      expect(appConfig.config.ui.recent_projects).toEqual([
+        "/home/user/first.azp",
+        "C:\\work\\second.azp",
+      ]),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Project actions" }));
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Open Recent" }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Clear Recent Projects" }),
+    );
+    expect(appConfig.config.ui.recent_projects).toEqual([]);
+    await user.click(screen.getByRole("button", { name: "Project actions" }));
+    expect(
+      await screen.findByRole("menuitem", { name: "Open Recent" }),
+    ).toHaveAttribute("data-disabled");
+    expect(
+      screen.getByRole("menuitem", { name: "Open Previous Project" }),
+    ).toHaveAttribute("data-disabled");
+  });
+});

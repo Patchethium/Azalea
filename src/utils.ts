@@ -1,5 +1,6 @@
 import type { AudioQuery, Preset } from "$binding";
 import _ from "lodash";
+import { RECENT_PROJECTS_LIMIT } from "$constants";
 
 // Keep this in sync with voicevox_core's katakana::count_moras. Compound
 // katakana such as キャ count as one mora, while ッ and ー each count as one.
@@ -51,6 +52,15 @@ export function moveItem<T>(items: readonly T[], from: number, to: number) {
   const [item] = moved.splice(from, 1);
   moved.splice(to, 0, item);
   return moved;
+}
+
+/** Moves `path` to the front of a recent-project list, keeping it unique. */
+export function addRecentProject(
+  recent: readonly string[],
+  path: string,
+  limit = RECENT_PROJECTS_LIMIT,
+) {
+  return [path, ...recent.filter((entry) => entry !== path)].slice(0, limit);
 }
 
 /** Follows the item at `index` after the item at `from` moves to `to`. */

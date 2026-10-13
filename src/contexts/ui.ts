@@ -9,7 +9,12 @@ type ConfigSection =
   | "voice"
   | "synthesis"
   | "shortcuts";
-type PendingProjectAction = "new" | "open" | "close" | "quit";
+type PendingProjectAction =
+  | "new"
+  | "open"
+  | "close"
+  | "quit"
+  | { kind: "open_recent"; path: string };
 type LastFocusedCaret = { blockId: string; offset: number } | null;
 
 type UIStoreType = {

@@ -183,6 +183,9 @@ pub struct UIConfig {
   pub prevent_overwrite: bool,
   #[serde(default)]
   pub last_exported_dir: Option<String>,
+  /// Recently opened or saved project paths, most recent first.
+  #[serde(default, deserialize_with = "deserialize_recent_projects")]
+  pub recent_projects: Vec<String>,
   #[serde(default)]
   pub shortcuts: KeyboardShortcuts,
 }
@@ -218,6 +221,7 @@ impl Default for UIConfig {
       silent_save: false,
       prevent_overwrite: false,
       last_exported_dir: None,
+      recent_projects: Vec::new(),
       shortcuts: Default::default(),
     }
   }
@@ -232,6 +236,25 @@ impl UIConfig {
         seed,
       })
   }
+}
+
+/// Maximum number of entries kept in `UIConfig.recent_projects`.
+pub const RECENT_PROJECTS_LIMIT: usize = 5;
+
+fn deserialize_recent_projects<'de, D: serde::Deserializer<'de>>(
+  deserializer: D,
+) -> Result<Vec<String>, D::Error> {
+  let paths = Vec::<String>::deserialize(deserializer)?;
+  let mut recent: Vec<String> = Vec::with_capacity(RECENT_PROJECTS_LIMIT);
+  for path in paths {
+    if recent.len() == RECENT_PROJECTS_LIMIT {
+      break;
+    }
+    if !path.is_empty() && !recent.contains(&path) {
+      recent.push(path);
+    }
+  }
+  Ok(recent)
 }
 
 fn pitch_noise_sigma_default() -> f32 {
@@ -463,7 +486,7 @@ pub struct Project {
 mod tests {
   use super::{
     cache_size_default, cpu_num_threads_default, AzaleaConfig, KeyboardShortcut, Locale,
-    PitchScale, TitlebarStyle, UIConfig,
+    PitchScale, TitlebarStyle, UIConfig, RECENT_PROJECTS_LIMIT,
   };
 
   #[test]
@@ -518,6 +541,7 @@ mod tests {
     assert!(!config.silent_save);
     assert!(!config.prevent_overwrite);
     assert!(config.last_exported_dir.is_none());
+    assert!(config.recent_projects.is_empty());
     assert!(config.pitch_ruler);
     assert_eq!(config.bottom_duration_height, 48);
     assert_eq!(
@@ -687,5 +711,21 @@ mod tests {
     );
     assert_eq!(restored.shortcuts.undo, config.shortcuts.undo);
     assert_eq!(restored.shortcuts.redo, config.shortcuts.redo);
+  }
+
+  #[test]
+  fn recent_projects_drop_duplicates_and_empty_paths_and_keep_the_limit() {
+    let config: UIConfig = toml::from_str(
+      r#"recent_projects = ["/a.azp", "", "/b.azp", "/a.azp", "/c.azp", "/d.azp", "/e.azp", "/f.azp"]"#,
+    )
+    .unwrap();
+    assert_eq!(
+      config.recent_projects,
+      ["/a.azp", "/b.azp", "/c.azp", "/d.azp", "/e.azp"]
+    );
+    assert_eq!(config.recent_projects.len(), RECENT_PROJECTS_LIMIT);
+
+    let restored: UIConfig = toml::from_str(&toml::to_string(&config).unwrap()).unwrap();
+    assert_eq!(restored.recent_projects, config.recent_projects);
   }
 }

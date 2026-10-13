@@ -126,7 +126,9 @@ play/stop, play current, play next, undo/redo, and the pitch-completion lock.
 
 ### Navigation
 
-- [ ] Recent projects and an Open Previous Project action.
+- [x] **Recent projects and an Open Previous Project action.** The project
+      menu lists up to five recent projects (`UIConfig.recent_projects`) and
+      reopens the most recent project other than the current one.
 - [ ] A block outline with search and jump-to-result.
 
 ### Streaming synthesis

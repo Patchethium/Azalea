@@ -879,7 +879,11 @@ export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; embedded_font?
 /**
  * Share of the editor width used by the portrait panel; 0 is collapsed.
  */
-portrait_ratio?: number; buffer_render?: boolean; nonblocking_synthesis?: boolean; pitch_noise_enabled?: boolean; pitch_completion_enabled?: boolean; pitch_completion_locked?: boolean; pitch_noise_sigma?: number; synthesis_delay_ms?: number; spectrogram_preview?: boolean; playback_timeline?: boolean; pitch_scale?: PitchScale; pitch_ruler?: boolean; name_truncation_len?: number; default_export_dir?: string | null; default_export_dir_enabled?: boolean; silent_save?: boolean; prevent_overwrite?: boolean; last_exported_dir?: string | null; shortcuts?: KeyboardShortcuts }
+portrait_ratio?: number; buffer_render?: boolean; nonblocking_synthesis?: boolean; pitch_noise_enabled?: boolean; pitch_completion_enabled?: boolean; pitch_completion_locked?: boolean; pitch_noise_sigma?: number; synthesis_delay_ms?: number; spectrogram_preview?: boolean; playback_timeline?: boolean; pitch_scale?: PitchScale; pitch_ruler?: boolean; name_truncation_len?: number; default_export_dir?: string | null; default_export_dir_enabled?: boolean; silent_save?: boolean; prevent_overwrite?: boolean; last_exported_dir?: string | null; 
+/**
+ * Recently opened or saved project paths, most recent first.
+ */
+recent_projects?: string[]; shortcuts?: KeyboardShortcuts }
 
 /** tauri-specta globals **/
 

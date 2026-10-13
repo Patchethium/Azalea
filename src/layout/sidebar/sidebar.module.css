@@ -1,3 +1,7 @@
 .menu_item {
-  --at-apply: "w-full h-8 rounded-md flex flex-row hover:(bg-primary-5 text-white) p-2 items-center justify-between min-w-44 cursor-pointer";
+  --at-apply: "w-full h-8 rounded-md flex flex-row hover:(bg-primary-5 text-white) p-2 items-center justify-between min-w-44 cursor-pointer outline-none ui-highlighted:(bg-primary-5 text-white) ui-disabled:(cursor-not-allowed opacity-50)";
+}
+
+.recent_item {
+  --at-apply: "w-full rounded-md flex flex-col px-2 py-1 min-w-44 cursor-pointer outline-none hover:(bg-primary-5 text-white) ui-highlighted:(bg-primary-5 text-white)";
 }

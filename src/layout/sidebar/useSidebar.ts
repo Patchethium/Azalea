@@ -30,6 +30,7 @@ import {
 import { type PendingProjectAction, useUIStore } from "@contexts/ui";
 import {
   createAudioFileName,
+  addRecentProject,
   createUniqueName,
   getModifiedQuery,
   moveItem,
@@ -171,6 +172,29 @@ export function useSidebar() {
   };
 
   const [actionMenuOpen, setActionMenuOpen] = createSignal(false);
+
+  const recentProjects = () => config.ui.recent_projects ?? [];
+  /** The most recent project other than the one currently open. */
+  const previousProject = createMemo(
+    () => recentProjects().find((path) => path !== projectPath()) ?? null,
+  );
+  const rememberRecentProject = (path: string) => {
+    if (recentProjects()[0] === path) return;
+    setConfig(
+      "ui",
+      "recent_projects",
+      addRecentProject(recentProjects(), path),
+    );
+  };
+  const forgetRecentProject = (path: string) => {
+    if (!recentProjects().includes(path)) return;
+    setConfig(
+      "ui",
+      "recent_projects",
+      recentProjects().filter((entry) => entry !== path),
+    );
+  };
+  const clearRecentProjects = () => setConfig("ui", "recent_projects", []);
   const saveProject = async () => {
     let path = projectPath();
     if (path === null) {
@@ -188,6 +212,7 @@ export function useSidebar() {
     batch(() => {
       setProjectPath(path);
       markProjectSaved();
+      rememberRecentProject(path);
     });
     return true;
   };
@@ -197,6 +222,10 @@ export function useSidebar() {
 
   const runProjectAction = async (action: PendingProjectAction) => {
     try {
+      if (typeof action === "object") {
+        await openProjectPath(action.path);
+        return;
+      }
       switch (action) {
         case "new":
           newProject();
@@ -212,7 +241,8 @@ export function useSidebar() {
           break;
       }
     } catch (error) {
-      console.error(`Failed to run project action ${action}:`, error);
+      const name = typeof action === "object" ? action.kind : action;
+      console.error(`Failed to run project action ${name}:`, error);
     }
   };
 
@@ -264,16 +294,12 @@ export function useSidebar() {
     onCleanup(() => window.removeEventListener("keydown", handleKeyDown));
   });
 
-  const loadProject = async () => {
-    const path = await openDialog({
-      title: t1("menu.load_project"),
-      filters: [{ name: "Azalea Poject Files", extensions: ["azp"] }],
-    });
-    if (path === null) return;
+  const openProjectPath = async (path: string) => {
     const result = await commands.loadProject(path);
     if (result.status === "error") {
       console.error(result.error);
-      return;
+      forgetRecentProject(path);
+      return false;
     }
     batch(() => {
       setProjectPath(path);
@@ -282,8 +308,26 @@ export function useSidebar() {
       setSuppressFocusBlockId(null);
       setPendingFocusPlacement(null);
       setUIStore("selectedTextBlockIndex", 0);
+      rememberRecentProject(path);
     });
     markProjectSaved();
+    return true;
+  };
+
+  const loadProject = async () => {
+    const path = await openDialog({
+      title: t1("menu.load_project"),
+      filters: [{ name: "Azalea Poject Files", extensions: ["azp"] }],
+    });
+    if (path === null) return;
+    await openProjectPath(path);
+  };
+
+  const openRecentProject = (path: string) =>
+    requestProjectAction({ kind: "open_recent", path });
+  const openPreviousProject = () => {
+    const path = previousProject();
+    if (path !== null) openRecentProject(path);
   };
 
   const importSrt = async () => {
@@ -541,6 +585,11 @@ export function useSidebar() {
     newProject,
     loadProject,
     saveProject,
+    recentProjects,
+    previousProject,
+    openRecentProject,
+    openPreviousProject,
+    clearRecentProjects,
     importSrt,
     exportAll,
     cancelExportAll,
