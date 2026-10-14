@@ -1,7 +1,7 @@
 import { commands } from "$binding";
 import { NumberField, NumberInput } from "@components/numberField";
 import { AppDialogContent } from "@dialogs/AppContent";
-import { ModelManager, VoiceSetup } from "@dialogs/VoiceSetup";
+import { clipPath, ModelManager, VoiceSetup } from "@dialogs/VoiceSetup";
 import { AssetCacheSetting } from "@dialogs/config/AssetCacheSetting";
 import {
   FontSelect,
@@ -13,7 +13,9 @@ import {
 } from "@dialogs/config/Basics";
 import { ConfigItem } from "@dialogs/config/Item";
 import { ShortcutSettings } from "@dialogs/config/Shortcuts";
-import { IconButton } from "@components/iconButton";
+import { PathButton } from "@components/pathButton";
+import { useToasts } from "@components/toast";
+import { AppButton } from "@components/button";
 import { Tooltip } from "@components/tooltip";
 import { Button } from "@kobalte/core/button";
 import { Dialog } from "@kobalte/core/dialog";
@@ -496,6 +498,7 @@ export function ConfigPage() {
 function DefaultExportDirSetting() {
   const { config, setConfig } = useConfigStore()!;
   const { t1 } = usei18n()!;
+  const toasts = useToasts();
   const [picking, setPicking] = createSignal(false);
   const dir = () => config.ui.default_export_dir;
 
@@ -513,27 +516,56 @@ function DefaultExportDirSetting() {
     }
   };
 
+  const openDir = async (path: string) => {
+    try {
+      const result = await commands.openPathLocation(path);
+      if (result.status === "error") {
+        toasts.error(t1("toast.error.open_output_dir"), result.error);
+      }
+    } catch (error) {
+      toasts.error(t1("toast.error.open_output_dir"), error);
+    }
+  };
+
   return (
     <div class="flex min-w-0 items-center gap-1">
-      <Tooltip
-        content={dir() ?? ""}
-        class="max-w-40 min-w-0"
-        onlyWhenOverflowing
-      >
-        <span class="max-w-40 truncate text-sm text-slate-5 dark:text-slate-4">
-          {dir() ?? t1("config.no_default_export_dir")}
-        </span>
-      </Tooltip>
-      <IconButton
-        icon={
-          picking()
-            ? "i-lucide:loader-circle animate-spin"
-            : "i-lucide:folder-open"
+      <Show
+        when={dir()}
+        fallback={
+          <span class="text-sm text-slate-5 dark:text-slate-4">
+            {t1("config.no_default_export_dir")}
+          </span>
         }
-        label={t1("config.pick_export_dir")}
-        disabled={picking()}
-        onClick={() => void pick()}
-      />
+      >
+        {(path) => (
+          <PathButton
+            path={path()}
+            display={clipPath(path())}
+            class="max-w-48"
+            onClick={() => void openDir(path())}
+          />
+        )}
+      </Show>
+      <Tooltip content={t1("config.pick_export_dir")}>
+        <AppButton
+          size="sm"
+          disabled={picking()}
+          aria-busy={picking()}
+          aria-label={t1("config.pick_export_dir")}
+          onClick={() => void pick()}
+          class="flex shrink-0 items-center gap1"
+        >
+          <div
+            aria-hidden="true"
+            class={
+              picking()
+                ? "i-lucide:loader-circle size-4 animate-spin"
+                : "i-lucide:folder-open size-4"
+            }
+          />
+          {t1("config.pick_export_dir_short")}
+        </AppButton>
+      </Tooltip>
     </div>
   );
 }

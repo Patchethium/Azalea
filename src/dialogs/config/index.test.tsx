@@ -5,6 +5,7 @@ import {
   DEFAULT_PITCH_NOISE_SIGMA,
   MAX_PITCH_NOISE_SIGMA,
 } from "$constants";
+import { AppToastRegion } from "@components/toast";
 import { ConfigPage } from "@dialogs/config";
 import { AssetCacheSetting } from "@dialogs/config/AssetCacheSetting";
 import { MultiProvider } from "@solid-primitives/context";
@@ -710,9 +711,11 @@ describe("ConfigPage", () => {
     expect(silentSave).toBeDisabled();
     expect(silentSave).not.toBeChecked();
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Choose export directory" }),
-    );
+    const chooseDir = screen.getByRole("button", {
+      name: "Choose export directory",
+    });
+    expect(chooseDir).toHaveTextContent("Choose...");
+    fireEvent.click(chooseDir);
     await waitFor(() =>
       expect(appConfig.config.ui.default_export_dir).toBe("/exports"),
     );
@@ -724,7 +727,9 @@ describe("ConfigPage", () => {
     expect(
       within(projectPanel()).queryByText("Not set"),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("/exports")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "/exports" }),
+    ).toBeInTheDocument();
     expect(toggle).toBeChecked();
     expect(silentSave).toBeEnabled();
     fireEvent.click(silentSave);
@@ -736,7 +741,9 @@ describe("ConfigPage", () => {
     expect(appConfig.config.ui.default_export_dir).toBe("/exports");
     expect(toggle).not.toBeChecked();
     expect(screen.queryByText("Directory")).not.toBeInTheDocument();
-    expect(screen.queryByText("/exports")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "/exports" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Choose export directory" }),
     ).not.toBeInTheDocument();
@@ -748,7 +755,9 @@ describe("ConfigPage", () => {
 
     fireEvent.click(toggle);
     expect(appConfig.config.ui.default_export_dir_enabled).toBe(true);
-    expect(screen.getByText("/exports")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "/exports" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "Silent save" })).toBeChecked();
     expect(
       screen.getByRole("switch", { name: "Prevent overwrite" }),
@@ -764,6 +773,75 @@ describe("ConfigPage", () => {
       multiple: false,
       defaultPath: "/exports",
     });
+  });
+
+  it("opens the default export directory and reports failures", async () => {
+    vi.spyOn(commands, "getAssetsSize").mockResolvedValue({
+      status: "ok",
+      data: 0,
+    });
+    const openPathLocation = vi
+      .spyOn(commands, "openPathLocation")
+      .mockResolvedValueOnce({ status: "ok", data: null })
+      .mockResolvedValueOnce({ status: "error", error: "no file manager" })
+      .mockRejectedValueOnce(new Error("opener crashed"));
+    const Harness: Component = () => {
+      const appConfig = useConfigStore()!;
+      const ui = useUIStore()!;
+      onMount(() => {
+        batch(() => {
+          appConfig.setConfig(config());
+          appConfig.setConfig("ui", "default_export_dir", "/home/me/exports");
+          appConfig.setConfig("ui", "default_export_dir_enabled", true);
+          ui.setUIStore("configSection", "project");
+          ui.setUIStore("page", "config");
+        });
+      });
+      return (
+        <>
+          <ConfigPage />
+          <AppToastRegion />
+        </>
+      );
+    };
+
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [i18nProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+
+    const directory = await screen.findByRole("button", {
+      name: "/home/me/exports",
+    });
+    expect(directory).toHaveTextContent("…/me/exports");
+
+    fireEvent.click(directory);
+    await waitFor(() =>
+      expect(openPathLocation).toHaveBeenCalledWith("/home/me/exports"),
+    );
+    fireEvent.click(directory);
+    expect(
+      await screen.findByRole("status", {
+        name: "Couldn't open the output folder",
+      }),
+    ).toHaveAccessibleDescription("no file manager");
+    fireEvent.click(directory);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("status", {
+          name: "Couldn't open the output folder",
+        }),
+      ).toHaveAccessibleDescription("opener crashed"),
+    );
+    expect(openPathLocation).toHaveBeenCalledTimes(3);
   });
 
   it("ignores a cancelled export directory picker", async () => {

@@ -234,6 +234,7 @@
     "export_lab": "リップシンク用のlabファイルを書き出し",
     "no_default_export_dir": "未設定",
     "pick_export_dir": "書き出し先を選択",
+    "pick_export_dir_short": "選択...",
     "enable_export_dir": "デフォルトの書き出し先を有効にする",
     "truncation_len": "最大ファイル名の長さ",
     "no_truncation": "無制限",

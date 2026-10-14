@@ -7,8 +7,7 @@ import {
 } from "$binding";
 import { AppButton } from "@components/button";
 import { IconButton } from "@components/iconButton";
-import { Tooltip } from "@components/tooltip";
-import { Button } from "@kobalte/core/button";
+import { PathButton } from "@components/pathButton";
 import { Checkbox } from "@kobalte/core/checkbox";
 import { Collapsible } from "@kobalte/core/collapsible";
 import { Link } from "@kobalte/core/link";
@@ -222,12 +221,12 @@ export function VoiceSetup() {
             <div class="flex-1 text-sm font-semibold">
               {t1("voice_setup.core_paths")}
             </div>
-            <Button
-              type="button"
+            <AppButton
+              size="sm"
               disabled={busy() || coreInitializeResource.loading}
               aria-busy={busy()}
               onClick={() => void pickInstallation()}
-              class="shrink-0 flex items-center gap1 rounded-md b b-slate-2 bg-transparent px2 py1 text-sm outline-none hover:(b-primary-5 bg-primary-5 text-white) focus-visible:(ring-2 ring-primary-3) disabled:(cursor-not-allowed opacity-60) dark:b-slate-6"
+              class="flex shrink-0 items-center gap1"
             >
               <div
                 aria-hidden="true"
@@ -238,7 +237,7 @@ export function VoiceSetup() {
                 }
               />
               {t1("voice_setup.pick_installation")}
-            </Button>
+            </AppButton>
           </div>
           <Show
             when={config.core}
@@ -260,26 +259,13 @@ export function VoiceSetup() {
                   <For each={items()}>
                     {([label, path]) => (
                       <li class="min-w-0">
-                        <Tooltip
-                          content={<span class="font-mono">{path}</span>}
-                          class="w-full min-w-0"
-                        >
-                          <Button
-                            type="button"
-                            onClick={() => void openLocation(path)}
-                            class="grid w-full min-w-0 cursor-pointer grid-cols-[5.5rem_minmax(0,1fr)] items-baseline gap-x-3 rounded-sm bg-transparent px1 py0.5 text-left outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-3) dark:hover:bg-slate-7"
-                          >
-                            <span class="text-slate-6 dark:text-slate-3">
-                              {label}
-                            </span>
-                            <span class="truncate font-mono">
-                              <span aria-hidden="true">
-                                {abbreviatePath(path, parent())}
-                              </span>
-                              <span class="sr-only">{path}</span>
-                            </span>
-                          </Button>
-                        </Tooltip>
+                        <PathButton
+                          path={path}
+                          display={abbreviatePath(path, parent())}
+                          label={label}
+                          class="w-full"
+                          onClick={() => void openLocation(path)}
+                        />
                       </li>
                     )}
                   </For>

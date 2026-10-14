@@ -203,6 +203,7 @@
     "export_lab": "Export lip-sync label file (.lab)",
     "no_default_export_dir": "Not set",
     "pick_export_dir": "Choose export directory",
+    "pick_export_dir_short": "Choose...",
     "enable_export_dir": "Enable default export directory",
     "truncation_len": "File name truncation length",
     "no_truncation": "No truncation",

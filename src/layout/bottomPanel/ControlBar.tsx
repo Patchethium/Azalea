@@ -1,5 +1,6 @@
 import { Tooltip } from "@components/tooltip";
 import { NumberField } from "@components/numberField";
+import { ToolbarButton } from "@components/toolbarButton";
 import { useConfigStore } from "@contexts/config";
 import { useTextStore } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
@@ -9,33 +10,7 @@ import type { WaveformSynthesisNotice } from "@layout/bottomPanel/types";
 import { usePlaybackControls } from "@layout/bottomPanel/usePlaybackControls";
 import { useQueryReset } from "@layout/bottomPanel/useQueryReset";
 import { usei18n } from "@contexts/i18n";
-import { onCleanup, onMount, Show, type JSX } from "solid-js";
-
-function ToolbarButton(props: {
-  icon: string;
-  label: string;
-  tooltip?: JSX.Element;
-  ariaBusy?: boolean;
-  ariaPressed?: boolean;
-  disabled?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <Tooltip content={props.tooltip ?? props.label}>
-      <button
-        type="button"
-        aria-label={props.label}
-        aria-busy={props.ariaBusy}
-        aria-pressed={props.ariaPressed}
-        onClick={() => props.onClick?.()}
-        disabled={props.disabled}
-        class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none enabled:hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) disabled:(cursor-not-allowed text-slate-3) dark:enabled:hover:bg-slate-7 dark:disabled:text-slate-5"
-      >
-        <div class={`${props.icon} size-4`} />
-      </button>
-    </Tooltip>
-  );
-}
+import { onCleanup, onMount, Show } from "solid-js";
 
 export function ControlBar(props: {
   disabled?: boolean;
