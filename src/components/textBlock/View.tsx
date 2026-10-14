@@ -52,7 +52,7 @@ export function TextBlockView(props: {
         >
           <Show when={props.selected || hovered() || toolbarHovered()}>
             <div
-              class="absolute right-0 flex p1 pl-0.5 rounded-lg bg-white dark:bg-slate-7 shadow-md -top-5 pointer-events-auto z-10"
+              class="absolute right-0 flex p1 pl-0.5 rounded-lg bg-white dark:bg-slate-7 shadow-md -top-5 pointer-events-auto z-10 gap-1"
               classList={{
                 "opacity-50": hovered() && !props.selected && !toolbarHovered(),
               }}
