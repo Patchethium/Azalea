@@ -181,6 +181,12 @@ pub struct UIConfig {
   pub silent_save: bool,
   #[serde(default)]
   pub prevent_overwrite: bool,
+  /// Writes the text block's content as a `.txt` file beside exported audio.
+  #[serde(default = "export_text_default")]
+  pub export_text: bool,
+  /// Writes a `.lab` phoneme timing file for lip sync beside exported audio.
+  #[serde(default)]
+  pub export_lab: bool,
   #[serde(default)]
   pub last_exported_dir: Option<String>,
   /// Recently opened or saved project paths, most recent first.
@@ -220,6 +226,8 @@ impl Default for UIConfig {
       default_export_dir_enabled: false,
       silent_save: false,
       prevent_overwrite: false,
+      export_text: export_text_default(),
+      export_lab: false,
       last_exported_dir: None,
       recent_projects: Vec::new(),
       shortcuts: Default::default(),
@@ -307,6 +315,10 @@ fn synthesis_delay_ms_default() -> u32 {
 }
 
 fn spectrogram_preview_default() -> bool {
+  true
+}
+
+fn export_text_default() -> bool {
   true
 }
 
@@ -540,6 +552,8 @@ mod tests {
     assert!(!config.default_export_dir_enabled);
     assert!(!config.silent_save);
     assert!(!config.prevent_overwrite);
+    assert!(config.export_text);
+    assert!(!config.export_lab);
     assert!(config.last_exported_dir.is_none());
     assert!(config.recent_projects.is_empty());
     assert!(config.pitch_ruler);

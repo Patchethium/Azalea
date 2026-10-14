@@ -689,6 +689,17 @@ describe("ConfigPage", () => {
     fireEvent.click(preventOverwrite);
     expect(preventOverwrite).toBeChecked();
     expect(appConfig.config.ui.prevent_overwrite).toBe(true);
+    for (const [name, key, enabledByDefault] of [
+      ["Export text file (.txt)", "export_text", true],
+      ["Export lip-sync label file (.lab)", "export_lab", false],
+    ] as const) {
+      appConfig.setConfig("ui", key, undefined);
+      const sidecar = screen.getByRole("switch", { name });
+      expect((sidecar as HTMLInputElement).checked).toBe(enabledByDefault);
+      fireEvent.click(sidecar);
+      expect((sidecar as HTMLInputElement).checked).toBe(!enabledByDefault);
+      expect(appConfig.config.ui[key]).toBe(!enabledByDefault);
+    }
     vi.mocked(openDialog).mockResolvedValue("/exports");
 
     fireEvent.click(toggle);

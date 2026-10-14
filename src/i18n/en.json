@@ -199,6 +199,8 @@
     "export_dir_path": "Directory",
     "silent_save": "Silent save",
     "prevent_overwrite": "Prevent overwrite",
+    "export_text": "Export text file (.txt)",
+    "export_lab": "Export lip-sync label file (.lab)",
     "no_default_export_dir": "Not set",
     "pick_export_dir": "Choose export directory",
     "enable_export_dir": "Enable default export directory",

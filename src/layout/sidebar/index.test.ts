@@ -1198,6 +1198,7 @@ describe("Sidebar export all", () => {
         default_export_dir_enabled: true,
         silent_save: true,
         prevent_overwrite: true,
+        export_text: true,
       },
       [
         {
@@ -1221,6 +1222,7 @@ describe("Sidebar export all", () => {
       expect.any(Object),
       1,
       true,
+      { text: "hello", lab: false },
     );
     expect(parentPath).toHaveBeenCalledWith("/pinned/hello(2).wav");
     await waitFor(() =>

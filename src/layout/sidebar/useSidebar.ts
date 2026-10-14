@@ -31,6 +31,7 @@ import {
 import { type PendingProjectAction, useUIStore } from "@contexts/ui";
 import {
   createAudioFileName,
+  createAudioSidecars,
   addRecentProject,
   createUniqueName,
   getModifiedQuery,
@@ -472,6 +473,7 @@ export function useSidebar() {
                 getModifiedQuery(unwrap(query), preset),
                 identity.style.id,
                 preventOverwrite,
+                createAudioSidecars(config.ui, block.text),
               );
               if (result.status === "ok") {
                 if (savedDir === null) {

@@ -394,11 +394,11 @@ async resolveAudioSavePath(path: string) : Promise<Result<string, string>> {
 }
 },
 /**
- * Save the audio waveform to a file.
+ * Save the audio waveform to a file, plus any requested sidecar files.
  */
-async saveAudio(path: string, audioQuery: AudioQuery, speakerId: StyleId, preventOverwrite: boolean) : Promise<Result<string, string>> {
+async saveAudio(path: string, audioQuery: AudioQuery, speakerId: StyleId, preventOverwrite: boolean, sidecars: AudioSidecars) : Promise<Result<string, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("save_audio", { path, audioQuery, speakerId, preventOverwrite }) };
+    return { status: "ok", data: await TAURI_INVOKE("save_audio", { path, audioQuery, speakerId, preventOverwrite, sidecars }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -633,6 +633,18 @@ outputStereo: boolean;
  */
 kana: string | null }
 export type AudioSequenceItem = { audio_query: AudioQuery; speaker_id: StyleId }
+/**
+ * Extra files written beside an exported WAV, sharing its file stem.
+ */
+export type AudioSidecars = { 
+/**
+ * Text written as a UTF-8 `.txt` file, when set.
+ */
+text: string | null; 
+/**
+ * Whether to write a `.lab` phoneme timing file for lip sync.
+ */
+lab: boolean }
 export type AzaleaConfig = { core: CoreConfig | null; setup_source?: SetupSource; downloaded_setup?: DownloadedSetupConfig; ui: UIConfig; system_presets?: Preset[] }
 /**
  * <i>キャラクター</i>のメタ情報。
@@ -879,7 +891,15 @@ export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; embedded_font?
 /**
  * Share of the editor width used by the portrait panel; 0 is collapsed.
  */
-portrait_ratio?: number; buffer_render?: boolean; nonblocking_synthesis?: boolean; pitch_noise_enabled?: boolean; pitch_completion_enabled?: boolean; pitch_completion_locked?: boolean; pitch_noise_sigma?: number; synthesis_delay_ms?: number; spectrogram_preview?: boolean; playback_timeline?: boolean; pitch_scale?: PitchScale; pitch_ruler?: boolean; name_truncation_len?: number; default_export_dir?: string | null; default_export_dir_enabled?: boolean; silent_save?: boolean; prevent_overwrite?: boolean; last_exported_dir?: string | null; 
+portrait_ratio?: number; buffer_render?: boolean; nonblocking_synthesis?: boolean; pitch_noise_enabled?: boolean; pitch_completion_enabled?: boolean; pitch_completion_locked?: boolean; pitch_noise_sigma?: number; synthesis_delay_ms?: number; spectrogram_preview?: boolean; playback_timeline?: boolean; pitch_scale?: PitchScale; pitch_ruler?: boolean; name_truncation_len?: number; default_export_dir?: string | null; default_export_dir_enabled?: boolean; silent_save?: boolean; prevent_overwrite?: boolean; 
+/**
+ * Writes the text block's content as a `.txt` file beside exported audio.
+ */
+export_text?: boolean; 
+/**
+ * Writes a `.lab` phoneme timing file for lip sync beside exported audio.
+ */
+export_lab?: boolean; last_exported_dir?: string | null; 
 /**
  * Recently opened or saved project paths, most recent first.
  */

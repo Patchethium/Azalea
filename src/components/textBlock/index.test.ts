@@ -1174,6 +1174,7 @@ describe("TextBlock", () => {
       },
       1,
       false,
+      { text: "hello", lab: false },
     ]);
     await waitFor(() =>
       expect(getConfigStore().config.ui.last_exported_dir).toBe("/exports"),
@@ -1279,6 +1280,7 @@ describe("TextBlock", () => {
       expect.any(Object),
       1,
       false,
+      { text: "hello", lab: false },
     );
   });
 
@@ -1314,6 +1316,7 @@ describe("TextBlock", () => {
       expect.any(Object),
       1,
       false,
+      { text: "hello", lab: false },
     ]);
   });
 
@@ -1353,9 +1356,12 @@ describe("TextBlock", () => {
       expect.any(Object),
       1,
       false,
+      { text: "hello", lab: false },
     );
 
     getConfigStore().setConfig("ui", "prevent_overwrite", true);
+    getConfigStore().setConfig("ui", "export_text", true);
+    getConfigStore().setConfig("ui", "export_lab", true);
     fireEvent.click(saveButton);
 
     await waitFor(() => expect(saveAudio).toHaveBeenCalledTimes(2));
@@ -1365,6 +1371,7 @@ describe("TextBlock", () => {
       expect.any(Object),
       1,
       true,
+      { text: "hello", lab: true },
     );
     expect(parentPath).toHaveBeenCalledWith("/pinned/hello(2).wav");
   });
@@ -1413,6 +1420,7 @@ describe("TextBlock", () => {
       expect.any(Object),
       1,
       false,
+      { text: "hello", lab: false },
     ]);
   });
 
@@ -1451,6 +1459,7 @@ describe("TextBlock", () => {
       expect.any(Object),
       1,
       false,
+      { text: "hello", lab: false },
     ]);
   });
 
@@ -1505,6 +1514,7 @@ describe("TextBlock", () => {
       expect.any(Object),
       1,
       false,
+      { text: "hello", lab: false },
     );
     expect(console.error).toHaveBeenCalledWith("path resolution failed");
     expect(console.error).toHaveBeenCalledWith("export failed");

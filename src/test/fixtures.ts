@@ -103,6 +103,8 @@ export const config = (
     default_export_dir_enabled: false,
     silent_save: false,
     prevent_overwrite: false,
+    export_text: true,
+    export_lab: false,
     last_exported_dir: null,
     shortcuts: {},
     ...overrides,

@@ -241,6 +241,36 @@ export function ConfigPage() {
                 </Switch.Control>
               </Switch>
             </ConfigItem>
+            <ConfigItem label={t1("config.export_text")}>
+              <Switch
+                checked={config.ui.export_text ?? true}
+                onChange={(value) => setConfig("ui", "export_text", value)}
+                class="inline-flex cursor-pointer select-none items-center justify-center"
+              >
+                <Switch.Input
+                  aria-label={t1("config.export_text")}
+                  class="outline-2px"
+                />
+                <Switch.Control class="h-6 w-12 rounded-full bg-slate-3 p1 ui-checked:bg-primary-5 dark:bg-slate-6 dark:ui-checked:bg-primary-5">
+                  <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:translate-x-6" />
+                </Switch.Control>
+              </Switch>
+            </ConfigItem>
+            <ConfigItem label={t1("config.export_lab")}>
+              <Switch
+                checked={config.ui.export_lab ?? false}
+                onChange={(value) => setConfig("ui", "export_lab", value)}
+                class="inline-flex cursor-pointer select-none items-center justify-center"
+              >
+                <Switch.Input
+                  aria-label={t1("config.export_lab")}
+                  class="outline-2px"
+                />
+                <Switch.Control class="h-6 w-12 rounded-full bg-slate-3 p1 ui-checked:bg-primary-5 dark:bg-slate-6 dark:ui-checked:bg-primary-5">
+                  <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:translate-x-6" />
+                </Switch.Control>
+              </Switch>
+            </ConfigItem>
             <ConfigItem label={t1("config.truncation_len")}>
               <NumberField
                 minValue={0}

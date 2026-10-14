@@ -199,6 +199,8 @@
     "export_dir_path": "目录",
     "silent_save": "静默保存",
     "prevent_overwrite": "防止覆盖",
+    "export_text": "导出文本文件（.txt）",
+    "export_lab": "导出口型同步用的 lab 文件",
     "no_default_export_dir": "未设置",
     "pick_export_dir": "选择导出目录",
     "enable_export_dir": "启用默认导出目录",

@@ -1,4 +1,4 @@
-import type { AudioQuery, Preset } from "$binding";
+import type { AudioQuery, AudioSidecars, Preset, UIConfig } from "$binding";
 import _ from "lodash";
 import { RECENT_PROJECTS_LIMIT } from "$constants";
 
@@ -32,6 +32,17 @@ export function createAudioFileName(
         ? ""
         : `+${(text.length - truncationLength).toString()}`,
   });
+}
+
+/** Sidecar files to write beside exported audio, per the export settings. */
+export function createAudioSidecars(
+  ui: Pick<UIConfig, "export_text" | "export_lab">,
+  text: string,
+): AudioSidecars {
+  return {
+    text: ui.export_text !== false ? text : null,
+    lab: ui.export_lab === true,
+  };
 }
 
 /** Appends the smallest free ` (n)` suffix when `base` is already taken. */

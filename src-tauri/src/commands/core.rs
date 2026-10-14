@@ -11,7 +11,7 @@ use crate::synthesis::{
   SynthesisJobState, WaveformCacheEntry, WaveformCacheOwner,
 };
 use crate::AppState;
-use crate::{audio::AudioPlayer, core::Core};
+use crate::{audio::lab::lab_from_audio_query, audio::AudioPlayer, core::Core};
 
 use std::future::Future;
 #[cfg(test)]
@@ -949,7 +949,36 @@ fn write_audio_file(
   }
 }
 
-/// Save the audio waveform to a file.
+/// Extra files written beside an exported WAV, sharing its file stem.
+#[derive(Clone, Debug, Default, serde::Deserialize, specta::Type)]
+pub struct AudioSidecars {
+  /// Text written as a UTF-8 `.txt` file, when set.
+  pub text: Option<String>,
+  /// Whether to write a `.lab` phoneme timing file for lip sync.
+  pub lab: bool,
+}
+
+/// Writes the requested sidecar files next to `audio_path`, replacing any
+/// existing files with the same names.
+fn write_audio_sidecars(
+  audio_path: &Path,
+  audio_query: &AudioQuery,
+  sidecars: &AudioSidecars,
+) -> Result<(), String> {
+  let write = |extension: &str, contents: &str| {
+    let path = audio_path.with_extension(extension);
+    std::fs::write(&path, contents).map_err(|e| format!("{}: {e}", path.display()))
+  };
+  if let Some(text) = &sidecars.text {
+    write("txt", text)?;
+  }
+  if sidecars.lab {
+    write("lab", &lab_from_audio_query(audio_query))?;
+  }
+  Ok(())
+}
+
+/// Save the audio waveform to a file, plus any requested sidecar files.
 #[tauri::command]
 #[specta::specta]
 pub async fn save_audio(
@@ -959,17 +988,19 @@ pub async fn save_audio(
   audio_query: AudioQuery,
   speaker_id: StyleId,
   prevent_overwrite: bool,
+  sidecars: AudioSidecars,
 ) -> std::result::Result<String, String> {
   let waveform = synthesize_cached(
     &app,
     &state,
-    audio_query,
+    audio_query.clone(),
     speaker_id,
     None,
     SynthesisBackend::Blocking,
   )
   .await?;
   let saved_path = write_audio_file(Path::new(&path), &waveform, prevent_overwrite)?;
+  write_audio_sidecars(&saved_path, &audio_query, &sidecars)?;
   Ok(saved_path.to_string_lossy().into_owned())
 }
 
@@ -1109,6 +1140,47 @@ mod tests {
       Err("hash must not be empty".into())
     );
     assert!(validate_synthesis_request(&synthesis_request("block", "hash")).is_ok());
+  }
+
+  #[test]
+  fn audio_sidecars_share_the_saved_audio_stem() {
+    let directory = tempfile::tempdir().unwrap();
+    let audio = directory.path().join("voice.sample(2).wav");
+    let query: AudioQuery = serde_json::from_value(serde_json::json!({
+      "accent_phrases": [],
+      "speedScale": 1.0,
+      "pitchScale": 0.0,
+      "intonationScale": 1.0,
+      "volumeScale": 1.0,
+      "prePhonemeLength": 0.1,
+      "postPhonemeLength": 0.1,
+      "outputSamplingRate": 24000,
+      "outputStereo": false,
+      "kana": null
+    }))
+    .unwrap();
+
+    write_audio_sidecars(&audio, &query, &AudioSidecars::default()).unwrap();
+    assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+
+    let sidecars = AudioSidecars {
+      text: Some("こんにちは".into()),
+      lab: true,
+    };
+    write_audio_sidecars(&audio, &query, &sidecars).unwrap();
+    assert_eq!(
+      std::fs::read_to_string(directory.path().join("voice.sample(2).txt")).unwrap(),
+      "こんにちは"
+    );
+    assert_eq!(
+      std::fs::read_to_string(directory.path().join("voice.sample(2).lab")).unwrap(),
+      "0 1000000 pau\n1000000 2000000 pau\n"
+    );
+
+    let blocked = directory.path().join("blocked.wav");
+    std::fs::create_dir(blocked.with_extension("txt")).unwrap();
+    let error = write_audio_sidecars(&blocked, &query, &sidecars).unwrap_err();
+    assert!(error.contains("blocked.txt"), "{error}");
   }
 
   #[test]

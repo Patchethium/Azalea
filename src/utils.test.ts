@@ -3,6 +3,7 @@ import { audioQuery, preset } from "./test/fixtures";
 import {
   countJapaneseMoras,
   createAudioFileName,
+  createAudioSidecars,
   createUniqueName,
   getModifiedQuery,
   indexAfterMove,
@@ -217,5 +218,27 @@ describe("addRecentProject", () => {
       "/c.azp",
       "/a.azp",
     ]);
+  });
+});
+
+describe("createAudioSidecars", () => {
+  it("requests only the enabled sidecar files", () => {
+    expect(createAudioSidecars({}, "hello")).toEqual({
+      text: "hello",
+      lab: false,
+    });
+    expect(createAudioSidecars({ export_text: false }, "hello")).toEqual({
+      text: null,
+      lab: false,
+    });
+    expect(
+      createAudioSidecars({ export_text: true, export_lab: true }, "hello"),
+    ).toEqual({ text: "hello", lab: true });
+    expect(
+      createAudioSidecars({ export_text: false, export_lab: true }, "hello"),
+    ).toEqual({
+      text: null,
+      lab: true,
+    });
   });
 });

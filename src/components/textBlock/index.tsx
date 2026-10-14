@@ -32,7 +32,11 @@ import {
   useTextStore,
 } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
-import { createAudioFileName, getModifiedQuery } from "$utils";
+import {
+  createAudioFileName,
+  createAudioSidecars,
+  getModifiedQuery,
+} from "$utils";
 
 export { renderRequestFingerprint as synthesisRequestFingerprint } from "$utils";
 
@@ -276,6 +280,7 @@ function TextBlock(props: { index: number; sortable?: Sortable }) {
       getModifiedQuery(unwrap(currentText().query!), preset),
       preset.style_id,
       preventOverwriteOnSave,
+      createAudioSidecars(config.ui, currentText().text),
     );
     if (result.status === "ok") {
       const savedPath = result.data;
