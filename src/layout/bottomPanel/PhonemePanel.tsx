@@ -10,6 +10,7 @@ import {
   Show,
 } from "solid-js";
 import { produce, unwrap } from "solid-js/store";
+import { useToasts } from "@components/toast";
 import { usei18n } from "@contexts/i18n";
 import { useMetaStore } from "@contexts/meta";
 import { findPresetById, findPresetStyle, useTextStore } from "@contexts/text";
@@ -17,6 +18,7 @@ import { useUIStore } from "@contexts/ui";
 
 export function PhonemePanel() {
   const { t1 } = usei18n()!;
+  const toasts = useToasts();
   const {
     textStore,
     setTextStore,
@@ -81,6 +83,17 @@ export function PhonemePanel() {
       activeRequest = request;
       return request;
     });
+  // Stale requests were superseded by a newer edit, so their failures are
+  // only logged.
+  const reportFailure = (
+    request: AccentRequest,
+    operation: "refresh_mora" | "edit_phoneme",
+    error: unknown,
+  ) => {
+    console.error(`Failed to ${operation.replace("_", " ")}:`, error);
+    if (activeRequest === request)
+      toasts.error(t1(`toast.error.${operation}`), error);
+  };
   const applyPhrases = (request: AccentRequest, phrases: AccentPhrase[]) => {
     if (
       activeRequest !== request ||
@@ -103,9 +116,9 @@ export function PhonemePanel() {
         request.block.pitch_noise_seed,
       );
       if (result.status === "ok") applyPhrases(request, result.data);
-      else console.error("Failed to refresh mora data:", result.error);
+      else reportFailure(request, "refresh_mora", result.error);
     } catch (error) {
-      console.error("Failed to refresh mora data:", error);
+      reportFailure(request, "refresh_mora", error);
     } finally {
       finishRequest(request);
     }
@@ -209,7 +222,11 @@ export function PhonemePanel() {
         request.styleId,
         request.block.pitch_noise_seed,
       );
-      if (result.status !== "ok" || result.data.length === 0) return;
+      if (result.status === "error") {
+        reportFailure(request, "edit_phoneme", result.error);
+        return;
+      }
+      if (result.data.length === 0) return;
       const sourcePhrase = request.phrases[phraseIndex];
       const replacementPhrases = result.data.map((phrase) => ({ ...phrase }));
       const finalReplacement =
@@ -219,7 +236,7 @@ export function PhonemePanel() {
       request.phrases.splice(phraseIndex, 1, ...replacementPhrases);
       applyPhrases(request, request.phrases);
     } catch (error) {
-      console.error("Failed to edit accent phrase:", error);
+      reportFailure(request, "edit_phoneme", error);
     } finally {
       finishRequest(request);
     }

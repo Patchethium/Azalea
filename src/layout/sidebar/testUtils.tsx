@@ -1,3 +1,4 @@
+import { AppToastRegion } from "@components/toast";
 import Sidebar from "@layout/sidebar";
 import { useSidebar } from "@layout/sidebar/useSidebar";
 import { MultiProvider } from "@solid-primitives/context";
@@ -42,6 +43,7 @@ export function renderSidebar(setup: (stores: SidebarTestStores) => void) {
         ]}
       >
         <Harness />
+        <AppToastRegion />
       </MultiProvider>
     </main>
   ));
@@ -72,6 +74,7 @@ export function renderSidebarHook(setup: (stores: SidebarTestStores) => void) {
       ]}
     >
       <Harness />
+      <AppToastRegion />
     </MultiProvider>
   ));
   return { ...result, getControls: () => controls };

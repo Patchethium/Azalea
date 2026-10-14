@@ -225,11 +225,16 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     },
   );
 
+  /** The latest failed config write; a new object for every failure. */
+  const [configSaveFailure, setConfigSaveFailure] = createSignal<{
+    error: string;
+  } | null>(null);
   const saveConfig = async () => {
     if (configInitialized()) {
       const res = await commands.setConfig(config);
       if (res.status === "error") {
         console.error("Failed to save config:", res.error);
+        setConfigSaveFailure({ error: res.error });
       }
     }
   };
@@ -252,6 +257,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     coreRevision,
     coreError,
     setCoreError,
+    configSaveFailure,
     setupChangePending,
     setupSwitchPending,
     setSetupSwitchPending,

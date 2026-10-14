@@ -25,11 +25,12 @@ it without help.
 
 ### Errors and setup
 
-- [ ] **Show failures in the UI with recovery actions.** Save, load,
-      synthesis, playback, and export failures still end in `console.error`
-      (56 call sites in `src/`). Name the operation and file or voice, offer
-      Retry or Choose Another Location where it applies, and keep the message
-      visible until acknowledged.
+- [ ] **Show failures in the UI with recovery actions.** Error toasts
+      (`useToasts` in `src/components/toast`) now name the operation and file
+      with the backend error as detail for project save/load, SRT import,
+      audio export, playback, accent/phoneme edits, tuning reset, and config
+      read/write failures. Still missing: Retry or Choose Another Location
+      actions, and toasts for background synthesis failures.
 - [ ] **Finish setup diagnostics.** The voice section already shows and
       re-picks Core paths and manages downloads. Still missing: separate
       messages for missing or incompatible runtime, dictionary, and VVM

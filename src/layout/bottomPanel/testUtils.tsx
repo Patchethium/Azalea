@@ -1,3 +1,4 @@
+import { AppToastRegion } from "@components/toast";
 import { BottomPanel, SpectrogramCanvas } from "@layout/bottomPanel";
 import { useTextBlockSynthesis } from "@components/textBlock/useSynthesis";
 import { useTuningPanel } from "@layout/bottomPanel/tuning/usePanel";
@@ -149,6 +150,7 @@ export const renderPanel = (
       ]}
     >
       <Harness />
+      <AppToastRegion />
     </MultiProvider>
   ));
   return {
@@ -213,6 +215,7 @@ export const renderTuningHook = (
       ]}
     >
       <Harness />
+      <AppToastRegion />
     </MultiProvider>
   ));
   return {
@@ -281,6 +284,7 @@ export const renderPlaybackHook = (
       ]}
     >
       <Harness />
+      <AppToastRegion />
     </MultiProvider>
   ));
   return {

@@ -107,6 +107,27 @@ describe("SpectrogramCanvas", () => {
 });
 
 describe("BottomPanel playback", () => {
+  it("shows an error toast when the selected block cannot be played", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(commands, "playAudio").mockResolvedValue({
+      status: "error",
+      error: "no output device",
+    });
+    const synthesized = vi.fn();
+    const { getControls } = renderPlaybackHook(synthesized);
+    await Promise.resolve();
+
+    expect(await getControls().togglePlayback()).toBeNull();
+    expect(getControls().isPlaying()).toBe(false);
+    expect(synthesized).not.toHaveBeenCalled();
+    expect(
+      await screen.findByRole("status", { name: "Couldn't play the audio" }),
+    ).toHaveAccessibleDescription("no output device");
+  });
+
   it("handles playback controller boundaries and sequence races", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
@@ -163,6 +184,9 @@ describe("BottomPanel playback", () => {
       "Failed to stop audio:",
       "stop failed",
     );
+    expect(
+      await screen.findByRole("status", { name: "Couldn't stop playback" }),
+    ).toHaveAccessibleDescription("stop failed");
     await controls.togglePlayback();
     expect(controls.isPlaying()).toBe(false);
     synthesized.mockClear();
@@ -205,6 +229,11 @@ describe("BottomPanel playback", () => {
       "Failed to play audio sequence:",
       "sequence failed",
     );
+    expect(
+      await screen.findByRole("status", {
+        name: "Couldn't play the text blocks",
+      }),
+    ).toHaveAccessibleDescription("sequence failed");
   });
 
   it("labels and navigates between adjacent text cells", async () => {
@@ -1621,7 +1650,11 @@ describe("BottomPanel playback", () => {
         .mockResolvedValueOnce({ status: "error", error: "failed" })
         .mockRejectedValueOnce(new Error("IPC failed"));
       const { getTextStore } = renderPanel();
-      for (let attempt = 0; attempt < 2; attempt++) {
+      const message =
+        command === "accentPhrases"
+          ? "Couldn't apply the reading edit"
+          : "Couldn't update pitch and duration after the accent edit";
+      for (const detail of ["failed", "IPC failed"]) {
         if (command === "accentPhrases") editAccentText("エラー");
         else {
           const pause =
@@ -1631,7 +1664,42 @@ describe("BottomPanel playback", () => {
         }
         await vi.advanceTimersByTimeAsync(300);
         expect(getTextStore().queryPending["first-block"]).toBeUndefined();
+        expect(
+          screen.getByRole("status", { name: message }),
+        ).toHaveAccessibleDescription(detail);
       }
+    },
+  );
+
+  it.each(["accentPhrases", "replaceMora"] as const)(
+    "does not report %s failures superseded by a newer edit",
+    async (command) => {
+      vi.useFakeTimers();
+      mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+        shouldMockEvents: true,
+      });
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      type Result = Awaited<ReturnType<typeof commands.accentPhrases>>;
+      let fail!: (result: Result) => void;
+      vi.spyOn(commands, command).mockReturnValueOnce(
+        new Promise<Result>((resolve) => {
+          fail = resolve;
+        }),
+      );
+      const { getUiStore } = renderPanel();
+      if (command === "accentPhrases") editAccentText("古い");
+      else {
+        const pause =
+          screen.getByText("コ").nextElementSibling!.firstElementChild!;
+        fireEvent.mouseEnter(pause);
+        fireEvent.click(pause);
+      }
+      await vi.advanceTimersByTimeAsync(300);
+      getUiStore().setUIStore("selectedTextBlockIndex", 1);
+      fail({ status: "error", error: "stale failure" });
+      await vi.advanceTimersByTimeAsync(1);
+      expect(console.error).toHaveBeenCalled();
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
     },
   );
 
@@ -2938,6 +3006,11 @@ describe("BottomPanel playback", () => {
         "replace failed",
       ),
     );
+    expect(
+      await screen.findByRole("status", {
+        name: "Couldn't reset pitch and duration edits",
+      }),
+    ).toHaveAccessibleDescription("replace failed");
     expect(text.textStore[0].query?.accent_phrases[0].moras[0].pitch).toBe(5.9);
     await waitFor(() => expect(reset).toBeEnabled());
   });

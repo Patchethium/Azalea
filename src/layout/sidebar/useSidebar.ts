@@ -1,4 +1,5 @@
 import { commands, type Preset, type StyleId } from "$binding";
+import { useToasts } from "@components/toast";
 import type { ExportAllFailure } from "@dialogs/ExportAll";
 import { createScheduled, throttle } from "@solid-primitives/scheduled";
 import {
@@ -62,7 +63,8 @@ export function useSidebar() {
   const { config, setConfig } = useConfigStore()!;
   const { isApplicationShortcutAllowed, matchesShortcut } =
     useShortcutsStore()!;
-  const { t1 } = usei18n()!;
+  const { t1, t2 } = usei18n()!;
+  const toasts = useToasts();
   const currentText = selectedTextBlock;
 
   const setStyleId = (styleId: StyleId) => {
@@ -207,6 +209,7 @@ export function useSidebar() {
     const result = await commands.saveProject(project, path, true);
     if (result.status === "error") {
       console.error(result.error);
+      toasts.error(t2("toast.error.save_project", { path }), result.error);
       return false;
     }
     batch(() => {
@@ -243,6 +246,7 @@ export function useSidebar() {
     } catch (error) {
       const name = typeof action === "object" ? action.kind : action;
       console.error(`Failed to run project action ${name}:`, error);
+      toasts.error(t1("toast.error.project_action"), error);
     }
   };
 
@@ -298,6 +302,7 @@ export function useSidebar() {
     const result = await commands.loadProject(path);
     if (result.status === "error") {
       console.error(result.error);
+      toasts.error(t2("toast.error.load_project", { path }), result.error);
       forgetRecentProject(path);
       return false;
     }
@@ -339,6 +344,7 @@ export function useSidebar() {
     const result = await commands.readTextFile(path);
     if (result.status === "error") {
       console.error(result.error);
+      toasts.error(t2("toast.error.import_srt", { path }), result.error);
       return;
     }
     const texts = parseSrt(result.data);

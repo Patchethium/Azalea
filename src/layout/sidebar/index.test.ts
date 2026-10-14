@@ -313,6 +313,37 @@ describe("Sidebar SRT import", () => {
       preset_id: null,
     });
   });
+
+  it("shows an error toast when the subtitle file cannot be read", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    vi.spyOn(commands, "readTextFile").mockResolvedValue({
+      status: "error",
+      error: "permission denied",
+    });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    dialogs.open.mockResolvedValueOnce("/tmp/locked.srt");
+    let text!: NonNullable<ReturnType<typeof useTextStore>>;
+    const { getControls } = renderSidebarHook(
+      ({ config: appConfig, meta, text: textStore }) => {
+        text = textStore;
+        batch(() => {
+          appConfig.setConfig(config());
+          meta.setMetas(metas);
+          text.setProjectPresetStore([preset()]);
+          text.setTextStore([]);
+        });
+      },
+    );
+    await Promise.resolve();
+
+    await getControls().importSrt();
+    expect(text.textStore).toHaveLength(0);
+    expect(
+      await screen.findByRole("status", {
+        name: "Couldn't import the subtitles from /tmp/locked.srt",
+      }),
+    ).toHaveAccessibleDescription("permission denied");
+  });
 });
 
 describe("Sidebar controls", () => {
@@ -851,6 +882,11 @@ describe("Sidebar unsaved changes", () => {
     expect(await controls.saveProject()).toBe(false);
     expect(text.projectPath()).toBeNull();
     expect(text.isProjectDirty()).toBe(true);
+    expect(
+      await screen.findByRole("status", {
+        name: "Couldn't save the project to /tmp/unsaved.azp",
+      }),
+    ).toHaveAccessibleDescription("disk full");
 
     saveProject.mockResolvedValue({ status: "ok", data: null });
     expect(await controls.saveProject()).toBe(true);
@@ -1034,6 +1070,11 @@ describe("Sidebar unsaved changes", () => {
       "Failed to run project action quit:",
       expect.any(Error),
     );
+    expect(
+      await screen.findByRole("status", {
+        name: "Couldn't complete the project action",
+      }),
+    ).toHaveAccessibleDescription("denied");
   });
 });
 
@@ -1517,6 +1558,11 @@ describe("Sidebar recent projects", () => {
     await waitFor(() =>
       expect(getRecent()).toEqual(["/tmp/previous.azp", "/tmp/current.azp"]),
     );
+    expect(
+      await screen.findByRole("status", {
+        name: "Couldn't open the project /tmp/missing.azp",
+      }),
+    ).toHaveAccessibleDescription("file not found");
     expect(text.projectPath()).toBe("/tmp/previous.azp");
 
     controls.clearRecentProjects();

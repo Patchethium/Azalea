@@ -13,7 +13,9 @@ import {
   onMount,
 } from "solid-js";
 import { unwrap } from "solid-js/store";
+import { useToasts } from "@components/toast";
 import { useConfigStore } from "@contexts/config";
+import { usei18n } from "@contexts/i18n";
 import { useMetaStore } from "@contexts/meta";
 import { useShortcutsStore } from "@contexts/shortcuts";
 import { findPresetById, findPresetStyle, useTextStore } from "@contexts/text";
@@ -34,6 +36,8 @@ export function usePlaybackControls(
   const { metas } = useMetaStore()!;
   const { setUIStore } = useUIStore()!;
   const { playbackTimelineEnabled } = useConfigStore()!;
+  const { t1 } = usei18n()!;
+  const toasts = useToasts();
   const {
     isPlaybackShortcutAllowed,
     isPlaybackToggleAllowed,
@@ -202,9 +206,10 @@ export function usePlaybackControls(
   const stop = async () => {
     activePlaybackSequence = null;
     const result = await commands.stopAudio();
-    if (result.status === "error")
+    if (result.status === "error") {
       console.error("Failed to stop audio:", result.error);
-    else setIsPlaying(false);
+      toasts.error(t1("toast.error.stop_audio"), result.error);
+    } else setIsPlaying(false);
   };
 
   const speak = async () => {
@@ -232,6 +237,7 @@ export function usePlaybackControls(
         return block.id;
       }
       console.error("Failed to play audio:", result.error);
+      toasts.error(t1("toast.error.play_audio"), result.error);
       return null;
     } finally {
       setPlayRequestPending(false);
@@ -352,6 +358,7 @@ export function usePlaybackControls(
       if (result.status === "error") {
         if (activePlaybackSequence === sequence) activePlaybackSequence = null;
         console.error("Failed to play audio sequence:", result.error);
+        toasts.error(t1("toast.error.play_sequence"), result.error);
       } else if (activePlaybackSequence === sequence) {
         setIsPlaying(true);
         if (sequence.lastStartedIndex === null) focusSequenceItem(0);

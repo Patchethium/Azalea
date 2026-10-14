@@ -842,6 +842,52 @@ describe("App initialization", () => {
       await screen.findByRole("button", { name: "Choose VOICEVOX folder" }),
     ).toBeEnabled();
     expect(screen.getByRole("alert")).toHaveTextContent("core failed");
+    expect(
+      screen.getByRole("status", {
+        name: "Couldn't read the settings file. Setting changes won't be saved until it is fixed.",
+      }),
+    ).toHaveAccessibleDescription("core failed");
+  });
+
+  it("shows a toast for each failed settings write but not for core errors", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mockIPC(
+      (cmd) => {
+        if (cmd === "get_os") return "Linux";
+        if (cmd === "set_config") throw "read-only file system";
+        return null;
+      },
+      { shouldMockEvents: true },
+    );
+    mockWindows("main");
+    const { getConfigStore } = renderApp();
+    await events.initializationEvent.emit({
+      config: config({ locale: "En" }),
+      core_initialized: false,
+      metas: null,
+      range: [],
+      error: "core failed",
+    });
+
+    const message = "Couldn't save settings";
+    const toast = await screen.findByRole("status", { name: message });
+    expect(toast).toHaveAccessibleDescription("read-only file system");
+    expect(
+      screen.queryByRole("status", {
+        name: "Couldn't read the settings file. Setting changes won't be saved until it is fixed.",
+      }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close notification" }));
+    getConfigStore().setConfig("ui", "auto_save", true);
+    await waitFor(() =>
+      expect(screen.getAllByRole("status", { name: message })).toHaveLength(1),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("status", { name: message })).not.toHaveAttribute(
+        "data-closed",
+      ),
+    );
   });
 
   it("initializes a selected core and opens the editor", async () => {

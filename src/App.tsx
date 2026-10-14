@@ -1,7 +1,7 @@
 import { events, type TitlebarStyle } from "$binding";
 import Resizable from "@corvu/resizable";
 import ConfigPage from "@dialogs/config";
-import { AppToastRegion, showWarningToast } from "@components/toast";
+import { AppToastRegion, useToasts } from "@components/toast";
 import { TitleBar } from "@components/titleBar";
 import MainPage from "@layout/MainPage";
 import Sidebar from "@layout/sidebar";
@@ -9,6 +9,7 @@ import { getCurrentWindow, Theme } from "@tauri-apps/api/window";
 import {
   createEffect,
   createSignal,
+  on,
   onCleanup,
   onMount,
   Show,
@@ -38,6 +39,7 @@ function App() {
     setDownloadedCore,
     setActiveSetupSource,
     setCoreError,
+    configSaveFailure,
     configInitialized,
     setConfigInitialized,
     coreInitializeResource,
@@ -47,6 +49,7 @@ function App() {
   } = useConfigStore()!;
   const { setMetas, availableStyleIds } = useMetaStore()!;
   const { t1, t2 } = usei18n()!;
+  const toasts = useToasts();
   const { systemStore } = useSystemStore()!;
   const { setUIStore } = useUIStore()!;
   const { newProject, isProjectDirty } = useTextStore()!;
@@ -67,6 +70,10 @@ function App() {
     const unlisten = await events.initializationEvent.listen(({ payload }) => {
       if (payload.error) {
         console.error("Failed to initialize application:", payload.error);
+        // Without a config the backend could not read config.toml; core
+        // failures are shown in the voice setup instead.
+        if (!payload.config)
+          toasts.error(t1("toast.error.load_config"), payload.error);
       }
       setCoreError(payload.error);
       if (payload.config) {
@@ -83,11 +90,10 @@ function App() {
         setConfig(payload.config);
         setConfigInitialized(true);
         if (payload.unsupported_system_locale) {
-          showWarningToast(
+          toasts.warning(
             t2("toast.unsupported_system_locale", {
               locale: payload.unsupported_system_locale,
             }),
-            t1("toast.close"),
           );
         }
       }
@@ -142,6 +148,12 @@ function App() {
       darkModeQuery.removeEventListener("change", updateSystemTheme),
     );
   });
+
+  createEffect(
+    on(configSaveFailure, (failure) => {
+      if (failure) toasts.error(t1("toast.error.save_config"), failure.error);
+    }),
+  );
 
   onMount(() => {
     let disposed = false;

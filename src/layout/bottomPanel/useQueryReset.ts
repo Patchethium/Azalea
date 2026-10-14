@@ -1,4 +1,5 @@
 import { commands } from "$binding";
+import { useToasts } from "@components/toast";
 import { usei18n } from "@contexts/i18n";
 import { useMetaStore } from "@contexts/meta";
 import {
@@ -18,6 +19,7 @@ const tuningModified = (block: TextBlockProps) =>
 
 export function useQueryReset() {
   const { t1 } = usei18n()!;
+  const toasts = useToasts();
   const {
     textStore,
     setTextStore,
@@ -90,6 +92,7 @@ export function useQueryReset() {
           "Failed to reset pitch and duration edits:",
           result.error,
         );
+        toasts.error(t1("toast.error.reset_tuning"), result.error);
         return;
       }
       const current = textStore[index];

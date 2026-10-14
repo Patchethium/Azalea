@@ -11,7 +11,28 @@
     "notifications": "Notifications",
     "close": "Close notification",
     "audio_exported": "Audio exported successfully",
-    "unsupported_system_locale": "Your system language ({{ locale }}) is not supported, so Azalea is using English."
+    "open_output_dir": "Open output folder",
+    "unsupported_system_locale": "Your system language ({{ locale }}) is not supported, so Azalea is using English.",
+    "error": {
+      "save_project": "Couldn't save the project to {{ path }}",
+      "load_project": "Couldn't open the project {{ path }}",
+      "import_srt": "Couldn't import the subtitles from {{ path }}",
+      "project_action": "Couldn't complete the project action",
+      "export_audio": "Couldn't export audio to {{ path }}",
+      "open_output_dir": "Couldn't open the output folder",
+      "audio_query": "Couldn't analyze the text",
+      "play_audio": "Couldn't play the audio",
+      "play_sequence": "Couldn't play the text blocks",
+      "stop_audio": "Couldn't stop playback",
+      "refresh_mora": "Couldn't update pitch and duration after the accent edit",
+      "edit_phoneme": "Couldn't apply the reading edit",
+      "reset_tuning": "Couldn't reset pitch and duration edits",
+      "load_config": "Couldn't read the settings file. Setting changes won't be saved until it is fixed.",
+      "save_config": "Couldn't save settings"
+    },
+    "warning": {
+      "resolve_export_path": "Couldn't check for existing files; the suggested filename may replace one"
+    }
   },
   "bottom": {
     "regenerate_pitch_noise_seed": "Regenerate noise seed",

@@ -171,7 +171,7 @@ async openConfigDir() : Promise<Result<null, string>> {
 }
 },
 /**
- * Opens the folder containing a core component in the system file manager.
+ * Opens a folder, or the folder containing a file, in the system file manager.
  * Only folders are opened, so files are never executed.
  */
 async openPathLocation(path: string) : Promise<Result<null, string>> {

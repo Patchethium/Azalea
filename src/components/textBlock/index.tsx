@@ -4,7 +4,7 @@ import {
   type Sortable,
   SortableDropIndicator,
 } from "@components/sortable";
-import { showSuccessToast } from "@components/toast";
+import { useToasts } from "@components/toast";
 import { useTextBlockSynthesis } from "@components/textBlock/useSynthesis";
 import { TextBlockView } from "@components/textBlock/View";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
@@ -55,7 +55,8 @@ function TextBlock(props: { index: number; sortable?: Sortable }) {
     useShortcutsStore()!;
   const { setUIStore } = useUIStore()!;
   const { config, setConfig } = useConfigStore()!;
-  const { t1 } = usei18n()!;
+  const { t1, t2 } = usei18n()!;
+  const toasts = useToasts();
   const currentText = createMemo(() => textStore[props.index]);
   const [caretOffset, setCaretOffset] = createSignal<number | null>(null);
   const currentQuery = createMemo(() => currentText().query);
@@ -118,7 +119,10 @@ function TextBlock(props: { index: number; sortable?: Sortable }) {
           setQuery(audioQuery.data);
           update.finish();
         });
-      else console.error(audioQuery.error);
+      else {
+        console.error(audioQuery.error);
+        toasts.error(t1("toast.error.audio_query"), audioQuery.error);
+      }
     },
     500,
   );
@@ -212,6 +216,17 @@ function TextBlock(props: { index: number; sortable?: Sortable }) {
     return query !== null && query.accent_phrases.length > 0;
   });
 
+  const openOutputDir = async (path: string) => {
+    try {
+      const result = await commands.openPathLocation(path);
+      if (result.status === "error") {
+        toasts.error(t1("toast.error.open_output_dir"), result.error);
+      }
+    } catch (error) {
+      toasts.error(t1("toast.error.open_output_dir"), error);
+    }
+  };
+
   const saveAudio = async () => {
     const preset = currentPreset();
     if (preset === null) return;
@@ -241,6 +256,10 @@ function TextBlock(props: { index: number; sortable?: Sortable }) {
           targetPath = resolvedPath.data;
         } else {
           console.error(resolvedPath.error);
+          toasts.warning(
+            t1("toast.warning.resolve_export_path"),
+            resolvedPath.error,
+          );
         }
       }
       const selectedPath = await saveDialog({
@@ -259,11 +278,16 @@ function TextBlock(props: { index: number; sortable?: Sortable }) {
       preventOverwriteOnSave,
     );
     if (result.status === "ok") {
-      showSuccessToast(t1("toast.audio_exported"), t1("toast.close"));
+      const savedPath = result.data;
+      toasts.success(t1("toast.audio_exported"), {
+        label: t1("toast.open_output_dir"),
+        onClick: () => void openOutputDir(savedPath),
+      });
       const parent = await commands.parentPath(result.data);
       setConfig("ui", "last_exported_dir", parent);
     } else {
       console.error(result.error);
+      toasts.error(t2("toast.error.export_audio", { path }), result.error);
     }
   };
 

@@ -11,7 +11,28 @@
     "notifications": "通知",
     "close": "通知を閉じる",
     "audio_exported": "音声を書き出しました",
-    "unsupported_system_locale": "システムの言語（{{ locale }}）には対応していないため、英語で表示します。"
+    "open_output_dir": "出力フォルダーを開く",
+    "unsupported_system_locale": "システムの言語（{{ locale }}）には対応していないため、英語で表示します。",
+    "error": {
+      "save_project": "プロジェクトを {{ path }} に保存できませんでした",
+      "load_project": "プロジェクト {{ path }} を開けませんでした",
+      "import_srt": "{{ path }} から字幕をインポートできませんでした",
+      "project_action": "プロジェクト操作を完了できませんでした",
+      "export_audio": "音声を {{ path }} に書き出せませんでした",
+      "open_output_dir": "出力フォルダーを開けませんでした",
+      "audio_query": "テキストを解析できませんでした",
+      "play_audio": "音声を再生できませんでした",
+      "play_sequence": "テキストブロックを再生できませんでした",
+      "stop_audio": "再生を停止できませんでした",
+      "refresh_mora": "アクセント編集後のピッチと長さを更新できませんでした",
+      "edit_phoneme": "読みの編集を適用できませんでした",
+      "reset_tuning": "ピッチと長さの編集をリセットできませんでした",
+      "load_config": "設定ファイルを読み込めませんでした。修正されるまで設定の変更は保存されません。",
+      "save_config": "設定を保存できませんでした"
+    },
+    "warning": {
+      "resolve_export_path": "既存のファイルを確認できませんでした。提案されたファイル名で上書きされる可能性があります"
+    }
   },
   "bottom": {
     "regenerate_pitch_noise_seed": "ノイズのシードを再生成",

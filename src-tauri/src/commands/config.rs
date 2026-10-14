@@ -164,7 +164,7 @@ fn folder_to_open(path: &std::path::Path) -> std::result::Result<std::path::Path
     .ok_or_else(|| format!("{} has no parent folder", path.display()))
 }
 
-/// Opens the folder containing a core component in the system file manager.
+/// Opens a folder, or the folder containing a file, in the system file manager.
 /// Only folders are opened, so files are never executed.
 #[tauri::command]
 #[specta::specta]

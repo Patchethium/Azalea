@@ -4,7 +4,7 @@ import {
   renderAutogrowInput,
   renderBlock,
 } from "@components/textBlock/testUtils";
-import { fireEvent, screen, waitFor } from "@solidjs/testing-library";
+import { fireEvent, screen, waitFor, within } from "@solidjs/testing-library";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { produce } from "solid-js/store";
@@ -567,6 +567,9 @@ describe("TextBlock", () => {
       () => expect(consoleError).toHaveBeenCalledWith("query failed"),
       { timeout: 1_500 },
     );
+    expect(
+      await screen.findByRole("status", { name: "Couldn't analyze the text" }),
+    ).toHaveAccessibleDescription("query failed");
   });
 
   it("preserves a loaded query override until its source text changes", async () => {
@@ -1178,17 +1181,76 @@ describe("TextBlock", () => {
     const successToast = await screen.findByRole("status", {
       name: "Audio exported successfully",
     });
-    expect(successToast).toHaveClass(
-      "rounded-lg",
-      "border",
-      "border-slate-2",
-      "shadow-lg",
-    );
+    expect(successToast).toHaveClass("rounded-lg", "shadow-lg");
+    expect(successToast).not.toHaveClass("border");
     const progressTrack = successToast.querySelector('[role="presentation"]');
     expect(progressTrack).toHaveClass("bg-primary-2");
     expect(progressTrack?.firstElementChild).toHaveClass("bg-primary-5");
     fireEvent.click(screen.getByRole("button", { name: "Close notification" }));
     expect(successToast).toHaveAttribute("data-closed");
+  });
+
+  it("opens the output folder from the export toast and reports failures", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    vi.spyOn(commands, "audioQuery").mockResolvedValue({
+      status: "ok",
+      data: audioQuery(),
+    });
+    vi.spyOn(commands, "audioExportPath").mockResolvedValue(
+      "/exports/hello.wav",
+    );
+    vi.mocked(saveDialog).mockResolvedValue("/exports/hello.wav");
+    vi.spyOn(commands, "saveAudio").mockResolvedValue({
+      status: "ok",
+      data: "/exports/hello (2).wav",
+    });
+    vi.spyOn(commands, "parentPath").mockResolvedValue("/exports");
+    const openPathLocation = vi
+      .spyOn(commands, "openPathLocation")
+      .mockResolvedValueOnce({ status: "ok", data: null })
+      .mockResolvedValueOnce({ status: "error", error: "no file manager" })
+      .mockRejectedValueOnce(new Error("opener crashed"));
+
+    renderBlock(false);
+    const saveButton = await screen.findByRole("button", {
+      name: "Save audio",
+    });
+    await waitFor(() => expect(saveButton).toBeEnabled());
+
+    const exportAndOpen = async () => {
+      fireEvent.click(saveButton);
+      const toast = await screen.findByRole("status", {
+        name: "Audio exported successfully",
+      });
+      fireEvent.click(
+        within(toast).getByRole("button", { name: "Open output folder" }),
+      );
+      await waitFor(() => expect(toast).not.toBeInTheDocument());
+    };
+
+    await exportAndOpen();
+    await waitFor(() =>
+      expect(openPathLocation).toHaveBeenLastCalledWith(
+        "/exports/hello (2).wav",
+      ),
+    );
+    expect(
+      screen.queryByRole("status", { name: "Couldn't open the output folder" }),
+    ).toBeNull();
+
+    await exportAndOpen();
+    const failure = await screen.findByRole("status", {
+      name: "Couldn't open the output folder",
+    });
+    expect(failure).toHaveAccessibleDescription("no file manager");
+
+    await exportAndOpen();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("status", { name: "Couldn't open the output folder" }),
+      ).toHaveAccessibleDescription("opener crashed"),
+    );
+    expect(openPathLocation).toHaveBeenCalledTimes(3);
   });
 
   it("exports the selected text cell with Ctrl+E", async () => {
@@ -1446,6 +1508,16 @@ describe("TextBlock", () => {
     );
     expect(console.error).toHaveBeenCalledWith("path resolution failed");
     expect(console.error).toHaveBeenCalledWith("export failed");
+    expect(
+      await screen.findByRole("status", {
+        name: "Couldn't check for existing files; the suggested filename may replace one",
+      }),
+    ).toHaveAccessibleDescription("path resolution failed");
+    const exportError = await screen.findByRole("status", {
+      name: "Couldn't export audio to /custom/rendered.wav",
+    });
+    expect(exportError).toHaveAccessibleDescription("export failed");
+    expect(exportError).toHaveClass("border-red-3");
     expect(
       screen.queryByRole("status", {
         name: "Audio exported successfully",
