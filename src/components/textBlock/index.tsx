@@ -38,7 +38,6 @@ import {
   getModifiedQuery,
   splitTextIntoBlocks,
 } from "$utils";
-import { DEFAULT_TEXT_SPLIT_MODE } from "$constants";
 
 export { renderRequestFingerprint as synthesisRequestFingerprint } from "$utils";
 
@@ -407,12 +406,7 @@ function TextBlock(props: { index: number; sortable?: Sortable }) {
       onNavigate={navigateBlock}
       focusRequest={focusRequest()}
       onFocusPlacementConsumed={() => setPendingFocusPlacement(null)}
-      splitPaste={(text) =>
-        splitTextIntoBlocks(
-          text,
-          config.ui.text_split_mode ?? DEFAULT_TEXT_SPLIT_MODE,
-        )
-      }
+      splitPaste={splitTextIntoBlocks}
       onPasteBlocks={(texts) => insertTextBlocksBelow(props.index, texts)}
       synthState={synthState()}
       synthStateText={synthStateText}

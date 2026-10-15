@@ -45,7 +45,6 @@ import {
   parseSrt,
   splitTextIntoBlocks,
 } from "$utils";
-import { DEFAULT_TEXT_SPLIT_MODE } from "$constants";
 
 const projectFileFilters = [
   { name: "Azalea Project Files", extensions: ["azp"] },
@@ -440,11 +439,7 @@ export function useSidebar() {
       filterName: "Text Files",
       extensions: ["txt"],
       errorTitle: (path) => t2("toast.error.import_text", { path }),
-      parse: (content) =>
-        splitTextIntoBlocks(
-          content,
-          config.ui.text_split_mode ?? DEFAULT_TEXT_SPLIT_MODE,
-        ),
+      parse: splitTextIntoBlocks,
     });
 
   const [exportAllOpen, setExportAllOpen] = createSignal(false);

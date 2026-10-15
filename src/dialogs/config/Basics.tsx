@@ -2,7 +2,6 @@ import { Tooltip } from "@components/tooltip";
 import {
   type Locale,
   type PitchScale,
-  type TextSplitMode,
   type ThemeMode,
   type TitlebarStyle,
 } from "$binding";
@@ -16,7 +15,6 @@ import { createMemo, Show } from "solid-js";
 import {
   DEFAULT_PITCH_SCALE,
   DEFAULT_PRIMARY_COLOR,
-  DEFAULT_TEXT_SPLIT_MODE,
   PRIMARY_COLOR_PATTERN,
 } from "$constants";
 import { useConfigStore } from "@contexts/config";
@@ -167,34 +165,6 @@ export function PitchScaleSelect() {
         class={`${toggleItemClass} border-l border-slate-2 dark:border-slate-6`}
       >
         {t1("config.pitch_scale_density")}
-      </ToggleGroup.Item>
-    </ToggleGroup>
-  );
-}
-
-export function TextSplitModeSelect() {
-  const { config, setConfig } = useConfigStore()!;
-  const { t1 } = usei18n()!;
-
-  return (
-    <ToggleGroup
-      value={config.ui.text_split_mode ?? DEFAULT_TEXT_SPLIT_MODE}
-      onChange={(value) => {
-        if (value !== null) {
-          setConfig("ui", "text_split_mode", value as TextSplitMode);
-        }
-      }}
-      aria-label={t1("config.text_split_mode")}
-      class="flex h-8 overflow-hidden rounded-md border border-slate-2 dark:border-slate-6"
-    >
-      <ToggleGroup.Item value="Line" class={toggleItemClass}>
-        {t1("config.text_split_line")}
-      </ToggleGroup.Item>
-      <ToggleGroup.Item
-        value="Sentence"
-        class={`${toggleItemClass} border-l border-slate-2 dark:border-slate-6`}
-      >
-        {t1("config.text_split_sentence")}
       </ToggleGroup.Item>
     </ToggleGroup>
   );

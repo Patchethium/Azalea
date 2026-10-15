@@ -906,18 +906,6 @@ export type SynthesisJobEvent = { blockId: string; generationId: number; hash: s
 export type SynthesisJobRequest = { blockId: string; generationId: number; audioQuery: AudioQuery; speakerId: StyleId; hash: string }
 export type SynthesisJobState = "Queued" | "Running" | "Completed" | "Failed" | "Cancelled" | "Evicted"
 export type TextBlockProps = { id: string; text: string; query: AudioQuery | null; accent_is_modified?: boolean; duration_is_modified?: boolean; pitch_is_modified?: boolean; pitch_noise_seed: number; preset_id: string | null }
-/**
- * How imported `.txt` files and multi-line pastes are split into blocks.
- */
-export type TextSplitMode = 
-/**
- * One block per non-empty line.
- */
-"Line" | 
-/**
- * One block per sentence, splitting lines after sentence terminators.
- */
-"Sentence"
 export type ThemeMode = "System" | "Light" | "Dark"
 export type TitlebarStyle = "Native" | "Custom" | "Hidden"
 export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; embedded_font?: boolean; titlebar_style?: TitlebarStyle; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; bottom_duration_height?: number; side_width?: number; 
@@ -932,7 +920,7 @@ export_text?: boolean;
 /**
  * Writes a `.lab` phoneme timing file for lip sync beside exported audio.
  */
-export_lab?: boolean; last_exported_dir?: string | null; text_split_mode?: TextSplitMode; 
+export_lab?: boolean; last_exported_dir?: string | null; 
 /**
  * Recently opened or saved project paths, most recent first.
  */

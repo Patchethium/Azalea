@@ -121,16 +121,6 @@ pub enum PitchScale {
   DensityAware,
 }
 
-/// How imported `.txt` files and multi-line pastes are split into blocks.
-#[derive(Clone, Default, Deserialize, Serialize, Type)]
-pub enum TextSplitMode {
-  /// One block per non-empty line.
-  #[default]
-  Line,
-  /// One block per sentence, splitting lines after sentence terminators.
-  Sentence,
-}
-
 #[derive(Clone, Deserialize, Serialize, Type)]
 pub struct UIConfig {
   #[serde(default)]
@@ -199,8 +189,6 @@ pub struct UIConfig {
   pub export_lab: bool,
   #[serde(default)]
   pub last_exported_dir: Option<String>,
-  #[serde(default)]
-  pub text_split_mode: TextSplitMode,
   /// Recently opened or saved project paths, most recent first.
   #[serde(default, deserialize_with = "deserialize_recent_projects")]
   pub recent_projects: Vec<String>,
@@ -241,7 +229,6 @@ impl Default for UIConfig {
       export_text: export_text_default(),
       export_lab: false,
       last_exported_dir: None,
-      text_split_mode: Default::default(),
       recent_projects: Vec::new(),
       shortcuts: Default::default(),
     }
@@ -518,7 +505,7 @@ pub struct Project {
 mod tests {
   use super::{
     cache_size_default, cpu_num_threads_default, AzaleaConfig, KeyboardShortcut, Locale,
-    PitchScale, TextSplitMode, TitlebarStyle, UIConfig, RECENT_PROJECTS_LIMIT,
+    PitchScale, TitlebarStyle, UIConfig, RECENT_PROJECTS_LIMIT,
   };
 
   #[test]
@@ -677,15 +664,6 @@ mod tests {
   }
 
   #[test]
-  fn text_split_mode_round_trips() {
-    let config: UIConfig = toml::from_str("text_split_mode = \"Sentence\"").unwrap();
-    assert!(matches!(config.text_split_mode, TextSplitMode::Sentence));
-    let serialized = toml::Value::try_from(config).unwrap();
-    assert_eq!(serialized["text_split_mode"].as_str(), Some("Sentence"));
-    assert!(toml::from_str::<UIConfig>("text_split_mode = \"Word\"").is_err());
-  }
-
-  #[test]
   fn empty_application_config_has_a_default_preset_and_preview() {
     let config: AzaleaConfig = toml::from_str("[ui]\n").unwrap();
     assert_eq!(
@@ -700,7 +678,6 @@ mod tests {
     assert!(config.ui.spectrogram_preview);
     assert!(config.ui.playback_timeline);
     assert!(matches!(config.ui.pitch_scale, PitchScale::Optimal));
-    assert!(matches!(config.ui.text_split_mode, TextSplitMode::Line));
     assert!(config.ui.pitch_ruler);
     assert!(matches!(config.ui.titlebar_style, TitlebarStyle::Custom));
     assert_eq!(config.ui.primary_color, "#3b82f6");

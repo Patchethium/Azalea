@@ -369,7 +369,6 @@ describe("Sidebar SRT import", () => {
       appConfig = configStore;
       batch(() => {
         appConfig.setConfig(config({ auto_save: false }));
-        appConfig.setConfig("ui", "text_split_mode", undefined);
         meta.setMetas(metas);
         text.setProjectPresetStore([preset()]);
         text.replaceTextBlocks([
@@ -408,21 +407,18 @@ describe("Sidebar SRT import", () => {
     expect(text.textStore[1].preset_id).toBe("preset-1");
     expect(text.selectedTextBlockIndex()).toBe(1);
 
-    appConfig.setConfig("ui", "text_split_mode", "Sentence");
     await importText();
-    await waitFor(() => expect(text.textStore).toHaveLength(7));
+    await waitFor(() => expect(text.textStore).toHaveLength(5));
     expect(text.textStore.slice(3).map((block) => block.text)).toEqual([
-      "一行目。",
-      "二文目！",
-      "Second line.",
-      "Again",
+      "一行目。二文目！",
+      "Second line. Again",
     ]);
     expect(text.selectedTextBlockIndex()).toBe(3);
 
     await importText();
     await importText();
     await Promise.resolve();
-    expect(text.textStore).toHaveLength(7);
+    expect(text.textStore).toHaveLength(5);
   });
 
   it("shows an error toast when a text file is not valid UTF-8", async () => {

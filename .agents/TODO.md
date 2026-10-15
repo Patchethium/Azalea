@@ -83,7 +83,7 @@ it without help.
       change only after the write succeeds.
 - [x] Import `.txt` files and paste multi-line text as separate blocks, split
       by line or sentence (SRT import already exists). `splitTextIntoBlocks`
-      in `src/utils.ts` follows `UIConfig.text_split_mode`.
+      in `src/utils.ts` splits only at line breaks.
 - [ ] Join blocks and project-wide find and replace.
 - [ ] Multi-block selection (range, toggle, Select All) with batch preset
       assignment, move, delete, play, and export.

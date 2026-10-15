@@ -768,11 +768,7 @@ describe("TextBlock", () => {
     mockIPC((cmd) => (cmd === "audio_query" ? audioQuery() : null), {
       shouldMockEvents: true,
     });
-    const { getTextStore, getUiStore, getConfigStore } = renderBlock(
-      false,
-      false,
-      true,
-    );
+    const { getTextStore, getUiStore } = renderBlock(false, false, true);
     const [editor] = await screen.findAllByLabelText("Text to synthesize");
     const textNode = editor.ownerDocument.createTextNode("hello");
     editor.appendChild(textNode);
@@ -783,7 +779,6 @@ describe("TextBlock", () => {
     selection.removeAllRanges();
     selection.addRange(range);
 
-    getConfigStore().setConfig("ui", "text_split_mode", "Sentence");
     fireEvent.paste(editor, {
       clipboardData: {
         getData: () => "\uFEFF、世界。次の文！\r\n「最後。」",
@@ -792,26 +787,22 @@ describe("TextBlock", () => {
 
     const blocks = getTextStore().textStore;
     expect(blocks.map((block) => block.text)).toEqual([
-      "hello、世界。",
-      "次の文！",
+      "hello、世界。次の文！",
       "「最後。」",
       "second",
     ]);
     expect(blocks[0].id).toBe("text-block");
     expect(blocks[1].preset_id).toBe("preset-1");
-    expect(blocks[2].preset_id).toBe("preset-1");
-    expect(blocks[3].id).toBe("second-text-block");
-    expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(2);
+    expect(blocks[2].id).toBe("second-text-block");
+    expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(1);
 
-    getConfigStore().setConfig("ui", "text_split_mode", undefined);
-    const [, , third] = screen.getAllByLabelText("Text to synthesize");
+    const [, third] = screen.getAllByLabelText("Text to synthesize");
     selection.removeAllRanges();
     fireEvent.paste(third, {
       clipboardData: { getData: () => "one. two\nthree" },
     });
     expect(getTextStore().textStore.map((block) => block.text)).toEqual([
-      "hello、世界。",
-      "次の文！",
+      "hello、世界。次の文！",
       "「最後。」one. two",
       "three",
       "second",
