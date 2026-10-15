@@ -8,6 +8,7 @@ import {
 import { AppButton } from "@components/button";
 import { IconButton } from "@components/iconButton";
 import { PathButton } from "@components/pathButton";
+import { Tooltip } from "@components/tooltip";
 import { Checkbox } from "@kobalte/core/checkbox";
 import { Collapsible } from "@kobalte/core/collapsible";
 import { Link } from "@kobalte/core/link";
@@ -24,6 +25,7 @@ import {
   Show,
 } from "solid-js";
 import { useConfigStore } from "@contexts/config";
+import { ConfigSectionTitle } from "@dialogs/config/Item";
 import { useMetaStore } from "@contexts/meta";
 import { usei18n } from "@contexts/i18n";
 import { useUIStore } from "@contexts/ui";
@@ -181,8 +183,8 @@ export function VoiceSetup() {
   });
 
   return (
-    <section class="flex flex-col gap2 py3">
-      <div class="font-semibold">{t1("voice_setup.title")}</div>
+    <section class="flex flex-col gap2 pb3">
+      <ConfigSectionTitle label={t1("voice_setup.title")} />
       <ToggleGroup
         value={setupSource()}
         onChange={(source) => void selectSource(source)}
@@ -221,23 +223,26 @@ export function VoiceSetup() {
             <div class="flex-1 text-sm font-semibold">
               {t1("voice_setup.core_paths")}
             </div>
-            <AppButton
-              size="sm"
-              disabled={busy() || coreInitializeResource.loading}
-              aria-busy={busy()}
-              onClick={() => void pickInstallation()}
-              class="flex shrink-0 items-center gap1"
-            >
-              <div
-                aria-hidden="true"
-                class={
-                  busy()
-                    ? "i-lucide:loader-circle size-4 animate-spin"
-                    : "i-lucide:folder-open size-4"
-                }
-              />
-              {t1("voice_setup.pick_installation")}
-            </AppButton>
+            <Tooltip content={t1("voice_setup.pick_installation")}>
+              <AppButton
+                size="sm"
+                disabled={busy() || coreInitializeResource.loading}
+                aria-busy={busy()}
+                aria-label={t1("voice_setup.pick_installation")}
+                onClick={() => void pickInstallation()}
+                class="flex shrink-0 items-center gap1"
+              >
+                <div
+                  aria-hidden="true"
+                  class={
+                    busy()
+                      ? "i-lucide:loader-circle size-4 animate-spin"
+                      : "i-lucide:folder-open size-4"
+                  }
+                />
+                {t1("voice_setup.pick_installation_short")}
+              </AppButton>
+            </Tooltip>
           </div>
           <Show
             when={config.core}

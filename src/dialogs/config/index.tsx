@@ -11,7 +11,7 @@ import {
   ThemeSelect,
   TitlebarStyleSelect,
 } from "@dialogs/config/Basics";
-import { ConfigItem } from "@dialogs/config/Item";
+import { ConfigItem, ConfigSectionTitle } from "@dialogs/config/Item";
 import { ShortcutSettings } from "@dialogs/config/Shortcuts";
 import { PathButton } from "@components/pathButton";
 import { useToasts } from "@components/toast";
@@ -714,14 +714,6 @@ function CPUThreadSetting() {
         </Show>
       </NumberField>
     </div>
-  );
-}
-
-function ConfigSectionTitle(props: { label: string }) {
-  return (
-    <h2 class="px2 pb1 pt4 first:pt1 text-xs font-semibold uppercase tracking-wide text-slate-5 dark:text-slate-4">
-      {props.label}
-    </h2>
   );
 }
 

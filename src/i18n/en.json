@@ -53,9 +53,8 @@
     "reset_tuning_edits": "Reset pitch and duration edits"
   },
   "shortcuts": {
-    "title": "Keyboard Shortcuts",
+    "title": "Shortcuts",
     "instructions": "Select a shortcut, then press the new key combination.",
-    "edit": "Edit shortcut",
     "recording": "Press keys… (Esc to cancel)",
     "conflict": "That shortcut is already assigned.",
     "reset": "Restore default shortcut",
@@ -310,6 +309,7 @@
     "path_models": "Models",
     "not_set": "Not set",
     "pick_installation": "Choose VOICEVOX folder",
+    "pick_installation_short": "Choose...",
     "title": "Voice setup",
     "description": "Choose voice packages. Missing CPU runtime and system dictionary are included automatically. Your custom dictionary is shared between setups.",
     "model_terms": "Model terms",

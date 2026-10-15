@@ -457,7 +457,7 @@ describe("App initialization", () => {
       screen.queryByRole("button", { name: "Show keyboard shortcuts" }),
     ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Open config" }));
-    await openConfigSection("Keyboard Shortcuts");
+    await openConfigSection("Shortcuts");
     const save = await screen.findByRole("button", {
       name: /^Save project: /,
     });

@@ -49,3 +49,12 @@ export function ConfigItem(props: ConfigItemProps) {
     </div>
   );
 }
+
+/** Small uppercase heading that groups Config items. */
+export function ConfigSectionTitle(props: { label: string }) {
+  return (
+    <h2 class="px2 pb1 pt4 first:pt1 text-xs font-semibold uppercase tracking-wide text-slate-5 dark:text-slate-4">
+      {props.label}
+    </h2>
+  );
+}

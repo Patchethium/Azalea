@@ -53,9 +53,8 @@
     "reset_tuning_edits": "ピッチと長さの編集をリセット"
   },
   "shortcuts": {
-    "title": "キーボードショートカット",
+    "title": "ショートカット",
     "instructions": "ショートカットを選択して、新しいキーの組み合わせを押してください。",
-    "edit": "ショートカットを編集",
     "recording": "キーを入力…（Escでキャンセル）",
     "conflict": "そのショートカットはすでに割り当てられています。",
     "reset": "既定のショートカットに戻す",
@@ -310,6 +309,7 @@
     "path_models": "モデル",
     "not_set": "未設定",
     "pick_installation": "VOICEVOXのフォルダーを選択",
+    "pick_installation_short": "選択...",
     "title": "音声環境",
     "description": "音声モデルを選択してください。未取得のCPUランタイムとシステム辞書もダウンロードします。ユーザー辞書は両方の環境で共有されます。",
     "model_terms": "音声モデルの利用規約",

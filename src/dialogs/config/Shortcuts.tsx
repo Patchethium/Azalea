@@ -97,51 +97,49 @@ export function ShortcutSettings() {
                   const keys = () => formatShortcut(action);
                   return (
                     <div class="grid grid-cols-[minmax(12rem,3fr)_minmax(0,2fr)_2rem] items-center gap3 py3 b-b b-slate-2 dark:b-slate-6 last:b-b-0">
-                      <Tooltip content={t1("shortcuts.edit")} class="min-w-0">
-                        <button
-                          type="button"
-                          aria-label={`${t1(`shortcuts.${action}`)}: ${keys().join(
-                            " + ",
-                          )}`}
-                          onClick={() => {
-                            setRecording(action);
-                            setConflict(false);
-                          }}
-                          onKeyDown={(event) => recordShortcut(action, event)}
-                          onBlur={() => {
-                            if (recording() === action) setRecording(null);
-                          }}
-                          class="group h-9 w-full min-w-0 grid grid-cols-[repeat(9,max-content)] items-center justify-center gap1 overflow-x-auto rounded-md bg-transparent px2 outline-none focus-visible:ring-2 focus-visible:ring-primary-2"
-                          classList={{
-                            "ring-2 ring-primary-2": recording() === action,
-                          }}
+                      <button
+                        type="button"
+                        aria-label={`${t1(`shortcuts.${action}`)}: ${keys().join(
+                          " + ",
+                        )}`}
+                        onClick={() => {
+                          setRecording(action);
+                          setConflict(false);
+                        }}
+                        onKeyDown={(event) => recordShortcut(action, event)}
+                        onBlur={() => {
+                          if (recording() === action) setRecording(null);
+                        }}
+                        class="group h-9 w-full min-w-0 grid grid-cols-[repeat(9,max-content)] items-center justify-center gap1 overflow-x-auto rounded-md bg-transparent px2 outline-none focus-visible:ring-2 focus-visible:ring-primary-2"
+                        classList={{
+                          "ring-2 ring-primary-2": recording() === action,
+                        }}
+                      >
+                        <Show
+                          when={recording() !== action}
+                          fallback={
+                            <span class="text-xs text-primary-7 dark:text-primary-3">
+                              {t1("shortcuts.recording")}
+                            </span>
+                          }
                         >
-                          <Show
-                            when={recording() !== action}
-                            fallback={
-                              <span class="text-xs text-primary-7 dark:text-primary-3">
-                                {t1("shortcuts.recording")}
-                              </span>
-                            }
-                          >
-                            <For each={keys()}>
-                              {(key, index) => (
-                                <>
-                                  <kbd class="min-w-7 rounded-md bg-slate-1 px2 py1 text-center text-sm font-mono group-hover:text-primary-5 transition-colors dark:bg-slate-9">
-                                    {key}
-                                  </kbd>
-                                  <Show when={index() < keys().length - 1}>
-                                    <div
-                                      aria-hidden="true"
-                                      class="i-lucide:plus size-4 text-slate-5"
-                                    />
-                                  </Show>
-                                </>
-                              )}
-                            </For>
-                          </Show>
-                        </button>
-                      </Tooltip>
+                          <For each={keys()}>
+                            {(key, index) => (
+                              <>
+                                <kbd class="min-w-7 rounded-md bg-slate-1 px2 py1 text-center text-sm font-mono group-hover:text-primary-5 transition-colors dark:bg-slate-9">
+                                  {key}
+                                </kbd>
+                                <Show when={index() < keys().length - 1}>
+                                  <div
+                                    aria-hidden="true"
+                                    class="i-lucide:plus size-4 text-slate-5"
+                                  />
+                                </Show>
+                              </>
+                            )}
+                          </For>
+                        </Show>
+                      </button>
                       <span class="min-w-0 text-left">
                         {t1(`shortcuts.${action}`)}
                       </span>

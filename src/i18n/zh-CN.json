@@ -53,9 +53,8 @@
     "reset_tuning_edits": "重置音高和时长编辑"
   },
   "shortcuts": {
-    "title": "键盘快捷键",
+    "title": "快捷键",
     "instructions": "选择一个快捷键，然后按下新的组合键。",
-    "edit": "编辑快捷键",
     "recording": "请按键…（按 Esc 取消）",
     "conflict": "该快捷键已被占用。",
     "reset": "恢复默认快捷键",
@@ -310,6 +309,7 @@
     "path_models": "模型",
     "not_set": "未设置",
     "pick_installation": "选择 VOICEVOX 文件夹",
+    "pick_installation_short": "选择...",
     "title": "语音环境",
     "description": "请选择语音模型包。缺失的 CPU 运行库和系统词典会自动下载。两个环境共享用户词典。",
     "model_terms": "模型使用条款",

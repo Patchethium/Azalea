@@ -54,12 +54,10 @@ describe("ShortcutSettings", () => {
     const undoShortcut = screen.getByRole("button", {
       name: "Undo text edit: Ctrl + Z",
     });
-    expect(undoShortcut.parentElement?.parentElement).toHaveClass("grid");
+    expect(undoShortcut.parentElement).toHaveClass("grid");
     expect(document.querySelector("[title]")).toBeNull();
     fireEvent.focusIn(undoShortcut);
-    expect(await screen.findByRole("tooltip")).toHaveTextContent(
-      "Edit shortcut",
-    );
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
     fireEvent.focusOut(undoShortcut);
     expect(
       screen.getByRole("button", {
