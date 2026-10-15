@@ -1,4 +1,10 @@
-import type { AudioQuery, AudioSidecars, Preset, UIConfig } from "$binding";
+import type {
+  AudioQuery,
+  AudioSidecars,
+  Preset,
+  TextSplitMode,
+  UIConfig,
+} from "$binding";
 import _ from "lodash";
 import { RECENT_PROJECTS_LIMIT } from "$constants";
 
@@ -156,3 +162,74 @@ export const parseSrt = (content: string): string[] => {
   }
   return cues;
 };
+
+// Terminators that always end a sentence.
+const SENTENCE_TERMINATORS = new Set(["。", "！", "？", "!", "?", "．"]);
+// Closing brackets and quotes that stay with the sentence they end.
+const SENTENCE_CLOSERS = new Set([
+  "」",
+  "』",
+  "）",
+  ")",
+  "】",
+  "〕",
+  "〉",
+  "》",
+  "］",
+  "]",
+  '"',
+  "'",
+  "”",
+  "’",
+]);
+
+const isSentenceTerminator = (char: string) =>
+  SENTENCE_TERMINATORS.has(char) || char === ".";
+
+const splitSentences = (line: string): string[] => {
+  const sentences: string[] = [];
+  let start = 0;
+  let index = 0;
+  while (index < line.length) {
+    if (!isSentenceTerminator(line[index])) {
+      index += 1;
+      continue;
+    }
+    let end = index;
+    let onlyPeriods = true;
+    while (end < line.length && isSentenceTerminator(line[end])) {
+      if (line[end] !== ".") onlyPeriods = false;
+      end += 1;
+    }
+    while (end < line.length && SENTENCE_CLOSERS.has(line[end])) end += 1;
+    // A Western period ends a sentence only before whitespace, so decimals,
+    // abbreviations inside words, and file names stay intact.
+    if (onlyPeriods && end < line.length && !/\s/u.test(line[end])) {
+      index = end;
+      continue;
+    }
+    sentences.push(line.slice(start, end));
+    start = end;
+    index = end;
+  }
+  sentences.push(line.slice(start));
+  return sentences;
+};
+
+/**
+ * Splits plain text into text-block contents. `Line` mode yields one block per
+ * non-empty line; `Sentence` mode further splits each line after Japanese,
+ * Chinese, and Western sentence terminators, keeping the terminator and any
+ * closing brackets or quotes with the sentence. Handles a UTF-8 BOM and CRLF
+ * line endings, trims each piece, and never yields empty blocks.
+ */
+export const splitTextIntoBlocks = (
+  text: string,
+  mode: TextSplitMode,
+): string[] =>
+  text
+    .replace(/^\uFEFF/, "")
+    .split(/\r\n?|\n/)
+    .flatMap((line) => (mode === "Sentence" ? splitSentences(line) : [line]))
+    .map((piece) => piece.trim())
+    .filter((piece) => piece !== "");

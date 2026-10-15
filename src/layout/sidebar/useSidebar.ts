@@ -37,7 +37,9 @@ import {
   getModifiedQuery,
   moveItem,
   parseSrt,
+  splitTextIntoBlocks,
 } from "$utils";
+import { DEFAULT_TEXT_SPLIT_MODE } from "$constants";
 
 const projectFileFilters = [
   { name: "Azalea Project Files", extensions: ["azp"] },
@@ -378,19 +380,29 @@ export function useSidebar() {
       });
   });
 
-  const importSrt = async () => {
+  /**
+   * Picks a text file, reads it as UTF-8, and appends one block per entry
+   * returned by `parse`, using the current block's preset.
+   */
+  const importTextFile = async (options: {
+    title: string;
+    filterName: string;
+    extensions: string[];
+    errorTitle: (path: string) => string;
+    parse: (content: string) => string[];
+  }) => {
     const path = await openDialog({
-      title: t1("menu.import_srt"),
-      filters: [{ name: "SRT Subtitle Files", extensions: ["srt"] }],
+      title: options.title,
+      filters: [{ name: options.filterName, extensions: options.extensions }],
     });
     if (path === null) return;
     const result = await commands.readTextFile(path);
     if (result.status === "error") {
       console.error(result.error);
-      toasts.error(t2("toast.error.import_srt", { path }), result.error);
+      toasts.error(options.errorTitle(path), result.error);
       return;
     }
-    const texts = parseSrt(result.data);
+    const texts = options.parse(result.data);
     if (texts.length === 0) return;
     const presetId =
       currentText()?.preset_id ?? projectPresetStore[0]?.id ?? null;
@@ -406,6 +418,28 @@ export function useSidebar() {
       setUIStore("selectedTextBlockIndex", startIndex);
     });
   };
+
+  const importSrt = () =>
+    importTextFile({
+      title: t1("menu.import_srt"),
+      filterName: "SRT Subtitle Files",
+      extensions: ["srt"],
+      errorTitle: (path) => t2("toast.error.import_srt", { path }),
+      parse: parseSrt,
+    });
+
+  const importText = () =>
+    importTextFile({
+      title: t1("menu.import_text"),
+      filterName: "Text Files",
+      extensions: ["txt"],
+      errorTitle: (path) => t2("toast.error.import_text", { path }),
+      parse: (content) =>
+        splitTextIntoBlocks(
+          content,
+          config.ui.text_split_mode ?? DEFAULT_TEXT_SPLIT_MODE,
+        ),
+    });
 
   const [exportAllOpen, setExportAllOpen] = createSignal(false);
   const [exportAllRunning, setExportAllRunning] = createSignal(false);
@@ -642,6 +676,7 @@ export function useSidebar() {
     openPreviousProject,
     clearRecentProjects,
     importSrt,
+    importText,
     exportAll,
     cancelExportAll,
     closeExportAll,

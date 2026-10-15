@@ -112,6 +112,12 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
               </DropdownMenu.Item>
               <DropdownMenu.Item
                 class={style.menu_item}
+                onClick={controls.importText}
+              >
+                {t1("menu.import_text")}
+              </DropdownMenu.Item>
+              <DropdownMenu.Item
+                class={style.menu_item}
                 disabled={controls.exportAllRunning()}
                 onClick={() => void controls.exportAll()}
               >

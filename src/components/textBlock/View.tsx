@@ -28,6 +28,8 @@ export function TextBlockView(props: {
   onNavigate: (direction: "up" | "down") => void;
   focusRequest: { placement: "start" | "end"; offset: number | null } | null;
   onFocusPlacementConsumed: () => void;
+  splitPaste: (text: string) => string[];
+  onPasteBlocks: (texts: string[]) => void;
   synthState: SynthesisJobState | "Idle";
   synthStateText: () => string;
   synthStateIcon: () => string;
@@ -101,6 +103,8 @@ export function TextBlockView(props: {
             onNavigate={props.onNavigate}
             focusRequest={props.focusRequest}
             onFocusPlacementConsumed={props.onFocusPlacementConsumed}
+            splitPaste={props.splitPaste}
+            onPasteBlocks={props.onPasteBlocks}
           />
         </div>
         <div

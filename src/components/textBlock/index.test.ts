@@ -671,6 +671,153 @@ describe("TextBlock", () => {
     expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(1);
   });
 
+  it("keeps single-line pastes native and splits multi-line pastes", () => {
+    vi.useFakeTimers();
+    const setText = vi.fn();
+    const onPasteBlocks = vi.fn();
+    const splitPaste = vi.fn((text: string) =>
+      text
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line !== ""),
+    );
+    renderAutogrowInput({
+      historyKey: "paste-editor",
+      text: "hello",
+      setText,
+      focused: false,
+      placeholder: "Placeholder",
+      "aria-label": "Paste editor",
+      splitPaste,
+      onPasteBlocks,
+    });
+    const editor = screen.getByLabelText("Paste editor");
+    const paste = (text: string) =>
+      fireEvent.paste(editor, {
+        clipboardData: {
+          getData: (type: string) => (type === "text/plain" ? text : ""),
+        },
+      });
+    const textNode = editor.ownerDocument.createTextNode("hello");
+    editor.appendChild(textNode);
+    const selection = editor.ownerDocument.getSelection()!;
+    const range = editor.ownerDocument.createRange();
+    range.setStart(textNode, 2);
+    range.setEnd(textNode, 4);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    expect(paste("single line")).toBe(true);
+    expect(splitPaste).not.toHaveBeenCalled();
+    expect(setText).not.toHaveBeenCalled();
+
+    expect(paste("first\r\n\r\nsecond\nthird")).toBe(false);
+    expect(setText).toHaveBeenLastCalledWith("hefirsto");
+    expect(editor.innerText).toBe("hefirsto");
+    expect(onPasteBlocks).toHaveBeenCalledWith(["second", "third"]);
+
+    // A newline-only paste is consumed without changing anything.
+    setText.mockClear();
+    onPasteBlocks.mockClear();
+    expect(paste("\n \n")).toBe(false);
+    expect(setText).not.toHaveBeenCalled();
+    expect(onPasteBlocks).not.toHaveBeenCalled();
+
+    // Without a selection in the editor, the first piece is appended.
+    selection.removeAllRanges();
+    expect(paste("tail\n")).toBe(false);
+    expect(setText).toHaveBeenLastCalledWith("hefirstotail");
+    expect(onPasteBlocks).not.toHaveBeenCalled();
+
+    // Each paste is its own undo step, after any pending typing.
+    editor.innerText = "typed";
+    fireEvent.input(editor);
+    expect(paste("more\n")).toBe(false);
+    expect(setText).toHaveBeenLastCalledWith("typedmore");
+    fireEvent.keyDown(editor, { key: "z", ctrlKey: true });
+    expect(setText).toHaveBeenLastCalledWith("typed");
+    fireEvent.keyDown(editor, { key: "z", ctrlKey: true });
+    expect(setText).toHaveBeenLastCalledWith("hefirstotail");
+    fireEvent.keyDown(editor, { key: "z", ctrlKey: true });
+    expect(setText).toHaveBeenLastCalledWith("hefirsto");
+    fireEvent.keyDown(editor, { key: "z", ctrlKey: true });
+    expect(setText).toHaveBeenLastCalledWith("hello");
+    fireEvent.keyDown(editor, { key: "Z", ctrlKey: true, shiftKey: true });
+    expect(setText).toHaveBeenLastCalledWith("hefirsto");
+  });
+
+  it("leaves multi-line pastes native without a splitter", () => {
+    const setText = vi.fn();
+    renderAutogrowInput({
+      historyKey: "native-paste-editor",
+      text: "hello",
+      setText,
+      focused: false,
+      placeholder: "Placeholder",
+      "aria-label": "Native paste editor",
+    });
+    const editor = screen.getByLabelText("Native paste editor");
+    expect(
+      fireEvent.paste(editor, { clipboardData: { getData: () => "a\nb" } }),
+    ).toBe(true);
+    expect(fireEvent.paste(editor)).toBe(true);
+    expect(setText).not.toHaveBeenCalled();
+  });
+
+  it("pastes multi-line text as new blocks below with the same preset", async () => {
+    mockIPC((cmd) => (cmd === "audio_query" ? audioQuery() : null), {
+      shouldMockEvents: true,
+    });
+    const { getTextStore, getUiStore, getConfigStore } = renderBlock(
+      false,
+      false,
+      true,
+    );
+    const [editor] = await screen.findAllByLabelText("Text to synthesize");
+    const textNode = editor.ownerDocument.createTextNode("hello");
+    editor.appendChild(textNode);
+    const selection = editor.ownerDocument.getSelection()!;
+    const range = editor.ownerDocument.createRange();
+    range.setStart(textNode, 5);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    getConfigStore().setConfig("ui", "text_split_mode", "Sentence");
+    fireEvent.paste(editor, {
+      clipboardData: {
+        getData: () => "\uFEFF、世界。次の文！\r\n「最後。」",
+      },
+    });
+
+    const blocks = getTextStore().textStore;
+    expect(blocks.map((block) => block.text)).toEqual([
+      "hello、世界。",
+      "次の文！",
+      "「最後。」",
+      "second",
+    ]);
+    expect(blocks[0].id).toBe("text-block");
+    expect(blocks[1].preset_id).toBe("preset-1");
+    expect(blocks[2].preset_id).toBe("preset-1");
+    expect(blocks[3].id).toBe("second-text-block");
+    expect(getUiStore().uiStore.selectedTextBlockIndex).toBe(2);
+
+    getConfigStore().setConfig("ui", "text_split_mode", undefined);
+    const [, , third] = screen.getAllByLabelText("Text to synthesize");
+    selection.removeAllRanges();
+    fireEvent.paste(third, {
+      clipboardData: { getData: () => "one. two\nthree" },
+    });
+    expect(getTextStore().textStore.map((block) => block.text)).toEqual([
+      "hello、世界。",
+      "次の文！",
+      "「最後。」one. two",
+      "three",
+      "second",
+    ]);
+  });
+
   it("keeps the split button disabled when the caret cannot split any text", async () => {
     mockIPC((cmd) => (cmd === "audio_query" ? audioQuery() : null), {
       shouldMockEvents: true,

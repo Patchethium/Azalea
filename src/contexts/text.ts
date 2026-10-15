@@ -241,6 +241,29 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
   };
 
   /**
+   * Inserts one block per text right after `index`, using that block's preset,
+   * then selects the last inserted block with the caret at its end.
+   */
+  const insertTextBlocksBelow = (index: number, texts: string[]) => {
+    if (texts.length === 0) return;
+    const sourceIndex = clampTextBlockIndex(index, textStore.length);
+    const nextIndex = textStore.length === 0 ? 0 : sourceIndex + 1;
+    const presetId = textStore[sourceIndex]?.preset_id ?? null;
+    const blocks = texts.map((text) => createTextBlock(presetId, text));
+    const last = blocks[blocks.length - 1];
+    batch(() => {
+      setTextStore(
+        produce((draft) => {
+          draft.splice(nextIndex, 0, ...blocks);
+        }),
+      );
+      setSuppressFocusBlockId(null);
+      setPendingFocusPlacement({ blockId: last.id, placement: "end" });
+      setUIStore("selectedTextBlockIndex", nextIndex + blocks.length - 1);
+    });
+  };
+
+  /**
    * Applies `patch` to a project preset. Changing its style clears the query
    * edits of every block that uses it, since they no longer match the voice.
    */
@@ -511,6 +534,7 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     projectPath,
     setProjectPath,
     insertTextBlockBelow,
+    insertTextBlocksBelow,
     moveTextBlock,
     updateProjectPreset,
     selectedTextBlock,

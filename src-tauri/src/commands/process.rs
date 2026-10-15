@@ -112,7 +112,13 @@ pub fn home_dir() -> Option<String> {
 #[tauri::command]
 #[specta::specta]
 pub fn read_text_file(path: String) -> Result<String, String> {
-  std::fs::read_to_string(path).map_err(|error| error.to_string())
+  let bytes = std::fs::read(path).map_err(|error| error.to_string())?;
+  String::from_utf8(bytes).map_err(|error| {
+    format!(
+      "The file is not valid UTF-8 text (invalid byte at offset {}). Re-save it with UTF-8 encoding.",
+      error.utf8_error().valid_up_to()
+    )
+  })
 }
 
 #[cfg(test)]
@@ -222,6 +228,15 @@ mod tests {
       read_text_file(path.to_string_lossy().to_string()),
       Ok(contents.to_string())
     );
+
+    // A UTF-8 BOM is kept; the frontend splitter strips it.
+    let path = dir.path().join("script.txt");
+    let contents = "\u{feff}一行目。\r\n二行目\r\n";
+    std::fs::write(&path, contents).unwrap();
+    assert_eq!(
+      read_text_file(path.to_string_lossy().to_string()),
+      Ok(contents.to_string())
+    );
   }
 
   #[test]
@@ -232,5 +247,12 @@ mod tests {
     let path = dir.path().join("invalid.srt");
     std::fs::write(&path, [0xff, 0xfe, 0x00]).unwrap();
     assert!(read_text_file(path.to_string_lossy().to_string()).is_err());
+
+    // Shift_JIS "こん" after a valid ASCII prefix.
+    let path = dir.path().join("script.txt");
+    std::fs::write(&path, b"ok\n\x82\xb1\x82\xf1").unwrap();
+    let error = read_text_file(path.to_string_lossy().to_string()).unwrap_err();
+    assert!(error.contains("not valid UTF-8"), "{error}");
+    assert!(error.contains("offset 3"), "{error}");
   }
 }

@@ -345,6 +345,116 @@ describe("Sidebar SRT import", () => {
       }),
     ).toHaveAccessibleDescription("permission denied");
   });
+
+  it("imports text files split by the configured mode", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    mockIPC((cmd, args) => {
+      if (cmd === "get_os") return "Linux";
+      if (cmd === "read_text_file") {
+        return (args as { path?: string }).path === "/tmp/blank.txt"
+          ? "\uFEFF\r\n  \r\n"
+          : "\uFEFF一行目。二文目！\r\n\r\n  Second line. Again \r\n";
+      }
+      return null;
+    });
+    dialogs.open
+      .mockResolvedValueOnce("/tmp/script.txt")
+      .mockResolvedValueOnce("/tmp/script.txt")
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce("/tmp/blank.txt");
+    let text!: NonNullable<ReturnType<typeof useTextStore>>;
+    let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
+    renderSidebar(({ config: configStore, meta, text: textStore }) => {
+      text = textStore;
+      appConfig = configStore;
+      batch(() => {
+        appConfig.setConfig(config({ auto_save: false }));
+        appConfig.setConfig("ui", "text_split_mode", undefined);
+        meta.setMetas(metas);
+        text.setProjectPresetStore([preset()]);
+        text.replaceTextBlocks([
+          {
+            id: "current-block",
+            text: "Current block",
+            query: audioQuery(),
+            pitch_noise_seed: 0,
+            preset_id: "preset-1",
+          },
+        ]);
+      });
+    });
+
+    await screen.findByText("Default");
+    const importText = async () => {
+      await user.click(
+        await screen.findByRole("button", { name: "Project actions" }),
+      );
+      await user.click(
+        await screen.findByRole("menuitem", { name: "Import Text…" }),
+      );
+    };
+
+    await importText();
+    expect(dialogs.open).toHaveBeenCalledWith({
+      title: "Import Text…",
+      filters: [{ name: "Text Files", extensions: ["txt"] }],
+    });
+    await waitFor(() => expect(text.textStore).toHaveLength(3));
+    expect(text.textStore.map((block) => block.text)).toEqual([
+      "Current block",
+      "一行目。二文目！",
+      "Second line. Again",
+    ]);
+    expect(text.textStore[1].preset_id).toBe("preset-1");
+    expect(text.selectedTextBlockIndex()).toBe(1);
+
+    appConfig.setConfig("ui", "text_split_mode", "Sentence");
+    await importText();
+    await waitFor(() => expect(text.textStore).toHaveLength(7));
+    expect(text.textStore.slice(3).map((block) => block.text)).toEqual([
+      "一行目。",
+      "二文目！",
+      "Second line.",
+      "Again",
+    ]);
+    expect(text.selectedTextBlockIndex()).toBe(3);
+
+    await importText();
+    await importText();
+    await Promise.resolve();
+    expect(text.textStore).toHaveLength(7);
+  });
+
+  it("shows an error toast when a text file is not valid UTF-8", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    vi.spyOn(commands, "readTextFile").mockResolvedValue({
+      status: "error",
+      error: "The file is not valid UTF-8 text",
+    });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    dialogs.open.mockResolvedValueOnce("/tmp/sjis.txt");
+    let text!: NonNullable<ReturnType<typeof useTextStore>>;
+    const { getControls } = renderSidebarHook(
+      ({ config: appConfig, meta, text: textStore }) => {
+        text = textStore;
+        batch(() => {
+          appConfig.setConfig(config());
+          meta.setMetas(metas);
+          text.setProjectPresetStore([preset()]);
+          text.setTextStore([]);
+        });
+      },
+    );
+    await Promise.resolve();
+
+    await getControls().importText();
+    expect(text.textStore).toHaveLength(0);
+    expect(
+      await screen.findByRole("status", {
+        name: "Couldn't import the text from /tmp/sjis.txt",
+      }),
+    ).toHaveAccessibleDescription("The file is not valid UTF-8 text");
+  });
 });
 
 describe("Sidebar controls", () => {

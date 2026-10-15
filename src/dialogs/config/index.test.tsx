@@ -631,6 +631,61 @@ describe("ConfigPage", () => {
     expect(appConfig.config.ui.locale).toBe("Ja");
   });
 
+  it("selects how imported and pasted text is split", async () => {
+    vi.spyOn(commands, "getAssetsSize").mockResolvedValue({
+      status: "ok",
+      data: 0,
+    });
+    let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
+    const Harness: Component = () => {
+      appConfig = useConfigStore()!;
+      const ui = useUIStore()!;
+      onMount(() => {
+        batch(() => {
+          appConfig.setConfig(config());
+          appConfig.setConfig("ui", "text_split_mode", undefined);
+          ui.setUIStore("configSection", "project");
+          ui.setUIStore("page", "config");
+        });
+      });
+      return <ConfigPage />;
+    };
+
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [i18nProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+
+    expect(
+      await screen.findByRole("dialog", { name: "Config" }),
+    ).toBeInTheDocument();
+    const group = within(projectPanel()).getByRole("group", {
+      name: "Split imported and pasted text",
+    });
+    const byLine = within(group).getByRole("button", { name: "By line" });
+    const bySentence = within(group).getByRole("button", {
+      name: "By sentence",
+    });
+    expect(byLine).toHaveAttribute("aria-pressed", "true");
+    expect(bySentence).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(bySentence);
+    expect(appConfig.config.ui.text_split_mode).toBe("Sentence");
+    expect(bySentence).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(bySentence);
+    expect(appConfig.config.ui.text_split_mode).toBe("Sentence");
+    byLine.focus();
+    await userEvent.keyboard(" ");
+    expect(appConfig.config.ui.text_split_mode).toBe("Line");
+  });
+
   it("pins and toggles the default export directory", async () => {
     vi.spyOn(commands, "getAssetsSize").mockResolvedValue({
       status: "ok",

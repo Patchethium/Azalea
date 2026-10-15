@@ -11,6 +11,7 @@ import {
   addRecentProject,
   parseSrt,
   splitJapaneseMoras,
+  splitTextIntoBlocks,
   toHalfWidthAscii,
   useSideEffect,
 } from "$utils";
@@ -240,5 +241,84 @@ describe("createAudioSidecars", () => {
       text: null,
       lab: true,
     });
+  });
+});
+
+describe("splitTextIntoBlocks", () => {
+  it("yields one trimmed block per non-empty line in line mode", () => {
+    expect(
+      splitTextIntoBlocks("  First line。二文目！ \n\n\t\nSecond\n", "Line"),
+    ).toEqual(["First line。二文目！", "Second"]);
+  });
+
+  it("handles a UTF-8 BOM and CRLF or CR line endings", () => {
+    expect(splitTextIntoBlocks("\uFEFFone\r\ntwo\rthree\r\n", "Line")).toEqual([
+      "one",
+      "two",
+      "three",
+    ]);
+    expect(
+      splitTextIntoBlocks("\uFEFFこんにちは。元気？\r\nはい", "Sentence"),
+    ).toEqual(["こんにちは。", "元気？", "はい"]);
+  });
+
+  it("never produces empty blocks", () => {
+    expect(splitTextIntoBlocks("", "Line")).toEqual([]);
+    expect(splitTextIntoBlocks("\uFEFF \r\n\n  ", "Sentence")).toEqual([]);
+    expect(splitTextIntoBlocks("。。 ！", "Sentence")).toEqual(["。。", "！"]);
+  });
+
+  it("splits after Japanese, Chinese, and Western terminators", () => {
+    expect(
+      splitTextIntoBlocks(
+        "今日は晴れ。明日は雨！本当？你好！是吗？Hello world. How are you? Fine!Thanks",
+        "Sentence",
+      ),
+    ).toEqual([
+      "今日は晴れ。",
+      "明日は雨！",
+      "本当？",
+      "你好！",
+      "是吗？",
+      "Hello world.",
+      "How are you?",
+      "Fine!",
+      "Thanks",
+    ]);
+  });
+
+  it("keeps repeated terminators together and only splits periods before whitespace", () => {
+    expect(
+      splitTextIntoBlocks(
+        "えっ！？そうなの…。Pi is 3.14 today. Wait... really?! ok.txt is fine",
+        "Sentence",
+      ),
+    ).toEqual([
+      "えっ！？",
+      "そうなの…。",
+      "Pi is 3.14 today.",
+      "Wait...",
+      "really?!",
+      "ok.txt is fine",
+    ]);
+    expect(splitTextIntoBlocks("End.", "Sentence")).toEqual(["End."]);
+  });
+
+  it("keeps closing brackets and quotes with the sentence", () => {
+    expect(
+      splitTextIntoBlocks(
+        '「行こう。」『うん！』（笑。）He said "Hi." Then left.',
+        "Sentence",
+      ),
+    ).toEqual([
+      "「行こう。」",
+      "『うん！』",
+      "（笑。）",
+      'He said "Hi."',
+      "Then left.",
+    ]);
+    expect(splitTextIntoBlocks('"Hi."there', "Sentence")).toEqual([
+      '"Hi."there',
+    ]);
   });
 });

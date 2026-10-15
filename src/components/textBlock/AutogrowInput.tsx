@@ -14,6 +14,13 @@ interface AutogrowInputProps extends JSX.HTMLAttributes<HTMLDivElement> {
   onNavigate?: (direction: "up" | "down") => void;
   focusRequest?: { placement: "start" | "end"; offset: number | null } | null;
   onFocusPlacementConsumed?: () => void;
+  /**
+   * Splits pasted text that contains a line break into block contents. When
+   * provided, the first piece is inserted at the caret and the remaining
+   * pieces are passed to `onPasteBlocks`; single-line pastes stay native.
+   */
+  splitPaste?: (text: string) => string[];
+  onPasteBlocks?: (texts: string[]) => void;
 }
 
 export function AutogrowInput(props: AutogrowInputProps) {
@@ -29,6 +36,8 @@ export function AutogrowInput(props: AutogrowInputProps) {
     "onNavigate",
     "focusRequest",
     "onFocusPlacementConsumed",
+    "splitPaste",
+    "onPasteBlocks",
   ]);
   let inputRef: HTMLDivElement | undefined;
   let trackedHistoryKey = local.historyKey;
@@ -213,6 +222,48 @@ export function AutogrowInput(props: AutogrowInputProps) {
     }
   };
 
+  // Character offsets of the selection, measured like `caretOffset`.
+  const selectionOffsets = (element: HTMLDivElement) => {
+    const selection = element.ownerDocument.getSelection();
+    if (selection === null || selection.rangeCount === 0) return undefined;
+    const range = selection.getRangeAt(0);
+    if (
+      !element.contains(range.startContainer) ||
+      !element.contains(range.endContainer)
+    ) {
+      return undefined;
+    }
+    const start = caretOffset(element)!;
+    return { start, end: start + range.toString().length };
+  };
+
+  const handlePaste = (event: ClipboardEvent) => {
+    if (local.splitPaste === undefined || inputRef === undefined) return;
+    const pasted = event.clipboardData?.getData("text/plain") ?? "";
+    if (!/[\r\n]/.test(pasted)) return;
+    event.preventDefault();
+    const [first, ...rest] = local.splitPaste(pasted);
+    if (first === undefined) return;
+    const current = inputRef.innerText === "\n" ? "" : inputRef.innerText;
+    const offsets = selectionOffsets(inputRef);
+    const start = Math.min(offsets?.start ?? current.length, current.length);
+    const end = Math.min(
+      Math.max(offsets?.end ?? current.length, start),
+      current.length,
+    );
+    const text = current.slice(0, start) + first + current.slice(end);
+    // A paste is one undo step, separate from any typing still pending.
+    commitDebouncedSnapshot.clear();
+    commitPendingSnapshot();
+    if (undoStack[undoStack.length - 1] !== text) undoStack.push(text);
+    redoStack.length = 0;
+    trackedText = text;
+    inputRef.innerText = text;
+    placeCaretAtOffset(inputRef, start + first.length);
+    local.setText(text);
+    if (rest.length > 0) local.onPasteBlocks?.(rest);
+  };
+
   const handleKeyDown = (event: KeyboardEvent) => {
     if (!isApplicationShortcutAllowed(event)) return;
     if (event.key === "Escape") {
@@ -257,6 +308,7 @@ export function AutogrowInput(props: AutogrowInputProps) {
           inputRef = element;
         }}
         onInput={handleInput}
+        onPaste={handlePaste}
         onKeyDown={handleKeyDown}
         onKeyUp={(event) => reportCaret(event.currentTarget)}
         onMouseUp={(event) => reportCaret(event.currentTarget)}

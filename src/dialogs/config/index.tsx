@@ -8,6 +8,7 @@ import {
   I18NSelect,
   PitchScaleSelect,
   PrimaryColorPicker,
+  TextSplitModeSelect,
   ThemeSelect,
   TitlebarStyleSelect,
 } from "@dialogs/config/Basics";
@@ -186,6 +187,9 @@ export function ConfigPage() {
                   <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
                 </Switch.Control>
               </Switch>
+            </ConfigItem>
+            <ConfigItem label={t1("config.text_split_mode")}>
+              <TextSplitModeSelect />
             </ConfigItem>
             <ConfigSectionTitle label={t1("config.audio_export")} />
             <ConfigItem label={t1("config.default_export_dir")}>

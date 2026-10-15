@@ -81,8 +81,9 @@ it without help.
       The project menu and the `save_project_as` shortcut (Ctrl/Cmd+Shift+S)
       always open the save dialog; the path, recent list, and saved state
       change only after the write succeeds.
-- [ ] Import `.txt` files and paste multi-line text as separate blocks, split
-      by line or sentence (SRT import already exists).
+- [x] Import `.txt` files and paste multi-line text as separate blocks, split
+      by line or sentence (SRT import already exists). `splitTextIntoBlocks`
+      in `src/utils.ts` follows `UIConfig.text_split_mode`.
 - [ ] Join blocks and project-wide find and replace.
 - [ ] Multi-block selection (range, toggle, Select All) with batch preset
       assignment, move, delete, play, and export.
