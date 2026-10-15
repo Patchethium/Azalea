@@ -154,7 +154,10 @@ Blocked on upstream: voicevox_core 0.17.0 keeps `__precompute_render` /
 
 ### Optional
 
-- [ ] Single-instance handling for a second application launch.
+- [x] Single-instance handling for a second application launch. A second
+      launch focuses the existing window and forwards an existing `.azp`
+      argument as `OpenProjectRequested`. Opening a `.azp` passed to the first
+      launch (and OS file associations) is still missing.
 - [ ] Application updates and a release-notes view.
 - [ ] A headless CLI for project validation and batch rendering.
 - [ ] More locales (Traditional Chinese currently falls back to Simplified).

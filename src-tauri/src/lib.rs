@@ -5,6 +5,7 @@ pub mod audio;
 pub mod commands;
 pub mod config;
 pub mod core;
+mod single_instance;
 mod spectrogram;
 mod synthesis;
 use core::Core;
@@ -21,6 +22,7 @@ use tauri_specta::{collect_commands, collect_events, Builder, Event};
 
 use voicevox_core::{AudioQuery, StyleId};
 
+pub use single_instance::OpenProjectRequested;
 use spectrogram::{SpectrogramJobEvent, SpectrogramQueue};
 use synthesis::{SynthesisJobEvent, SynthesisQueue, WaveformCacheEntry};
 
@@ -99,7 +101,8 @@ fn specta_builder() -> Builder<tauri::Wry> {
       FrontendReadyEvent,
       SynthesisJobEvent,
       SpectrogramJobEvent,
-      DownloadProgressEvent
+      DownloadProgressEvent,
+      OpenProjectRequested
     ])
 }
 
@@ -123,10 +126,26 @@ pub fn run() {
   #[cfg(debug_assertions)]
   export_typescript_bindings(&builder);
 
-  let context = tauri::generate_context!();
+  #[allow(unused_mut)]
+  let mut context = tauri::generate_context!();
   config::manager::init_config_dir(&context.config().identifier);
+  // Development builds share the bundle identifier with release builds, and
+  // the single-instance plugin keys on it. Give them a distinct runtime
+  // identifier so a dev build never forwards launches to an installed release
+  // (or vice versa). Development config and downloads already live under
+  // `config_dev` and do not depend on the identifier.
+  #[cfg(debug_assertions)]
+  {
+    context.config_mut().identifier.push_str(".dev");
+  }
 
-  let app = tauri::Builder::default()
+  let app = tauri::Builder::default();
+  // The single-instance plugin must be registered first.
+  #[cfg(desktop)]
+  let app = app.plugin(tauri_plugin_single_instance::init(
+    single_instance::handle_second_launch,
+  ));
+  let app = app
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_shell::init());
 

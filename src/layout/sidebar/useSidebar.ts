@@ -1,4 +1,4 @@
-import { commands, type Preset, type StyleId } from "$binding";
+import { commands, events, type Preset, type StyleId } from "$binding";
 import { useToasts } from "@components/toast";
 import type { ExportAllFailure } from "@dialogs/ExportAll";
 import { createScheduled, throttle } from "@solid-primitives/scheduled";
@@ -357,6 +357,26 @@ export function useSidebar() {
     const path = previousProject();
     if (path !== null) openRecentProject(path);
   };
+
+  // A second application launch with a project path forwards it here; open it
+  // like a recent project so unsaved changes are confirmed first.
+  onMount(() => {
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    onCleanup(() => {
+      disposed = true;
+      unlisten?.();
+    });
+    events.openProjectRequested
+      .listen(({ payload }) => openRecentProject(payload.path))
+      .then((stop) => {
+        if (disposed) stop();
+        else unlisten = stop;
+      })
+      .catch((error) => {
+        console.error("Failed to listen for open project requests:", error);
+      });
+  });
 
   const importSrt = async () => {
     const path = await openDialog({

@@ -2,6 +2,7 @@ import {
   type AzaleaConfig,
   type CharacterMeta,
   commands,
+  events,
   type TextBlockProps,
 } from "$binding";
 import { renderSidebar, renderSidebarHook } from "@layout/sidebar/testUtils";
@@ -1600,6 +1601,103 @@ describe("Sidebar recent projects", () => {
     expect(loadProject).toHaveBeenCalledWith("/tmp/recent.azp");
     expect(text.projectPath()).toBe("/tmp/recent.azp");
     expect(text.textStore[0].text).toBe("Loaded block");
+  });
+
+  it("opens a project forwarded from a second launch", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const loadProject = vi
+      .spyOn(commands, "loadProject")
+      .mockResolvedValue({ status: "ok", data: loadedProject });
+    const { getControls, getRecent, getText } = renderRecentSidebar([
+      "/tmp/old.azp",
+    ]);
+    await Promise.resolve();
+    await Promise.resolve();
+    const text = getText();
+
+    await events.openProjectRequested.emit({ path: "/tmp/forwarded.azp" });
+    await waitFor(() => expect(text.projectPath()).toBe("/tmp/forwarded.azp"));
+    expect(loadProject).toHaveBeenCalledWith("/tmp/forwarded.azp");
+    expect(text.textStore[0].text).toBe("Loaded block");
+    expect(getRecent()).toEqual(["/tmp/forwarded.azp", "/tmp/old.azp"]);
+
+    text.setTextStore(0, "text", "Edited");
+    loadProject.mockClear();
+    await events.openProjectRequested.emit({ path: "/tmp/other.azp" });
+    expect(getControls().uiStore.pendingProjectAction).toEqual({
+      kind: "open_recent",
+      path: "/tmp/other.azp",
+    });
+    expect(loadProject).not.toHaveBeenCalled();
+    await getControls().resolveProjectAction("cancel");
+    expect(text.textStore[0].text).toBe("Edited");
+  });
+
+  it("shows an error toast when a forwarded project cannot be opened", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    vi.spyOn(commands, "loadProject").mockResolvedValue({
+      status: "error",
+      error: "file not found",
+    });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { getText } = renderRecentSidebar([]);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    await events.openProjectRequested.emit({ path: "/tmp/stale.azp" });
+    expect(
+      await screen.findByRole("status", {
+        name: "Couldn't open the project /tmp/stale.azp",
+      }),
+    ).toHaveAccessibleDescription("file not found");
+    expect(getText().projectPath()).toBeNull();
+    expect(getText().textStore[0].text).toBe("Original");
+  });
+
+  it("stops listening for forwarded projects after unmounting", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const loadProject = vi
+      .spyOn(commands, "loadProject")
+      .mockResolvedValue({ status: "ok", data: loadedProject });
+
+    const mounted = renderRecentSidebar([]);
+    await waitFor(async () => {
+      await events.openProjectRequested.emit({ path: "/tmp/first.azp" });
+      expect(loadProject).toHaveBeenCalledTimes(1);
+    });
+    mounted.unmount();
+    await events.openProjectRequested.emit({ path: "/tmp/after.azp" });
+
+    // Unmounting before the listener registers must also release it.
+    renderRecentSidebar([]).unmount();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await events.openProjectRequested.emit({ path: "/tmp/late.azp" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(loadProject).toHaveBeenCalledTimes(1);
+    expect(loadProject).toHaveBeenCalledWith("/tmp/first.azp");
+  });
+
+  it("logs when listening for forwarded projects fails", async () => {
+    mockIPC((cmd) => {
+      if (cmd === "plugin:event|listen") throw "listen unavailable";
+      return cmd === "get_os" ? "Linux" : null;
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    renderRecentSidebar([]);
+    await waitFor(() =>
+      expect(consoleError).toHaveBeenCalledWith(
+        "Failed to listen for open project requests:",
+        "listen unavailable",
+      ),
+    );
   });
 
   it("lists recent projects in the project menu", async () => {

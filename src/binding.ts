@@ -456,12 +456,14 @@ export const events = __makeEvents__<{
 downloadProgressEvent: DownloadProgressEvent,
 frontendReadyEvent: FrontendReadyEvent,
 initializationEvent: InitializationEvent,
+openProjectRequested: OpenProjectRequested,
 spectrogramJobEvent: SpectrogramJobEvent,
 synthesisJobEvent: SynthesisJobEvent
 }>({
 downloadProgressEvent: "download-progress-event",
 frontendReadyEvent: "frontend-ready-event",
 initializationEvent: "initialization-event",
+openProjectRequested: "open-project-requested",
 spectrogramJobEvent: "spectrogram-job-event",
 synthesisJobEvent: "synthesis-job-event"
 })
@@ -754,6 +756,10 @@ vowel_length: number;
  */
 pitch: number }
 export type OS = "MacOS" | "Windows" | "Linux"
+/**
+ * Asks the running frontend to open a project passed to a second launch.
+ */
+export type OpenProjectRequested = { path: string }
 export type PackageVoice = { character: string; style: string; style_id: number }
 export type PitchRange = { min: number; max: number; histogram_min: number; histogram_max: number; histogram: number[] }
 export type PitchScale = "Linear" | "Optimal" | "DensityAware"
