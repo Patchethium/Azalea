@@ -107,10 +107,17 @@ describe("ShortcutsProvider normalization and display", () => {
       key: "S",
       primary: true,
       secondary: false,
-      shift: true,
-      alt: false,
+      shift: false,
+      alt: true,
     };
 
+    expect(
+      shortcuts.assignShortcut("save_project", {
+        ...customSave,
+        alt: false,
+        shift: true,
+      }),
+    ).toBe(false);
     expect(shortcuts.assignShortcut("save_project", customSave)).toBe(true);
     expect(shortcuts.assignShortcut("play_current", customSave)).toBe(false);
     expect(config.config.ui.shortcuts?.play_current).toBeUndefined();

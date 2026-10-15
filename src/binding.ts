@@ -706,7 +706,7 @@ export type InitializationEvent = { config: AzaleaConfig | null; core_initialize
  */
 unsupported_system_locale?: string | null }
 export type KeyboardShortcut = { key: string; primary?: boolean; secondary?: boolean; shift?: boolean; alt?: boolean }
-export type KeyboardShortcuts = { undo?: KeyboardShortcut; redo?: KeyboardShortcut; save_project?: KeyboardShortcut; export_audio?: KeyboardShortcut; toggle_playback?: KeyboardShortcut; play_current?: KeyboardShortcut; play_next?: KeyboardShortcut; toggle_pitch_completion?: KeyboardShortcut }
+export type KeyboardShortcuts = { undo?: KeyboardShortcut; redo?: KeyboardShortcut; save_project?: KeyboardShortcut; save_project_as?: KeyboardShortcut; export_audio?: KeyboardShortcut; toggle_playback?: KeyboardShortcut; play_current?: KeyboardShortcut; play_next?: KeyboardShortcut; toggle_pitch_completion?: KeyboardShortcut }
 export type Locale = "Ja" | "En" | "ZhCn"
 /**
  * モーラ（子音＋母音）ごとの情報。

@@ -367,6 +367,8 @@ pub struct KeyboardShortcuts {
   pub redo: KeyboardShortcut,
   #[serde(default = "save_project_shortcut_default")]
   pub save_project: KeyboardShortcut,
+  #[serde(default = "save_project_as_shortcut_default")]
+  pub save_project_as: KeyboardShortcut,
   #[serde(default = "export_audio_shortcut_default")]
   pub export_audio: KeyboardShortcut,
   #[serde(default = "toggle_playback_shortcut_default")]
@@ -385,6 +387,7 @@ impl Default for KeyboardShortcuts {
       undo: undo_shortcut_default(),
       redo: redo_shortcut_default(),
       save_project: save_project_shortcut_default(),
+      save_project_as: save_project_as_shortcut_default(),
       export_audio: export_audio_shortcut_default(),
       toggle_playback: toggle_playback_shortcut_default(),
       play_current: play_current_shortcut_default(),
@@ -404,6 +407,10 @@ fn redo_shortcut_default() -> KeyboardShortcut {
 
 fn save_project_shortcut_default() -> KeyboardShortcut {
   KeyboardShortcut::new("S", true, false)
+}
+
+fn save_project_as_shortcut_default() -> KeyboardShortcut {
+  KeyboardShortcut::new("S", true, true)
 }
 
 fn export_audio_shortcut_default() -> KeyboardShortcut {
@@ -582,6 +589,10 @@ mod tests {
       config.shortcuts.play_next,
       KeyboardShortcut::new("Enter", false, true)
     );
+    assert_eq!(
+      config.shortcuts.save_project_as,
+      KeyboardShortcut::new("S", true, true)
+    );
   }
 
   #[test]
@@ -627,6 +638,10 @@ mod tests {
     assert_eq!(
       config.shortcuts.export_audio,
       KeyboardShortcut::new("X", true, false)
+    );
+    assert_eq!(
+      config.shortcuts.save_project_as,
+      KeyboardShortcut::new("S", true, true)
     );
     let serialized = toml::Value::try_from(config).unwrap();
     assert!(serialized["shortcuts"].get("stop_playback").is_none());

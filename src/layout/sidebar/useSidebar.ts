@@ -39,6 +39,10 @@ import {
   parseSrt,
 } from "$utils";
 
+const projectFileFilters = [
+  { name: "Azalea Project Files", extensions: ["azp"] },
+];
+
 export function useSidebar() {
   const { availableStyleIds, metas } = useMetaStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
@@ -198,27 +202,45 @@ export function useSidebar() {
     );
   };
   const clearRecentProjects = () => setConfig("ui", "recent_projects", []);
-  const saveProject = async () => {
-    let path = projectPath();
-    if (path === null) {
-      path = await saveDialog({
-        title: "Save Project",
-        filters: [{ name: "Azalea Poject Files", extensions: ["azp"] }],
-      });
-      if (path === null) return false;
-    }
+  /**
+   * Writes the project to `path` and adopts it as the active project only
+   * after the write succeeds. A failed write keeps the previous path, and a
+   * write that finishes after another save or load has already changed the
+   * active path does not overwrite that newer state.
+   */
+  const writeProject = async (path: string) => {
+    const pathBeforeWrite = projectPath();
     const result = await commands.saveProject(project, path, true);
     if (result.status === "error") {
       console.error(result.error);
       toasts.error(t2("toast.error.save_project", { path }), result.error);
       return false;
     }
+    if (projectPath() !== pathBeforeWrite) return true;
     batch(() => {
       setProjectPath(path);
       markProjectSaved();
       rememberRecentProject(path);
     });
     return true;
+  };
+  const chooseProjectSavePath = (title: string) =>
+    saveDialog({
+      title,
+      defaultPath: projectPath() ?? undefined,
+      filters: projectFileFilters,
+    });
+  const saveProject = async () => {
+    const path =
+      projectPath() ?? (await chooseProjectSavePath(t1("menu.save_project")));
+    if (path === null) return false;
+    return writeProject(path);
+  };
+  /** Always asks for a location; the current path stays active until saved. */
+  const saveProjectAs = async () => {
+    const path = await chooseProjectSavePath(t1("menu.save_project_as"));
+    if (path === null) return false;
+    return writeProject(path);
   };
 
   const [resolvingProjectAction, setResolvingProjectAction] =
@@ -286,14 +308,14 @@ export function useSidebar() {
 
   onMount(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (
-        !isApplicationShortcutAllowed(event) ||
-        !matchesShortcut(event, "save_project")
-      ) {
-        return;
+      if (!isApplicationShortcutAllowed(event)) return;
+      if (matchesShortcut(event, "save_project")) {
+        event.preventDefault();
+        void saveProject();
+      } else if (matchesShortcut(event, "save_project_as")) {
+        event.preventDefault();
+        void saveProjectAs();
       }
-      event.preventDefault();
-      void saveProject();
     };
     window.addEventListener("keydown", handleKeyDown);
     onCleanup(() => window.removeEventListener("keydown", handleKeyDown));
@@ -323,7 +345,7 @@ export function useSidebar() {
   const loadProject = async () => {
     const path = await openDialog({
       title: t1("menu.load_project"),
-      filters: [{ name: "Azalea Poject Files", extensions: ["azp"] }],
+      filters: projectFileFilters,
     });
     if (path === null) return;
     await openProjectPath(path);
@@ -593,6 +615,7 @@ export function useSidebar() {
     newProject,
     loadProject,
     saveProject,
+    saveProjectAs,
     recentProjects,
     previousProject,
     openRecentProject,

@@ -7,6 +7,7 @@ export const shortcutActions = [
   "undo",
   "redo",
   "save_project",
+  "save_project_as",
   "export_audio",
   "toggle_playback",
   "play_current",
@@ -54,6 +55,13 @@ export const defaultKeyboardShortcuts: Record<
     primary: true,
     secondary: false,
     shift: false,
+    alt: false,
+  },
+  save_project_as: {
+    key: "S",
+    primary: true,
+    secondary: false,
+    shift: true,
     alt: false,
   },
   export_audio: {

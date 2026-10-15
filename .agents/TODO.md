@@ -77,7 +77,10 @@ it without help.
 - [ ] Keep manual tuning when the voice changes: offer Keep Tuning /
       Regenerate instead of `updateProjectPreset` clearing the edit flags of
       every block using the preset.
-- [ ] Save Project As; update the active path only after a successful write.
+- [x] Save Project As; update the active path only after a successful write.
+      The project menu and the `save_project_as` shortcut (Ctrl/Cmd+Shift+S)
+      always open the save dialog; the path, recent list, and saved state
+      change only after the write succeeds.
 - [ ] Import `.txt` files and paste multi-line text as separate blocks, split
       by line or sentence (SRT import already exists).
 - [ ] Join blocks and project-wide find and replace.
@@ -114,7 +117,7 @@ it without help.
 
 ### Keyboard workflow
 
-Configurable shortcuts and the shortcut reference exist for save, export,
+Configurable shortcuts and the shortcut reference exist for save, save as, export,
 play/stop, play current, play next, undo/redo, and the pitch-completion lock.
 
 - [ ] Cell create/delete/move/navigate shortcuts that reuse the toolbar

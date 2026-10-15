@@ -97,6 +97,12 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
               >
                 {t1("menu.save_project")}
               </DropdownMenu.Item>
+              <DropdownMenu.Item
+                class={style.menu_item}
+                onClick={controls.saveProjectAs}
+              >
+                {t1("menu.save_project_as")}
+              </DropdownMenu.Item>
               <DropdownMenu.Separator class="mx-2 my-1" />
               <DropdownMenu.Item
                 class={style.menu_item}

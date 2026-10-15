@@ -462,10 +462,10 @@ describe("App initialization", () => {
       name: /^Save project: /,
     });
     fireEvent.click(save);
-    fireEvent.keyDown(save, { key: "S", ctrlKey: true, shiftKey: true });
+    fireEvent.keyDown(save, { key: "S", ctrlKey: true, altKey: true });
     expect(
       view.getConfigStore().config.ui.shortcuts?.save_project,
-    ).toMatchObject({ key: "S", primary: true, shift: true });
+    ).toMatchObject({ key: "S", primary: true, alt: true });
   });
 
   it.each(["Downloaded", "ExistingInstallation"] as const)(

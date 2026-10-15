@@ -79,12 +79,12 @@ describe("ShortcutSettings", () => {
     fireEvent.keyDown(saveShortcut, {
       key: "S",
       ctrlKey: true,
-      shiftKey: true,
+      altKey: true,
     });
     expect(appConfig.config.ui.shortcuts?.save_project).toMatchObject({
       key: "S",
       primary: true,
-      shift: true,
+      alt: true,
     });
     expect(
       screen.getByRole("button", { name: "Restore default shortcut" }),
@@ -106,7 +106,7 @@ describe("ShortcutSettings", () => {
     expect(appConfig.config.ui.shortcuts?.play_current).toBeUndefined();
 
     const editedSaveShortcut = screen.getByRole("button", {
-      name: "Save project: Ctrl + Shift + S",
+      name: "Save project: Ctrl + Alt + S",
     });
     fireEvent.click(editedSaveShortcut);
     fireEvent.keyDown(editedSaveShortcut, {
@@ -137,7 +137,7 @@ describe("ShortcutSettings", () => {
     );
     fireEvent.keyDown(
       screen.getByRole("button", { name: "Save project: Ctrl + S" }),
-      { key: "S", ctrlKey: true, shiftKey: true },
+      { key: "S", ctrlKey: true, altKey: true },
     );
 
     fireEvent.click(
