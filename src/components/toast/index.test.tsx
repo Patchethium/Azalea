@@ -69,6 +69,24 @@ describe("toasts", () => {
     expect(success).not.toHaveAccessibleDescription();
   });
 
+  it("keeps progress toasts open until they are dismissed", async () => {
+    const toasts = renderToasts();
+    const dismiss = toasts.progress("Exporting…");
+
+    const toast = await screen.findByRole("status", { name: "Exporting…" });
+    expect(toast.querySelector(".animate-spin")).not.toBeNull();
+    dismiss();
+    await waitFor(() => expect(toast).not.toBeInTheDocument());
+
+    const replaced = toasts.progress("Exporting…");
+    const dismissStale = toasts.progress("Exporting…");
+    replaced();
+    expect(
+      await screen.findByRole("status", { name: "Exporting…" }),
+    ).toBeInTheDocument();
+    dismissStale();
+  });
+
   it("formats thrown values as readable detail text", () => {
     expect(errorDetail(new Error("boom"))).toBe("boom");
     expect(errorDetail("plain")).toBe("plain");

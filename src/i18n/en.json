@@ -12,6 +12,8 @@
     "close": "Close notification",
     "audio_exported": "Audio exported successfully",
     "open_output_dir": "Open output folder",
+    "exporting_combined": "Exporting all cells as one file…",
+    "combined_audio_exported": "Combined audio exported successfully",
     "unsupported_system_locale": "Your system language ({{ locale }}) is not supported, so Azalea is using English.",
     "error": {
       "save_project": "Couldn't save the project to {{ path }}",
@@ -20,6 +22,8 @@
       "import_text": "Couldn't import the text from {{ path }}",
       "project_action": "Couldn't complete the project action",
       "export_audio": "Couldn't export audio to {{ path }}",
+      "export_combined": "Couldn't export the combined audio to {{ path }}",
+      "export_combined_block": "Couldn't prepare cell {{ index }} for the combined export",
       "open_output_dir": "Couldn't open the output folder",
       "audio_query": "Couldn't analyze the text",
       "play_audio": "Couldn't play the audio",
@@ -32,7 +36,8 @@
       "save_config": "Couldn't save settings"
     },
     "warning": {
-      "resolve_export_path": "Couldn't check for existing files; the suggested filename may replace one"
+      "resolve_export_path": "Couldn't check for existing files; the suggested filename may replace one",
+      "export_combined_empty": "There are no text cells to export."
     }
   },
   "bottom": {
@@ -241,6 +246,7 @@
     "import_srt": "Import SRT",
     "import_text": "Import Text…",
     "export_all": "Export all",
+    "export_all_combined": "Export all as one file…",
     "quit": "Quit",
     "about": "About",
     "hide_pitch_ruler": "Hide pitch ruler"

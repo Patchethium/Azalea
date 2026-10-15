@@ -32,9 +32,15 @@ impl LabWriter {
 /// phoneme. Durations are divided by the speed scale, leading and trailing
 /// silence are labelled `pau`, and unvoiced vowels are lowercased except `N`.
 pub fn lab_from_audio_query(query: &AudioQuery) -> String {
+  lab_from_audio_query_at(query, 0.0)
+}
+
+/// Like [`lab_from_audio_query`], but with every timestamp shifted by
+/// `offset_seconds`, for labels of a query placed later in a combined file.
+pub fn lab_from_audio_query_at(query: &AudioQuery, offset_seconds: f64) -> String {
   let mut lab = LabWriter {
     text: String::new(),
-    timestamp: 0.0,
+    timestamp: offset_seconds * UNITS_PER_SECOND,
     speed_scale: f64::from(query.speed_scale),
   };
   lab.push(query.pre_phoneme_length, "pau");
@@ -59,7 +65,7 @@ pub fn lab_from_audio_query(query: &AudioQuery) -> String {
 
 #[cfg(test)]
 mod tests {
-  use super::lab_from_audio_query;
+  use super::{lab_from_audio_query, lab_from_audio_query_at};
   use voicevox_core::AudioQuery;
 
   fn query(speed_scale: f32) -> AudioQuery {
@@ -118,5 +124,13 @@ mod tests {
     let lab = lab_from_audio_query(&query(2.0));
     assert!(lab.starts_with("0 500000 pau\n500000 750000 k\n"));
     assert!(lab.ends_with("3150000 3900000 pau\n"));
+  }
+
+  #[test]
+  fn lab_timestamps_start_at_the_given_offset() {
+    let lab = lab_from_audio_query_at(&query(1.0), 1.5);
+    assert!(lab.starts_with("15000000 16000000 pau\n16000000 16500000 k\n"));
+    assert!(lab.ends_with("21300000 22800000 pau\n"));
+    assert_eq!(lab.lines().count(), 8);
   }
 }

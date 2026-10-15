@@ -1,3 +1,4 @@
+pub mod combine;
 pub mod lab;
 pub mod player;
 pub mod spectal;

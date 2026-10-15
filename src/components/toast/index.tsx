@@ -17,7 +17,7 @@ export function AppToastRegion() {
   );
 }
 
-type ToastTone = "success" | "warning" | "error";
+type ToastTone = "success" | "warning" | "error" | "progress";
 
 const toneStyles: Record<
   ToastTone,
@@ -40,6 +40,12 @@ const toneStyles: Record<
     icon: "i-lucide:circle-x text-red-5",
     track: "bg-red-2 dark:bg-red-9",
     fill: "bg-red-5",
+  },
+  progress: {
+    border: "",
+    icon: "i-lucide:loader-circle animate-spin text-primary-5",
+    track: "bg-primary-2 dark:bg-primary-9",
+    fill: "bg-primary-5",
   },
 };
 
@@ -76,7 +82,8 @@ function showToast(
   const id = Toast.toaster.show((props) => (
     <Toast.Root
       toastId={props.toastId}
-      priority="high"
+      priority={tone === "progress" ? "low" : "high"}
+      persistent={tone === "progress"}
       class={`relative flex items-center gap3 overflow-hidden rounded-lg bg-white p3 pr2 shadow-lg outline-none dark:bg-slate-8 ${styles.border}`}
     >
       {styles.icon && (
@@ -143,6 +150,18 @@ export function showWarningToast(
   return showToast("warning", message, closeLabel, detail);
 }
 
+/**
+ * Shows a toast that stays open until dismissed, for long-running work.
+ * Returns a function that dismisses it.
+ */
+export function showProgressToast(message: string, closeLabel: string) {
+  const id = showToast("progress", message, closeLabel);
+  return () => {
+    Toast.toaster.dismiss(id);
+    if (visibleToasts.get(message) === id) visibleToasts.delete(message);
+  };
+}
+
 export function showErrorToast(
   message: string,
   closeLabel: string,
@@ -163,6 +182,8 @@ export function useToasts() {
         t1("toast.close"),
         detail === undefined ? undefined : errorDetail(detail),
       ),
+    progress: (message: string) =>
+      showProgressToast(message, t1("toast.close")),
     error: (message: string, detail?: unknown) =>
       showErrorToast(
         message,

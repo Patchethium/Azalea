@@ -1,4 +1,10 @@
-import { commands, events, type Preset, type StyleId } from "$binding";
+import {
+  type AudioSequenceItem,
+  commands,
+  events,
+  type Preset,
+  type StyleId,
+} from "$binding";
 import { useToasts } from "@components/toast";
 import type { ExportAllFailure } from "@dialogs/ExportAll";
 import { createScheduled, throttle } from "@solid-primitives/scheduled";
@@ -592,6 +598,154 @@ export function useSidebar() {
     }
   };
 
+  const openOutputDir = async (path: string) => {
+    try {
+      const result = await commands.openPathLocation(path);
+      if (result.status === "error") {
+        toasts.error(t1("toast.error.open_output_dir"), result.error);
+      }
+    } catch (error) {
+      toasts.error(t1("toast.error.open_output_dir"), error);
+    }
+  };
+
+  /** The saved project's file stem, or the first block's text. */
+  const combinedAudioFileName = (firstText: string) => {
+    const path = projectPath();
+    if (path !== null) {
+      const stem = (path.split(/[\\/]/).filter(Boolean).pop() ?? "").replace(
+        /\.azp$/i,
+        "",
+      );
+      if (stem !== "") return stem;
+    }
+    return createAudioFileName(firstText, config.ui.name_truncation_len);
+  };
+
+  const [exportCombinedRunning, setExportCombinedRunning] = createSignal(false);
+
+  /**
+   * Exports every non-empty block, in order, as one WAV. Any block that
+   * cannot be prepared aborts the export so the file never silently skips a
+   * block.
+   */
+  const exportCombined = async () => {
+    if (exportCombinedRunning()) return;
+    const exportable = textStore
+      .map((block, index) => ({ block, index }))
+      .filter(({ block }) => block.text !== "");
+    if (exportable.length === 0) {
+      toasts.warning(t1("toast.warning.export_combined_empty"));
+      return;
+    }
+
+    const fileName = combinedAudioFileName(exportable[0].block.text);
+    const pinnedDir = config.ui.default_export_dir_enabled
+      ? config.ui.default_export_dir
+      : undefined;
+    const silentExportDir = config.ui.silent_save ? pinnedDir : undefined;
+    const preventOverwrite = config.ui.prevent_overwrite === true;
+    const preventOverwriteOnSave = silentExportDir != null && preventOverwrite;
+
+    setExportCombinedRunning(true);
+    let path: string | null = null;
+    let dismissProgress: (() => void) | null = null;
+    try {
+      if (silentExportDir != null) {
+        path = await commands.audioExportPath(silentExportDir, fileName);
+      } else {
+        let initialDir = pinnedDir ?? config.ui.last_exported_dir;
+        if (initialDir == null) {
+          initialDir = (await commands.homeDir()) ?? ".";
+        }
+        let targetPath = await commands.audioExportPath(initialDir, fileName);
+        if (preventOverwrite) {
+          const resolved = await commands.resolveAudioSavePath(targetPath);
+          if (resolved.status === "ok") {
+            targetPath = resolved.data;
+          } else {
+            console.error(resolved.error);
+            toasts.warning(
+              t1("toast.warning.resolve_export_path"),
+              resolved.error,
+            );
+          }
+        }
+        const selectedPath = await saveDialog({
+          title: t1("menu.export_all_combined"),
+          filters: [{ name: "Audio", extensions: ["wav"] }],
+          defaultPath: targetPath,
+        });
+        if (selectedPath === null) return;
+        path = selectedPath;
+      }
+      if (!path.endsWith(".wav")) path = path.concat(".wav");
+
+      dismissProgress = toasts.progress(t1("toast.exporting_combined"));
+      const items: AudioSequenceItem[] = [];
+      for (const { block, index } of exportable) {
+        const blockError = () =>
+          t2("toast.error.export_combined_block", { index: index + 1 });
+        const preset = findPresetById(projectPresetStore, block.preset_id);
+        const identity =
+          preset === null ? null : findPresetStyle(preset, metas);
+        if (preset === null || identity === null) {
+          toasts.error(blockError(), t1("export_all.error.no_preset"));
+          return;
+        }
+        let query = block.query;
+        if (query === null || query.accent_phrases.length === 0) {
+          const fetched = await commands.audioQuery(
+            block.text,
+            identity.style.id,
+            block.pitch_noise_seed,
+          );
+          if (fetched.status === "error") {
+            console.error(fetched.error);
+            toasts.error(blockError(), fetched.error);
+            return;
+          }
+          query = fetched.data;
+        }
+        items.push({
+          audio_query: getModifiedQuery(unwrap(query), preset),
+          speaker_id: identity.style.id,
+        });
+      }
+
+      const texts = exportable.map(({ block }) => block.text).join("\n");
+      const result = await commands.saveCombinedAudio(
+        path,
+        items,
+        preventOverwriteOnSave,
+        createAudioSidecars(config.ui, texts),
+      );
+      dismissProgress();
+      dismissProgress = null;
+      if (result.status === "error") {
+        console.error(result.error);
+        toasts.error(t2("toast.error.export_combined", { path }), result.error);
+        return;
+      }
+      const savedPath = result.data;
+      toasts.success(t1("toast.combined_audio_exported"), {
+        label: t1("toast.open_output_dir"),
+        onClick: () => void openOutputDir(savedPath),
+      });
+      const parent = await commands.parentPath(savedPath);
+      setConfig("ui", "last_exported_dir", parent);
+    } catch (error) {
+      console.error(error);
+      toasts.error(
+        t2("toast.error.export_combined", { path: path ?? fileName }),
+        error,
+      );
+    } finally {
+      dismissProgress?.();
+      setExportCombinedRunning(false);
+    }
+  };
+
   const cancelExportAll = () => {
     if (!exportAllRunning()) return;
     exportAllCancelRequested = true;
@@ -678,6 +832,8 @@ export function useSidebar() {
     importSrt,
     importText,
     exportAll,
+    exportCombined,
+    exportCombinedRunning,
     cancelExportAll,
     closeExportAll,
     exportAllOpen,

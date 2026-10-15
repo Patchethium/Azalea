@@ -404,6 +404,21 @@ async saveAudio(path: string, audioQuery: AudioQuery, speakerId: StyleId, preven
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Synthesizes every item in order and saves them as one combined WAV, plus
+ * any requested sidecar files. Each item's configured leading and trailing
+ * silence is already part of its waveform, so blocks are joined directly.
+ * With `prevent_overwrite`, the file is created exclusively and numbered
+ * `(n)` on collision. Returns the path actually written.
+ */
+async saveCombinedAudio(path: string, items: AudioSequenceItem[], preventOverwrite: boolean, sidecars: AudioSidecars) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_combined_audio", { path, items, preventOverwrite, sidecars }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async getOs() : Promise<OS> {
     return await TAURI_INVOKE("get_os");
 },

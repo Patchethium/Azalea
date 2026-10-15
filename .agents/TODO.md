@@ -100,8 +100,10 @@ it without help.
 
 ### Export
 
-- [ ] Combined single-WAV export with configured block silences (Export All
-      writes numbered files only).
+- [x] Combined single-WAV export with configured block silences. Export All
+      as One File (`save_combined_audio`) joins every non-empty block's
+      waveform, including its preset silences, with combined `.txt`/`.lab`
+      sidecars.
 - [ ] Filename templates.
 - [ ] Sample-rate, loudness-normalization, and silence-trim options; evaluate
       FLAC and OGG.

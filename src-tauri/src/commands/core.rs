@@ -11,7 +11,12 @@ use crate::synthesis::{
   SynthesisJobState, WaveformCacheEntry, WaveformCacheOwner,
 };
 use crate::AppState;
-use crate::{audio::lab::lab_from_audio_query, audio::AudioPlayer, core::Core};
+use crate::{
+  audio::combine::concatenate_wavs,
+  audio::lab::{lab_from_audio_query, lab_from_audio_query_at},
+  audio::AudioPlayer,
+  core::Core,
+};
 
 use std::future::Future;
 #[cfg(test)]
@@ -965,6 +970,16 @@ fn write_audio_sidecars(
   audio_query: &AudioQuery,
   sidecars: &AudioSidecars,
 ) -> Result<(), String> {
+  write_sidecar_files(audio_path, sidecars, || lab_from_audio_query(audio_query))
+}
+
+/// Writes the `.txt` and `.lab` sidecars beside `audio_path`, generating the
+/// lab text only when it is requested.
+fn write_sidecar_files(
+  audio_path: &Path,
+  sidecars: &AudioSidecars,
+  lab: impl FnOnce() -> String,
+) -> Result<(), String> {
   let write = |extension: &str, contents: &str| {
     let path = audio_path.with_extension(extension);
     std::fs::write(&path, contents).map_err(|e| format!("{}: {e}", path.display()))
@@ -973,9 +988,36 @@ fn write_audio_sidecars(
     write("txt", text)?;
   }
   if sidecars.lab {
-    write("lab", &lab_from_audio_query(audio_query))?;
+    write("lab", &lab())?;
   }
   Ok(())
+}
+
+/// Lab text for blocks placed one after another in a combined file, with each
+/// block's timestamps shifted to where its waveform begins.
+fn combined_lab(queries: &[AudioQuery], offsets_seconds: &[f64]) -> String {
+  queries
+    .iter()
+    .zip(offsets_seconds)
+    .map(|(query, offset)| lab_from_audio_query_at(query, *offset))
+    .collect()
+}
+
+/// Concatenates the synthesized blocks and writes them as one WAV with
+/// combined sidecars. Returns the path actually written.
+fn write_combined_audio(
+  path: &Path,
+  queries: &[AudioQuery],
+  wavs: &[Vec<u8>],
+  prevent_overwrite: bool,
+  sidecars: &AudioSidecars,
+) -> Result<PathBuf, String> {
+  let combined = concatenate_wavs(wavs)?;
+  let saved_path = write_audio_file(path, &combined.wav, prevent_overwrite)?;
+  write_sidecar_files(&saved_path, sidecars, || {
+    combined_lab(queries, &combined.offsets_seconds)
+  })?;
+  Ok(saved_path)
 }
 
 /// Save the audio waveform to a file, plus any requested sidecar files.
@@ -1001,6 +1043,49 @@ pub async fn save_audio(
   .await?;
   let saved_path = write_audio_file(Path::new(&path), &waveform, prevent_overwrite)?;
   write_audio_sidecars(&saved_path, &audio_query, &sidecars)?;
+  Ok(saved_path.to_string_lossy().into_owned())
+}
+
+/// Synthesizes every item in order and saves them as one combined WAV, plus
+/// any requested sidecar files. Each item's configured leading and trailing
+/// silence is already part of its waveform, so blocks are joined directly.
+/// With `prevent_overwrite`, the file is created exclusively and numbered
+/// `(n)` on collision. Returns the path actually written.
+#[tauri::command]
+#[specta::specta]
+pub async fn save_combined_audio(
+  app: AppHandle,
+  state: State<'_, AppState>,
+  path: String,
+  items: Vec<AudioSequenceItem>,
+  prevent_overwrite: bool,
+  sidecars: AudioSidecars,
+) -> std::result::Result<String, String> {
+  if items.is_empty() {
+    return Err("There is no audio to combine".into());
+  }
+  let mut queries = Vec::with_capacity(items.len());
+  let mut wavs = Vec::with_capacity(items.len());
+  for item in items {
+    wavs.push(
+      synthesize_cached(
+        &app,
+        &state,
+        item.audio_query.clone(),
+        item.speaker_id,
+        None,
+        SynthesisBackend::Blocking,
+      )
+      .await?,
+    );
+    queries.push(item.audio_query);
+  }
+  let path = PathBuf::from(path);
+  let saved_path = tauri::async_runtime::spawn_blocking(move || {
+    write_combined_audio(&path, &queries, &wavs, prevent_overwrite, &sidecars)
+  })
+  .await
+  .map_err(|e| e.to_string())??;
   Ok(saved_path.to_string_lossy().into_owned())
 }
 
@@ -1181,6 +1266,92 @@ mod tests {
     std::fs::create_dir(blocked.with_extension("txt")).unwrap();
     let error = write_audio_sidecars(&blocked, &query, &sidecars).unwrap_err();
     assert!(error.contains("blocked.txt"), "{error}");
+  }
+
+  fn silent_query(pre: f32, post: f32) -> AudioQuery {
+    serde_json::from_value(json!({
+      "accent_phrases": [],
+      "speedScale": 1.0,
+      "pitchScale": 0.0,
+      "intonationScale": 1.0,
+      "volumeScale": 1.0,
+      "prePhonemeLength": pre,
+      "postPhonemeLength": post,
+      "outputSamplingRate": 24000,
+      "outputStereo": false,
+      "kana": null
+    }))
+    .unwrap()
+  }
+
+  #[test]
+  fn combined_lab_offsets_each_block_by_its_waveform_start() {
+    let queries = [silent_query(0.1, 0.1), silent_query(0.2, 0.3)];
+    assert_eq!(
+      combined_lab(&queries, &[0.0, 0.25]),
+      "0 1000000 pau\n1000000 2000000 pau\n\
+       2500000 4500000 pau\n4500000 7500000 pau\n"
+    );
+  }
+
+  #[test]
+  fn combined_audio_writes_one_wav_with_combined_sidecars() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("project.wav");
+    let queries = [silent_query(0.1, 0.1), silent_query(0.1, 0.1)];
+    let wavs = [wav(1, 24_000, 4_800), wav(1, 24_000, 2_400)];
+    let sidecars = AudioSidecars {
+      text: Some("一\n二".into()),
+      lab: true,
+    };
+
+    let saved = write_combined_audio(&path, &queries, &wavs, true, &sidecars).unwrap();
+    assert_eq!(saved, path);
+    let reader = hound::WavReader::open(&saved).unwrap();
+    assert_eq!(reader.spec().sample_rate, 24_000);
+    assert_eq!(reader.duration(), 7_200);
+    assert_eq!(
+      std::fs::read_to_string(directory.path().join("project.txt")).unwrap(),
+      "一\n二"
+    );
+    let lab = std::fs::read_to_string(directory.path().join("project.lab")).unwrap();
+    assert!(lab.contains("\n2000000 3000000 pau\n"), "{lab}");
+
+    let error = write_combined_audio(
+      &directory.path().join("mismatch.wav"),
+      &queries,
+      &[wav(1, 24_000, 10), wav(1, 48_000, 10)],
+      true,
+      &AudioSidecars::default(),
+    )
+    .unwrap_err();
+    assert!(error.contains("sample rate"), "{error}");
+    assert!(!directory.path().join("mismatch.wav").exists());
+  }
+
+  #[test]
+  fn silent_combined_export_numbers_existing_files_exclusively() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("project.wav");
+    std::fs::write(&path, b"existing").unwrap();
+    let queries = [silent_query(0.1, 0.1)];
+    let wavs = [wav(1, 24_000, 10)];
+    let sidecars = AudioSidecars {
+      text: Some("text".into()),
+      lab: false,
+    };
+
+    let second = write_combined_audio(&path, &queries, &wavs, true, &sidecars).unwrap();
+    let third = write_combined_audio(&path, &queries, &wavs, true, &sidecars).unwrap();
+    assert_eq!(second, directory.path().join("project(2).wav"));
+    assert_eq!(third, directory.path().join("project(3).wav"));
+    assert_eq!(std::fs::read(&path).unwrap(), b"existing");
+    assert!(directory.path().join("project(2).txt").exists());
+    assert!(!directory.path().join("project(2).lab").exists());
+
+    let overwritten = write_combined_audio(&path, &queries, &wavs, false, &sidecars).unwrap();
+    assert_eq!(overwritten, path);
+    assert_ne!(std::fs::read(&path).unwrap(), b"existing");
   }
 
   #[test]

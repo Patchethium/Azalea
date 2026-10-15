@@ -21,6 +21,7 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 png = "0.18"
+hound = "3.5"
 tauri = { version = "2.1.1", features = ["macos-private-api"] }
 tauri-plugin-shell = "2"
 serde = { version = "1", features = ["derive"] }
@@ -62,7 +63,6 @@ branch = "generative-noise"
 features = ["specta", "load-onnxruntime"]
 
 [dev-dependencies]
-hound = "3.5"
 tauri = { version = "2.1.1", features = ["test"] }
 
 [profile.dev]

@@ -87,6 +87,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
       stop_audio,
       resolve_audio_save_path,
       save_audio,
+      save_combined_audio,
       get_os,
       audio_export_path,
       parent_path,

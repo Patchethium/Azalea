@@ -12,6 +12,8 @@
     "close": "通知を閉じる",
     "audio_exported": "音声を書き出しました",
     "open_output_dir": "出力フォルダーを開く",
+    "exporting_combined": "すべてのセルを1つのファイルに書き出しています…",
+    "combined_audio_exported": "結合した音声を書き出しました",
     "unsupported_system_locale": "システムの言語（{{ locale }}）には対応していないため、英語で表示します。",
     "error": {
       "save_project": "プロジェクトを {{ path }} に保存できませんでした",
@@ -20,6 +22,8 @@
       "import_text": "{{ path }} からテキストをインポートできませんでした",
       "project_action": "プロジェクト操作を完了できませんでした",
       "export_audio": "音声を {{ path }} に書き出せませんでした",
+      "export_combined": "結合した音声を {{ path }} に書き出せませんでした",
+      "export_combined_block": "セル {{ index }} を結合書き出し用に準備できませんでした",
       "open_output_dir": "出力フォルダーを開けませんでした",
       "audio_query": "テキストを解析できませんでした",
       "play_audio": "音声を再生できませんでした",
@@ -32,7 +36,8 @@
       "save_config": "設定を保存できませんでした"
     },
     "warning": {
-      "resolve_export_path": "既存のファイルを確認できませんでした。提案されたファイル名で上書きされる可能性があります"
+      "resolve_export_path": "既存のファイルを確認できませんでした。提案されたファイル名で上書きされる可能性があります",
+      "export_combined_empty": "書き出すテキストセルがありません。"
     }
   },
   "bottom": {
@@ -153,6 +158,7 @@
     "import_srt": "SRTをインポート",
     "import_text": "テキストをインポート…",
     "export_all": "すべて書き出し",
+    "export_all_combined": "すべてを1つのファイルに書き出し…",
     "quit": "終了",
     "about": "このアプリについて",
     "hide_pitch_ruler": "ピッチルーラーを非表示"

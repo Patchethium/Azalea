@@ -12,6 +12,8 @@
     "close": "关闭通知",
     "audio_exported": "音频导出成功",
     "open_output_dir": "打开输出文件夹",
+    "exporting_combined": "正在将所有单元格导出为单个文件…",
+    "combined_audio_exported": "合并音频导出成功",
     "unsupported_system_locale": "不支持系统语言（{{ locale }}），Azalea 将使用英语。",
     "error": {
       "save_project": "无法将项目保存到 {{ path }}",
@@ -20,6 +22,8 @@
       "import_text": "无法从 {{ path }} 导入文本",
       "project_action": "无法完成项目操作",
       "export_audio": "无法将音频导出到 {{ path }}",
+      "export_combined": "无法将合并音频导出到 {{ path }}",
+      "export_combined_block": "无法为合并导出准备单元格 {{ index }}",
       "open_output_dir": "无法打开输出文件夹",
       "audio_query": "无法分析文本",
       "play_audio": "无法播放音频",
@@ -32,7 +36,8 @@
       "save_config": "无法保存设置"
     },
     "warning": {
-      "resolve_export_path": "无法检查已有文件，建议的文件名可能会覆盖现有文件"
+      "resolve_export_path": "无法检查已有文件，建议的文件名可能会覆盖现有文件",
+      "export_combined_empty": "没有可导出的文本单元格。"
     }
   },
   "bottom": {
@@ -241,6 +246,7 @@
     "import_srt": "导入 SRT",
     "import_text": "导入文本…",
     "export_all": "导出全部",
+    "export_all_combined": "全部导出为单个文件…",
     "quit": "退出",
     "about": "关于",
     "hide_pitch_ruler": "隐藏音高标尺"

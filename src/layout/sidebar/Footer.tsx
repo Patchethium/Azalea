@@ -123,6 +123,13 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
               >
                 {t1("menu.export_all")}
               </DropdownMenu.Item>
+              <DropdownMenu.Item
+                class={style.menu_item}
+                disabled={controls.exportCombinedRunning()}
+                onClick={() => void controls.exportCombined()}
+              >
+                {t1("menu.export_all_combined")}
+              </DropdownMenu.Item>
               <DropdownMenu.Separator class="mx-2 my-1" />
               <DropdownMenu.Item
                 class={style.menu_item}
