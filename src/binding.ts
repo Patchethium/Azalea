@@ -461,6 +461,13 @@ async loadProject(path: string) : Promise<Result<Project, string>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+/**
+ * Returns the project path passed to the first launch, at most once, so a
+ * reloaded frontend does not reopen it over the current project.
+ */
+async takeStartupProject() : Promise<string | null> {
+    return await TAURI_INVOKE("take_startup_project");
 }
 }
 

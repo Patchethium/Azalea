@@ -5,7 +5,7 @@ pub mod audio;
 pub mod commands;
 pub mod config;
 pub mod core;
-mod single_instance;
+mod launch;
 mod spectrogram;
 mod synthesis;
 use core::Core;
@@ -22,7 +22,8 @@ use tauri_specta::{collect_commands, collect_events, Builder, Event};
 
 use voicevox_core::{AudioQuery, StyleId};
 
-pub use single_instance::OpenProjectRequested;
+pub use launch::OpenProjectRequested;
+use launch::{take_startup_project, StartupProject};
 use spectrogram::{SpectrogramJobEvent, SpectrogramQueue};
 use synthesis::{SynthesisJobEvent, SynthesisQueue, WaveformCacheEntry};
 
@@ -96,6 +97,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
       quit,
       save_project,
       load_project,
+      take_startup_project,
     ])
     .events(collect_events![
       InitializationEvent,
@@ -144,7 +146,7 @@ pub fn run() {
   // The single-instance plugin must be registered first.
   #[cfg(desktop)]
   let app = app.plugin(tauri_plugin_single_instance::init(
-    single_instance::handle_second_launch,
+    launch::handle_second_launch,
   ));
   let app = app
     .plugin(tauri_plugin_dialog::init())
@@ -165,6 +167,7 @@ pub fn run() {
       config_manager: RwLock::new(None),
       audio_player: RwLock::new(None),
     })
+    .manage(StartupProject::from_process())
     .invoke_handler(builder.invoke_handler())
     .setup(move |app| {
       builder.mount_events(app);

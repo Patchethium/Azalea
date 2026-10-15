@@ -1806,6 +1806,99 @@ describe("Sidebar recent projects", () => {
     );
   });
 
+  const renderStartupSidebar = () => {
+    let stores!: Parameters<Parameters<typeof renderSidebar>[0]>[0];
+    renderSidebar((setupStores) => {
+      stores = setupStores;
+      setupStores.config.setConfig(config({ auto_save: false }));
+    });
+    return { getStores: () => stores };
+  };
+
+  it("opens the startup project once the voices are ready", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    const takeStartupProject = vi
+      .spyOn(commands, "takeStartupProject")
+      .mockResolvedValue("/tmp/startup.azp");
+    const loadProject = vi
+      .spyOn(commands, "loadProject")
+      .mockResolvedValue({ status: "ok", data: loadedProject });
+    const { getStores } = renderStartupSidebar();
+    await screen.findByRole("button", { name: "Project actions" });
+    expect(takeStartupProject).not.toHaveBeenCalled();
+
+    getStores().meta.setMetas(metas);
+    await waitFor(() =>
+      expect(getStores().text.projectPath()).toBe("/tmp/startup.azp"),
+    );
+    expect(loadProject).toHaveBeenCalledWith("/tmp/startup.azp");
+    expect(getStores().text.textStore[0].text).toBe("Loaded block");
+    expect(getStores().config.config.ui.recent_projects).toEqual([
+      "/tmp/startup.azp",
+    ]);
+
+    // Voices becoming ready again, as after a core switch, must not reopen it.
+    getStores().meta.setMetas([]);
+    getStores().meta.setMetas(metas);
+    await Promise.resolve();
+    expect(takeStartupProject).toHaveBeenCalledTimes(1);
+    expect(loadProject).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the empty project without a startup project", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    const takeStartupProject = vi
+      .spyOn(commands, "takeStartupProject")
+      .mockResolvedValue(null);
+    const loadProject = vi.spyOn(commands, "loadProject");
+    const { getStores } = renderStartupSidebar();
+    await screen.findByRole("button", { name: "Project actions" });
+    getStores().meta.setMetas(metas);
+    await waitFor(() => expect(takeStartupProject).toHaveBeenCalledTimes(1));
+    await Promise.resolve();
+    expect(loadProject).not.toHaveBeenCalled();
+    expect(getStores().text.projectPath()).toBeNull();
+  });
+
+  it("shows an error toast when the startup project cannot be opened", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    vi.spyOn(commands, "takeStartupProject").mockResolvedValue(
+      "/tmp/broken.azp",
+    );
+    vi.spyOn(commands, "loadProject").mockResolvedValue({
+      status: "error",
+      error: "Unsupported project schema",
+    });
+    const { getStores } = renderStartupSidebar();
+    await screen.findByRole("button", { name: "Project actions" });
+    getStores().meta.setMetas(metas);
+    expect(
+      await screen.findByRole("status", {
+        name: "Couldn't open the project /tmp/broken.azp",
+      }),
+    ).toBeInTheDocument();
+    expect(getStores().text.projectPath()).toBeNull();
+  });
+
+  it("logs when reading the startup project fails", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    vi.spyOn(commands, "takeStartupProject").mockRejectedValue(
+      new Error("state unavailable"),
+    );
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const { getStores } = renderStartupSidebar();
+    await screen.findByRole("button", { name: "Project actions" });
+    getStores().meta.setMetas(metas);
+    await waitFor(() =>
+      expect(consoleError).toHaveBeenCalledWith(
+        "Failed to read the startup project:",
+        expect.any(Error),
+      ),
+    );
+  });
+
   it("lists recent projects in the project menu", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     const loaded: string[] = [];

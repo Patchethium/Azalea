@@ -72,7 +72,7 @@ export function useSidebar() {
     setSuppressFocusBlockId,
     setPendingFocusPlacement,
   } = useTextStore()!;
-  const { config, setConfig } = useConfigStore()!;
+  const { config, setConfig, voicesReady } = useConfigStore()!;
   const { isApplicationShortcutAllowed, matchesShortcut } =
     useShortcutsStore()!;
   const { t1, t2 } = usei18n()!;
@@ -364,6 +364,22 @@ export function useSidebar() {
     const path = previousProject();
     if (path !== null) openRecentProject(path);
   };
+
+  // A project passed to the first launch opens once the voices are ready, so
+  // its preset fallbacks resolve against the loaded speaker metadata.
+  let startupProjectRequested = false;
+  createEffect(() => {
+    if (startupProjectRequested || !voicesReady()) return;
+    startupProjectRequested = true;
+    commands
+      .takeStartupProject()
+      .then((path) => {
+        if (path !== null) openRecentProject(path);
+      })
+      .catch((error) => {
+        console.error("Failed to read the startup project:", error);
+      });
+  });
 
   // A second application launch with a project path forwards it here; open it
   // like a recent project so unsaved changes are confirmed first.

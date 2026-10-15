@@ -1,6 +1,8 @@
-//! Handling for a second application launch while Azalea is already running.
+//! Handling for project paths passed on the command line, both to the first
+//! launch and to a second launch while Azalea is already running.
 
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -30,6 +32,42 @@ pub(crate) fn project_path_from_args<S: AsRef<str>>(args: &[S], cwd: &Path) -> O
         .is_some_and(|extension| extension.eq_ignore_ascii_case("azp"))
         && path.is_file()
     })
+}
+
+/// The project path passed to the first launch, handed to the frontend once.
+#[derive(Default)]
+pub(crate) struct StartupProject(Mutex<Option<String>>);
+
+impl StartupProject {
+  /// Reads the project path from this process's arguments. Arguments that are
+  /// not valid Unicode are ignored because the frontend handles paths as text.
+  pub(crate) fn from_process() -> Self {
+    let args: Vec<String> = std::env::args_os()
+      .map(|arg| arg.into_string().unwrap_or_default())
+      .collect();
+    let path = std::env::current_dir()
+      .ok()
+      .and_then(|cwd| project_path_from_args(&args, &cwd));
+    Self::new(path)
+  }
+
+  fn new(path: Option<PathBuf>) -> Self {
+    Self(Mutex::new(
+      path.map(|path| path.to_string_lossy().into_owned()),
+    ))
+  }
+
+  fn take(&self) -> Option<String> {
+    self.0.lock().unwrap().take()
+  }
+}
+
+/// Returns the project path passed to the first launch, at most once, so a
+/// reloaded frontend does not reopen it over the current project.
+#[tauri::command]
+#[specta::specta]
+pub fn take_startup_project(state: tauri::State<'_, StartupProject>) -> Option<String> {
+  state.take()
 }
 
 /// Brings the main window forward and forwards any project path from the
@@ -122,6 +160,14 @@ mod tests {
       ),
       Some(project)
     );
+  }
+
+  #[test]
+  fn startup_project_is_taken_once() {
+    let startup = StartupProject::new(Some(PathBuf::from("/projects/story.azp")));
+    assert_eq!(startup.take().as_deref(), Some("/projects/story.azp"));
+    assert_eq!(startup.take(), None);
+    assert_eq!(StartupProject::default().take(), None);
   }
 
   #[test]
