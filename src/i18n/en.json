@@ -56,7 +56,9 @@
     "playback_phrase_anchor": "Start playback from accent phrase {{ index }}",
     "jump_to_playback_anchor": "Show playback starting phrase",
     "reset_accent_edits": "Reset accent phrase edits (also resets pitch and duration)",
-    "reset_tuning_edits": "Reset pitch and duration edits"
+    "reset_tuning_edits": "Reset pitch and duration edits",
+    "pitch_drift_value": "{{ value }} semitones",
+    "tuning_options": "Tuning options"
   },
   "shortcuts": {
     "title": "Shortcuts",
@@ -178,6 +180,12 @@
     "pitch_scale_linear": "Linear",
     "pitch_scale_optimal": "Optimal",
     "pitch_scale_density": "Density-aware",
+    "pitch_tuning_mode": "Pitch tuning",
+    "pitch_tuning_description": "Relative sliders start at the predicted pitch and add a drift in semitones.",
+    "pitch_tuning_absolute": "Absolute",
+    "pitch_tuning_relative": "Relative",
+    "pitch_drift_range": "Drift range (semitones)",
+    "reset_pitch_drift_range": "Restore default drift range",
     "primary_color": "Primary color",
     "reset_primary_color": "Restore default primary color",
     "hue_saturation": "Hue and saturation",
@@ -245,8 +253,7 @@
     "export_all": "Export all",
     "export_all_combined": "Export all as one file…",
     "quit": "Quit",
-    "about": "About",
-    "hide_pitch_ruler": "Hide pitch ruler"
+    "about": "About"
   },
   "export_all": {
     "title": "Export all",

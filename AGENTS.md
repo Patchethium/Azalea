@@ -123,6 +123,39 @@ the flags are persisted per block and optional in the generated bindings.
 persistence and regeneration. Rust validation rejects modified flags without a
 query override.
 
+## Relative Pitch Tuning
+
+`UIConfig.pitch_tuning_mode` (`Absolute` by default, or `Relative`) only
+changes how tuning-panel pitch sliders map values; both modes edit the same
+`mora.pitch` through the existing `setPitch` path, so modified flags, resets,
+completion and persistence are unchanged. In relative mode each voiced slider
+is centered on the predicted pitch and spans ±`UIConfig.pitch_drift_range`
+semitones (default 12, valid 1–24; one semitone is `ln 2 / 12` in log pitch).
+Switch modes from the config dialog, where the drift-range row is shown only
+in relative mode, or from the tuning-options menu (`TuningMenu`, an
+`ellipsis-vertical` button at the right end of the bottom-panel toolbar, shown
+only on the tuning panel). That menu also holds the absolute pitch scale
+(hidden in relative mode) and the pitch-ruler toggle, so it stays reachable
+when the ruler is hidden; the ruler itself has no context menu.
+Right-clicking a relative slider resets that mora to its baseline through
+`setPitch` (a no-op when already there); secondary-button pointerdowns are
+stopped in the capture phase so Kobalte does not move the value first.
+Absolute sliders keep the default context-menu behavior.
+
+The baseline is never persisted. Cache it in `PitchBaselineProvider`
+(`src/contexts/pitchBaseline.ts`) so it survives tuning-panel remounts, keyed
+by block, style, seed, noise settings, core revision and a phoneme/accent
+signature that excludes pitch and duration so tuning edits never refetch.
+When `pitch_is_modified` is unset, the current pitches are the seeded
+prediction: snapshot them synchronously as the baseline so sliders start
+centered without a request, and later edits drift from that snapshot. Only
+pitch-edited blocks without a cached baseline request one with
+`replace_mora_pitch` using the block's noise seed and current noise settings;
+until it arrives or if it fails, sliders fall back to the absolute mapping.
+Mapping changes (baseline arrival, mode switch, drift range) reposition sliders
+without the pitch transition. Pitch completion does not rebase the baseline:
+completed moras show their drift from the seeded prediction.
+
 ## Audio File Export
 
 The default export directory controls the initial directory shown by the

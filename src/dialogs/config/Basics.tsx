@@ -2,6 +2,7 @@ import { Tooltip } from "@components/tooltip";
 import {
   type Locale,
   type PitchScale,
+  type PitchTuningMode,
   type ThemeMode,
   type TitlebarStyle,
 } from "$binding";
@@ -14,6 +15,7 @@ import { ToggleGroup } from "@kobalte/core/toggle-group";
 import { createMemo, Show } from "solid-js";
 import {
   DEFAULT_PITCH_SCALE,
+  DEFAULT_PITCH_TUNING_MODE,
   DEFAULT_PRIMARY_COLOR,
   PRIMARY_COLOR_PATTERN,
 } from "$constants";
@@ -165,6 +167,33 @@ export function PitchScaleSelect() {
         class={`${toggleItemClass} border-l border-slate-2 dark:border-slate-6`}
       >
         {t1("config.pitch_scale_density")}
+      </ToggleGroup.Item>
+    </ToggleGroup>
+  );
+}
+
+export function PitchTuningModeSelect() {
+  const { config, setConfig } = useConfigStore()!;
+  const { t1 } = usei18n()!;
+
+  return (
+    <ToggleGroup
+      value={config.ui.pitch_tuning_mode ?? DEFAULT_PITCH_TUNING_MODE}
+      onChange={(value) => {
+        if (value !== null)
+          setConfig("ui", "pitch_tuning_mode", value as PitchTuningMode);
+      }}
+      aria-label={t1("config.pitch_tuning_mode")}
+      class="flex h-8 overflow-hidden rounded-md border border-slate-2 dark:border-slate-6"
+    >
+      <ToggleGroup.Item value="Absolute" class={toggleItemClass}>
+        {t1("config.pitch_tuning_absolute")}
+      </ToggleGroup.Item>
+      <ToggleGroup.Item
+        value="Relative"
+        class={`${toggleItemClass} border-l border-slate-2 dark:border-slate-6`}
+      >
+        {t1("config.pitch_tuning_relative")}
       </ToggleGroup.Item>
     </ToggleGroup>
   );

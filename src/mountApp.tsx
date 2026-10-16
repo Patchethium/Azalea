@@ -5,6 +5,7 @@ import { ConfigProvider } from "@contexts/config";
 import { i18nProvider } from "@contexts/i18n";
 import { MetaProvider } from "@contexts/meta";
 import { ShortcutsProvider } from "@contexts/shortcuts";
+import { PitchBaselineProvider } from "@contexts/pitchBaseline";
 import { SpectrogramProvider } from "@contexts/spectrogram";
 import { SystemProvider } from "@contexts/system";
 import { TextProvider } from "@contexts/text";
@@ -18,6 +19,7 @@ export const mountApp = () =>
           [MetaProvider, []],
           [UIProvider, null],
           [SpectrogramProvider, null],
+          [PitchBaselineProvider, null],
           [ConfigProvider, null],
           [SystemProvider, null],
           [ShortcutsProvider, null],

@@ -56,7 +56,9 @@
     "playback_phrase_anchor": "アクセント句{{ index }}から再生",
     "jump_to_playback_anchor": "再生開始アクセント句を表示",
     "reset_accent_edits": "アクセント句の編集をリセット（ピッチと長さもリセットされます）",
-    "reset_tuning_edits": "ピッチと長さの編集をリセット"
+    "reset_tuning_edits": "ピッチと長さの編集をリセット",
+    "pitch_drift_value": "{{ value }} 半音",
+    "tuning_options": "調整オプション"
   },
   "shortcuts": {
     "title": "ショートカット",
@@ -160,8 +162,7 @@
     "export_all": "すべて書き出し",
     "export_all_combined": "すべてを1つのファイルに書き出し…",
     "quit": "終了",
-    "about": "このアプリについて",
-    "hide_pitch_ruler": "ピッチルーラーを非表示"
+    "about": "このアプリについて"
   },
   "export_all": {
     "title": "すべて書き出し",
@@ -212,6 +213,12 @@
     "pitch_scale_linear": "リニア",
     "pitch_scale_optimal": "最適",
     "pitch_scale_density": "分布に応じる",
+    "pitch_tuning_mode": "ピッチ調整",
+    "pitch_tuning_description": "相対モードでは、スライダーが予測ピッチから始まり、半音単位のずれを加えます。",
+    "pitch_tuning_absolute": "絶対",
+    "pitch_tuning_relative": "相対",
+    "pitch_drift_range": "ずれの範囲（半音）",
+    "reset_pitch_drift_range": "ずれの範囲を既定値に戻す",
     "primary_color": "メインカラー",
     "reset_primary_color": "既定のメインカラーに戻す",
     "hue_saturation": "色相と彩度",

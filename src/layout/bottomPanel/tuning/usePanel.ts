@@ -1,4 +1,5 @@
 import {
+  type AccentPhrase,
   type AudioQuery,
   commands,
   events,
@@ -7,14 +8,23 @@ import {
 } from "$binding";
 import {
   DEFAULT_BOTTOM_SCALE,
+  DEFAULT_PITCH_DRIFT_RANGE,
+  DEFAULT_PITCH_NOISE_SIGMA,
   DEFAULT_PITCH_SCALE,
+  DEFAULT_PITCH_TUNING_MODE,
   DEFAULT_SYNTHESIS_DELAY_MS,
+  MAX_PITCH_DRIFT_RANGE,
   MAX_SYNTHESIS_DELAY_MS,
   MAX_RENDER_ATTEMPTS,
+  MIN_PITCH_DRIFT_RANGE,
   RENDER_RETRY_DELAY_MS,
 } from "$constants";
 import { useConfigStore } from "@contexts/config";
 import { useMetaStore } from "@contexts/meta";
+import {
+  createPitchBaselineCache,
+  usePitchBaselineStore,
+} from "@contexts/pitchBaseline";
 import { useSpectrogramStore } from "@contexts/spectrogram";
 import {
   findPresetById,
@@ -39,13 +49,30 @@ import {
   on,
   onCleanup,
   onMount,
+  untrack,
 } from "solid-js";
 
 import { unwrap } from "solid-js/store";
 
-import { createPitchScale } from "./pitchScale";
+import { createDriftScale, createPitchScale } from "./pitchScale";
 
 let spectrogramGenerationSequence = 0;
+
+// Pitch prediction depends on phonemes and accents but not on pitch or
+// duration values, so tuning edits keep the same baseline.
+const pitchStructureSignature = (phrases: readonly AccentPhrase[]) =>
+  JSON.stringify(
+    phrases.map((phrase) => [
+      phrase.accent,
+      phrase.is_interrogative,
+      phrase.pause_mora !== null,
+      phrase.moras.map((mora) => [
+        mora.text,
+        mora.consonant ?? null,
+        mora.vowel,
+      ]),
+    ]),
+  );
 
 type ActiveSpectrogramRequest = {
   request: SpectrogramJobRequest;
@@ -445,6 +472,102 @@ export function useTuningPanel(
       config.ui.pitch_scale ?? DEFAULT_PITCH_SCALE,
     );
   });
+  const tuningMode = () =>
+    config.ui.pitch_tuning_mode ?? DEFAULT_PITCH_TUNING_MODE;
+  const driftScale = createMemo(() =>
+    createDriftScale(
+      _.clamp(
+        config.ui.pitch_drift_range ?? DEFAULT_PITCH_DRIFT_RANGE,
+        MIN_PITCH_DRIFT_RANGE,
+        MAX_PITCH_DRIFT_RANGE,
+      ),
+    ),
+  );
+
+  // The relative-mode baseline is the seeded prediction for the current
+  // phonemes and accents. It is deterministic, so results are cached by key
+  // across panel mounts and never persisted; pitch completion does not rebase
+  // it.
+  const { getPitchBaseline, setPitchBaseline } =
+    usePitchBaselineStore() ?? createPitchBaselineCache();
+  const pendingPitchBaselines = new Set<string>();
+  const pitchBaselineKey = createMemo(() => {
+    if (tuningMode() !== "Relative") return null;
+    const block = currentText();
+    const preset = currentPreset();
+    const phrases = block?.query?.accent_phrases;
+    if (!block || preset === null || !phrases?.length) return null;
+    return JSON.stringify([
+      block.id,
+      preset.style_id,
+      block.pitch_noise_seed,
+      config.ui.pitch_noise_enabled ?? false,
+      config.ui.pitch_noise_sigma ?? DEFAULT_PITCH_NOISE_SIGMA,
+      coreRevision(),
+      pitchStructureSignature(phrases),
+    ]);
+  });
+  createEffect(
+    on(pitchBaselineKey, async (key) => {
+      if (
+        key === null ||
+        untrack(() => getPitchBaseline(key)) !== null ||
+        pendingPitchBaselines.has(key)
+      )
+        return;
+      const block = currentText();
+      const preset = currentPreset();
+      // Unedited pitches are the prediction itself; `pitchBaseline` uses them.
+      if (!block?.query || preset === null || block.pitch_is_modified !== true)
+        return;
+      const phrases = structuredClone(unwrap(block.query.accent_phrases));
+      pendingPitchBaselines.add(key);
+      try {
+        const result = await commands.replaceMoraPitch(
+          phrases,
+          preset.style_id,
+          block.pitch_noise_seed,
+        );
+        if (result.status === "error") {
+          if (mounted)
+            console.error("Failed to predict pitch baseline:", result.error);
+          return;
+        }
+        // The result is valid for its own key even if the block has changed
+        // since, so it is cached rather than discarded.
+        setPitchBaseline(
+          key,
+          result.data.map((phrase) => phrase.moras.map((mora) => mora.pitch)),
+        );
+      } catch (error) {
+        if (mounted) console.error("Failed to predict pitch baseline:", error);
+      } finally {
+        pendingPitchBaselines.delete(key);
+      }
+    }),
+  );
+  const pitchBaseline = createMemo(() => {
+    const key = pitchBaselineKey();
+    if (key === null) return null;
+    const cached = getPitchBaseline(key);
+    if (cached !== null) return cached;
+    const query = currentText()?.query;
+    if (!query || currentText()?.pitch_is_modified === true) return null;
+    // Pitches without manual edits were generated from this seed and these
+    // phonemes, so they are the baseline. Snapshot them synchronously so
+    // sliders start centered instead of waiting for a prediction request,
+    // and later pitch edits drift from this snapshot.
+    const snapshot = untrack(() =>
+      query.accent_phrases.map((phrase) =>
+        phrase.moras.map((mora) => mora.pitch),
+      ),
+    );
+    setPitchBaseline(key, snapshot, false);
+    return snapshot;
+  });
+  const baselineFor = (phraseIndex: number, moraIndex: number) =>
+    pitchBaseline()?.[phraseIndex]?.[moraIndex] ?? null;
+
   const [draggingData, setDraggingData] = createSignal<{
     apIndex: number;
     moraIndex: number;
@@ -649,6 +772,9 @@ export function useTuningPanel(
     spectrogram,
     spectrogramStale,
     pitchScale,
+    tuningMode,
+    driftScale,
+    baselineFor,
     draggingData,
     setDraggingData,
     setStartX,

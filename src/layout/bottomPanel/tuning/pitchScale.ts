@@ -58,3 +58,16 @@ export function createPitchScale(
 }
 
 export type PitchScale = ReturnType<typeof createPitchScale>;
+
+/** Linear semitone scale centered on the predicted pitch at position 0.5. */
+export function createDriftScale(range: number) {
+  const toPosition = (semitones: number) =>
+    range > 0
+      ? (Math.min(Math.max(semitones, -range), range) + range) / (2 * range)
+      : 0.5;
+  const toDrift = (position: number) =>
+    (Math.min(Math.max(position, 0), 1) * 2 - 1) * range;
+  return { min: -range, max: range, toPosition, toDrift };
+}
+
+export type DriftScale = ReturnType<typeof createDriftScale>;

@@ -56,7 +56,9 @@
     "playback_phrase_anchor": "从重音短语 {{ index }} 开始播放",
     "jump_to_playback_anchor": "显示播放起始重音短语",
     "reset_accent_edits": "重置重音短语编辑（音高和时长也会重置）",
-    "reset_tuning_edits": "重置音高和时长编辑"
+    "reset_tuning_edits": "重置音高和时长编辑",
+    "pitch_drift_value": "{{ value }} 个半音",
+    "tuning_options": "调整选项"
   },
   "shortcuts": {
     "title": "快捷键",
@@ -178,6 +180,12 @@
     "pitch_scale_linear": "线性",
     "pitch_scale_optimal": "最优",
     "pitch_scale_density": "密度感知",
+    "pitch_tuning_mode": "音高调整",
+    "pitch_tuning_description": "相对模式下，滑块从预测音高开始，以半音为单位添加偏移。",
+    "pitch_tuning_absolute": "绝对",
+    "pitch_tuning_relative": "相对",
+    "pitch_drift_range": "偏移范围（半音）",
+    "reset_pitch_drift_range": "恢复默认偏移范围",
     "primary_color": "主色调",
     "reset_primary_color": "恢复默认主色调",
     "hue_saturation": "色相和饱和度",
@@ -245,8 +253,7 @@
     "export_all": "导出全部",
     "export_all_combined": "全部导出为单个文件…",
     "quit": "退出",
-    "about": "关于",
-    "hide_pitch_ruler": "隐藏音高标尺"
+    "about": "关于"
   },
   "export_all": {
     "title": "导出全部",

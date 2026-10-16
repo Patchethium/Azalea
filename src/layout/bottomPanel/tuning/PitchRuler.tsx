@@ -1,39 +1,55 @@
-import type { PitchScale as PitchScaleMode } from "$binding";
-import { DEFAULT_PITCH_SCALE } from "$constants";
-import { useConfigStore } from "@contexts/config";
 import { usei18n } from "@contexts/i18n";
-import { ContextMenu } from "@kobalte/core/context-menu";
 import { createMemo, For, Show } from "solid-js";
-import type { PitchScale } from "./pitchScale";
+import type { DriftScale, PitchScale } from "./pitchScale";
 import styles from "./PitchRuler.module.css";
 
 export const PITCH_RULER_WIDTH = 64;
-const pitchScaleOptions = [
-  ["Linear", "config.pitch_scale_linear"],
-  ["Optimal", "config.pitch_scale_optimal"],
-  ["DensityAware", "config.pitch_scale_density"],
-] as const;
+const DRIFT_STEPS = [1, 2, 3, 6, 12];
+const MAX_DRIFT_TICKS = 16;
 
-export function PitchRuler(props: { scale: PitchScale; height: number }) {
+const signed = (value: number) =>
+  value > 0 ? `+${value}` : value < 0 ? `${value}` : "0";
+
+const tickValues = (min: number, max: number, step: number) => {
+  const values = [min];
+  for (
+    let n = Math.floor((min + step * 1e-6) / step) + 1;
+    n * step < max - step * 1e-6;
+    n++
+  ) {
+    values.push(n * step);
+  }
+  values.push(max);
+  return values;
+};
+
+/**
+ * Shows absolute log pitch, or semitone drift from the prediction when
+ * `driftScale` is set.
+ */
+export function PitchRuler(props: {
+  scale: PitchScale;
+  driftScale?: DriftScale | null;
+  height: number;
+}) {
   const { t1 } = usei18n()!;
-  const { config, setConfig, setPitchRulerEnabled } = useConfigStore()!;
-  const pitchScale = () => config.ui.pitch_scale ?? DEFAULT_PITCH_SCALE;
   const ticks = createMemo(() => {
-    const { min, max, toPosition } = props.scale;
+    const drift = props.driftScale ?? null;
+    const { min, max, toPosition } = drift ?? props.scale;
     const span = max - min;
     if (span <= 0) return [];
-    const magnitude = 10 ** Math.floor(Math.log10(span / 20));
-    const step =
-      [1, 2, 5, 10].find((n) => n * magnitude >= span / 20)! * magnitude;
-    const values = [min];
-    for (
-      let n = Math.floor((min + step * 1e-6) / step) + 1;
-      n * step < max - step * 1e-6;
-      n++
-    ) {
-      values.push(n * step);
+    let values: number[];
+    if (drift === null) {
+      const magnitude = 10 ** Math.floor(Math.log10(span / 20));
+      const step =
+        [1, 2, 5, 10].find((n) => n * magnitude >= span / 20)! * magnitude;
+      values = tickValues(min, max, step);
+    } else {
+      const step =
+        DRIFT_STEPS.find((n) => span / n <= MAX_DRIFT_TICKS) ??
+        DRIFT_STEPS[DRIFT_STEPS.length - 1];
+      values = tickValues(min, max, step);
     }
-    values.push(max);
     let previousLabel = 0;
     return values.map((pitch, index) => {
       const position = toPosition(pitch);
@@ -45,8 +61,10 @@ export function PitchRuler(props: { scale: PitchScale; height: number }) {
         last ||
         (pixels - previousLabel >= 24 && props.height - pixels >= 24);
       if (labeled) previousLabel = pixels;
+      const value = Number(pitch.toFixed(3));
       return {
-        pitch: Number(pitch.toFixed(3)),
+        pitch: value,
+        label: drift === null ? `${value}` : signed(value),
         position,
         labeled,
         first,
@@ -56,71 +74,36 @@ export function PitchRuler(props: { scale: PitchScale; height: number }) {
   });
 
   return (
-    <ContextMenu>
-      <ContextMenu.Trigger
-        role="group"
-        aria-label={t1("config.pitch_scale")}
-        class={styles.ruler}
-        style={{
-          height: `${props.height}px`,
-          width: `${PITCH_RULER_WIDTH}px`,
-        }}
-      >
-        <For each={ticks()}>
-          {(tick) => (
-            <span
-              class={styles.tick}
-              classList={{ [styles.minor]: !tick.labeled }}
-              style={{ bottom: `${tick.position * 100}%` }}
-              data-pitch={tick.pitch}
-            >
-              <Show when={tick.labeled}>
-                <span
-                  class={styles.label}
-                  style={{
-                    transform: `translateY(${tick.first ? 0 : tick.last ? 100 : 50}%)`,
-                  }}
-                >
-                  {tick.pitch}
-                </span>
-              </Show>
-            </span>
-          )}
-        </For>
-      </ContextMenu.Trigger>
-      <ContextMenu.Portal>
-        <ContextMenu.Content class="z-50 bg-slate-1 dark:bg-slate-7 p-1 outline-none rounded-md ring-1 ring-slate-3 dark:ring-slate-5 shadow-xl">
-          <ContextMenu.RadioGroup
-            value={pitchScale()}
-            onChange={(value) =>
-              setConfig("ui", "pitch_scale", value as PitchScaleMode)
-            }
+    <div
+      role="group"
+      aria-label={t1("config.pitch_ruler")}
+      class={styles.ruler}
+      style={{
+        height: `${props.height}px`,
+        width: `${PITCH_RULER_WIDTH}px`,
+      }}
+    >
+      <For each={ticks()}>
+        {(tick) => (
+          <span
+            class={styles.tick}
+            classList={{ [styles.minor]: !tick.labeled }}
+            style={{ bottom: `${tick.position * 100}%` }}
+            data-pitch={tick.pitch}
           >
-            <For each={pitchScaleOptions}>
-              {([value, label]) => (
-                <ContextMenu.RadioItem
-                  class={styles.menu_item}
-                  value={value}
-                  closeOnSelect
-                >
-                  <ContextMenu.ItemIndicator class="size-4 flex items-center justify-center">
-                    <div class="i-lucide:check size-4" />
-                  </ContextMenu.ItemIndicator>
-                  <ContextMenu.ItemLabel>{t1(label)}</ContextMenu.ItemLabel>
-                </ContextMenu.RadioItem>
-              )}
-            </For>
-          </ContextMenu.RadioGroup>
-          <ContextMenu.Item
-            class={styles.menu_item}
-            onSelect={() => setPitchRulerEnabled(false)}
-          >
-            <ContextMenu.ItemLabel>
-              {t1("menu.hide_pitch_ruler")}
-            </ContextMenu.ItemLabel>
-          </ContextMenu.Item>
-        </ContextMenu.Content>
-      </ContextMenu.Portal>
-    </ContextMenu>
+            <Show when={tick.labeled}>
+              <span
+                class={styles.label}
+                style={{
+                  transform: `translateY(${tick.first ? 0 : tick.last ? 100 : 50}%)`,
+                }}
+              >
+                {tick.label}
+              </span>
+            </Show>
+          </span>
+        )}
+      </For>
+    </div>
   );
 }

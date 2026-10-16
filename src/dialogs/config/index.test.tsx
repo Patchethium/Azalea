@@ -2,6 +2,7 @@ import { commands } from "$binding";
 import en from "../../i18n/en.json";
 import {
   DEFAULT_PRIMARY_COLOR,
+  DEFAULT_PITCH_DRIFT_RANGE,
   DEFAULT_PITCH_NOISE_SIGMA,
   MAX_PITCH_NOISE_SIGMA,
 } from "$constants";
@@ -278,6 +279,62 @@ describe("ConfigPage", () => {
     await waitFor(() => expect(ui.uiStore.page).toBeNull());
     expect(screen.getByRole("dialog", { name: "Config" })).toHaveAttribute(
       "data-closed",
+    );
+  });
+
+  it("switches pitch tuning mode and keeps the hidden drift range", async () => {
+    let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
+    const Harness: Component = () => {
+      appConfig = useConfigStore()!;
+      const ui = useUIStore()!;
+      onMount(() => {
+        batch(() => {
+          appConfig.setConfig(config());
+          ui.setUIStore("page", "config");
+        });
+      });
+      return <ConfigPage />;
+    };
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [i18nProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+    await screen.findByRole("dialog", { name: "Config" });
+    const absoluteTuning = screen.getByRole("button", { name: "Absolute" });
+    const relativeTuning = screen.getByRole("button", { name: "Relative" });
+    expect(absoluteTuning).toHaveAttribute("aria-pressed", "true");
+    const driftRange = () =>
+      screen.queryByRole("spinbutton", { name: en.config.pitch_drift_range });
+    expect(driftRange()).not.toBeInTheDocument();
+    await userEvent.click(relativeTuning);
+    expect(appConfig.config.ui.pitch_tuning_mode).toBe("Relative");
+    expect(driftRange()).toHaveValue("12");
+    expect(
+      screen.queryByRole("button", { name: "Restore default drift range" }),
+    ).not.toBeInTheDocument();
+    fireEvent.input(driftRange()!, { target: { value: "5" } });
+    expect(appConfig.config.ui.pitch_drift_range).toBe(5);
+    fireEvent.input(driftRange()!, { target: { value: "100" } });
+    expect(appConfig.config.ui.pitch_drift_range).toBe(24);
+    // Hiding the nested row keeps the stored range for re-enabling.
+    await userEvent.click(absoluteTuning);
+    expect(driftRange()).not.toBeInTheDocument();
+    expect(appConfig.config.ui.pitch_drift_range).toBe(24);
+    await userEvent.click(relativeTuning);
+    expect(driftRange()).toHaveValue("24");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Restore default drift range" }),
+    );
+    expect(appConfig.config.ui.pitch_drift_range).toBe(
+      DEFAULT_PITCH_DRIFT_RANGE,
     );
   });
 

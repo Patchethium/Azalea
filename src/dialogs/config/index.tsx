@@ -7,6 +7,7 @@ import {
   FontSelect,
   I18NSelect,
   PitchScaleSelect,
+  PitchTuningModeSelect,
   PrimaryColorPicker,
   ThemeSelect,
   TitlebarStyleSelect,
@@ -25,9 +26,13 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import _ from "lodash";
 import { createSignal, For, Show } from "solid-js";
 import {
+  DEFAULT_PITCH_DRIFT_RANGE,
   DEFAULT_PITCH_NOISE_SIGMA,
+  DEFAULT_PITCH_TUNING_MODE,
   DEFAULT_SYNTHESIS_DELAY_MS,
+  MAX_PITCH_DRIFT_RANGE,
   MAX_PITCH_NOISE_SIGMA,
+  MIN_PITCH_DRIFT_RANGE,
   MAX_SYNTHESIS_DELAY_MS,
 } from "$constants";
 import { useConfigStore } from "@contexts/config";
@@ -166,6 +171,61 @@ export function ConfigPage() {
             <ConfigItem label={t1("config.pitch_scale")}>
               <PitchScaleSelect />
             </ConfigItem>
+            <ConfigItem
+              label={t1("config.pitch_tuning_mode")}
+              description={t1("config.pitch_tuning_description")}
+            >
+              <PitchTuningModeSelect />
+            </ConfigItem>
+            <Show
+              when={
+                (config.ui.pitch_tuning_mode ?? DEFAULT_PITCH_TUNING_MODE) ===
+                "Relative"
+              }
+            >
+              <ConfigItem label={t1("config.pitch_drift_range")} nested>
+                <div class="flex items-center gap1">
+                  <Show
+                    when={
+                      (config.ui.pitch_drift_range ??
+                        DEFAULT_PITCH_DRIFT_RANGE) !== DEFAULT_PITCH_DRIFT_RANGE
+                    }
+                  >
+                    <Tooltip content={t1("config.reset_pitch_drift_range")}>
+                      <button
+                        type="button"
+                        aria-label={t1("config.reset_pitch_drift_range")}
+                        onClick={() =>
+                          setConfig(
+                            "ui",
+                            "pitch_drift_range",
+                            DEFAULT_PITCH_DRIFT_RANGE,
+                          )
+                        }
+                        class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) dark:hover:bg-slate-7"
+                      >
+                        <div class="i-lucide:rotate-ccw size-4" />
+                      </button>
+                    </Tooltip>
+                  </Show>
+                  <div class="w-28">
+                    <NumberInput
+                      label={t1("config.pitch_drift_range")}
+                      hideLabel
+                      value={
+                        config.ui.pitch_drift_range ?? DEFAULT_PITCH_DRIFT_RANGE
+                      }
+                      setValue={(value) =>
+                        setConfig("ui", "pitch_drift_range", value)
+                      }
+                      min={MIN_PITCH_DRIFT_RANGE}
+                      max={MAX_PITCH_DRIFT_RANGE}
+                      step={1}
+                    />
+                  </div>
+                </div>
+              </ConfigItem>
+            </Show>
             <ConfigItem label={t1("config.primary_color")}>
               <PrimaryColorPicker />
             </ConfigItem>

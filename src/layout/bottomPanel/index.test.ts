@@ -1,4 +1,5 @@
 import {
+  type AccentPhrase,
   commands,
   events,
   type SpectrogramJobRequest,
@@ -15,6 +16,7 @@ import { fireEvent, screen, waitFor, within } from "@solidjs/testing-library";
 import userEvent from "@testing-library/user-event";
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
+import { SEMITONE } from "$constants";
 import { describe, expect, it, vi } from "vitest";
 import { audioQuery, mora, preset, spectrogram } from "../../test/fixtures";
 import tuningStyles from "./tuning/Timeline.module.css";
@@ -2246,7 +2248,7 @@ describe("BottomPanel playback", () => {
     expect(handle).toHaveAttribute("aria-valuemax", "152");
     expect(handle).toHaveAttribute("aria-valuenow", "80");
     expect(getConfigStore().config.ui.bottom_duration_height).toBe(80);
-    const ruler = screen.getByRole("group", { name: "Pitch scale" });
+    const ruler = screen.getByRole("group", { name: "Pitch ruler" });
     expect(ruler).toHaveStyle({ height: "120px", width: "64px" });
     expect(ruler.querySelector('[data-pitch="3.4"]')).toHaveTextContent("3.4");
     expect(ruler.querySelector('[data-pitch="6.5"]')).toHaveTextContent("6.5");
@@ -2327,7 +2329,7 @@ describe("BottomPanel playback", () => {
     const virtualTimeline = tuningPanel.querySelector<HTMLElement>(
       "[data-tuning-virtualizer]",
     )!;
-    const ruler = screen.getByRole("group", { name: "Pitch scale" });
+    const ruler = screen.getByRole("group", { name: "Pitch ruler" });
     expect(tuningPanel).not.toContainElement(ruler);
     expect(tuningPanel.parentElement).toContainElement(ruler);
 
@@ -2364,7 +2366,7 @@ describe("BottomPanel playback", () => {
       expect(within(tuningPanel).queryByText("mora-0")).not.toBeInTheDocument(),
     );
     expect(within(tuningPanel).getByText("mora-99")).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Pitch scale" })).toBe(ruler);
+    expect(screen.getByRole("group", { name: "Pitch ruler" })).toBe(ruler);
 
     getConfigStore().setConfig("ui", "bottom_scale", 720);
     await waitFor(() =>
@@ -2484,7 +2486,7 @@ describe("BottomPanel playback", () => {
       spectrogram_preview: false,
     });
     expect(
-      screen.queryByRole("group", { name: "Pitch scale" }),
+      screen.queryByRole("group", { name: "Pitch ruler" }),
     ).not.toBeInTheDocument();
     getConfigStore().setRange({
       1: {
@@ -2498,7 +2500,7 @@ describe("BottomPanel playback", () => {
     getConfigStore().setConfig("ui", "pitch_scale", "DensityAware");
     fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
     const slider = await screen.findByRole("slider", { name: "コ" });
-    const ruler = screen.getByRole("group", { name: "Pitch scale" });
+    const ruler = screen.getByRole("group", { name: "Pitch ruler" });
     const middleTick = () =>
       ruler.querySelector<HTMLElement>('[data-pitch="5"]')!;
     expect(Number.parseFloat(middleTick().style.bottom)).toBeCloseTo(82);
@@ -2557,11 +2559,11 @@ describe("BottomPanel playback", () => {
     expect(pitch()).toBe(4);
     getConfigStore().setRange(null);
     expect(
-      screen.queryByRole("group", { name: "Pitch scale" }),
+      screen.queryByRole("group", { name: "Pitch ruler" }),
     ).not.toBeInTheDocument();
   });
 
-  it("changes the pitch scale and hides the ruler from its context menu", async () => {
+  it("changes the pitch scale and toggles the ruler from the toolbar menu", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
@@ -2577,13 +2579,23 @@ describe("BottomPanel playback", () => {
       },
     });
     getConfigStore().setConfig("ui", "pitch_scale", "DensityAware");
-    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-    const ruler = await screen.findByRole("group", { name: "Pitch scale" });
+    // The menu only affects the tuning panel.
+    await screen.findByRole("tab", { name: "Tuning" });
+    expect(
+      screen.queryByRole("button", { name: "Tuning options" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Tuning" }));
+    const ruler = await screen.findByRole("group", { name: "Pitch ruler" });
     const middleTick = () =>
       ruler.querySelector<HTMLElement>('[data-pitch="5"]')!;
     expect(Number.parseFloat(middleTick().style.bottom)).toBeCloseTo(82);
+    const menuButton = screen.getByRole("button", { name: "Tuning options" });
 
-    fireEvent.contextMenu(ruler);
+    // The ruler no longer owns a context menu.
+    expect(fireEvent.contextMenu(ruler)).toBe(true);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+
+    await user.click(menuButton);
     const density = await screen.findByRole("menuitemradio", {
       name: "Density-aware",
     });
@@ -2596,20 +2608,32 @@ describe("BottomPanel playback", () => {
       expect(density.closest("[data-closed]")).not.toBeNull(),
     );
 
-    fireEvent.contextMenu(ruler);
-    await user.click(
-      await screen.findByRole("menuitem", { name: "Hide pitch ruler" }),
-    );
+    await user.click(menuButton);
+    const rulerItem = await screen.findByRole("menuitemcheckbox", {
+      name: "Pitch ruler",
+    });
+    expect(rulerItem).toHaveAttribute("aria-checked", "true");
+    await user.click(rulerItem);
+    expect(getConfigStore().pitchRulerEnabled()).toBe(false);
     await waitFor(() =>
       expect(
-        screen.queryByRole("group", { name: "Pitch scale" }),
+        screen.queryByRole("group", { name: "Pitch ruler" }),
       ).not.toBeInTheDocument(),
     );
     expect(document.querySelector("[data-tuning-ghost]")).not.toBeNull();
 
-    getConfigStore().setConfig("ui", "pitch_ruler", true);
+    // The menu stays reachable to show the hidden ruler again.
+    await waitFor(() =>
+      expect(rulerItem.closest("[data-closed]")).not.toBeNull(),
+    );
+    await user.click(menuButton);
+    const hiddenRulerItem = await screen.findByRole("menuitemcheckbox", {
+      name: "Pitch ruler",
+    });
+    expect(hiddenRulerItem).toHaveAttribute("aria-checked", "false");
+    await user.click(hiddenRulerItem);
     expect(
-      await screen.findByRole("group", { name: "Pitch scale" }),
+      await screen.findByRole("group", { name: "Pitch ruler" }),
     ).toBeInTheDocument();
   });
 
@@ -3689,5 +3713,407 @@ describe("Pitch completion", () => {
     getTextStore().resetQueryEdits(0);
     await vi.advanceTimersByTimeAsync(100);
     expect(complete).not.toHaveBeenCalled();
+  });
+});
+
+describe("Relative pitch tuning", () => {
+  const predicted = (pitch: number) => async (phrases: AccentPhrase[]) => ({
+    status: "ok" as const,
+    data: phrases.map((phrase) => ({
+      ...phrase,
+      moras: phrase.moras.map((item) => ({ ...item, pitch })),
+    })),
+  });
+  const mockTrack = (slider: HTMLElement) => {
+    const track = slider.parentElement!;
+    vi.spyOn(track, "getBoundingClientRect").mockReturnValue({
+      top: 0,
+      left: 0,
+      width: 100,
+      height: 100,
+    } as DOMRect);
+    Object.assign(track, {
+      setPointerCapture: vi.fn(),
+      hasPointerCapture: () => true,
+      releasePointerCapture: vi.fn(),
+    });
+    return track;
+  };
+
+  // Edited pitches are not the prediction, so the baseline must be requested.
+  const markPitchEdited = async (
+    getTextStore: ReturnType<typeof renderPanel>["getTextStore"],
+  ) => {
+    await screen.findByRole("tab", { name: "Tuning" });
+    getTextStore().setTextStore(0, "pitch_is_modified", true);
+  };
+
+  it("centers unedited pitches immediately without requesting a prediction", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const replace = vi
+      .spyOn(commands, "replaceMoraPitch")
+      .mockImplementation(predicted(5));
+    const { getTextStore } = renderPanel({
+      spectrogram_preview: false,
+      pitch_tuning_mode: "Relative",
+    });
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    const slider = await screen.findByRole("slider", { name: "コ" });
+    expect(slider).toHaveAttribute("aria-valuetext", "0 semitones");
+    expect(Number(slider.getAttribute("aria-valuenow"))).toBe(0.5);
+    const track = mockTrack(slider);
+    fireEvent(
+      track,
+      new MouseEvent("pointerdown", { bubbles: true, clientY: 25 }),
+    );
+    fireEvent(
+      track,
+      new MouseEvent("pointerup", { bubbles: true, clientY: 25 }),
+    );
+    const pitch = () =>
+      getTextStore().textStore[0].query!.accent_phrases[0].moras[0].pitch;
+    // The edit drifts from the snapshot taken before it.
+    expect(pitch()).toBeCloseTo(5.4 + 6 * SEMITONE, 6);
+    expect(slider).toHaveAttribute("aria-valuetext", "+6.00 semitones");
+
+    // The cached snapshot survives remounting the tuning panel.
+    fireEvent.click(screen.getByRole("tab", { name: "Accent" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Tuning" }));
+    expect(await screen.findByRole("slider", { name: "コ" })).toHaveAttribute(
+      "aria-valuetext",
+      "+6.00 semitones",
+    );
+    await Promise.resolve();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("resets drift to the prediction on right click", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const { getConfigStore, getTextStore } = renderPanel({
+      spectrogram_preview: false,
+      pitch_tuning_mode: "Relative",
+    });
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    const slider = await screen.findByRole("slider", { name: "コ" });
+    const track = mockTrack(slider);
+    const block = () => getTextStore().textStore[0];
+    const pitch = () => block().query!.accent_phrases[0].moras[0].pitch;
+
+    // Resetting a centered slider is not an edit.
+    expect(fireEvent.contextMenu(slider)).toBe(false);
+    expect(block().pitch_is_modified).toBe(false);
+
+    fireEvent(
+      track,
+      new MouseEvent("pointerdown", { bubbles: true, clientY: 25 }),
+    );
+    fireEvent(
+      track,
+      new MouseEvent("pointerup", { bubbles: true, clientY: 25 }),
+    );
+    expect(slider).toHaveAttribute("aria-valuetext", "+6.00 semitones");
+
+    // The secondary button does not move the slider before the reset.
+    fireEvent(
+      track,
+      new MouseEvent("pointerdown", { bubbles: true, button: 2, clientY: 0 }),
+    );
+    expect(slider).toHaveAttribute("aria-valuetext", "+6.00 semitones");
+    expect(fireEvent.contextMenu(track)).toBe(false);
+    expect(pitch()).toBe(5.4);
+    expect(slider).toHaveAttribute("aria-valuetext", "0 semitones");
+    expect(block().pitch_is_modified).toBe(true);
+    expect(block().accent_is_modified).toBe(false);
+
+    // Absolute sliders keep the native context menu.
+    getConfigStore().setConfig("ui", "pitch_tuning_mode", "Absolute");
+    expect(fireEvent.contextMenu(track)).toBe(true);
+    expect(pitch()).toBe(5.4);
+  });
+
+  it("moves sliders without a transition when the baseline arrives", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const frames: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    const cancel = vi.spyOn(window, "cancelAnimationFrame");
+    let resolve!: (pitch: number) => void;
+    vi.spyOn(commands, "replaceMoraPitch").mockImplementation(
+      (phrases) =>
+        new Promise((done) => {
+          resolve = (pitch) => done(predicted(pitch)(phrases) as never);
+        }),
+    );
+    const { getConfigStore, getTextStore, unmount } = renderPanel({
+      spectrogram_preview: false,
+      pitch_tuning_mode: "Relative",
+    });
+    await markPitchEdited(getTextStore);
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    const slider = await screen.findByRole("slider", { name: "コ" });
+    const root = slider.closest('[role="group"]')!;
+    expect(root).not.toHaveClass(tuningStyles.instantPitch);
+    await waitFor(() => expect(resolve).toBeDefined());
+    resolve(5);
+    await waitFor(() =>
+      expect(slider).toHaveAttribute("aria-valuetext", "+6.92 semitones"),
+    );
+    expect(root).toHaveClass(tuningStyles.instantPitch);
+    const pending = frames.length;
+    frames[pending - 1](0);
+    expect(root).toHaveClass(tuningStyles.instantPitch);
+    frames[frames.length - 1](0);
+    expect(root).not.toHaveClass(tuningStyles.instantPitch);
+
+    // A mode switch is instant too; unmounting cancels the pending frame.
+    getConfigStore().setConfig("ui", "pitch_tuning_mode", "Absolute");
+    expect(root).toHaveClass(tuningStyles.instantPitch);
+    getConfigStore().setConfig("ui", "pitch_tuning_mode", "Relative");
+    expect(cancel).toHaveBeenCalled();
+    cancel.mockClear();
+    unmount();
+    expect(cancel).toHaveBeenCalled();
+  });
+
+  it("maps sliders to semitone drift from the seeded prediction", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const replace = vi
+      .spyOn(commands, "replaceMoraPitch")
+      .mockImplementation(predicted(5));
+    const { getConfigStore, getTextStore } = renderPanel({
+      spectrogram_preview: false,
+      pitch_tuning_mode: "Relative",
+    });
+    await markPitchEdited(getTextStore);
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    const slider = await screen.findByRole("slider", { name: "コ" });
+    // 5.4 - 5.0 = 0.4 log pitch = 6.92 semitones above the prediction.
+    await waitFor(() =>
+      expect(slider).toHaveAttribute("aria-valuetext", "+6.92 semitones"),
+    );
+    expect(replace).toHaveBeenCalledTimes(1);
+    expect(replace.mock.calls[0][1]).toBe(1);
+    expect(replace.mock.calls[0][2]).toBe(0);
+    expect(within(slider).getByText("+6.9")).toBeInTheDocument();
+    expect(Number(slider.getAttribute("aria-valuenow"))).toBeCloseTo(
+      (0.4 / SEMITONE + 12) / 24,
+    );
+    expect(document.querySelector("[data-pitch-baseline]")).not.toBeNull();
+    const fill = slider.previousElementSibling as HTMLElement;
+    expect(fill.style.bottom).toBe("50%");
+
+    const track = mockTrack(slider);
+    fireEvent(
+      track,
+      new MouseEvent("pointerdown", { bubbles: true, clientY: 75 }),
+    );
+    fireEvent(
+      track,
+      new MouseEvent("pointerup", { bubbles: true, clientY: 75 }),
+    );
+    const pitch = () =>
+      getTextStore().textStore[0].query!.accent_phrases[0].moras[0].pitch;
+    expect(pitch()).toBeCloseTo(5 - 6 * SEMITONE, 6);
+    expect(slider).toHaveAttribute("aria-valuetext", "-6.00 semitones");
+    expect(Number.parseFloat(fill.style.bottom)).toBeCloseTo(25);
+    expect(fill.style.top).toBe("50%");
+    expect(getTextStore().textStore[0].pitch_is_modified).toBe(true);
+    expect(getTextStore().textStore[0].accent_is_modified).toBe(false);
+    fireEvent(
+      track,
+      new MouseEvent("pointerdown", { bubbles: true, clientY: 50 }),
+    );
+    fireEvent(
+      track,
+      new MouseEvent("pointerup", { bubbles: true, clientY: 50 }),
+    );
+    expect(pitch()).toBe(5);
+    expect(slider).toHaveAttribute("aria-valuetext", "0 semitones");
+
+    // Pitch and duration edits keep the same prediction.
+    getTextStore().setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      0,
+      "moras",
+      0,
+      "vowel_length",
+      0.2,
+    );
+    await Promise.resolve();
+    expect(replace).toHaveBeenCalledTimes(1);
+
+    getConfigStore().setConfig("ui", "pitch_drift_range", 6);
+    expect(Number(slider.getAttribute("aria-valuenow"))).toBeCloseTo(0.5);
+
+    getConfigStore().setConfig("ui", "pitch_tuning_mode", "Absolute");
+    expect(slider).toHaveAttribute("aria-valuetext", "5.0000");
+    expect(document.querySelector("[data-pitch-baseline]")).toBeNull();
+    expect(pitch()).toBe(5);
+
+    // Returning to a cached prediction does not request it again.
+    getConfigStore().setConfig("ui", "pitch_tuning_mode", "Relative");
+    expect(slider).toHaveAttribute("aria-valuetext", "0 semitones");
+    expect(replace).toHaveBeenCalledTimes(1);
+
+    // Accent edits change the prediction.
+    replace.mockImplementation(predicted(4.8));
+    getTextStore().setTextStore(0, "query", "accent_phrases", 0, "accent", 2);
+    await waitFor(() => expect(replace).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(slider).toHaveAttribute("aria-valuetext", "+3.46 semitones"),
+    );
+  });
+
+  it("uses the newest prediction when an earlier response arrives late", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const pending: Array<(pitch: number) => void> = [];
+    vi.spyOn(commands, "replaceMoraPitch").mockImplementation(
+      (phrases) =>
+        new Promise((resolve) =>
+          pending.push((pitch) => resolve(predicted(pitch)(phrases) as never)),
+        ),
+    );
+    const { getTextStore } = renderPanel({
+      spectrogram_preview: false,
+      pitch_tuning_mode: "Relative",
+    });
+    await markPitchEdited(getTextStore);
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    const slider = await screen.findByRole("slider", { name: "コ" });
+    await waitFor(() => expect(pending).toHaveLength(1));
+    // Loading falls back to the absolute mapping.
+    expect(slider).toHaveAttribute("aria-valuetext", "5.4000");
+    getTextStore().setTextStore(0, "query", "accent_phrases", 0, "accent", 2);
+    await waitFor(() => expect(pending).toHaveLength(2));
+    pending[1](5.2);
+    await waitFor(() =>
+      expect(slider).toHaveAttribute("aria-valuetext", "+3.46 semitones"),
+    );
+    pending[0](5);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(slider).toHaveAttribute("aria-valuetext", "+3.46 semitones");
+  });
+
+  it("falls back to absolute sliders when prediction fails", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const replace = vi
+      .spyOn(commands, "replaceMoraPitch")
+      .mockResolvedValueOnce({ status: "error", error: "no model" })
+      .mockRejectedValueOnce(new Error("ipc"));
+    const { getTextStore } = renderPanel({
+      spectrogram_preview: false,
+      pitch_tuning_mode: "Relative",
+    });
+    await markPitchEdited(getTextStore);
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    const slider = await screen.findByRole("slider", { name: "コ" });
+    await waitFor(() =>
+      expect(error).toHaveBeenCalledWith(
+        "Failed to predict pitch baseline:",
+        "no model",
+      ),
+    );
+    expect(slider).toHaveAttribute("aria-valuetext", "5.4000");
+    expect(document.querySelector("[data-pitch-baseline]")).toBeNull();
+    getTextStore().setTextStore(0, "query", "accent_phrases", 0, "accent", 2);
+    await waitFor(() => expect(replace).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(error).toHaveBeenCalledWith(
+        "Failed to predict pitch baseline:",
+        expect.any(Error),
+      ),
+    );
+    expect(slider).toHaveAttribute("aria-valuetext", "5.4000");
+  });
+
+  it("ignores predictions that settle after unmounting", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    let fail!: (reason: unknown) => void;
+    vi.spyOn(commands, "replaceMoraPitch").mockImplementation(
+      () =>
+        new Promise((_resolve, reject) => {
+          fail = reject;
+        }),
+    );
+    const { unmount, getTextStore } = renderPanel({
+      spectrogram_preview: false,
+      pitch_tuning_mode: "Relative",
+    });
+    await markPitchEdited(getTextStore);
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    await screen.findByRole("slider", { name: "コ" });
+    await waitFor(() => expect(fail).toBeDefined());
+    unmount();
+    fail(new Error("late"));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(error).not.toHaveBeenCalledWith(
+      "Failed to predict pitch baseline:",
+      expect.anything(),
+    );
+  });
+
+  it("labels the ruler in semitones and switches modes from the toolbar menu", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    vi.spyOn(commands, "replaceMoraPitch").mockImplementation(predicted(5));
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const { getConfigStore } = renderPanel({ spectrogram_preview: false });
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    const ruler = await screen.findByRole("group", { name: "Pitch ruler" });
+    const menuButton = screen.getByRole("button", { name: "Tuning options" });
+
+    await user.click(menuButton);
+    expect(
+      await screen.findByRole("menuitemradio", { name: "Absolute" }),
+    ).toHaveAttribute("aria-checked", "true");
+    expect(
+      screen.getByRole("menuitemradio", { name: "Optimal" }),
+    ).toBeInTheDocument();
+    const relative = screen.getByRole("menuitemradio", { name: "Relative" });
+    await user.click(relative);
+    expect(getConfigStore().config.ui.pitch_tuning_mode).toBe("Relative");
+    await waitFor(() =>
+      expect(relative.closest("[data-closed]")).not.toBeNull(),
+    );
+
+    const tick = (value: number) =>
+      ruler.querySelector<HTMLElement>(`[data-pitch="${value}"]`);
+    expect(tick(0)!.style.bottom).toBe("50%");
+    expect(tick(12)).toHaveTextContent("+12");
+    expect(tick(-12)).toHaveTextContent("-12");
+    expect(ruler.querySelectorAll("[data-pitch]")).toHaveLength(13);
+    getConfigStore().setConfig("ui", "pitch_drift_range", 3);
+    expect(ruler.querySelectorAll("[data-pitch]")).toHaveLength(7);
+
+    await user.click(menuButton);
+    expect(
+      await screen.findByRole("menuitemradio", { name: "Relative" }),
+    ).toHaveAttribute("aria-checked", "true");
+    expect(
+      screen.queryByRole("menuitemradio", { name: "Optimal" }),
+    ).not.toBeInTheDocument();
   });
 });

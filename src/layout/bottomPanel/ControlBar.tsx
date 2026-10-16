@@ -6,6 +6,7 @@ import { useTextStore } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
 import { useShortcutsStore } from "@contexts/shortcuts";
 import { PlaybackTimeline } from "@layout/bottomPanel/PlaybackTimeline";
+import { TuningMenu } from "@layout/bottomPanel/tuning/TuningMenu";
 import type { WaveformSynthesisNotice } from "@layout/bottomPanel/types";
 import { usePlaybackControls } from "@layout/bottomPanel/usePlaybackControls";
 import { useQueryReset } from "@layout/bottomPanel/useQueryReset";
@@ -61,7 +62,7 @@ export function ControlBar(props: {
 
   return (
     <div class="w-full flex flex-col b-b b-slate-3 dark:b-slate-6 select-none">
-      <div class="h-8 w-full px-2 flex m-l-auto flex-row items-center justify-center">
+      <div class="h-8 w-full flex m-l-auto flex-row items-center justify-center">
         <div class="flex-1" />
         <ToolbarButton
           icon="i-lucide:skip-back"
@@ -177,6 +178,9 @@ export function ControlBar(props: {
             onClick={controls.speakAllFromSelection}
             disabled={controls.playableFromSelection().length === 0}
           />
+          <Show when={uiStore.bottomPanel === "tuning"}>
+            <TuningMenu />
+          </Show>
         </div>
       </div>
       <Show when={playbackTimelineEnabled()}>

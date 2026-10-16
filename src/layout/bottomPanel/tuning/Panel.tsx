@@ -239,6 +239,15 @@ export function TuningPanel(props: {
                             }
                           }}
                           pitchScale={panel.pitchScale()}
+                          driftScale={panel.driftScale()}
+                          baseline={
+                            currentItem().isPause
+                              ? null
+                              : panel.baselineFor(
+                                  currentItem().phraseIndex,
+                                  currentItem().moraIndex,
+                                )
+                          }
                           durationHeight={durationHeight()}
                           isPause={currentItem().isPause}
                         />
@@ -339,6 +348,9 @@ export function TuningPanel(props: {
       >
         <PitchRuler
           scale={panel.pitchScale()}
+          driftScale={
+            panel.tuningMode() === "Relative" ? panel.driftScale() : null
+          }
           height={Math.max(0, timelineHeight() - durationHeight())}
         />
       </Show>

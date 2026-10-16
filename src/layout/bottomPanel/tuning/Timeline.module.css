@@ -8,3 +8,9 @@
     transition: top 240ms ease-out;
   }
 }
+
+/* Mapping changes (tuning mode, baseline arrival) reposition without motion. */
+.pitchSlider.instantPitch .pitchThumb,
+.pitchSlider.instantPitch .pitchFill {
+  transition: none !important;
+}

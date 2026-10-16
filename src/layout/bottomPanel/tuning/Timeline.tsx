@@ -3,13 +3,22 @@ import {
   DEFAULT_BOTTOM_SCALE,
   DEFAULT_PRIMARY_COLOR,
   PRIMARY_COLOR_PATTERN,
+  SEMITONE,
 } from "$constants";
 import { useConfigStore } from "@contexts/config";
+import { usei18n } from "@contexts/i18n";
 import { Slider } from "@kobalte/core/slider";
 import type { DraggingMode } from "@layout/bottomPanel/types";
 import _ from "lodash";
-import { createEffect, createSignal, Show } from "solid-js";
-import type { PitchScale } from "./pitchScale";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  on,
+  onCleanup,
+  Show,
+} from "solid-js";
+import type { DriftScale, PitchScale } from "./pitchScale";
 import styles from "./Timeline.module.css";
 
 const PITCH_BADGE_WIDTH = 32;
@@ -23,8 +32,12 @@ export function TuningItem(props: {
   pitchScale: PitchScale;
   durationHeight: number;
   isPause?: boolean;
+  /** Predicted pitch for relative tuning; absolute mapping is used when null. */
+  baseline?: number | null;
+  driftScale?: DriftScale;
 }) {
   const { config, spectrogramPreviewEnabled } = useConfigStore()!;
+  const { t2 } = usei18n()!;
   const [pitchMoving, setPitchMoving] = createSignal(false);
   const handlePitchTransition = (event: TransitionEvent) => {
     if (event.propertyName === "bottom")
@@ -43,6 +56,97 @@ export function TuningItem(props: {
   const moraLabel = () => (props.isPause ? "" : props.mora.text);
   const consonantLabel = () => props.mora.consonant ?? "";
   const vowelLabel = () => (props.isPause ? "" : props.mora.vowel);
+  const drift = (): { scale: DriftScale; baseline: number } | null =>
+    props.driftScale !== undefined &&
+    props.baseline != null &&
+    props.baseline > 0
+      ? { scale: props.driftScale, baseline: props.baseline }
+      : null;
+  // Only pitch edits animate; switching modes, receiving a baseline, or
+  // resizing the drift range moves the thumb immediately.
+  const [instantPitch, setInstantPitch] = createSignal(false);
+  let instantFrame: number | undefined;
+  // Compared by value so regenerated phrases with the same mapping still
+  // animate their pitch changes.
+  const mapping = createMemo(() => {
+    const relative = drift();
+    return relative === null
+      ? "absolute"
+      : `${relative.baseline}:${relative.scale.max}`;
+  });
+  createEffect(
+    on(
+      mapping,
+      () => {
+        setInstantPitch(true);
+        if (instantFrame !== undefined) cancelAnimationFrame(instantFrame);
+        // Wait for the new position to be styled before restoring transitions.
+        instantFrame = requestAnimationFrame(() => {
+          instantFrame = requestAnimationFrame(() => {
+            instantFrame = undefined;
+            setInstantPitch(false);
+          });
+        });
+      },
+      { defer: true },
+    ),
+  );
+  onCleanup(() => {
+    if (instantFrame !== undefined) cancelAnimationFrame(instantFrame);
+  });
+  const semitones = (relative: { baseline: number }) =>
+    (props.mora.pitch - relative.baseline) / SEMITONE;
+  const sliderPosition = () => {
+    const relative = drift();
+    return relative === null
+      ? props.pitchScale.toPosition(props.mora.pitch)
+      : relative.scale.toPosition(semitones(relative));
+  };
+  const positionToPitch = (position: number) => {
+    const relative = drift();
+    return relative === null
+      ? props.pitchScale.toPitch(position)
+      : relative.baseline + relative.scale.toDrift(position) * SEMITONE;
+  };
+  const driftText = (relative: { baseline: number }, digits: number) => {
+    const value = semitones(relative).toFixed(digits);
+    // Avoid "-0.0" when the pitch sits on the prediction.
+    return Number(value) > 0 ? `+${value}` : Number(value) < 0 ? value : "0";
+  };
+  const badgeText = () => {
+    const relative = drift();
+    return relative === null
+      ? props.mora.pitch.toFixed(2)
+      : driftText(relative, 1);
+  };
+  const valueText = () => {
+    const relative = drift();
+    return relative === null
+      ? props.mora.pitch.toFixed(4)
+      : t2("bottom.pitch_drift_value", { value: driftText(relative, 2) });
+  };
+  // In relative mode the fill spans from the prediction to the thumb.
+  // Right-clicking a relative slider resets its drift to the prediction.
+  const resetDrift = (event: MouseEvent) => {
+    const relative = drift();
+    if (relative === null) return;
+    event.preventDefault();
+    if (props.mora.pitch !== relative.baseline)
+      props.setPitch(relative.baseline);
+  };
+  // Kobalte moves the value on any pointer button, so keep the secondary
+  // button from reaching it before the context menu resets the drift.
+  const stopSecondaryPointer = (event: PointerEvent) => {
+    if (event.button !== 0 && drift() !== null) event.stopPropagation();
+  };
+  const fillStyle = () => {
+    if (drift() === null) return undefined;
+    const position = sliderPosition() * 100;
+    return {
+      bottom: `${Math.min(position, 50)}%`,
+      top: `${100 - Math.max(position, 50)}%`,
+    };
+  };
 
   return (
     <div
@@ -58,23 +162,36 @@ export function TuningItem(props: {
         >
           <Slider
             class={`${styles.pitchSlider} flex-1 b-b b-slate-3 dark:b-slate-6 b-dashed overflow-hidden`}
+            classList={{ [styles.instantPitch]: instantPitch() }}
             minValue={0}
             maxValue={1}
             step={0.001}
-            value={[props.pitchScale.toPosition(props.mora.pitch)]}
-            onChange={(value) =>
-              props.setPitch(props.pitchScale.toPitch(value[0]))
-            }
+            value={[sliderPosition()]}
+            onChange={(value) => props.setPitch(positionToPitch(value[0]))}
             orientation="vertical"
+            ref={(element: HTMLDivElement) =>
+              element.addEventListener("pointerdown", stopSecondaryPointer, {
+                capture: true,
+              })
+            }
+            onContextMenu={resetDrift}
           >
             <Slider.Track class="size-full bg-transparent relative group">
+              <Show when={drift() !== null}>
+                <div
+                  aria-hidden="true"
+                  class="pointer-events-none absolute inset-x-0 top-1/2 b-t b-dashed b-slate-3 dark:b-slate-6"
+                  data-pitch-baseline
+                />
+              </Show>
               <Slider.Fill
                 class={`${styles.pitchFill} absolute bg-transparent w-full group-hover:!bg-primary-50 dark:group-hover:!bg-primary-9`}
                 classList={{ "opacity-60": spectrogramPreviewEnabled() }}
+                style={fillStyle()}
               />
               <Slider.Thumb
                 aria-label={props.mora.text}
-                aria-valuetext={props.mora.pitch.toFixed(4)}
+                aria-valuetext={valueText()}
                 class={`${styles.pitchThumb} block h-1px w-full bg-slate-4 outline-none group-hover:!bg-primary-5`}
                 classList={{ "!bg-primary-5": pitchMoving() }}
                 onTransitionRun={handlePitchTransition}
@@ -86,10 +203,10 @@ export function TuningItem(props: {
                     aria-hidden="true"
                     class="pointer-events-none invisible absolute left-1/2 top-1/2 w-8 -translate-x-1/2 -translate-y-1/2 rounded-md bg-white px-1 text-center text-11px leading-4 tabular-nums group-hover:visible dark:bg-slate-8"
                   >
-                    {props.mora.pitch.toFixed(2)}
+                    {badgeText()}
                   </span>
                 </Show>
-                <Slider.Input aria-valuetext={props.mora.pitch.toFixed(4)} />
+                <Slider.Input aria-valuetext={valueText()} />
               </Slider.Thumb>
             </Slider.Track>
           </Slider>

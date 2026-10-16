@@ -1,6 +1,6 @@
 import type { PitchRange } from "$binding";
 import { describe, expect, it } from "vitest";
-import { createPitchScale } from "./pitchScale";
+import { createDriftScale, createPitchScale } from "./pitchScale";
 
 const range = (histogram: number[]): PitchRange => ({
   min: 4,
@@ -81,5 +81,27 @@ describe("density-aware pitch scale", () => {
     expect([linear.min, linear.toPitch(0.5), linear.max]).toEqual([
       3, 4.75, 6.5,
     ]);
+  });
+});
+
+describe("drift scale", () => {
+  it("centers the prediction and clamps to the configured range", () => {
+    const scale = createDriftScale(12);
+    expect(scale.min).toBe(-12);
+    expect(scale.max).toBe(12);
+    expect(scale.toPosition(0)).toBe(0.5);
+    expect(scale.toPosition(12)).toBe(1);
+    expect(scale.toPosition(-12)).toBe(0);
+    expect(scale.toPosition(30)).toBe(1);
+    expect(scale.toPosition(-30)).toBe(0);
+    expect(scale.toPosition(6)).toBeCloseTo(0.75);
+    expect(scale.toDrift(0.5)).toBe(0);
+    expect(scale.toDrift(0.75)).toBeCloseTo(6);
+    expect(scale.toDrift(2)).toBe(12);
+    expect(scale.toDrift(-1)).toBe(-12);
+  });
+
+  it("keeps a degenerate range at the center", () => {
+    expect(createDriftScale(0).toPosition(3)).toBe(0.5);
   });
 });

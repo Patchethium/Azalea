@@ -121,6 +121,15 @@ pub enum PitchScale {
   DensityAware,
 }
 
+/// How the tuning panel maps pitch sliders: absolute log pitch, or semitone
+/// drift from the seeded model prediction.
+#[derive(Clone, Default, Deserialize, Serialize, Type)]
+pub enum PitchTuningMode {
+  #[default]
+  Absolute,
+  Relative,
+}
+
 #[derive(Clone, Deserialize, Serialize, Type)]
 pub struct UIConfig {
   #[serde(default)]
@@ -171,6 +180,14 @@ pub struct UIConfig {
   pub pitch_scale: PitchScale,
   #[serde(default = "pitch_ruler_default")]
   pub pitch_ruler: bool,
+  #[serde(default)]
+  pub pitch_tuning_mode: PitchTuningMode,
+  /// Relative slider range in semitones on either side of the prediction.
+  #[serde(
+    default = "pitch_drift_range_default",
+    deserialize_with = "deserialize_pitch_drift_range"
+  )]
+  pub pitch_drift_range: f32,
   #[serde(default = "name_truncation_len_default")]
   pub name_truncation_len: usize,
   #[serde(default)]
@@ -221,6 +238,8 @@ impl Default for UIConfig {
       playback_timeline: playback_timeline_default(),
       pitch_scale: Default::default(),
       pitch_ruler: pitch_ruler_default(),
+      pitch_tuning_mode: Default::default(),
+      pitch_drift_range: pitch_drift_range_default(),
       name_truncation_len: name_truncation_len_default(),
       default_export_dir: None,
       default_export_dir_enabled: false,
@@ -279,6 +298,26 @@ fn deserialize_pitch_noise_sigma<'de, D: serde::Deserializer<'de>>(
     Err(serde::de::Error::custom(
       "Pitch noise sigma must be finite and nonnegative",
     ))
+  }
+}
+
+pub const PITCH_DRIFT_RANGE_MIN: f32 = 1.0;
+pub const PITCH_DRIFT_RANGE_MAX: f32 = 24.0;
+
+fn pitch_drift_range_default() -> f32 {
+  12.0
+}
+
+fn deserialize_pitch_drift_range<'de, D: serde::Deserializer<'de>>(
+  deserializer: D,
+) -> Result<f32, D::Error> {
+  let range = f32::deserialize(deserializer)?;
+  if (PITCH_DRIFT_RANGE_MIN..=PITCH_DRIFT_RANGE_MAX).contains(&range) {
+    Ok(range)
+  } else {
+    Err(serde::de::Error::custom(format!(
+      "Pitch drift range must be between {PITCH_DRIFT_RANGE_MIN} and {PITCH_DRIFT_RANGE_MAX} semitones",
+    )))
   }
 }
 
@@ -505,7 +544,7 @@ pub struct Project {
 mod tests {
   use super::{
     cache_size_default, cpu_num_threads_default, AzaleaConfig, KeyboardShortcut, Locale,
-    PitchScale, TitlebarStyle, UIConfig, RECENT_PROJECTS_LIMIT,
+    PitchScale, PitchTuningMode, TitlebarStyle, UIConfig, RECENT_PROJECTS_LIMIT,
   };
 
   #[test]
@@ -661,6 +700,30 @@ mod tests {
     let options = config.pitch_noise_options(u32::MAX).unwrap();
     assert_eq!(options.sigma, 0.0);
     assert_eq!(options.seed, u32::MAX);
+  }
+
+  #[test]
+  fn pitch_tuning_settings_default_round_trip_and_validate_range() {
+    let config: UIConfig = toml::from_str("").unwrap();
+    assert!(matches!(
+      config.pitch_tuning_mode,
+      PitchTuningMode::Absolute
+    ));
+    assert_eq!(config.pitch_drift_range, 12.0);
+
+    let config: UIConfig =
+      toml::from_str("pitch_tuning_mode = \"Relative\"\npitch_drift_range = 3.5").unwrap();
+    let serialized = toml::to_string(&config).unwrap();
+    let loaded: UIConfig = toml::from_str(&serialized).unwrap();
+    assert!(matches!(
+      loaded.pitch_tuning_mode,
+      PitchTuningMode::Relative
+    ));
+    assert_eq!(loaded.pitch_drift_range, 3.5);
+
+    for range in ["0.5", "24.5", "-1.0", "nan", "inf"] {
+      assert!(toml::from_str::<UIConfig>(&format!("pitch_drift_range = {range}")).is_err());
+    }
   }
 
   #[test]
