@@ -65,6 +65,13 @@ APIs, not waveform synthesis or other language bindings. See the fork's
 [pitch-noise documentation](https://github.com/Patchethium/voicevox_core/blob/generative-noise/docs/guide/dev/pitch-noise.md)
 for loading requirements, diagnostics and a WAV example.
 
+Every `Core` method that reads a style's model (queries, mora replacement,
+pitch noise, pitch completion and synthesis) loads it on demand through
+`ensure_speaker_loaded`. Loaded projects keep edited queries without
+recreating them, so no earlier call is guaranteed to have loaded the model.
+Real-core tests cover on-demand loading and that a baseline predicted after a
+project reload matches the saved pitches bit for bit.
+
 ## Project Files
 
 `.azp` files are versioned TOML documents. The disk-only wrapper and

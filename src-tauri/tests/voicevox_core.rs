@@ -9,8 +9,10 @@ use std::{
 use azalea_lib::{audio::spectal::MelSpec, core::Core};
 use hound::{SampleFormat, WavSpec};
 use ndarray::Array1;
+use serde::{Deserialize, Serialize};
 use voicevox_core::{
-  blocking::UserDict, AccentPhrase, Mora, PitchNoiseOptions, StyleId, StyleType, UserDictWord,
+  blocking::UserDict, AccentPhrase, AudioQuery, Mora, PitchNoiseOptions, StyleId, StyleType,
+  UserDictWord,
 };
 
 mod common;
@@ -485,6 +487,143 @@ fn real_core_rejects_unknown_style_ids_without_loading_a_model() {
   core
     .unload_speaker(style_id)
     .expect("unloading an unknown style ID should be harmless");
+}
+
+/// Loaded projects keep edited queries without recreating them, so mora
+/// replacement and pitch completion must load the model themselves.
+#[test]
+fn real_core_mora_operations_load_models_on_demand() {
+  let core = test_core();
+  let style_id = first_talk_style_id(&core);
+  let phrases = core
+    .audio_query(TEST_TEXT, style_id)
+    .unwrap()
+    .accent_phrases;
+  let noise = PitchNoiseOptions {
+    sigma: 0.05,
+    seed: 42,
+  };
+  type Operation<'a> = (
+    &'a str,
+    Box<dyn Fn() -> anyhow::Result<Vec<AccentPhrase>> + 'a>,
+  );
+  let operations: [Operation; 5] = [
+    (
+      "replace_mora",
+      Box::new(|| core.replace_mora(phrases.clone(), style_id)),
+    ),
+    (
+      "replace_mora_pitch",
+      Box::new(|| core.replace_mora_pitch(phrases.clone(), style_id)),
+    ),
+    (
+      "replace_mora_duration",
+      Box::new(|| core.replace_mora_duration(phrases.clone(), style_id)),
+    ),
+    (
+      "apply_pitch_noise",
+      Box::new(|| core.apply_pitch_noise(phrases.clone(), style_id, Some(noise))),
+    ),
+    (
+      "complete_mora_pitch",
+      Box::new(|| core.complete_mora_pitch(phrases.clone(), style_id, &[], noise)),
+    ),
+  ];
+  for (name, operation) in operations {
+    core.unload_all_speakers().unwrap();
+    assert!(!core.is_speaker_loaded(style_id));
+    let replaced = operation().unwrap_or_else(|error| panic!("{name} failed: {error:#}"));
+    assert_eq!(replaced.len(), phrases.len(), "{name}");
+    assert!(core.is_speaker_loaded(style_id), "{name} did not load");
+  }
+
+  // Disabled noise needs no model and leaves the phrases untouched.
+  core.unload_all_speakers().unwrap();
+  assert_eq!(
+    core
+      .apply_pitch_noise(phrases.clone(), style_id, None)
+      .unwrap(),
+    phrases
+  );
+  assert!(!core.is_speaker_loaded(style_id));
+  let error = core
+    .replace_mora_pitch(phrases, StyleId::new(u32::MAX))
+    .expect_err("an unknown style ID unexpectedly replaced pitch");
+  assert!(
+    format!("{error:#}").contains("Speaker ID not found"),
+    "unexpected unknown-style error: {error:#}"
+  );
+}
+
+/// Mirrors how a pitch-edited query reaches disk: IPC JSON, then project TOML.
+fn round_trip_project_query(query: &AudioQuery) -> AudioQuery {
+  #[derive(Deserialize, Serialize)]
+  struct Block {
+    query_override: AudioQuery,
+  }
+  let ipc: AudioQuery = serde_json::from_str(&serde_json::to_string(query).unwrap()).unwrap();
+  let saved = toml::to_string(&Block {
+    query_override: ipc,
+  })
+  .unwrap();
+  toml::from_str::<Block>(&saved).unwrap().query_override
+}
+
+/// Relative tuning compares a saved query's untouched pitches with a baseline
+/// predicted again after loading, through a different command and core
+/// instance. Any difference would show as drift on moras the user never edited,
+/// so the regenerated baseline must match bit for bit.
+#[test]
+fn real_core_predicted_pitch_is_identical_after_reloading_a_project() {
+  for noise in [
+    None,
+    Some(PitchNoiseOptions {
+      sigma: 0.05,
+      seed: 42,
+    }),
+  ] {
+    // First session: create the query as the audio_query command does.
+    let first = test_core();
+    let style_id = first_talk_style_id(&first);
+    let mut query = first.audio_query(TEST_TEXT, style_id).unwrap();
+    query.accent_phrases = first
+      .apply_pitch_noise(query.accent_phrases, style_id, noise)
+      .unwrap();
+    let generated = pitches(&query.accent_phrases);
+    assert!(generated.iter().any(|pitch| *pitch > 0.0));
+    drop(first);
+
+    // Second session: load the project and predict the baseline as the
+    // replace_mora_pitch command does.
+    let loaded = round_trip_project_query(&query);
+    assert_eq!(pitches(&loaded.accent_phrases), generated);
+    // A fresh core has no models loaded; prediction must load it on demand.
+    let second = test_core();
+    assert!(!second.is_speaker_loaded(style_id));
+    let predict = |phrases: Vec<AccentPhrase>| {
+      second
+        .apply_pitch_noise(
+          second.replace_mora_pitch(phrases, style_id).unwrap(),
+          style_id,
+          noise,
+        )
+        .unwrap()
+    };
+    let baseline = predict(loaded.accent_phrases.clone());
+    let (generated_bits, baseline_bits): (Vec<_>, Vec<_>) = generated
+      .iter()
+      .zip(pitches(&baseline))
+      .map(|(generated, baseline)| (generated.to_bits(), baseline.to_bits()))
+      .unzip();
+    assert_eq!(
+      baseline_bits,
+      generated_bits,
+      "baseline drifted after reload with {noise:?}: {:?} != {generated:?}",
+      pitches(&baseline),
+    );
+    // Repeated predictions in the same session stay identical as well.
+    assert_eq!(predict(loaded.accent_phrases), baseline);
+  }
 }
 
 /// Compatibility coverage for a real VOICEVOX installation.

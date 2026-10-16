@@ -223,17 +223,22 @@ impl Core {
     self.synthesizer.is_loaded_voice_model(*vvm_id)
   }
 
-  pub fn audio_query(&self, text: &str, speaker_id: StyleId) -> Result<AudioQuery> {
+  /// Loads the style's model on demand; every synthesizer call that reads a
+  /// style's model must go through this.
+  fn ensure_speaker_loaded(&self, speaker_id: StyleId) -> Result<()> {
     if !self.is_speaker_loaded(speaker_id) {
       self.load_speaker(speaker_id)?;
     }
+    Ok(())
+  }
+
+  pub fn audio_query(&self, text: &str, speaker_id: StyleId) -> Result<AudioQuery> {
+    self.ensure_speaker_loaded(speaker_id)?;
     Ok(self.synthesizer.create_audio_query(text, speaker_id)?)
   }
 
   pub fn accent_phrases(&self, text: &str, speaker_id: StyleId) -> Result<Vec<AccentPhrase>> {
-    if !self.is_speaker_loaded(speaker_id) {
-      self.load_speaker(speaker_id)?;
-    }
+    self.ensure_speaker_loaded(speaker_id)?;
     Ok(self.synthesizer.create_accent_phrases(text, speaker_id)?)
   }
 
@@ -255,6 +260,7 @@ impl Core {
     ap: Vec<AccentPhrase>,
     style_id: StyleId,
   ) -> Result<Vec<AccentPhrase>> {
+    self.ensure_speaker_loaded(style_id)?;
     Ok(self.synthesizer.replace_mora_data(&ap, style_id)?)
   }
 
@@ -264,6 +270,7 @@ impl Core {
     ap: Vec<AccentPhrase>,
     style_id: StyleId,
   ) -> Result<Vec<AccentPhrase>> {
+    self.ensure_speaker_loaded(style_id)?;
     Ok(self.synthesizer.replace_mora_pitch(&ap, style_id)?)
   }
 
@@ -273,14 +280,15 @@ impl Core {
     style_id: StyleId,
     options: Option<voicevox_core::PitchNoiseOptions>,
   ) -> Result<Vec<AccentPhrase>> {
-    match options {
-      Some(options) => Ok(
-        self
-          .synthesizer
-          .replace_mora_pitch_with_noise(&ap, style_id, options)?,
-      ),
-      None => Ok(ap),
-    }
+    let Some(options) = options else {
+      return Ok(ap);
+    };
+    self.ensure_speaker_loaded(style_id)?;
+    Ok(
+      self
+        .synthesizer
+        .replace_mora_pitch_with_noise(&ap, style_id, options)?,
+    )
   }
 
   /// Complete the pitch suffix from a fixed mora pitch prefix.
@@ -291,6 +299,7 @@ impl Core {
     pitch_prefix: &[f32],
     options: voicevox_core::PitchNoiseOptions,
   ) -> Result<Vec<AccentPhrase>> {
+    self.ensure_speaker_loaded(style_id)?;
     Ok(
       self
         .synthesizer
@@ -304,13 +313,12 @@ impl Core {
     ap: Vec<AccentPhrase>,
     style_id: StyleId,
   ) -> Result<Vec<AccentPhrase>> {
+    self.ensure_speaker_loaded(style_id)?;
     Ok(self.synthesizer.replace_phoneme_length(&ap, style_id)?)
   }
 
   pub fn synthesis(&self, query: &AudioQuery, speaker_id: StyleId) -> Result<Vec<u8>> {
-    if !self.is_speaker_loaded(speaker_id) {
-      self.load_speaker(speaker_id)?;
-    }
+    self.ensure_speaker_loaded(speaker_id)?;
     Ok(self.synthesizer.synthesis(query, speaker_id).perform()?)
   }
 
