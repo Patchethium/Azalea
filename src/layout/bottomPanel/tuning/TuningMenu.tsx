@@ -33,10 +33,12 @@ function RadioOptions(props: {
           value={value}
           closeOnSelect
         >
-          <DropdownMenu.ItemIndicator class="size-4 flex items-center justify-center">
+          <DropdownMenu.ItemLabel class="flex-1">
+            {t1(label)}
+          </DropdownMenu.ItemLabel>
+          <DropdownMenu.ItemIndicator class="size-4 shrink-0 flex items-center justify-center">
             <div class="i-lucide:check size-4" />
           </DropdownMenu.ItemIndicator>
-          <DropdownMenu.ItemLabel>{t1(label)}</DropdownMenu.ItemLabel>
         </DropdownMenu.RadioItem>
       )}
     </For>
@@ -104,12 +106,12 @@ export function TuningMenu() {
             closeOnSelect
             onChange={setPitchRulerEnabled}
           >
-            <DropdownMenu.ItemIndicator class="size-4 flex items-center justify-center">
-              <div class="i-lucide:check size-4" />
-            </DropdownMenu.ItemIndicator>
-            <DropdownMenu.ItemLabel>
+            <DropdownMenu.ItemLabel class="flex-1">
               {t1("config.pitch_ruler")}
             </DropdownMenu.ItemLabel>
+            <DropdownMenu.ItemIndicator class="size-4 shrink-0 flex items-center justify-center">
+              <div class="i-lucide:check size-4" />
+            </DropdownMenu.ItemIndicator>
           </DropdownMenu.CheckboxItem>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>

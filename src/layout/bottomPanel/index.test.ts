@@ -4086,9 +4086,15 @@ describe("Relative pitch tuning", () => {
     const menuButton = screen.getByRole("button", { name: "Tuning options" });
 
     await user.click(menuButton);
-    expect(
-      await screen.findByRole("menuitemradio", { name: "Absolute" }),
-    ).toHaveAttribute("aria-checked", "true");
+    const absolute = await screen.findByRole("menuitemradio", {
+      name: "Absolute",
+    });
+    expect(absolute).toHaveAttribute("aria-checked", "true");
+    // The check mark follows the label on the right edge of the item.
+    expect(absolute.lastElementChild?.firstElementChild).toHaveClass(
+      "i-lucide:check",
+    );
+    expect(absolute.firstElementChild).toHaveTextContent("Absolute");
     expect(
       screen.getByRole("menuitemradio", { name: "Optimal" }),
     ).toBeInTheDocument();
