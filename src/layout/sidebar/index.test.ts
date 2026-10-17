@@ -832,8 +832,9 @@ describe("Sidebar controls", () => {
       false,
     ]);
     expect(dialog).toHaveAttribute("data-closed");
+    // Kobalte removes aria-hidden from outside content a frame after closing.
     expect(
-      screen.getByRole("button", { name: "Speaker Second Speaker" }),
+      await screen.findByRole("button", { name: "Speaker Second Speaker" }),
     ).toHaveTextContent("Second Speaker");
     expect(
       screen.getByRole("button", { name: "Style Normal" }),
@@ -901,7 +902,7 @@ describe("Sidebar controls", () => {
       screen.getByRole("button", { name: "Close preset manager" }),
     );
 
-    const remove = screen.getByRole("button", { name: "Delete preset" });
+    const remove = await screen.findByRole("button", { name: "Delete preset" });
     await user.click(remove);
     await user.click(remove);
     expect(text.projectPresetStore).toHaveLength(0);
@@ -1128,7 +1129,9 @@ describe("Sidebar unsaved changes", () => {
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(text.textStore[0].text).toBe("Edited");
 
-    await user.click(screen.getByRole("button", { name: "Project actions" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Project actions" }),
+    );
     await user.click(await screen.findByText("Load Project"));
     await screen.findByRole("dialog", { name: "Unsaved changes" });
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -1969,7 +1972,9 @@ describe("Sidebar recent projects", () => {
       ]),
     );
 
-    await user.click(screen.getByRole("button", { name: "Project actions" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Project actions" }),
+    );
     await user.click(
       await screen.findByRole("menuitem", { name: "Open Recent" }),
     );
@@ -1977,7 +1982,9 @@ describe("Sidebar recent projects", () => {
       await screen.findByRole("menuitem", { name: "Clear Recent Projects" }),
     );
     expect(appConfig.config.ui.recent_projects).toEqual([]);
-    await user.click(screen.getByRole("button", { name: "Project actions" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Project actions" }),
+    );
     expect(
       await screen.findByRole("menuitem", { name: "Open Recent" }),
     ).toHaveAttribute("data-disabled");

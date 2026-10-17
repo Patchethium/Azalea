@@ -194,13 +194,24 @@ describe("DictionaryDialog", () => {
       name: "Higher values take precedence (0–10).",
     });
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    // The tooltip portals outside the modal dialog, whose hide-outside marks it
+    // aria-hidden a frame after opening, so follow the trigger's description
+    // link instead of racing that frame with a role query.
+    const describedTooltip = (control: HTMLElement) => {
+      const id = control
+        .closest("[aria-describedby]")
+        ?.getAttribute("aria-describedby");
+      return id ? document.getElementById(id) : null;
+    };
     accentInfo.focus();
-    expect(await screen.findByRole("tooltip")).toHaveTextContent(
-      /0 is flat.*maximum: 4/,
+    await waitFor(() =>
+      expect(describedTooltip(accentInfo)).toHaveTextContent(
+        /0 is flat.*maximum: 4/,
+      ),
     );
     priorityInfo.focus();
     await waitFor(() =>
-      expect(screen.getByRole("tooltip")).toHaveTextContent(
+      expect(describedTooltip(priorityInfo)).toHaveTextContent(
         "Higher values take precedence (0–10).",
       ),
     );
@@ -211,22 +222,29 @@ describe("DictionaryDialog", () => {
     fireEvent.input(priority, {
       target: { value: "8" },
     });
+    // Autosave is debounced, so a slow run may create the entry before every
+    // field is edited and send the rest as updates; check the latest save.
+    const latestSave = () => {
+      const saves = invocations.filter(
+        ({ cmd }) =>
+          cmd === "add_dictionary_entry" || cmd === "update_dictionary_entry",
+      );
+      return saves[saves.length - 1]?.args;
+    };
     await waitFor(() =>
-      expect(
-        invocations.filter(({ cmd }) => cmd === "add_dictionary_entry"),
-      ).toHaveLength(1),
+      expect(latestSave()).toMatchObject({
+        entry: {
+          surface: "Azalea",
+          pronunciation: "アザレア",
+          accent_type: 2,
+          word_type: "VERB",
+          priority: 8,
+        },
+      }),
     );
     expect(
-      invocations.find(({ cmd }) => cmd === "add_dictionary_entry")?.args,
-    ).toMatchObject({
-      entry: {
-        surface: "Azalea",
-        pronunciation: "アザレア",
-        accent_type: 2,
-        word_type: "VERB",
-        priority: 8,
-      },
-    });
+      invocations.filter(({ cmd }) => cmd === "add_dictionary_entry"),
+    ).toHaveLength(1);
     expect(dialog.getText().textStore[0].query).toBeNull();
     expect(dialog.getText().textStore[1]).toMatchObject({
       pitch_is_modified: true,
@@ -274,9 +292,10 @@ describe("DictionaryDialog", () => {
     await user.clear(word);
     await user.type(word, "Updated");
     await waitFor(() =>
-      expect(
-        invocations.filter(({ cmd }) => cmd === "update_dictionary_entry"),
-      ).toHaveLength(1),
+      expect(latestSave()).toMatchObject({
+        id: "22222222-2222-4222-8222-222222222222",
+        entry: { surface: "Updated" },
+      }),
     );
     expect(screen.getByRole("textbox", { name: "Word" })).toHaveValue(
       "Updated",

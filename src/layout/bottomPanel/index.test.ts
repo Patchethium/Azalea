@@ -2344,6 +2344,11 @@ describe("BottomPanel playback", () => {
     )!;
     expect(ghost).toHaveStyle({ left: "3600px", width: "64px" });
 
+    // The virtualizer measures the scroll element's client box on resize.
+    Object.defineProperties(tuningPanel, {
+      clientWidth: { configurable: true, value: 360 },
+      clientHeight: { configurable: true, value: 120 },
+    });
     const resizeObserver = resizeObservers.get(tuningPanel)!;
     resizeObserver.callback(
       [
