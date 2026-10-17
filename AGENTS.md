@@ -147,7 +147,13 @@ when the ruler is hidden; the ruler itself has no context menu.
 Right-clicking a relative slider resets that mora to its baseline through
 `setPitch` (a no-op when already there); secondary-button pointerdowns are
 stopped in the capture phase so Kobalte does not move the value first.
-Absolute sliders keep the default context-menu behavior.
+Absolute sliders keep the default context-menu behavior. Relative mode also
+draws a faint per-mora ghost line at the current absolute pitch mapped through
+the shared pitch scale, so the absolute contour stays readable behind the
+drift-based sliders; it follows pitch edits, ignores prediction-only changes,
+stays pinned to the nearest edge with a small top/bottom arrow when the pitch
+lies beyond the scale, and is absent while the absolute fallback or a spanless
+scale is active.
 
 The baseline is never persisted. Cache it in `PitchBaselineProvider`
 (`src/contexts/pitchBaseline.ts`) so it survives tuning-panel remounts, keyed

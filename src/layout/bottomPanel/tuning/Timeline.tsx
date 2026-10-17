@@ -62,6 +62,24 @@ export function TuningItem(props: {
     props.baseline > 0
       ? { scale: props.driftScale, baseline: props.baseline }
       : null;
+  // Relative sliders are centered on each mora's prediction, so a faint line
+  // at the absolute pitch keeps the shared absolute scale readable. Pitches
+  // beyond the scale stay pinned to its edge and get a directional arrow.
+  const ghost = createMemo(() => {
+    if (drift() === null) return null;
+    const { min, max, toPosition } = props.pitchScale;
+    if (max <= min) return null;
+    const pitch = props.mora.pitch;
+    return {
+      position: toPosition(pitch),
+      outOfRange:
+        pitch > max
+          ? ("above" as const)
+          : pitch < min
+            ? ("below" as const)
+            : null,
+    };
+  });
   // Only pitch edits animate; switching modes, receiving a baseline, or
   // resizing the drift range moves the thumb immediately.
   const [instantPitch, setInstantPitch] = createSignal(false);
@@ -189,6 +207,31 @@ export function TuningItem(props: {
                 classList={{ "opacity-60": spectrogramPreviewEnabled() }}
                 style={fillStyle()}
               />
+              <Show when={ghost()}>
+                {(ghost) => (
+                  <>
+                    <div
+                      aria-hidden="true"
+                      class={`${styles.pitchGhost} pointer-events-none absolute inset-x-0 b-t b-dotted b-slate-4/70 dark:b-slate-5/70`}
+                      style={{ bottom: `${ghost().position * 100}%` }}
+                      data-pitch-ghost
+                    />
+                    <Show when={ghost().outOfRange !== null}>
+                      <div
+                        aria-hidden="true"
+                        class="pointer-events-none absolute left-1/2 size-3 -translate-x-1/2 text-slate-4 dark:text-slate-5"
+                        classList={{
+                          "top-0 i-lucide:chevron-up":
+                            ghost().outOfRange === "above",
+                          "bottom-0 i-lucide:chevron-down":
+                            ghost().outOfRange === "below",
+                        }}
+                        data-pitch-ghost-arrow={ghost().outOfRange!}
+                      />
+                    </Show>
+                  </>
+                )}
+              </Show>
               <Slider.Thumb
                 aria-label={props.mora.text}
                 aria-valuetext={valueText()}

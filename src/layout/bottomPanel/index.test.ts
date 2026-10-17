@@ -18,7 +18,13 @@ import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { SEMITONE } from "$constants";
 import { describe, expect, it, vi } from "vitest";
-import { audioQuery, mora, preset, spectrogram } from "../../test/fixtures";
+import {
+  audioQuery,
+  mora,
+  pitchRange,
+  preset,
+  spectrogram,
+} from "../../test/fixtures";
 import tuningStyles from "./tuning/Timeline.module.css";
 
 const emitCompletedSpectrogram = (
@@ -3914,7 +3920,14 @@ describe("Relative pitch tuning", () => {
       (0.4 / SEMITONE + 12) / 24,
     );
     expect(document.querySelector("[data-pitch-baseline]")).not.toBeNull();
-    const fill = slider.previousElementSibling as HTMLElement;
+    const ghost = () =>
+      document.querySelector<HTMLElement>("[data-pitch-ghost]")!;
+    const ghostBottom = () => Number.parseFloat(ghost().style.bottom);
+    // The ghost marks the current pitch on the shared absolute scale.
+    expect(ghostBottom()).toBeCloseTo(((5.4 - 3.4) / 3.1) * 100);
+    const fill = slider.parentElement!.querySelector<HTMLElement>(
+      `.${tuningStyles.pitchFill}`,
+    )!;
     expect(fill.style.bottom).toBe("50%");
 
     const track = mockTrack(slider);
@@ -3930,6 +3943,7 @@ describe("Relative pitch tuning", () => {
       getTextStore().textStore[0].query!.accent_phrases[0].moras[0].pitch;
     expect(pitch()).toBeCloseTo(5 - 6 * SEMITONE, 6);
     expect(slider).toHaveAttribute("aria-valuetext", "-6.00 semitones");
+    expect(ghostBottom()).toBeCloseTo(((5 - 6 * SEMITONE - 3.4) / 3.1) * 100);
     expect(Number.parseFloat(fill.style.bottom)).toBeCloseTo(25);
     expect(fill.style.top).toBe("50%");
     expect(getTextStore().textStore[0].pitch_is_modified).toBe(true);
@@ -3944,6 +3958,8 @@ describe("Relative pitch tuning", () => {
     );
     expect(pitch()).toBe(5);
     expect(slider).toHaveAttribute("aria-valuetext", "0 semitones");
+    const centeredGhost = ghostBottom();
+    expect(centeredGhost).toBeCloseTo(((5 - 3.4) / 3.1) * 100);
 
     // Pitch and duration edits keep the same prediction.
     getTextStore().setTextStore(
@@ -3959,17 +3975,21 @@ describe("Relative pitch tuning", () => {
     await Promise.resolve();
     expect(replace).toHaveBeenCalledTimes(1);
 
+    // The drift range only changes the slider mapping, not the ghost.
     getConfigStore().setConfig("ui", "pitch_drift_range", 6);
     expect(Number(slider.getAttribute("aria-valuenow"))).toBeCloseTo(0.5);
+    expect(ghostBottom()).toBe(centeredGhost);
 
     getConfigStore().setConfig("ui", "pitch_tuning_mode", "Absolute");
     expect(slider).toHaveAttribute("aria-valuetext", "5.0000");
     expect(document.querySelector("[data-pitch-baseline]")).toBeNull();
+    expect(document.querySelector("[data-pitch-ghost]")).toBeNull();
     expect(pitch()).toBe(5);
 
     // Returning to a cached prediction does not request it again.
     getConfigStore().setConfig("ui", "pitch_tuning_mode", "Relative");
     expect(slider).toHaveAttribute("aria-valuetext", "0 semitones");
+    expect(ghostBottom()).toBeCloseTo(centeredGhost);
     expect(replace).toHaveBeenCalledTimes(1);
 
     // Accent edits change the prediction.
@@ -3979,6 +3999,59 @@ describe("Relative pitch tuning", () => {
     await waitFor(() =>
       expect(slider).toHaveAttribute("aria-valuetext", "+3.46 semitones"),
     );
+    // The ghost follows the current pitch, not the prediction.
+    expect(ghostBottom()).toBe(centeredGhost);
+
+    // A degenerate absolute range leaves no shared scale to reference.
+    getConfigStore().setRange({
+      1: { ...pitchRange(), histogram_min: 5, histogram_max: 5 },
+    });
+    expect(document.querySelector("[data-pitch-ghost]")).toBeNull();
+  });
+
+  it("marks absolute pitches beyond the shared scale with edge arrows", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const { getTextStore } = renderPanel({
+      spectrogram_preview: false,
+      pitch_tuning_mode: "Relative",
+    });
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    await screen.findByRole("slider", { name: "コ" });
+    const ghost = () =>
+      document.querySelector<HTMLElement>("[data-pitch-ghost]")!;
+    const arrow = () =>
+      document.querySelector<HTMLElement>("[data-pitch-ghost-arrow]");
+    const setPitch = (pitch: number) =>
+      getTextStore().setTextStore(
+        0,
+        "query",
+        "accent_phrases",
+        0,
+        "moras",
+        0,
+        "pitch",
+        pitch,
+      );
+
+    expect(Number.parseFloat(ghost().style.bottom)).toBeCloseTo(
+      ((5.4 - 3.4) / 3.1) * 100,
+    );
+    expect(arrow()).toBeNull();
+
+    setPitch(7);
+    expect(ghost().style.bottom).toBe("100%");
+    expect(arrow()).toHaveAttribute("data-pitch-ghost-arrow", "above");
+    expect(arrow()).toHaveClass("i-lucide:chevron-up", "top-0");
+
+    setPitch(3);
+    expect(ghost().style.bottom).toBe("0%");
+    expect(arrow()).toHaveAttribute("data-pitch-ghost-arrow", "below");
+    expect(arrow()).toHaveClass("i-lucide:chevron-down", "bottom-0");
+
+    setPitch(5.4);
+    expect(arrow()).toBeNull();
   });
 
   it("uses the newest prediction when an earlier response arrives late", async () => {
@@ -4002,12 +4075,14 @@ describe("Relative pitch tuning", () => {
     await waitFor(() => expect(pending).toHaveLength(1));
     // Loading falls back to the absolute mapping.
     expect(slider).toHaveAttribute("aria-valuetext", "5.4000");
+    expect(document.querySelector("[data-pitch-ghost]")).toBeNull();
     getTextStore().setTextStore(0, "query", "accent_phrases", 0, "accent", 2);
     await waitFor(() => expect(pending).toHaveLength(2));
     pending[1](5.2);
     await waitFor(() =>
       expect(slider).toHaveAttribute("aria-valuetext", "+3.46 semitones"),
     );
+    expect(document.querySelector("[data-pitch-ghost]")).not.toBeNull();
     pending[0](5);
     await Promise.resolve();
     await Promise.resolve();

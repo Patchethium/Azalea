@@ -7,10 +7,15 @@
   .pitchSlider:not(:focus-within):not(:active) .pitchFill {
     transition: top 240ms ease-out;
   }
+
+  .pitchSlider:not(:focus-within):not(:active) .pitchGhost {
+    transition: bottom 240ms ease-out;
+  }
 }
 
 /* Mapping changes (tuning mode, baseline arrival) reposition without motion. */
 .pitchSlider.instantPitch .pitchThumb,
-.pitchSlider.instantPitch .pitchFill {
+.pitchSlider.instantPitch .pitchFill,
+.pitchSlider.instantPitch .pitchGhost {
   transition: none !important;
 }
