@@ -4,7 +4,7 @@ import {
   renderAutogrowInput,
   renderBlock,
 } from "@components/textBlock/testUtils";
-import { fireEvent, screen, waitFor, within } from "@solidjs/testing-library";
+import { fireEvent, screen, waitFor } from "@solidjs/testing-library";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { produce } from "solid-js/store";
@@ -1317,19 +1317,15 @@ describe("TextBlock", () => {
     await waitFor(() =>
       expect(getConfigStore().config.ui.last_exported_dir).toBe("/exports"),
     );
-    const successToast = await screen.findByRole("status", {
-      name: "Audio exported successfully",
-    });
-    expect(successToast).toHaveClass("rounded-lg", "shadow-lg");
-    expect(successToast).not.toHaveClass("border");
-    const progressTrack = successToast.querySelector('[role="presentation"]');
-    expect(progressTrack).toHaveClass("bg-primary-2");
-    expect(progressTrack?.firstElementChild).toHaveClass("bg-primary-5");
-    fireEvent.click(screen.getByRole("button", { name: "Close notification" }));
-    expect(successToast).toHaveAttribute("data-closed");
+    expect(
+      await screen.findByRole("button", { name: "Audio saved" }),
+    ).toContainElement(document.querySelector(".i-lucide\\:check"));
+    expect(
+      screen.queryByRole("status", { name: "Audio exported successfully" }),
+    ).toBeNull();
   });
 
-  it("opens the output folder from the export toast and reports failures", async () => {
+  it("shows a spinner while exporting and a check mark after saving", async () => {
     mockIPC(() => null, { shouldMockEvents: true });
     vi.spyOn(commands, "audioQuery").mockResolvedValue({
       status: "ok",
@@ -1339,16 +1335,79 @@ describe("TextBlock", () => {
       "/exports/hello.wav",
     );
     vi.mocked(saveDialog).mockResolvedValue("/exports/hello.wav");
-    vi.spyOn(commands, "saveAudio").mockResolvedValue({
-      status: "ok",
-      data: "/exports/hello (2).wav",
-    });
+    let finishSave!: (
+      value: Awaited<ReturnType<typeof commands.saveAudio>>,
+    ) => void;
+    const saveAudio = vi.spyOn(commands, "saveAudio").mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishSave = resolve;
+        }),
+    );
     vi.spyOn(commands, "parentPath").mockResolvedValue("/exports");
-    const openPathLocation = vi
-      .spyOn(commands, "openPathLocation")
-      .mockResolvedValueOnce({ status: "ok", data: null })
-      .mockResolvedValueOnce({ status: "error", error: "no file manager" })
-      .mockRejectedValueOnce(new Error("opener crashed"));
+
+    const { unmount } = renderBlock(false);
+    const saveButton = await screen.findByRole("button", {
+      name: "Save audio",
+    });
+    await waitFor(() => expect(saveButton).toBeEnabled());
+    expect(saveButton).toContainElement(
+      document.querySelector(".i-lucide\\:save"),
+    );
+
+    fireEvent.click(saveButton);
+    const savingButton = await screen.findByRole("button", {
+      name: "Saving audio…",
+    });
+    expect(savingButton).toBeDisabled();
+    const spinner = savingButton.querySelector(".i-lucide\\:loader-circle");
+    expect(spinner).toHaveClass("animate-spin");
+    // Repeated shortcuts are ignored while the export is still pending.
+    fireEvent.keyDown(window, { key: "e", ctrlKey: true });
+    expect(saveAudio).toHaveBeenCalledOnce();
+
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      finishSave({ status: "ok", data: "/exports/hello.wav" });
+      const savedButton = await screen.findByRole("button", {
+        name: "Audio saved",
+      });
+      expect(savedButton).toBeEnabled();
+      expect(savedButton).toContainElement(
+        document.querySelector(".i-lucide\\:check"),
+      );
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(
+        await screen.findByRole("button", { name: "Save audio" }),
+      ).toContainElement(document.querySelector(".i-lucide\\:save"));
+
+      // An unmount with feedback still pending clears its reset timer.
+      fireEvent.click(screen.getByRole("button", { name: "Save audio" }));
+      await screen.findByRole("button", { name: "Saving audio…" });
+      finishSave({ status: "ok", data: "/exports/hello.wav" });
+      await screen.findByRole("button", { name: "Audio saved" });
+      unmount();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("restores the save button when the export fails", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(commands, "audioQuery").mockResolvedValue({
+      status: "ok",
+      data: audioQuery(),
+    });
+    vi.spyOn(commands, "audioExportPath").mockResolvedValue(
+      "/exports/hello.wav",
+    );
+    vi.mocked(saveDialog).mockResolvedValue("/exports/hello.wav");
+    vi.spyOn(commands, "saveAudio").mockResolvedValue({
+      status: "error",
+      error: "disk full",
+    });
 
     renderBlock(false);
     const saveButton = await screen.findByRole("button", {
@@ -1356,40 +1415,12 @@ describe("TextBlock", () => {
     });
     await waitFor(() => expect(saveButton).toBeEnabled());
 
-    const exportAndOpen = async () => {
-      fireEvent.click(saveButton);
-      const toast = await screen.findByRole("status", {
-        name: "Audio exported successfully",
-      });
-      fireEvent.click(
-        within(toast).getByRole("button", { name: "Open output folder" }),
-      );
-      await waitFor(() => expect(toast).not.toBeInTheDocument());
-    };
-
-    await exportAndOpen();
-    await waitFor(() =>
-      expect(openPathLocation).toHaveBeenLastCalledWith(
-        "/exports/hello (2).wav",
-      ),
-    );
-    expect(
-      screen.queryByRole("status", { name: "Couldn't open the output folder" }),
-    ).toBeNull();
-
-    await exportAndOpen();
-    const failure = await screen.findByRole("status", {
-      name: "Couldn't open the output folder",
+    fireEvent.click(saveButton);
+    await screen.findByRole("status", {
+      name: "Couldn't export audio to /exports/hello.wav",
     });
-    expect(failure).toHaveAccessibleDescription("no file manager");
-
-    await exportAndOpen();
-    await waitFor(() =>
-      expect(
-        screen.getByRole("status", { name: "Couldn't open the output folder" }),
-      ).toHaveAccessibleDescription("opener crashed"),
-    );
-    expect(openPathLocation).toHaveBeenCalledTimes(3);
+    expect(screen.getByRole("button", { name: "Save audio" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Audio saved" })).toBeNull();
   });
 
   it("exports the selected text cell with Ctrl+E", async () => {
@@ -1666,11 +1697,7 @@ describe("TextBlock", () => {
     });
     expect(exportError).toHaveAccessibleDescription("export failed");
     expect(exportError).toHaveClass("border-red-3");
-    expect(
-      screen.queryByRole("status", {
-        name: "Audio exported successfully",
-      }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Audio saved" })).toBeNull();
   });
 
   it("moves and removes cells while keeping selection on the same content", async () => {

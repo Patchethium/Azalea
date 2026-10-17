@@ -22,6 +22,7 @@ export function TextBlockView(props: {
   splitDisabled: boolean;
   splitText: () => void;
   saveAudio: () => void;
+  saveState: "idle" | "saving" | "saved";
   sortable?: Sortable;
   remove: () => void;
   onCaretChange?: (offset: number) => void;
@@ -38,6 +39,26 @@ export function TextBlockView(props: {
   const { t1 } = usei18n()!;
   const [hovered, setHovered] = createSignal(false);
   const [toolbarHovered, setToolbarHovered] = createSignal(false);
+  const saveIcon = () => {
+    switch (props.saveState) {
+      case "saving":
+        return "i-lucide:loader-circle animate-spin";
+      case "saved":
+        return "i-lucide:check";
+      default:
+        return "i-lucide:save";
+    }
+  };
+  const saveLabel = () => {
+    switch (props.saveState) {
+      case "saving":
+        return t1("text_block.controls.saving_audio");
+      case "saved":
+        return t1("text_block.controls.audio_saved");
+      default:
+        return t1("text_block.controls.save_audio");
+    }
+  };
 
   return (
     <div class="py-1.5">
@@ -72,9 +93,9 @@ export function TextBlockView(props: {
                 onClick={props.splitText}
               />
               <IconButton
-                icon="i-lucide:save"
-                label={t1("text_block.controls.save_audio")}
-                disabled={!props.saveable}
+                icon={saveIcon()}
+                label={saveLabel()}
+                disabled={!props.saveable || props.saveState === "saving"}
                 onClick={props.saveAudio}
               />
               <IconButton

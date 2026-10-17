@@ -10,7 +10,6 @@
   "toast": {
     "notifications": "通知",
     "close": "通知を閉じる",
-    "audio_exported": "音声を書き出しました",
     "open_output_dir": "出力フォルダーを開く",
     "exporting_combined": "すべてのセルを1つのファイルに書き出しています…",
     "combined_audio_exported": "結合した音声を書き出しました",
@@ -129,6 +128,8 @@
       "add_below": "下にテキストセルを追加",
       "split": "テキストセルを分割",
       "save_audio": "音声を保存",
+      "saving_audio": "音声を保存中…",
+      "audio_saved": "音声を保存しました",
       "reorder": "ドラッグでテキストセルを並べ替え",
       "delete": "テキストセルを削除"
     },

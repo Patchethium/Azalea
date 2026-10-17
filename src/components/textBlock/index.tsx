@@ -41,6 +41,9 @@ import {
 
 export { renderRequestFingerprint as synthesisRequestFingerprint } from "$utils";
 
+type SaveState = "idle" | "saving" | "saved";
+const SAVED_FEEDBACK_MS = 2000;
+
 function TextBlock(props: { index: number; sortable?: Sortable }) {
   const {
     textStore,
@@ -222,20 +225,14 @@ function TextBlock(props: { index: number; sortable?: Sortable }) {
     return query !== null && query.accent_phrases.length > 0;
   });
 
-  const openOutputDir = async (path: string) => {
-    try {
-      const result = await commands.openPathLocation(path);
-      if (result.status === "error") {
-        toasts.error(t1("toast.error.open_output_dir"), result.error);
-      }
-    } catch (error) {
-      toasts.error(t1("toast.error.open_output_dir"), error);
-    }
-  };
+  // Transient save feedback shown on the save button instead of a toast.
+  const [saveState, setSaveState] = createSignal<SaveState>("idle");
+  let savedResetTimer: ReturnType<typeof setTimeout> | undefined;
+  onCleanup(() => clearTimeout(savedResetTimer));
 
   const saveAudio = async () => {
     const preset = currentPreset();
-    if (preset === null) return;
+    if (preset === null || saveState() === "saving") return;
     const fileName = createAudioFileName(
       currentText().text,
       config.ui.name_truncation_len,
@@ -277,19 +274,26 @@ function TextBlock(props: { index: number; sortable?: Sortable }) {
       path = selectedPath;
     }
     if (!path.endsWith(".wav")) path = path.concat(".wav");
-    const result = await commands.saveAudio(
-      path,
-      getModifiedQuery(unwrap(currentText().query!), preset),
-      preset.style_id,
-      preventOverwriteOnSave,
-      createAudioSidecars(config.ui, currentText().text),
-    );
+    clearTimeout(savedResetTimer);
+    setSaveState("saving");
+    let result: Awaited<ReturnType<typeof commands.saveAudio>>;
+    try {
+      result = await commands.saveAudio(
+        path,
+        getModifiedQuery(unwrap(currentText().query!), preset),
+        preset.style_id,
+        preventOverwriteOnSave,
+        createAudioSidecars(config.ui, currentText().text),
+      );
+    } finally {
+      setSaveState("idle");
+    }
     if (result.status === "ok") {
-      const savedPath = result.data;
-      toasts.success(t1("toast.audio_exported"), {
-        label: t1("toast.open_output_dir"),
-        onClick: () => void openOutputDir(savedPath),
-      });
+      setSaveState("saved");
+      savedResetTimer = setTimeout(
+        () => setSaveState("idle"),
+        SAVED_FEEDBACK_MS,
+      );
       const parent = await commands.parentPath(result.data);
       setConfig("ui", "last_exported_dir", parent);
     } else {
@@ -400,6 +404,7 @@ function TextBlock(props: { index: number; sortable?: Sortable }) {
       splitDisabled={splitDisabled()}
       splitText={splitText}
       saveAudio={saveAudio}
+      saveState={saveState()}
       sortable={props.sortable}
       remove={remove}
       onCaretChange={handleCaretChange}

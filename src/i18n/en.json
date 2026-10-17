@@ -10,7 +10,6 @@
   "toast": {
     "notifications": "Notifications",
     "close": "Close notification",
-    "audio_exported": "Audio exported successfully",
     "open_output_dir": "Open output folder",
     "exporting_combined": "Exporting all cells as one file…",
     "combined_audio_exported": "Combined audio exported successfully",
@@ -129,6 +128,8 @@
       "add_below": "Add text cell below",
       "split": "Split text cell",
       "save_audio": "Save audio",
+      "saving_audio": "Saving audio…",
+      "audio_saved": "Audio saved",
       "reorder": "Drag to reorder text cell",
       "delete": "Delete text cell"
     },

@@ -10,7 +10,6 @@
   "toast": {
     "notifications": "通知",
     "close": "关闭通知",
-    "audio_exported": "音频导出成功",
     "open_output_dir": "打开输出文件夹",
     "exporting_combined": "正在将所有单元格导出为单个文件…",
     "combined_audio_exported": "合并音频导出成功",
@@ -129,6 +128,8 @@
       "add_below": "在下方添加文本单元格",
       "split": "拆分文本单元格",
       "save_audio": "保存音频",
+      "saving_audio": "正在保存音频…",
+      "audio_saved": "音频已保存",
       "reorder": "拖动以重新排列文本单元",
       "delete": "删除文本单元格"
     },
