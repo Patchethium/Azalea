@@ -164,7 +164,9 @@ signature that excludes pitch and duration so tuning edits never refetch.
 When `pitch_is_modified` is unset, the current pitches are the seeded
 prediction: snapshot them synchronously as the baseline so relative sliders
 start centered and absolute mode shows the baseline ghost without a request.
-Only pitch-edited blocks without a cached baseline request one with
+Cache that snapshot only after any pending generated query for the key settles,
+so changing the noise seed cannot store the previous seed's pitches as the new
+baseline. Only pitch-edited blocks without a cached baseline request one with
 `replace_mora_pitch` using the block's noise seed and current noise settings;
 until it arrives or if it fails, relative sliders fall back to the absolute
 mapping.

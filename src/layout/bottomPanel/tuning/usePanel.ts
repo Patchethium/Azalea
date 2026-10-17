@@ -506,19 +506,35 @@ export function useTuningPanel(
       pitchStructureSignature(phrases),
     ]);
   });
+  const currentQueryPending = () => {
+    const block = currentText();
+    return block === null ? undefined : queryPending[block.id];
+  };
   createEffect(
-    on(pitchBaselineKey, async (key) => {
+    on([pitchBaselineKey, currentQueryPending], async ([key, pending]) => {
       if (
         key === null ||
+        pending !== undefined ||
         untrack(() => getPitchBaseline(key)) !== null ||
         pendingPitchBaselines.has(key)
       )
         return;
       const block = currentText();
       const preset = currentPreset();
-      // Unedited pitches are the prediction itself; `pitchBaseline` uses them.
-      if (!block?.query || preset === null || block.pitch_is_modified !== true)
+      if (!block?.query || preset === null) return;
+      if (block.pitch_is_modified !== true) {
+        // Record the seeded prediction only after a regenerated query for
+        // this key has settled. Until then the query still holds pitches
+        // from the previous seed.
+        setPitchBaseline(
+          key,
+          block.query.accent_phrases.map((phrase) =>
+            phrase.moras.map((mora) => mora.pitch),
+          ),
+          false,
+        );
         return;
+      }
       const phrases = structuredClone(unwrap(block.query.accent_phrases));
       pendingPitchBaselines.add(key);
       try {
@@ -550,19 +566,15 @@ export function useTuningPanel(
     if (key === null) return null;
     const cached = getPitchBaseline(key);
     if (cached !== null) return cached;
-    const query = currentText()?.query;
-    if (!query || currentText()?.pitch_is_modified === true) return null;
-    // Pitches without manual edits were generated from this seed and these
-    // phonemes, so they are the baseline. Snapshot them synchronously so
-    // sliders start centered instead of waiting for a prediction request,
-    // and later pitch edits drift from this snapshot.
-    const snapshot = untrack(() =>
-      query.accent_phrases.map((phrase) =>
-        phrase.moras.map((mora) => mora.pitch),
-      ),
+    const block = currentText();
+    const query = block?.query;
+    if (!query || block.pitch_is_modified === true) return null;
+    // The effect above caches this once the generated query settles. Return
+    // the live snapshot meanwhile so sliders keep their mapping without
+    // storing pitches that may still belong to the previous seed.
+    return query.accent_phrases.map((phrase) =>
+      phrase.moras.map((mora) => mora.pitch),
     );
-    setPitchBaseline(key, snapshot, false);
-    return snapshot;
   });
   const baselineFor = (phraseIndex: number, moraIndex: number) =>
     pitchBaseline()?.[phraseIndex]?.[moraIndex] ?? null;

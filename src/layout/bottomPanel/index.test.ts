@@ -4294,4 +4294,36 @@ describe("Absolute pitch tuning baseline ghost", () => {
     });
     expect(document.querySelector("[data-pitch-baseline]")).toBeNull();
   });
+
+  it("rebuilds the baseline after a seed's query settles", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const { getTextStore } = renderPanel({ spectrogram_preview: false });
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    await screen.findByRole("slider", { name: "コ" });
+    const baselineBottom = () =>
+      Number.parseFloat(
+        document.querySelector<HTMLElement>("[data-pitch-baseline]")!.style
+          .bottom,
+      );
+
+    expect(baselineBottom()).toBeCloseTo(((5.4 - 3.4) / 3.1) * 100);
+
+    // Randomizing the seed starts a query refresh while the old pitches are
+    // still visible, matching the text block's generated-query lifecycle.
+    const update = getTextStore().beginQueryUpdate("first-block");
+    getTextStore().setTextStore(0, "pitch_noise_seed", 42);
+    // The stale prediction stays visible but must not be cached for seed 42.
+    expect(baselineBottom()).toBeCloseTo(((5.4 - 3.4) / 3.1) * 100);
+
+    const query = audioQuery();
+    query.accent_phrases[0].moras[0].pitch = 5;
+    getTextStore().setTextStore(0, "query", query);
+    update.finish();
+
+    await waitFor(() =>
+      expect(baselineBottom()).toBeCloseTo(((5 - 3.4) / 3.1) * 100),
+    );
+  });
 });
