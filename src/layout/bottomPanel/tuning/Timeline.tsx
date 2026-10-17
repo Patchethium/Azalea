@@ -80,6 +80,16 @@ export function TuningItem(props: {
             : null,
     };
   });
+  // Relative mode centers its dashed baseline, while absolute mode places the
+  // same ghost at the prediction's position on the shared scale.
+  const baselineGhost = createMemo(() => {
+    const baseline = props.baseline;
+    if (baseline == null || baseline <= 0) return null;
+    if (drift() !== null) return { position: 0.5 };
+    const { min, max, toPosition } = props.pitchScale;
+    if (max <= min) return null;
+    return { position: toPosition(baseline) };
+  });
   // Only pitch edits animate; switching modes, receiving a baseline, or
   // resizing the drift range moves the thumb immediately.
   const [instantPitch, setInstantPitch] = createSignal(false);
@@ -144,18 +154,23 @@ export function TuningItem(props: {
       : t2("bottom.pitch_drift_value", { value: driftText(relative, 2) });
   };
   // In relative mode the fill spans from the prediction to the thumb.
-  // Right-clicking a relative slider resets its drift to the prediction.
-  const resetDrift = (event: MouseEvent) => {
+  // Right-clicking a slider resets its pitch to the prediction in both modes.
+  const resetTarget = () => {
     const relative = drift();
-    if (relative === null) return;
+    if (relative !== null) return relative.baseline;
+    const baseline = props.baseline;
+    return baseline != null && baseline > 0 ? baseline : null;
+  };
+  const resetPitch = (event: MouseEvent) => {
+    const baseline = resetTarget();
+    if (baseline === null) return;
     event.preventDefault();
-    if (props.mora.pitch !== relative.baseline)
-      props.setPitch(relative.baseline);
+    if (props.mora.pitch !== baseline) props.setPitch(baseline);
   };
   // Kobalte moves the value on any pointer button, so keep the secondary
-  // button from reaching it before the context menu resets the drift.
+  // button from reaching it before the context menu resets the pitch.
   const stopSecondaryPointer = (event: PointerEvent) => {
-    if (event.button !== 0 && drift() !== null) event.stopPropagation();
+    if (event.button !== 0 && resetTarget() !== null) event.stopPropagation();
   };
   const fillStyle = () => {
     if (drift() === null) return undefined;
@@ -192,21 +207,24 @@ export function TuningItem(props: {
                 capture: true,
               })
             }
-            onContextMenu={resetDrift}
+            onContextMenu={resetPitch}
           >
             <Slider.Track class="size-full bg-transparent relative group">
-              <Show when={drift() !== null}>
-                <div
-                  aria-hidden="true"
-                  class="pointer-events-none absolute inset-x-0 top-1/2 b-t b-dashed b-slate-3 dark:b-slate-6"
-                  data-pitch-baseline
-                />
-              </Show>
               <Slider.Fill
                 class={`${styles.pitchFill} absolute bg-transparent w-full group-hover:!bg-primary-50 dark:group-hover:!bg-primary-9`}
                 classList={{ "opacity-60": spectrogramPreviewEnabled() }}
                 style={fillStyle()}
               />
+              <Show when={baselineGhost()}>
+                {(marker) => (
+                  <div
+                    aria-hidden="true"
+                    class="pointer-events-none absolute inset-x-0 b-t b-dashed b-slate-3 dark:b-slate-6"
+                    style={{ bottom: `${marker().position * 100}%` }}
+                    data-pitch-baseline
+                  />
+                )}
+              </Show>
               <Show when={ghost()}>
                 {(ghost) => (
                   <>

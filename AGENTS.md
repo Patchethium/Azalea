@@ -144,27 +144,30 @@ in relative mode, or from the tuning-options menu (`TuningMenu`, an
 only on the tuning panel). That menu also holds the absolute pitch scale
 (hidden in relative mode) and the pitch-ruler toggle, so it stays reachable
 when the ruler is hidden; the ruler itself has no context menu.
-Right-clicking a relative slider resets that mora to its baseline through
-`setPitch` (a no-op when already there); secondary-button pointerdowns are
-stopped in the capture phase so Kobalte does not move the value first.
-Absolute sliders keep the default context-menu behavior. Relative mode also
-draws a faint per-mora ghost line at the current absolute pitch mapped through
-the shared pitch scale, so the absolute contour stays readable behind the
+Right-clicking a slider resets that mora to its baseline through `setPitch` (a
+no-op when already there) in both absolute and relative modes;
+secondary-button pointerdowns are stopped in the capture phase when a reset is
+available so Kobalte does not move the value first. Without a baseline, the
+native context-menu behavior remains. Relative mode also draws a faint per-mora
+ghost line at the current absolute pitch mapped through the shared pitch scale,
+so the absolute contour stays readable behind the
 drift-based sliders; it follows pitch edits, ignores prediction-only changes,
 stays pinned to the nearest edge with a small top/bottom arrow when the pitch
 lies beyond the scale, and is absent while the absolute fallback or a spanless
-scale is active.
+scale is active. Absolute mode instead draws the predicted baseline as a
+dashed ghost at its position on the absolute scale.
 
 The baseline is never persisted. Cache it in `PitchBaselineProvider`
 (`src/contexts/pitchBaseline.ts`) so it survives tuning-panel remounts, keyed
 by block, style, seed, noise settings, core revision and a phoneme/accent
 signature that excludes pitch and duration so tuning edits never refetch.
 When `pitch_is_modified` is unset, the current pitches are the seeded
-prediction: snapshot them synchronously as the baseline so sliders start
-centered without a request, and later edits drift from that snapshot. Only
-pitch-edited blocks without a cached baseline request one with
+prediction: snapshot them synchronously as the baseline so relative sliders
+start centered and absolute mode shows the baseline ghost without a request.
+Only pitch-edited blocks without a cached baseline request one with
 `replace_mora_pitch` using the block's noise seed and current noise settings;
-until it arrives or if it fails, sliders fall back to the absolute mapping.
+until it arrives or if it fails, relative sliders fall back to the absolute
+mapping.
 Mapping changes (baseline arrival, mode switch, drift range) reposition sliders
 without the pitch transition. Pitch completion does not rebase the baseline:
 completed moras show their drift from the seeded prediction.

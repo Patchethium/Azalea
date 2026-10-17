@@ -484,15 +484,14 @@ export function useTuningPanel(
     ),
   );
 
-  // The relative-mode baseline is the seeded prediction for the current
-  // phonemes and accents. It is deterministic, so results are cached by key
-  // across panel mounts and never persisted; pitch completion does not rebase
-  // it.
+  // The baseline is the seeded prediction for the current phonemes and
+  // accents. It is deterministic, so results are cached by key across panel
+  // mounts and never persisted; pitch completion does not rebase it. Relative
+  // sliders center on it and absolute mode draws it as a ghost.
   const { getPitchBaseline, setPitchBaseline } =
     usePitchBaselineStore() ?? createPitchBaselineCache();
   const pendingPitchBaselines = new Set<string>();
   const pitchBaselineKey = createMemo(() => {
-    if (tuningMode() !== "Relative") return null;
     const block = currentText();
     const preset = currentPreset();
     const phrases = block?.query?.accent_phrases;

@@ -3257,7 +3257,9 @@ describe("Pitch completion", () => {
     const sliderRoot = changed.closest('[role="group"]')!;
     expect(sliderRoot).toHaveClass(tuningStyles.pitchSlider);
     expect(changed).toHaveClass(tuningStyles.pitchThumb);
-    expect(changed.previousElementSibling).toHaveClass(tuningStyles.pitchFill);
+    expect(
+      changed.parentElement!.querySelector(`.${tuningStyles.pitchFill}`),
+    ).toBeInTheDocument();
     const originalBottom = changed.style.bottom;
     const unchangedBottom = unchanged.style.bottom;
     edited.focus();
@@ -3800,7 +3802,7 @@ describe("Relative pitch tuning", () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
-  it("resets drift to the prediction on right click", async () => {
+  it("resets pitch to the prediction on right click", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
@@ -3840,10 +3842,28 @@ describe("Relative pitch tuning", () => {
     expect(block().pitch_is_modified).toBe(true);
     expect(block().accent_is_modified).toBe(false);
 
-    // Absolute sliders keep the native context menu.
+    // Absolute sliders reset to the same prediction.
     getConfigStore().setConfig("ui", "pitch_tuning_mode", "Absolute");
-    expect(fireEvent.contextMenu(track)).toBe(true);
+    getTextStore().setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      0,
+      "moras",
+      0,
+      "pitch",
+      6,
+    );
+    expect(slider).toHaveAttribute("aria-valuetext", "6.0000");
+    // The secondary button does not move the absolute slider before the reset.
+    fireEvent(
+      track,
+      new MouseEvent("pointerdown", { bubbles: true, button: 2, clientY: 0 }),
+    );
+    expect(slider).toHaveAttribute("aria-valuetext", "6.0000");
+    expect(fireEvent.contextMenu(track)).toBe(false);
     expect(pitch()).toBe(5.4);
+    expect(slider).toHaveAttribute("aria-valuetext", "5.4000");
   });
 
   it("moves sliders without a transition when the baseline arrives", async () => {
@@ -3982,7 +4002,13 @@ describe("Relative pitch tuning", () => {
 
     getConfigStore().setConfig("ui", "pitch_tuning_mode", "Absolute");
     expect(slider).toHaveAttribute("aria-valuetext", "5.0000");
-    expect(document.querySelector("[data-pitch-baseline]")).toBeNull();
+    const absoluteBaseline = document.querySelector<HTMLElement>(
+      "[data-pitch-baseline]",
+    )!;
+    expect(absoluteBaseline).toHaveClass("b-dashed");
+    expect(Number.parseFloat(absoluteBaseline.style.bottom)).toBeCloseTo(
+      ((5 - 3.4) / 3.1) * 100,
+    );
     expect(document.querySelector("[data-pitch-ghost]")).toBeNull();
     expect(pitch()).toBe(5);
 
@@ -3990,6 +4016,12 @@ describe("Relative pitch tuning", () => {
     getConfigStore().setConfig("ui", "pitch_tuning_mode", "Relative");
     expect(slider).toHaveAttribute("aria-valuetext", "0 semitones");
     expect(ghostBottom()).toBeCloseTo(centeredGhost);
+    expect(
+      Number.parseFloat(
+        document.querySelector<HTMLElement>("[data-pitch-baseline]")!.style
+          .bottom,
+      ),
+    ).toBeCloseTo(50);
     expect(replace).toHaveBeenCalledTimes(1);
 
     // Accent edits change the prediction.
@@ -4201,5 +4233,65 @@ describe("Relative pitch tuning", () => {
     expect(
       screen.queryByRole("menuitemradio", { name: "Optimal" }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("Absolute pitch tuning baseline ghost", () => {
+  it("requests and draws the prediction as a dashed ghost", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const replace = vi
+      .spyOn(commands, "replaceMoraPitch")
+      .mockImplementation(async (phrases) => ({
+        status: "ok" as const,
+        data: phrases.map((phrase) => ({
+          ...phrase,
+          moras: phrase.moras.map((item) => ({ ...item, pitch: 5 })),
+        })),
+      }));
+    const { getConfigStore, getTextStore } = renderPanel({
+      spectrogram_preview: false,
+    });
+    await screen.findByRole("tab", { name: "Tuning" });
+    getTextStore().setTextStore(0, "pitch_is_modified", true);
+    fireEvent.click(screen.getByRole("tab", { name: "Tuning" }));
+    const slider = await screen.findByRole("slider", { name: "コ" });
+    expect(slider).toHaveAttribute("aria-valuetext", "5.4000");
+    const baseline = () =>
+      document.querySelector<HTMLElement>("[data-pitch-baseline]")!;
+
+    // Absolute mode still resolves the seeded prediction for its ghost.
+    await waitFor(() => expect(replace).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(Number.parseFloat(baseline().style.bottom)).toBeCloseTo(
+        ((5 - 3.4) / 3.1) * 100,
+      ),
+    );
+    expect(baseline()).toHaveClass("b-dashed");
+    // Receiving the prediction does not switch the slider to relative drift.
+    expect(slider).toHaveAttribute("aria-valuetext", "5.4000");
+
+    // The ghost stays at the prediction while the thumb shows the edit.
+    getTextStore().setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      0,
+      "moras",
+      0,
+      "pitch",
+      5.4,
+    );
+    expect(slider).toHaveAttribute("aria-valuetext", "5.4000");
+    expect(Number.parseFloat(baseline().style.bottom)).toBeCloseTo(
+      ((5 - 3.4) / 3.1) * 100,
+    );
+
+    // A degenerate absolute range leaves no shared scale to reference.
+    getConfigStore().setRange({
+      1: { ...pitchRange(), histogram_min: 5, histogram_max: 5 },
+    });
+    expect(document.querySelector("[data-pitch-baseline]")).toBeNull();
   });
 });

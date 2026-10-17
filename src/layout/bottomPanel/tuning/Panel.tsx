@@ -239,7 +239,11 @@ export function TuningPanel(props: {
                             }
                           }}
                           pitchScale={panel.pitchScale()}
-                          driftScale={panel.driftScale()}
+                          driftScale={
+                            panel.tuningMode() === "Relative"
+                              ? panel.driftScale()
+                              : undefined
+                          }
                           baseline={
                             currentItem().isPause
                               ? null
