@@ -1,5 +1,5 @@
-//! Handling for project paths passed on the command line, both to the first
-//! launch and to a second launch while Azalea is already running.
+//! Handling for project paths passed on the command line or through macOS
+//! file associations, at startup and while Azalea is already running.
 
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -36,7 +36,13 @@ pub(crate) fn project_path_from_args<S: AsRef<str>>(args: &[S], cwd: &Path) -> O
 
 /// The project path passed to the first launch, handed to the frontend once.
 #[derive(Default)]
-pub(crate) struct StartupProject(Mutex<Option<String>>);
+pub(crate) struct StartupProject(Mutex<StartupProjectState>);
+
+#[derive(Default)]
+struct StartupProjectState {
+  path: Option<String>,
+  consumed: bool,
+}
 
 impl StartupProject {
   /// Reads the project path from this process's arguments. Arguments that are
@@ -52,13 +58,29 @@ impl StartupProject {
   }
 
   fn new(path: Option<PathBuf>) -> Self {
-    Self(Mutex::new(
-      path.map(|path| path.to_string_lossy().into_owned()),
-    ))
+    Self(Mutex::new(StartupProjectState {
+      path: path.map(|path| path.to_string_lossy().into_owned()),
+      consumed: false,
+    }))
   }
 
   fn take(&self) -> Option<String> {
-    self.0.lock().unwrap().take()
+    let mut state = self.0.lock().unwrap();
+    state.consumed = true;
+    state.path.take()
+  }
+
+  /// Queue native opens until the frontend has registered its listener and
+  /// requested the startup project. Later opens are emitted immediately.
+  fn queue_or_forward(&self, path: PathBuf) -> Option<String> {
+    let path = path.to_string_lossy().into_owned();
+    let mut state = self.0.lock().unwrap();
+    if state.consumed {
+      Some(path)
+    } else {
+      state.path = Some(path);
+      None
+    }
   }
 }
 
@@ -74,6 +96,14 @@ pub fn take_startup_project(state: tauri::State<'_, StartupProject>) -> Option<S
 /// second launch to the frontend.
 #[cfg(desktop)]
 pub(crate) fn handle_second_launch(app: &tauri::AppHandle, args: Vec<String>, cwd: String) {
+  focus_main_window(app);
+  if let Some(path) = project_path_from_args(&args, Path::new(&cwd)) {
+    forward_project(app, path);
+  }
+}
+
+#[cfg(desktop)]
+fn focus_main_window(app: &tauri::AppHandle) {
   use tauri::Manager;
 
   if let Some(window) = app.get_webview_window("main") {
@@ -87,14 +117,40 @@ pub(crate) fn handle_second_launch(app: &tauri::AppHandle, args: Vec<String>, cw
       }
     }
   }
-  let Some(path) = project_path_from_args(&args, Path::new(&cwd)) else {
+}
+
+#[cfg(desktop)]
+fn forward_project(app: &tauri::AppHandle, path: PathBuf) {
+  use tauri::Manager;
+
+  let Some(path) = app.state::<StartupProject>().queue_or_forward(path) else {
     return;
   };
-  let event = OpenProjectRequested {
-    path: path.to_string_lossy().into_owned(),
-  };
+  let event = OpenProjectRequested { path };
   if let Err(error) = event.emit(app) {
     eprintln!("Failed to emit open project request: {error}");
+  }
+}
+
+/// macOS delivers Finder/Open With selections as file URLs rather than argv.
+#[cfg(any(target_os = "macos", test))]
+fn project_path_from_urls(urls: &[tauri::Url]) -> Option<PathBuf> {
+  urls
+    .iter()
+    .filter_map(|url| url.to_file_path().ok())
+    .find(|path| {
+      path
+        .extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("azp"))
+        && path.is_file()
+    })
+}
+
+#[cfg(target_os = "macos")]
+pub(crate) fn handle_opened_urls(app: &tauri::AppHandle, urls: Vec<tauri::Url>) {
+  focus_main_window(app);
+  if let Some(path) = project_path_from_urls(&urls) {
+    forward_project(app, path);
   }
 }
 
@@ -160,6 +216,43 @@ mod tests {
       ),
       Some(project)
     );
+  }
+
+  #[test]
+  fn native_projects_queue_until_startup_is_taken_then_forward() {
+    let startup = StartupProject::default();
+    assert_eq!(startup.queue_or_forward(PathBuf::from("/first.azp")), None);
+    assert_eq!(startup.queue_or_forward(PathBuf::from("/latest.azp")), None);
+    assert_eq!(startup.take().as_deref(), Some("/latest.azp"));
+    assert_eq!(
+      startup
+        .queue_or_forward(PathBuf::from("/next.azp"))
+        .as_deref(),
+      Some("/next.azp")
+    );
+    assert_eq!(startup.take(), None);
+  }
+
+  #[test]
+  fn project_urls_decode_unicode_and_spaces_and_ignore_invalid_selections() {
+    let dir = tempfile::tempdir().unwrap();
+    let project = dir.path().join("物語 draft.AZP");
+    fs::write(&project, "").unwrap();
+    let notes = dir.path().join("notes.txt");
+    fs::write(&notes, "").unwrap();
+    let folder = dir.path().join("folder.azp");
+    fs::create_dir(&folder).unwrap();
+    let urls = vec![
+      tauri::Url::parse("https://example.com/story.azp").unwrap(),
+      tauri::Url::from_file_path(dir.path().join("missing.azp")).unwrap(),
+      tauri::Url::from_file_path(notes).unwrap(),
+      tauri::Url::from_file_path(folder).unwrap(),
+    ];
+    assert_eq!(project_path_from_urls(&urls), None);
+    let mut urls = urls;
+    urls.push(tauri::Url::from_file_path(&project).unwrap());
+    assert_eq!(project_path_from_urls(&urls), Some(project));
+    assert_eq!(project_path_from_urls(&[]), None);
   }
 
   #[test]

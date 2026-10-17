@@ -1,27 +1,135 @@
 # Azalea
 
-**Azalea**(アザレア) is a simple and (relatively) lightweight alternative GUI for [VOICEVOX](https://github.com/VOICEVOX/voicevox), a **Japanese only** TTS app. [The Author](https://github.com/Patchethium) aims to provide a simple and easy-to-use interface for VOICEVOX, with his own personal touch.
+**Azalea**（アザレア）is an unofficial desktop GUI for
+[VOICEVOX](https://github.com/VOICEVOX/voicevox), focused on Japanese
+text-to-speech and voice presets. It uses the Rust VOICEVOX Core directly,
+without running `voicevox_engine`.
+
+[English quickstart](#quickstart) · [日本語](#日本語)
 
 > [!WARNING]
-> :construction: **This project is still in development and is not ready for production use.** :construction:
+> This project is still in development and is not ready for production use.
+> プロジェクトは開発中です。本番用途での利用はまだ推奨していません。
 
 ## Features
 
-Azalea is a place for me to put ideas that can't be merged into VOICEVOX GUI itself for various reasons. Here's a list of these features:
+- **Choose your voice setup.** Reuse an existing VOICEVOX installation or
+  download selected voice packages, a CPU runtime, and the system dictionary
+  from inside Azalea. Switch setups without restarting.
+- **Organize dialogue with presets.** Assign speakers, styles, and synthesis
+  settings to text blocks. Drag the grip handles to reorder blocks and presets.
+  Import `.txt` or `.srt` files, or paste multiple lines as separate blocks.
+- **Tune speech visually.** Edit readings, accents, pitch, and duration, with a
+  mel spectrogram behind the tuning controls. Choose absolute pitch editing or
+  relative editing in semitones around the predicted pitch; absolute mode also
+  offers fitted and density-aware scales for each voice style.
+- **Explore pitch variation.** Optional seeded pitch noise gives repeatable
+  variations. Optional pitch completion regenerates pitches after an edited
+  mora while preserving the edited prefix; lock completion from the tuning
+  toolbar when you want to keep the remaining pitches.
+- **Preview and export.** Play the selected block or the sequence from it.
+  Export one block, every non-empty block as separate WAV files, or all of them
+  as one WAV with the presets' leading and trailing silences. Optional `.txt`
+  and lip-sync `.lab` sidecars accompany audio exports.
+- **Keep your work.** Save `.azp` projects with presets and manual tuning, use
+  Save As, and reopen recent projects. The current schema is version `1`;
+  unversioned projects and other schema versions are not supported.
+- **Make the workspace yours.** Download character portraits, resize or
+  collapse panels, customize shortcuts, and choose a light/dark theme and
+  primary color. The interface supports English, Japanese, and Simplified
+  Chinese; speech synthesis is Japanese only.
 
-- Small binary: The app size is less than **5MB** gzipped and requires less than **100MB** RAM usage (without the voice models loaded).
-- Lightweight: No `voicevox_engine` bundled, users can reuse existing VOICEVOX installation, resulting in minimal disk usage.
-- Alternative UI design: A different take on VOICEVOX's UI/UX, focusing on preset management.
-- Pitch range optimization: The pitch range for every speaker is pre-computed for a better tuning experience.
-- I18N: English and Japanese are supported, new languages can be added easily by a JSON file.
-- Custom themes: Change the themes (primary color) in GUI.
-- Talk-only: Although VOICEVOX supports singing synthesis, Azalea focuses on TTS only, excluding singing-related elements for a cleaner UI.
+## Quickstart
 
-More to come...
+1. Install the appropriate build from
+   [Releases](https://github.com/Patchethium/Azalea/releases) for Windows,
+   macOS Apple Silicon, or Linux. Older releases may not include every feature
+   described here; this README follows the current source.
+2. Launch Azalea and select **Open config** on the first-launch screen. In
+   **Voice → Voice setup**, choose one of the following:
+   - **Azalea-managed models:** review the linked model terms, select the voice
+     packages you want under **Manage models**, and download them. The missing
+     CPU runtime and system dictionary download automatically. Select
+     **Apply models** when finished.
+   - **VOICEVOX:** select **Choose...** and choose the `vv-engine` directory
+     inside your existing VOICEVOX installation.
+3. Close Config. Enter Japanese text in a text block and select a preset in
+   the sidebar to assign its voice. Use the preset editor to change the speaker,
+   style, or synthesis settings. Add more blocks as needed and drag their grip
+   handles to change the order.
+4. Select a block and use **Accent** or **Tuning** in the bottom panel to edit
+   speech. Play the selected cell to listen. The spectrogram is enabled by
+   default; with background buffering disabled, it updates after playback
+   synthesis. Optional noise and completion are enabled in Config's **Voice**
+   section. The tuning toolbar's three-dot menu switches pitch editing modes.
+5. Open **Project actions** at the bottom of the sidebar and **Save project**
+   as an `.azp` file. Use a block's export button for one WAV, **Export all**
+   for separate files, or **Export all as one file…** for a combined WAV.
+   Keep a saved copy of important work; autosave currently requires a project
+   that has already been saved to a path.
 
-## Installation
+Portraits are optional: choose **Download portraits** in the portrait panel and
+review the linked usage terms. See [Setting up the core](#setting-up-the-core)
+for download locations, runtime limitations, and manual setup.
 
-Pre-built binary is provided in [Releases](https://github.com/Patchethium/Azalea/releases) for MacOS Silicon, Windows and Linux.
+## 日本語
+
+Azalea（アザレア）は、VOICEVOX向けの非公式デスクトップGUIです。
+日本語の読み上げとプリセット管理に重点を置き、`voicevox_engine`を起動せずに
+Rust版VOICEVOX Coreを直接利用します。
+
+### 主な機能
+
+- **音声環境の選択：** インストール済みのVOICEVOXを利用するか、必要な音声モデルと
+  CPUランタイム、システム辞書をアプリ内でダウンロードできます。
+  再起動せずに環境を切り替えられます。
+- **プリセットで台本を整理：** テキストブロックごとに話者、スタイル、合成設定を
+  割り当てられます。ブロックとプリセットはハンドルをドラッグして並べ替えられます。
+  `.txt`・`.srt`の読み込みや、複数行を別々のブロックとして貼り付ける操作にも対応します。
+- **音声を見ながら調整：** 読み、アクセント、音高、長さを編集でき、調整パネルには
+  メルスペクトログラムが表示されます。音高は絶対値のほか、予測値からの差を半音単位で
+  調整できます。絶対値モードではスタイルごとに最適化したスケールも選べます。
+- **音高のバリエーション：** 任意で有効にするノイズ付き音高生成は、シードを指定して
+  同じ変化を再現できます。音高補完を有効にすると、編集したモーラまでの音高を保ったまま
+  後続を再生成します。調整ツールバーのロックで補完を一時的に止められます。
+- **再生と書き出し：** 選択中のブロックや、そこから後のブロックを連続再生できます。
+  WAVはブロック単位、全ブロックを個別ファイル、または1つに結合して書き出せます。
+  結合時も各プリセットの前後の無音が含まれます。テキスト（`.txt`）と
+  リップシンク用ラベル（`.lab`）の同時出力も設定できます。
+- **プロジェクトの保存：** プリセットと手動調整を`.azp`に保存し、名前を付けて保存したり、
+  最近使ったプロジェクトを開いたりできます。現在はスキーマバージョン`1`のみ対応し、
+  バージョンなしのファイルや他のバージョンは読み込めません。
+- **表示と操作のカスタマイズ：** キャラクターの立ち絵、パネルのサイズ変更・折りたたみ、
+  ショートカット、ライト・ダークテーマとテーマ色を設定できます。
+  UIは日本語・英語・簡体字中国語に対応し、音声合成は日本語専用です。
+
+### はじめ方
+
+1. [Releases](https://github.com/Patchethium/Azalea/releases)から、お使いの環境
+   （Windows・macOS Apple Silicon・Linux）向けのビルドをインストールします。
+   このREADMEは現在のソースコードに対応しているため、古いリリースには未搭載の機能があります。
+2. 起動時の画面で**設定を開く**を押し、**音声 → 音声環境**で次のいずれかを選びます。
+   - **Azalea管理のモデル：** **モデル管理**でリンク先の利用規約を確認し、必要なモデルを
+     選んでダウンロードします。未取得のCPUランタイムとシステム辞書も自動で取得されます。
+     完了したら**モデルを適用**を押します。
+   - **VOICEVOX：** **選択...**から、インストール済みVOICEVOXの中にある
+     `vv-engine`フォルダーを選びます。
+3. 設定を閉じ、テキストブロックに日本語を入力します。サイドバーでプリセットを選ぶと、
+   その声をブロックに割り当てられます。プリセットの編集欄で話者・スタイル・合成設定を
+   変更できます。必要に応じてブロックを増やし、ハンドルのドラッグで順番を調整します。
+4. ブロックを選択して、下部の**アクセント**または**調整**で編集し、
+   **選択したセルを再生**で確認します。スペクトログラムは初期設定で有効です。
+   音声のバックグラウンド生成が無効な場合は、再生用の合成後に更新されます。
+   ノイズ付き音高生成と音高補完は、設定の**音声**から有効にできます。
+   調整ツールバーの三点メニューで音高の編集モードを切り替えられます。
+5. サイドバー下部の**プロジェクト操作 → プロジェクト保存**で`.azp`として保存します。
+   各ブロックの書き出しボタンで1つのWAV、**すべて書き出し**で個別のWAV、
+   **すべてを1つのファイルに書き出し…**で結合したWAVを出力できます。
+   大切な作業は保存してください。現在の自動保存は、保存先を指定済みのプロジェクトが対象です。
+
+立ち絵は任意です。立ち絵パネルの**立ち絵をダウンロード**から、リンク先の利用規約を確認して
+取得できます。保存先やランタイムの制約、手動設定については、英語の
+[Setting up the core](#setting-up-the-core)を参照してください。
 
 ## Development
 

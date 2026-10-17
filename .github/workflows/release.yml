@@ -4,7 +4,14 @@ on:
   workflow_dispatch:
 
 jobs:
+  tests:
+    name: Test before packaging
+    permissions:
+      contents: read
+    uses: ./.github/workflows/tests.yml
+
   publish-tauri:
+    needs: tests
     permissions:
       contents: write
     strategy:

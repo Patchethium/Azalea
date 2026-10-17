@@ -1845,6 +1845,31 @@ describe("Sidebar recent projects", () => {
     expect(loadProject).toHaveBeenCalledTimes(1);
   });
 
+  it("waits for the project listener before consuming startup opens", async () => {
+    let finishListening!: (eventId: number) => void;
+    mockIPC((cmd, args) => {
+      if (
+        cmd === "plugin:event|listen" &&
+        (args as { event: string }).event === "open-project-requested"
+      ) {
+        return new Promise<number>((resolve) => {
+          finishListening = resolve;
+        });
+      }
+      return cmd === "get_os" ? "Linux" : null;
+    });
+    const takeStartupProject = vi
+      .spyOn(commands, "takeStartupProject")
+      .mockResolvedValue(null);
+    const { getStores } = renderStartupSidebar();
+    await screen.findByRole("button", { name: "Project actions" });
+    getStores().meta.setMetas(metas);
+    await Promise.resolve();
+    expect(takeStartupProject).not.toHaveBeenCalled();
+    finishListening(1);
+    await waitFor(() => expect(takeStartupProject).toHaveBeenCalledTimes(1));
+  });
+
   it("keeps the empty project without a startup project", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
     const takeStartupProject = vi

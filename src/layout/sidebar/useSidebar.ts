@@ -367,9 +367,11 @@ export function useSidebar() {
 
   // A project passed to the first launch opens once the voices are ready, so
   // its preset fallbacks resolve against the loaded speaker metadata.
+  const [projectListenerReady, setProjectListenerReady] = createSignal(false);
   let startupProjectRequested = false;
   createEffect(() => {
-    if (startupProjectRequested || !voicesReady()) return;
+    if (startupProjectRequested || !voicesReady() || !projectListenerReady())
+      return;
     startupProjectRequested = true;
     commands
       .takeStartupProject()
@@ -394,7 +396,10 @@ export function useSidebar() {
       .listen(({ payload }) => openRecentProject(payload.path))
       .then((stop) => {
         if (disposed) stop();
-        else unlisten = stop;
+        else {
+          unlisten = stop;
+          setProjectListenerReady(true);
+        }
       })
       .catch((error) => {
         console.error("Failed to listen for open project requests:", error);

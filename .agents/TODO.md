@@ -40,9 +40,9 @@ it without help.
 
 ### Release
 
-- [ ] **Gate packaging on tests.** `.github/workflows/release.yml` packages
-      without running the frontend checks/build/tests or the real-Core Rust
-      suite.
+- [x] **Gate packaging on tests.** `.github/workflows/release.yml` waits for
+      the reusable test workflow's frontend checks/build/coverage and complete
+      real-Core Rust suite before packaging.
 - [ ] **Cut a new version and tag.** Package, Cargo, and Tauri are still at
       0.2.3 and the last tag is `app-v0.2.2`. Build every artifact from the
       tag and write feature notes, setup steps, and the `.azp` schema-1
@@ -58,10 +58,9 @@ it without help.
 
 ### Announcement
 
-- [ ] **Rewrite the README features and quickstart in English and
-      Japanese.** The feature list predates spectrogram preview, pitch noise
-      and completion, the voice downloader, portraits, Export All,
-      drag-and-drop ordering, and Simplified Chinese.
+- [x] **Rewrite the README features and quickstart in English and
+      Japanese.** Both languages now describe current features and walk through
+      voice setup, editing, playback, saving, and separate or combined export.
 - [ ] **Add a screenshot, a demo `.azp`, and a 30-second video with audio**
       near the top of the README: a short two-speaker Japanese script showing
       a preset change, pitch and spectrogram tuning, playback, and export.
@@ -161,7 +160,9 @@ Blocked on upstream: voicevox_core 0.17.0 keeps `__precompute_render` /
       launch focuses the existing window and forwards an existing `.azp`
       argument as `OpenProjectRequested`. A `.azp` passed to the first launch
       opens once the voices are ready (`take_startup_project`).
-- [ ] Register `.azp` file associations in the bundle configuration.
+- [x] Register `.azp` file associations in the bundle configuration. Native
+      macOS file-open events and Linux/Windows launch arguments route projects
+      through the startup handoff or the running application's open flow.
 - [ ] Application updates and a release-notes view.
 - [ ] A headless CLI for project validation and batch rendering.
 - [ ] More locales (Traditional Chinese currently falls back to Simplified).

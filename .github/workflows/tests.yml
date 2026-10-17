@@ -5,6 +5,7 @@ on:
     paths:
       - ".cargo/**"
       - ".github/workflows/tests.yml"
+      - ".github/workflows/release.yml"
       - "src/**"
       - "src-tauri/**"
       - "biome.json"
@@ -20,6 +21,7 @@ on:
     paths:
       - ".cargo/**"
       - ".github/workflows/tests.yml"
+      - ".github/workflows/release.yml"
       - "src/**"
       - "src-tauri/**"
       - "biome.json"
@@ -32,12 +34,13 @@ on:
       - "vite.config.ts"
       - "vitest.config.ts"
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
 
 concurrency:
-  group: tests-${{ github.ref }}
+  group: tests-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
