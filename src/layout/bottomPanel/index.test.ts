@@ -136,6 +136,26 @@ describe("BottomPanel playback", () => {
     ).toHaveAccessibleDescription("no output device");
   });
 
+  it("stops and reports streaming playback that fails after it started", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    vi.spyOn(commands, "playAudio").mockResolvedValue({
+      status: "ok",
+      data: null,
+    });
+    const { getControls } = renderPlaybackHook(vi.fn());
+    await Promise.resolve();
+
+    await getControls().togglePlayback();
+    expect(getControls().isPlaying()).toBe(true);
+    await emit("audio-playback-failed", "chunk rendering failed");
+    await waitFor(() => expect(getControls().isPlaying()).toBe(false));
+    expect(
+      await screen.findByRole("status", { name: "Couldn't play the audio" }),
+    ).toHaveAccessibleDescription("chunk rendering failed");
+  });
+
   it("handles playback controller boundaries and sequence races", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,

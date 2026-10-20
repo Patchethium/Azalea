@@ -17,6 +17,7 @@ import {
   DEFAULT_PORTRAIT_RATIO,
   DEFAULT_SIDEBAR_WIDTH,
   DEFAULT_SPECTROGRAM_PREVIEW,
+  DEFAULT_STREAMING_SYNTHESIS,
   DEFAULT_SYNTHESIS_DELAY_MS,
   DEFAULT_THEME_MODE,
 } from "$constants";
@@ -97,6 +98,7 @@ export const config = (
     nonblocking_synthesis: false,
     synthesis_delay_ms: DEFAULT_SYNTHESIS_DELAY_MS,
     spectrogram_preview: DEFAULT_SPECTROGRAM_PREVIEW,
+    streaming_synthesis: DEFAULT_STREAMING_SYNTHESIS,
     playback_timeline: DEFAULT_PLAYBACK_TIMELINE,
     name_truncation_len: 0,
     default_export_dir: null,

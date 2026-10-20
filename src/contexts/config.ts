@@ -19,6 +19,7 @@ import {
   DEFAULT_PITCH_RULER,
   DEFAULT_PLAYBACK_TIMELINE,
   DEFAULT_SPECTROGRAM_PREVIEW,
+  DEFAULT_STREAMING_SYNTHESIS,
   DEFAULT_THEME_MODE,
 } from "$constants";
 import { useMetaStore } from "@contexts/meta";
@@ -95,6 +96,11 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     config.ui.spectrogram_preview ?? DEFAULT_SPECTROGRAM_PREVIEW;
   const setSpectrogramPreviewEnabled = (enabled: boolean) => {
     setConfig("ui", "spectrogram_preview", enabled);
+  };
+  const streamingSynthesisEnabled = () =>
+    config.ui.streaming_synthesis ?? DEFAULT_STREAMING_SYNTHESIS;
+  const setStreamingSynthesisEnabled = (enabled: boolean) => {
+    setConfig("ui", "streaming_synthesis", enabled);
   };
   const playbackTimelineEnabled = () =>
     config.ui.playback_timeline ?? DEFAULT_PLAYBACK_TIMELINE;
@@ -274,6 +280,8 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     refreshCoreAfterModelDeletion,
     spectrogramPreviewEnabled,
     setSpectrogramPreviewEnabled,
+    streamingSynthesisEnabled,
+    setStreamingSynthesisEnabled,
     playbackTimelineEnabled,
     setPlaybackTimelineEnabled,
     titlebarStyle,

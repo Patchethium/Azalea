@@ -6,6 +6,7 @@ use crate::spectrogram::{
   create_spectrogram_preview, validate_spectrogram_request, SpectrogramJob, SpectrogramJobEvent,
   SpectrogramJobRequest,
 };
+use crate::streaming::{StreamPlan, STREAMING_CHUNK_FRAMES};
 use crate::synthesis::{
   eviction_events, SynthesisBackend, SynthesisJob, SynthesisJobEvent, SynthesisJobRequest,
   SynthesisJobState, WaveformCacheEntry, WaveformCacheOwner,
@@ -14,7 +15,7 @@ use crate::AppState;
 use crate::{
   audio::combine::concatenate_wavs,
   audio::lab::{lab_from_audio_query, lab_from_audio_query_at},
-  audio::AudioPlayer,
+  audio::{AudioPlayer, PlaybackFeed},
   core::Core,
 };
 
@@ -25,11 +26,12 @@ use std::io::Write;
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 use std::sync::{atomic::Ordering, Arc};
+use std::time::Duration;
 
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use tauri_specta::Event;
-use tokio::sync::OnceCell;
+use tokio::sync::{OnceCell, OwnedSemaphorePermit};
 use voicevox_core::{AccentPhrase, AudioQuery, StyleId, VoiceModelMeta};
 
 /// Load the voicevox core and create lru cache
@@ -202,6 +204,14 @@ where
   F: FnOnce(Arc<Core>) -> Result<T, String> + Send + 'static,
 {
   let generation = state.core_generation.load(Ordering::SeqCst);
+  run_core_task_at(state, generation, task).await
+}
+
+/// Takes the core task gate and the core, failing when the core changed since `generation`.
+async fn acquire_core(
+  state: &AppState,
+  generation: u64,
+) -> Result<(OwnedSemaphorePermit, Arc<Core>), String> {
   let permit = state
     .core_task_gate
     .clone()
@@ -216,7 +226,16 @@ where
     .as_ref()
     .cloned()
     .ok_or("core is not initialized")?;
+  Ok((permit, core))
+}
 
+/// Same as [`run_core_task`], but only on the core of `generation`.
+async fn run_core_task_at<T, F>(state: &AppState, generation: u64, task: F) -> Result<T, String>
+where
+  T: Send + 'static,
+  F: FnOnce(Arc<Core>) -> Result<T, String> + Send + 'static,
+{
+  let (permit, core) = acquire_core(state, generation).await?;
   tauri::async_runtime::spawn_blocking(move || {
     let _permit = permit;
     task(core)
@@ -231,21 +250,7 @@ async fn run_nonblocking_synthesis_task(
   speaker_id: StyleId,
 ) -> Result<Vec<u8>, String> {
   let generation = state.core_generation.load(Ordering::SeqCst);
-  let _permit = state
-    .core_task_gate
-    .clone()
-    .acquire_owned()
-    .await
-    .map_err(|_| "Core task worker is unavailable")?;
-  ensure_core_generation(state, generation)?;
-  let core = state
-    .core
-    .read()
-    .await
-    .as_ref()
-    .cloned()
-    .ok_or("core is not initialized")?;
-
+  let (_permit, core) = acquire_core(state, generation).await?;
   core
     .synthesis_nonblocking_prepared(&audio_query, speaker_id)
     .await
@@ -257,21 +262,7 @@ async fn prepare_nonblocking_synthesis_task(
   speaker_id: StyleId,
 ) -> Result<(), String> {
   let generation = state.core_generation.load(Ordering::SeqCst);
-  let _permit = state
-    .core_task_gate
-    .clone()
-    .acquire_owned()
-    .await
-    .map_err(|_| "Core task worker is unavailable")?;
-  ensure_core_generation(state, generation)?;
-  let core = state
-    .core
-    .read()
-    .await
-    .as_ref()
-    .cloned()
-    .ok_or("core is not initialized")?;
-
+  let (_permit, core) = acquire_core(state, generation).await?;
   core
     .prepare_nonblocking_synthesis(speaker_id)
     .await
@@ -531,6 +522,7 @@ pub fn start_synthesis_worker(app: AppHandle) {
                 identity: job.identity.clone(),
               }),
               job.backend,
+              None,
             );
             match job.backend {
               SynthesisBackend::Blocking => Some(synthesis.await),
@@ -621,6 +613,7 @@ pub fn start_spectrogram_worker(app: AppHandle) {
               job.request.speaker_id,
               None,
               SynthesisBackend::Nonblocking,
+              None,
             );
             match run_cancellable(&cancellation, synthesis).await {
               None => None,
@@ -658,7 +651,116 @@ pub fn start_spectrogram_worker(app: AppHandle) {
   });
 }
 
+/// Forwards the chunks of a streamed render into a playback feed.
+struct PlaybackTap<'a> {
+  feed: &'a PlaybackFeed,
+  start_at: Duration,
+  /// Whether the render was streamed into the feed. Otherwise, the caller queues the
+  /// returned waveform itself.
+  streamed: bool,
+}
+
+fn streaming_synthesis_enabled(state: &AppState) -> bool {
+  state
+    .config_manager
+    .read()
+    .ok()
+    .and_then(|manager| {
+      manager
+        .as_ref()
+        .map(|manager| manager.getter().ui.streaming_synthesis)
+    })
+    .unwrap_or(true)
+}
+
+/// Renders a waveform chunk by chunk when the style's model supports segmented rendering,
+/// streaming the played chunks into `tap`. Returns `None` for models that cannot stream.
+///
+/// The core task gate is taken per chunk, so other core work interleaves with long renders and
+/// dropping the future stops between chunks.
+async fn render_streamed(
+  state: &AppState,
+  generation: u64,
+  audio_query: &AudioQuery,
+  speaker_id: StyleId,
+  backend: SynthesisBackend,
+  mut tap: Option<&mut PlaybackTap<'_>>,
+) -> Result<Option<Vec<u8>>, String> {
+  let audio = match backend {
+    SynthesisBackend::Blocking => {
+      let query = audio_query.clone();
+      run_core_task_at(state, generation, move |core| {
+        if !core
+          .supports_streaming(speaker_id)
+          .map_err(|e| e.to_string())?
+        {
+          return Ok(None);
+        }
+        core
+          .prepare_streaming(&query, speaker_id)
+          .map(Some)
+          .map_err(|e| e.to_string())
+      })
+      .await?
+    }
+    SynthesisBackend::Nonblocking => {
+      let (_permit, core) = acquire_core(state, generation).await?;
+      if core.supports_streaming_nonblocking(speaker_id) {
+        Some(
+          core
+            .prepare_streaming_nonblocking(audio_query, speaker_id)
+            .await
+            .map_err(|e| e.to_string())?,
+        )
+      } else {
+        None
+      }
+    }
+  };
+  let Some(audio) = audio else {
+    return Ok(None);
+  };
+  let audio = Arc::new(audio);
+  let start_at = tap.as_ref().map_or(Duration::ZERO, |tap| tap.start_at);
+  let plan = StreamPlan::new(audio.frame_length(), STREAMING_CHUNK_FRAMES, start_at);
+  let mut parts = vec![Vec::new(); plan.chunks.len()];
+  for &index in &plan.order {
+    let range = plan.chunks[index].clone();
+    let pcm = match backend {
+      SynthesisBackend::Blocking => {
+        let audio = audio.clone();
+        run_core_task_at(state, generation, move |core| {
+          core
+            .render_streaming(&audio, range)
+            .map_err(|e| e.to_string())
+        })
+        .await?
+      }
+      SynthesisBackend::Nonblocking => {
+        let (_permit, core) = acquire_core(state, generation).await?;
+        core
+          .render_streaming_nonblocking(&audio, range)
+          .await
+          .map_err(|e| e.to_string())?
+      }
+    };
+    if let (Some(tap), Some(skip)) = (tap.as_deref_mut(), plan.playback_skip(index)) {
+      tap.feed.pcm(
+        pcm.clone(),
+        audio.output_sampling_rate(),
+        audio.output_stereo(),
+        skip,
+      );
+      tap.streamed = true;
+    }
+    parts[index] = pcm;
+  }
+  Ok(Some(audio.wav(&parts.concat())))
+}
+
 /// Synthesizes or retrieves a waveform without holding the shared cache lock during inference.
+/// With streaming synthesis enabled, a cache miss on a model that supports it renders in
+/// chunks, which are also forwarded to `tap` for playback.
 async fn synthesize_cached(
   app: &AppHandle,
   state: &AppState,
@@ -666,6 +768,7 @@ async fn synthesize_cached(
   speaker_id: StyleId,
   owner: Option<WaveformCacheOwner>,
   backend: SynthesisBackend,
+  tap: Option<&mut PlaybackTap<'_>>,
 ) -> std::result::Result<Vec<u8>, String> {
   let query_string = serde_json::to_string(&audio_query).map_err(|e| e.to_string())?;
   let generation = state.core_generation.load(Ordering::SeqCst);
@@ -687,7 +790,14 @@ async fn synthesize_cached(
   }
 
   let query_for_task = audio_query.clone();
-  let wav = initialize_waveform_cell(&cell, || async {
+  let wav = initialize_waveform_cell(&cell, move || async move {
+    if streaming_synthesis_enabled(state) {
+      if let Some(wav) =
+        render_streamed(state, generation, &query_for_task, speaker_id, backend, tap).await?
+      {
+        return Ok(wav);
+      }
+    }
     match backend {
       SynthesisBackend::Blocking => {
         run_core_task(state, move |core| {
@@ -751,6 +861,7 @@ where
 
 #[tauri::command]
 #[specta::specta]
+/// Plays one audio query. With streaming synthesis, playback starts after the first chunk.
 pub async fn play_audio(
   app: AppHandle,
   state: State<'_, AppState>,
@@ -758,36 +869,12 @@ pub async fn play_audio(
   speaker_id: StyleId,
   start_time_seconds: Option<f64>,
 ) -> std::result::Result<(), String> {
-  let generation = state.core_generation.load(Ordering::SeqCst);
   let start_at = playback_start_duration(start_time_seconds)?;
-  let wav = synthesize_cached(
-    &app,
-    &state,
+  let item = AudioSequenceItem {
     audio_query,
     speaker_id,
-    None,
-    SynthesisBackend::Blocking,
-  )
-  .await?;
-  let _permit = state
-    .core_task_gate
-    .acquire()
-    .await
-    .map_err(|e| e.to_string())?;
-  ensure_core_generation(&state, generation)?;
-  let playback_app = app.clone();
-  let audio_player = AudioPlayer::play(wav, start_at, move || {
-    if let Err(error) = playback_app.emit("audio-playback-finished", ()) {
-      eprintln!("Failed to emit playback completion: {error}");
-    }
-  })
-  .await?;
-  state
-    .audio_player
-    .write()
-    .map_err(|e| e.to_string())?
-    .replace(audio_player);
-  Ok(())
+  };
+  start_playback(app, &state, vec![item], start_at, false).await
 }
 
 #[derive(Clone, serde::Deserialize, specta::Type)]
@@ -798,7 +885,8 @@ pub struct AudioSequenceItem {
 
 #[tauri::command]
 #[specta::specta]
-/// Synthesizes and queues multiple audio queries for uninterrupted playback.
+/// Synthesizes and queues multiple audio queries for uninterrupted playback. With streaming
+/// synthesis, playback starts after the first chunk and later items render while it plays.
 pub async fn play_audio_sequence(
   app: AppHandle,
   state: State<'_, AppState>,
@@ -808,50 +896,112 @@ pub async fn play_audio_sequence(
   if items.is_empty() {
     return Ok(());
   }
-  let generation = state.core_generation.load(Ordering::SeqCst);
   let start_at = playback_start_duration(start_time_seconds)?;
-  let mut wavs = Vec::with_capacity(items.len());
-  for item in items {
-    wavs.push(
-      synthesize_cached(
-        &app,
-        &state,
-        item.audio_query,
-        item.speaker_id,
-        None,
-        SynthesisBackend::Blocking,
-      )
-      .await?,
-    );
-  }
-  let _permit = state
-    .core_task_gate
-    .acquire()
-    .await
-    .map_err(|e| e.to_string())?;
-  ensure_core_generation(&state, generation)?;
+  start_playback(app, &state, items, start_at, true).await
+}
+
+/// Starts playing `items` and returns once audio is queued. Rendering continues in a producer
+/// task owned by the player, so stopping playback also stops rendering. Errors after playback
+/// started are reported through the `audio-playback-failed` event.
+async fn start_playback(
+  app: AppHandle,
+  state: &AppState,
+  items: Vec<AudioSequenceItem>,
+  start_at: Duration,
+  report_items: bool,
+) -> Result<(), String> {
+  let generation = state.core_generation.load(Ordering::SeqCst);
   let item_started_app = app.clone();
-  let playback_app = app.clone();
-  let audio_player = AudioPlayer::play_many_from(
-    wavs,
-    start_at,
+  let finished_app = app.clone();
+  let failed_app = app.clone();
+  let (mut audio_player, feed) = AudioPlayer::stream(
     move |index| {
+      if !report_items {
+        return;
+      }
       if let Err(error) = item_started_app.emit("audio-sequence-item-started", index) {
         eprintln!("Failed to emit audio sequence progress: {error}");
       }
     },
     move || {
-      if let Err(error) = playback_app.emit("audio-playback-finished", ()) {
+      if let Err(error) = finished_app.emit("audio-playback-finished", ()) {
         eprintln!("Failed to emit playback completion: {error}");
+      }
+    },
+    move |message| {
+      if let Err(error) = failed_app.emit("audio-playback-failed", message) {
+        eprintln!("Failed to emit playback failure: {error}");
       }
     },
   )
   .await?;
+  let producer_app = app.clone();
+  let producer = tauri::async_runtime::spawn(async move {
+    let state = producer_app.state::<AppState>();
+    match feed_playback(&producer_app, &state, items, start_at, &feed).await {
+      Ok(()) => feed.finish(),
+      Err(error) => feed.fail(error),
+    }
+  });
+  audio_player.attach_producer(producer);
+  audio_player.wait_started().await?;
+  let _permit = state
+    .core_task_gate
+    .acquire()
+    .await
+    .map_err(|e| e.to_string())?;
+  ensure_core_generation(state, generation)?;
   state
     .audio_player
     .write()
     .map_err(|e| e.to_string())?
     .replace(audio_player);
+  Ok(())
+}
+
+/// Synthesizes `items` into `feed`. With streaming synthesis, each item is queued as it renders
+/// so playback overlaps synthesis; otherwise every item is synthesized before any plays.
+async fn feed_playback(
+  app: &AppHandle,
+  state: &AppState,
+  items: Vec<AudioSequenceItem>,
+  start_at: Duration,
+  feed: &PlaybackFeed,
+) -> Result<(), String> {
+  let streaming = streaming_synthesis_enabled(state);
+  let mut wavs = Vec::new();
+  for (index, item) in items.into_iter().enumerate() {
+    let item_start = if index == 0 { start_at } else { Duration::ZERO };
+    if streaming {
+      feed.begin_item(index);
+    }
+    let mut tap = PlaybackTap {
+      feed,
+      start_at: item_start,
+      streamed: false,
+    };
+    let wav = synthesize_cached(
+      app,
+      state,
+      item.audio_query,
+      item.speaker_id,
+      None,
+      SynthesisBackend::Blocking,
+      streaming.then_some(&mut tap),
+    )
+    .await?;
+    if streaming {
+      if !tap.streamed {
+        feed.wav(wav, item_start);
+      }
+    } else {
+      wavs.push((wav, item_start));
+    }
+  }
+  for (index, (wav, item_start)) in wavs.into_iter().enumerate() {
+    feed.begin_item(index);
+    feed.wav(wav, item_start);
+  }
   Ok(())
 }
 
@@ -1039,6 +1189,7 @@ pub async fn save_audio(
     speaker_id,
     None,
     SynthesisBackend::Blocking,
+    None,
   )
   .await?;
   let saved_path = write_audio_file(Path::new(&path), &waveform, prevent_overwrite)?;
@@ -1075,6 +1226,7 @@ pub async fn save_combined_audio(
         item.speaker_id,
         None,
         SynthesisBackend::Blocking,
+        None,
       )
       .await?,
     );

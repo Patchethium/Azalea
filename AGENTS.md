@@ -72,6 +72,39 @@ recreating them, so no earlier call is guaranteed to have loaded the model.
 Real-core tests cover on-demand loading and that a baseline predicted after a
 project reload matches the saved pitches bit for bit.
 
+## Streaming Synthesis
+
+The fork's `generative-noise` branch also splits monolithic talk decoders (for
+example voicevox_vvm 0.16.x) at the mel bottleneck while loading, and exposes
+segmented rendering on both synthesizers: `supports_streaming(style_id)`,
+`prepare_streaming(&query, style_id, StreamingOptions)` returning a
+`StreamingAudio`, and `render_streaming(&audio, frame_range)` returning 16-bit
+PCM. `Core` wraps them (`supports_streaming`, `prepare_streaming`,
+`render_streaming` and their `_nonblocking` variants); a `StreamingAudio` must
+be rendered by the synthesizer that prepared it.
+
+`UIConfig.streaming_synthesis` (default on, an experimental config-dialog
+switch) makes every `synthesize_cached` cache miss on a supporting model render
+in `DEFAULT_STREAMING_CHUNK_FRAMES` chunks, taking the core task gate per chunk
+and checking the core generation each time; unsupported models fall back to
+whole synthesis. Streamed waveforms match whole synthesis to within one sample
+quantization step and share the waveform cache. Playback (`play_audio`,
+`play_audio_sequence`) feeds an `AudioPlayer` through a `PlaybackFeed` from a
+producer task owned by the player, so stopping playback stops rendering. The
+command returns once the first audio is queued; later rendering errors emit
+`audio-playback-failed` with the message, which the frontend shows as a toast.
+Seeking renders the chunk containing the start time first and the skipped head
+last only to complete the cached waveform (`StreamPlan` in
+`src-tauri/src/streaming.rs`). With streaming enabled, sequence items render
+while earlier items play; with it disabled, every item is synthesized before
+playback starts, as before.
+
+`src-tauri/examples/streaming_bench.rs` compares latency to first audio and
+total RTF of whole and streamed synthesis on the real core, one utterance per
+line of a text file (default `tests/rashoumon.txt`), optionally writing a CSV.
+Release builds do not read `config_dev`, so set `AZALEA_TEST_CORE_DIR`:
+`cargo run --release --example streaming_bench -- tests/rashoumon.txt out.csv`.
+
 ## Project Files
 
 `.azp` files are versioned TOML documents. The disk-only wrapper and

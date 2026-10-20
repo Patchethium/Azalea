@@ -174,6 +174,10 @@ pub struct UIConfig {
   pub synthesis_delay_ms: u32,
   #[serde(default = "spectrogram_preview_default")]
   pub spectrogram_preview: bool,
+  /// Renders waveforms in frame-range chunks when the voice model supports it, so playback
+  /// starts after the first chunk instead of the whole utterance.
+  #[serde(default = "streaming_synthesis_default")]
+  pub streaming_synthesis: bool,
   #[serde(default = "playback_timeline_default")]
   pub playback_timeline: bool,
   #[serde(default)]
@@ -235,6 +239,7 @@ impl Default for UIConfig {
       pitch_noise_sigma: pitch_noise_sigma_default(),
       synthesis_delay_ms: synthesis_delay_ms_default(),
       spectrogram_preview: spectrogram_preview_default(),
+      streaming_synthesis: streaming_synthesis_default(),
       playback_timeline: playback_timeline_default(),
       pitch_scale: Default::default(),
       pitch_ruler: pitch_ruler_default(),
@@ -354,6 +359,10 @@ fn synthesis_delay_ms_default() -> u32 {
 }
 
 fn spectrogram_preview_default() -> bool {
+  true
+}
+
+fn streaming_synthesis_default() -> bool {
   true
 }
 
@@ -739,6 +748,7 @@ mod tests {
     assert_eq!(config.system_presets.len(), 1);
     assert_eq!(config.system_presets[0].name, "Default");
     assert!(config.ui.spectrogram_preview);
+    assert!(config.ui.streaming_synthesis);
     assert!(config.ui.playback_timeline);
     assert!(matches!(config.ui.pitch_scale, PitchScale::Optimal));
     assert!(config.ui.pitch_ruler);

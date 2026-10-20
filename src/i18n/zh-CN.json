@@ -210,6 +210,7 @@
     "synthesis_delay": "合成请求延迟",
     "milliseconds": "毫秒",
     "spectrogram_preview": "频谱图预览",
+    "streaming_synthesis": "流式合成",
     "default_export_dir": "默认导出目录",
     "export_dir_path": "目录",
     "silent_save": "静默保存",

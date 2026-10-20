@@ -416,6 +416,83 @@ fn real_core_synthesis_honors_requested_wav_format() {
   assert!(samples.iter().any(|sample| *sample != 0));
 }
 
+/// Chunked rendering can differ from whole-utterance synthesis by float rounding, so samples
+/// may differ by one quantization step.
+fn assert_waveforms_match(streamed: &[u8], whole: &[u8]) {
+  let (streamed_spec, streamed) = decode_wav(streamed);
+  let (whole_spec, whole) = decode_wav(whole);
+  assert_eq!(streamed_spec, whole_spec);
+  assert_eq!(streamed.len(), whole.len());
+  let max_difference = streamed
+    .iter()
+    .zip(&whole)
+    .map(|(a, b)| (i32::from(*a) - i32::from(*b)).abs())
+    .max()
+    .unwrap_or(0);
+  assert!(
+    max_difference <= 1,
+    "streamed samples differ from whole synthesis by {max_difference}"
+  );
+}
+
+#[test]
+fn real_core_streamed_chunks_match_whole_synthesis() {
+  let core = test_core();
+  let style_id = first_talk_style_id(&core);
+  assert!(
+    core
+      .supports_streaming(style_id)
+      .expect("streaming support check failed"),
+    "the installed talk model does not support segmented rendering"
+  );
+  let mut query = core
+    .audio_query("ストリーミング合成を確認します。", style_id)
+    .expect("audio query failed");
+  query.output_sampling_rate = 48_000;
+  query.output_stereo = true;
+  let whole = core
+    .synthesis(&query, style_id)
+    .expect("waveform synthesis failed");
+
+  let audio = core
+    .prepare_streaming(&query, style_id)
+    .expect("streaming preparation failed");
+  assert!(audio.frame_length() > voicevox_core::DEFAULT_STREAMING_CHUNK_FRAMES);
+  let chunks = audio
+    .chunk_ranges(voicevox_core::DEFAULT_STREAMING_CHUNK_FRAMES)
+    .collect::<Vec<_>>();
+  // Render out of order, as seeking playback does, then reassemble in frame order.
+  let mut parts = vec![Vec::new(); chunks.len()];
+  for index in (1..chunks.len()).chain([0]) {
+    parts[index] = core
+      .render_streaming(&audio, chunks[index].clone())
+      .expect("chunk rendering failed");
+  }
+  assert_waveforms_match(&audio.wav(&parts.concat()), &whole);
+
+  tauri::async_runtime::block_on(async {
+    core
+      .prepare_nonblocking_synthesis(style_id)
+      .await
+      .expect("nonblocking model loading failed");
+    assert!(core.supports_streaming_nonblocking(style_id));
+    let audio = core
+      .prepare_streaming_nonblocking(&query, style_id)
+      .await
+      .expect("nonblocking streaming preparation failed");
+    let mut pcm = Vec::new();
+    for range in chunks {
+      pcm.extend(
+        core
+          .render_streaming_nonblocking(&audio, range)
+          .await
+          .expect("nonblocking chunk rendering failed"),
+      );
+    }
+    assert_waveforms_match(&audio.wav(&pcm), &whole);
+  });
+}
+
 #[test]
 fn real_core_nonblocking_synthesis_can_be_cancelled() {
   tauri::async_runtime::block_on(async {

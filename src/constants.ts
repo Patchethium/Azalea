@@ -17,6 +17,7 @@ export const MAX_SYNTHESIS_DELAY_MS = 10_000;
 export const RENDER_RETRY_DELAY_MS = 100;
 export const MAX_RENDER_ATTEMPTS = 3;
 export const DEFAULT_SPECTROGRAM_PREVIEW = true;
+export const DEFAULT_STREAMING_SYNTHESIS = true;
 export const DEFAULT_PLAYBACK_TIMELINE = true;
 export const DEFAULT_PITCH_SCALE = "Optimal" as const;
 export const DEFAULT_PITCH_RULER = true;

@@ -355,6 +355,9 @@ async cancelSpectrogramPreview(blockId: string, generationId: number | null) : P
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Plays one audio query. With streaming synthesis, playback starts after the first chunk.
+ */
 async playAudio(audioQuery: AudioQuery, speakerId: StyleId, startTimeSeconds: number | null) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("play_audio", { audioQuery, speakerId, startTimeSeconds }) };
@@ -364,7 +367,8 @@ async playAudio(audioQuery: AudioQuery, speakerId: StyleId, startTimeSeconds: nu
 }
 },
 /**
- * Synthesizes and queues multiple audio queries for uninterrupted playback.
+ * Synthesizes and queues multiple audio queries for uninterrupted playback. With streaming
+ * synthesis, playback starts after the first chunk and later items render while it plays.
  */
 async playAudioSequence(items: AudioSequenceItem[], startTimeSeconds: number | null) : Promise<Result<null, string>> {
     try {
@@ -924,7 +928,12 @@ export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; embedded_font?
 /**
  * Share of the editor width used by the portrait panel; 0 is collapsed.
  */
-portrait_ratio?: number; buffer_render?: boolean; nonblocking_synthesis?: boolean; pitch_noise_enabled?: boolean; pitch_completion_enabled?: boolean; pitch_completion_locked?: boolean; pitch_noise_sigma?: number; synthesis_delay_ms?: number; spectrogram_preview?: boolean; playback_timeline?: boolean; pitch_scale?: PitchScale; pitch_ruler?: boolean; pitch_tuning_mode?: PitchTuningMode; 
+portrait_ratio?: number; buffer_render?: boolean; nonblocking_synthesis?: boolean; pitch_noise_enabled?: boolean; pitch_completion_enabled?: boolean; pitch_completion_locked?: boolean; pitch_noise_sigma?: number; synthesis_delay_ms?: number; spectrogram_preview?: boolean; 
+/**
+ * Renders waveforms in frame-range chunks when the voice model supports it, so playback
+ * starts after the first chunk instead of the whole utterance.
+ */
+streaming_synthesis?: boolean; playback_timeline?: boolean; pitch_scale?: PitchScale; pitch_ruler?: boolean; pitch_tuning_mode?: PitchTuningMode; 
 /**
  * Relative slider range in semitones on either side of the prediction.
  */

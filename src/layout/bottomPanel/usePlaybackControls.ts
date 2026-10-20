@@ -250,6 +250,7 @@ export function usePlaybackControls(
     let disposed = false;
     let unlistenPlaybackFinished: (() => void) | undefined;
     let unlistenSequenceItemStarted: (() => void) | undefined;
+    let unlistenPlaybackFailed: (() => void) | undefined;
     void listen("audio-playback-finished", () => {
       activePlaybackSequence = null;
       setIsPlaying(false);
@@ -263,10 +264,20 @@ export function usePlaybackControls(
       if (disposed) unlisten();
       else unlistenSequenceItemStarted = unlisten;
     });
+    // Streaming playback starts before synthesis finishes, so rendering can still fail.
+    void listen<string>("audio-playback-failed", ({ payload }) => {
+      activePlaybackSequence = null;
+      setIsPlaying(false);
+      toasts.error(t1("toast.error.play_audio"), payload);
+    }).then((unlisten) => {
+      if (disposed) unlisten();
+      else unlistenPlaybackFailed = unlisten;
+    });
     onCleanup(() => {
       disposed = true;
       unlistenPlaybackFinished?.();
       unlistenSequenceItemStarted?.();
+      unlistenPlaybackFailed?.();
       activePlaybackSequence = null;
     });
 

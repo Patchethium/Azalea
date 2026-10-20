@@ -243,6 +243,7 @@
     "synthesis_delay": "音声合成リクエストの待機時間",
     "milliseconds": "ミリ秒",
     "spectrogram_preview": "スペクトログラムプレビュー",
+    "streaming_synthesis": "ストリーミング合成",
     "default_export_dir": "デフォルトの書き出し先",
     "export_dir_path": "ディレクトリ",
     "silent_save": "サイレント保存",

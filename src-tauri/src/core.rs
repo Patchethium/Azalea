@@ -4,13 +4,15 @@ use voicevox_core::{
     Onnxruntime as NonblockingOnnxruntime, Synthesizer as NonblockingSynthesizer,
     VoiceModelFile as NonblockingVoiceModelFile,
   },
-  AccentPhrase, AudioQuery, StyleId, StyleType, UserDictWord, VoiceModelId, VoiceModelMeta,
+  AccentPhrase, AudioQuery, StreamingAudio, StreamingOptions, StyleId, StyleType, UserDictWord,
+  VoiceModelId, VoiceModelMeta,
 };
 
 use crate::config::types::{cache_size_default, cpu_num_threads_default};
 use crate::config::CoreConfig;
 use std::{
   collections::{HashMap, HashSet},
+  ops::Range,
   path::{Path, PathBuf},
 };
 use walkdir::WalkDir;
@@ -320,6 +322,69 @@ impl Core {
   pub fn synthesis(&self, query: &AudioQuery, speaker_id: StyleId) -> Result<Vec<u8>> {
     self.ensure_speaker_loaded(speaker_id)?;
     Ok(self.synthesizer.synthesis(query, speaker_id).perform()?)
+  }
+
+  /// Whether the style's model renders in frame ranges, either through a native split decoder
+  /// or one split while loading.
+  pub fn supports_streaming(&self, speaker_id: StyleId) -> Result<bool> {
+    self.ensure_speaker_loaded(speaker_id)?;
+    Ok(self.synthesizer.supports_streaming(speaker_id))
+  }
+
+  /// Computes the acoustic features of `query` so it can be rendered in frame ranges with
+  /// [`Self::render_streaming`].
+  pub fn prepare_streaming(
+    &self,
+    query: &AudioQuery,
+    speaker_id: StyleId,
+  ) -> Result<StreamingAudio> {
+    self.ensure_speaker_loaded(speaker_id)?;
+    Ok(
+      self
+        .synthesizer
+        .prepare_streaming(query, speaker_id, StreamingOptions::default())?,
+    )
+  }
+
+  /// Renders `range` of an utterance prepared by [`Self::prepare_streaming`] as 16-bit PCM.
+  pub fn render_streaming(&self, audio: &StreamingAudio, range: Range<usize>) -> Result<Vec<u8>> {
+    Ok(self.synthesizer.render_streaming(audio, range)?)
+  }
+
+  /// Nonblocking counterpart of [`Self::supports_streaming`]; call
+  /// [`Self::prepare_nonblocking_synthesis`] first.
+  pub fn supports_streaming_nonblocking(&self, speaker_id: StyleId) -> bool {
+    self.nonblocking_synthesizer.supports_streaming(speaker_id)
+  }
+
+  /// Nonblocking counterpart of [`Self::prepare_streaming`]; call
+  /// [`Self::prepare_nonblocking_synthesis`] first.
+  pub async fn prepare_streaming_nonblocking(
+    &self,
+    query: &AudioQuery,
+    speaker_id: StyleId,
+  ) -> Result<StreamingAudio> {
+    Ok(
+      self
+        .nonblocking_synthesizer
+        .prepare_streaming(query, speaker_id, StreamingOptions::default())
+        .await?,
+    )
+  }
+
+  /// Renders `range` of an utterance prepared by [`Self::prepare_streaming_nonblocking`].
+  /// Dropping the future stops rendering.
+  pub async fn render_streaming_nonblocking(
+    &self,
+    audio: &StreamingAudio,
+    range: Range<usize>,
+  ) -> Result<Vec<u8>> {
+    Ok(
+      self
+        .nonblocking_synthesizer
+        .render_streaming(audio, range)
+        .await?,
+    )
   }
 
   async fn load_speaker_nonblocking(&self, speaker_id: StyleId) -> Result<()> {
