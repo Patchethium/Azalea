@@ -96,9 +96,16 @@ quantization step and share the waveform cache. Playback (`play_audio`,
 producer task owned by the player, so stopping playback stops rendering. The
 command returns once the first audio is queued; later rendering errors emit
 `audio-playback-failed` with the message, which the frontend shows as a toast.
-Seeking streams from the start frame first and renders the skipped head last in
-maximum-size chunks, only to complete the cached waveform (`StreamPlan` in
-`src-tauri/src/streaming.rs`). With streaming enabled, sequence items render
+Playback queues audio through a `PlaybackCursor` (in
+`src-tauri/src/streaming.rs`) in frame order from the play position, each frame
+once, from whatever is available: while another caller (such as a background
+buffering job) is rendering the same waveform, playback follows that render's
+published chunks instead of waiting for it to finish; if it takes over a
+cancelled render, it renders from the first frame not queued yet; whatever is
+still missing is queued from the finished WAV, which also covers cache hits
+and models that cannot stream. Its own renders start at the cursor's frame and
+render the skipped head last in maximum-size chunks, only to complete the
+cached waveform (`StreamPlan`). With streaming enabled, sequence items render
 while earlier items play; with it disabled, every item is synthesized before
 playback starts, as before.
 

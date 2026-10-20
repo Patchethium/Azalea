@@ -9,7 +9,7 @@ use std::{
 use azalea_lib::{
   audio::spectal::MelSpec,
   core::Core,
-  streaming::{StreamPlan, DEFAULT_CHUNK_SCHEDULE},
+  streaming::{start_frame, StreamPlan, DEFAULT_CHUNK_SCHEDULE},
 };
 use hound::{SampleFormat, WavSpec};
 use ndarray::Array1;
@@ -465,7 +465,7 @@ fn real_core_streamed_chunks_match_whole_synthesis() {
   assert!(frame_length > 2 * voicevox_core::DEFAULT_STREAMING_CHUNK_FRAMES);
   // Seek to the middle so the plan renders out of order, then reassemble in frame order.
   let start_at = Duration::from_secs_f64(audio.duration_seconds() / 2.0);
-  let plan = StreamPlan::new(frame_length, DEFAULT_CHUNK_SCHEDULE, start_at);
+  let plan = StreamPlan::new(frame_length, DEFAULT_CHUNK_SCHEDULE, start_frame(start_at));
   assert!(plan.first_played > 0);
   let mut parts = vec![Vec::new(); plan.chunks.len()];
   for &index in &plan.order {
@@ -486,7 +486,7 @@ fn real_core_streamed_chunks_match_whole_synthesis() {
       .await
       .expect("nonblocking streaming preparation failed");
     let mut pcm = Vec::new();
-    for range in StreamPlan::new(frame_length, DEFAULT_CHUNK_SCHEDULE, Duration::ZERO).chunks {
+    for range in StreamPlan::new(frame_length, DEFAULT_CHUNK_SCHEDULE, 0).chunks {
       pcm.extend(
         core
           .render_streaming_nonblocking(&audio, range)

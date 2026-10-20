@@ -8,7 +8,8 @@ use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::oneshot;
 
 /// Audio handed to a playing [`AudioPlayer`] through its [`PlaybackFeed`].
-enum FeedMessage {
+#[derive(Debug)]
+pub(crate) enum FeedMessage {
   /// The following audio belongs to the sequence item with this index.
   Item(usize),
   Wav {
@@ -35,6 +36,13 @@ pub struct PlaybackFeed {
 }
 
 impl PlaybackFeed {
+  /// A feed whose messages go to the returned receiver instead of an audio device.
+  #[cfg(test)]
+  pub(crate) fn for_test() -> (Self, mpsc::Receiver<FeedMessage>) {
+    let (tx, rx) = mpsc::channel();
+    (Self { tx }, rx)
+  }
+
   // Sends fail only after the player stopped, when nobody is listening anymore.
   fn send(&self, message: FeedMessage) {
     let _ = self.tx.send(message);

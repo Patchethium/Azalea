@@ -6,7 +6,9 @@ use crate::spectrogram::{
   create_spectrogram_preview, validate_spectrogram_request, SlidingSpectrogram, SpectrogramJob,
   SpectrogramJobEvent, SpectrogramJobIdentity, SpectrogramJobRequest, SLIDING_TICK,
 };
-use crate::streaming::{RenderProgress, RenderedChunk, StreamPlan, DEFAULT_CHUNK_SCHEDULE};
+use crate::streaming::{
+  PlaybackCursor, RenderProgress, RenderedChunk, StreamPlan, DEFAULT_CHUNK_SCHEDULE,
+};
 use crate::synthesis::{
   eviction_events, SynthesisBackend, SynthesisJob, SynthesisJobEvent, SynthesisJobRequest,
   SynthesisJobState, WaveformCacheEntry, WaveformCacheOwner, WaveformCell,
@@ -641,13 +643,124 @@ pub fn start_spectrogram_worker(app: AppHandle) {
   });
 }
 
-/// Forwards the chunks of a streamed render into a playback feed.
+/// Queues one item's waveform into a playback feed from wherever it becomes available: a
+/// streamed render in progress, whoever started it, or the finished waveform.
 struct PlaybackTap<'a> {
   feed: &'a PlaybackFeed,
   start_at: Duration,
-  /// Whether the render was streamed into the feed. Otherwise, the caller queues the
-  /// returned waveform itself.
-  streamed: bool,
+  /// Created once the utterance's length and format are known. Shared by the task following
+  /// the render and a render this playback takes over.
+  cursor: std::sync::Mutex<Option<PlaybackCursor>>,
+}
+
+impl<'a> PlaybackTap<'a> {
+  fn new(feed: &'a PlaybackFeed, start_at: Duration) -> Self {
+    Self {
+      feed,
+      start_at,
+      cursor: std::sync::Mutex::new(None),
+    }
+  }
+
+  fn with_cursor<T>(
+    &self,
+    create: impl FnOnce() -> PlaybackCursor,
+    use_cursor: impl FnOnce(&mut PlaybackCursor) -> T,
+  ) -> T {
+    let mut cursor = self
+      .cursor
+      .lock()
+      .unwrap_or_else(std::sync::PoisonError::into_inner);
+    use_cursor(cursor.get_or_insert_with(create))
+  }
+
+  fn queue(&self, cursor: &PlaybackCursor, pieces: Vec<(Vec<u8>, Duration)>) {
+    for (pcm, skip) in pieces {
+      self
+        .feed
+        .pcm(pcm, cursor.sample_rate(), cursor.stereo(), skip);
+    }
+  }
+
+  /// Queues every newly playable chunk of a render in progress.
+  fn queue_progress(&self, progress: &RenderProgress) {
+    self.with_cursor(
+      || PlaybackCursor::for_progress(progress, self.start_at),
+      |cursor| {
+        let pieces = cursor.take_available(&progress.chunks);
+        self.queue(cursor, pieces);
+      },
+    );
+  }
+
+  /// The frame a render started by this playback begins at: the play position, or the first
+  /// frame not queued yet when taking over a render it was following.
+  fn start_frame(&self, frame_length: usize, sample_rate: u32, stereo: bool) -> usize {
+    self.with_cursor(
+      || PlaybackCursor::new(frame_length, sample_rate, stereo, self.start_at),
+      |cursor| cursor.next_frame(),
+    )
+  }
+
+  /// Queues whatever the finished waveform has that is not queued yet.
+  fn queue_rest(&self, wav: &[u8]) {
+    let Some((sample_rate, stereo, pcm)) = pcm_from_wav(wav) else {
+      // Not the core's WAV layout; play it whole unless streaming already queued audio.
+      let mut cursor = self
+        .cursor
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+      if cursor.is_none() {
+        self.feed.wav(wav.to_vec(), self.start_at);
+        *cursor = Some(PlaybackCursor::new(0, 24_000, false, Duration::ZERO));
+      }
+      return;
+    };
+    let bytes_per_frame = 256 * (sample_rate / 24_000) as usize * if stereo { 4 } else { 2 };
+    let frame_length = pcm.len() / bytes_per_frame;
+    self.with_cursor(
+      || PlaybackCursor::new(frame_length, sample_rate, stereo, self.start_at),
+      |cursor| {
+        let piece = cursor.take(0..frame_length, pcm).into_iter().collect();
+        self.queue(cursor, piece);
+      },
+    );
+  }
+}
+
+/// The sample rate, channel layout and PCM of a 16-bit WAV in the core's layout: a 44-byte
+/// header at a multiple of 24 kHz.
+fn pcm_from_wav(wav: &[u8]) -> Option<(u32, bool, &[u8])> {
+  if wav.len() < 44 || &wav[0..4] != b"RIFF" || &wav[8..12] != b"WAVE" || &wav[36..40] != b"data" {
+    return None;
+  }
+  let channels = u16::from_le_bytes([wav[22], wav[23]]);
+  let sample_rate = u32::from_le_bytes([wav[24], wav[25], wav[26], wav[27]]);
+  let bits = u16::from_le_bytes([wav[34], wav[35]]);
+  if bits != 16
+    || !matches!(channels, 1 | 2)
+    || sample_rate == 0
+    || !sample_rate.is_multiple_of(24_000)
+  {
+    return None;
+  }
+  Some((sample_rate, channels == 2, &wav[44..]))
+}
+
+/// Queues a render in progress into `tap` as its chunks are published. Runs until dropped.
+async fn follow_render_into_playback(
+  mut progress: watch::Receiver<Option<RenderProgress>>,
+  tap: &PlaybackTap<'_>,
+) -> std::convert::Infallible {
+  loop {
+    let snapshot = progress.borrow_and_update().clone();
+    if let Some(snapshot) = snapshot {
+      tap.queue_progress(&snapshot);
+    }
+    if progress.changed().await.is_err() {
+      return std::future::pending().await;
+    }
+  }
 }
 
 fn streaming_synthesis_enabled(state: &AppState) -> bool {
@@ -664,7 +777,8 @@ fn streaming_synthesis_enabled(state: &AppState) -> bool {
 }
 
 /// Renders a waveform chunk by chunk when the style's model supports segmented rendering,
-/// streaming the played chunks into `tap`. Returns `None` for models that cannot stream.
+/// publishing each chunk to `progress`. With a playback `tap`, rendering starts at its next
+/// frame and the head is rendered last. Returns `None` for models that cannot stream.
 ///
 /// The core task gate is taken per chunk, so other core work interleaves with long renders and
 /// dropping the future stops between chunks.
@@ -674,7 +788,7 @@ async fn render_streamed(
   audio_query: &AudioQuery,
   speaker_id: StyleId,
   backend: SynthesisBackend,
-  mut tap: Option<&mut PlaybackTap<'_>>,
+  tap: Option<&PlaybackTap<'_>>,
   progress: &watch::Sender<Option<RenderProgress>>,
 ) -> Result<Option<Vec<u8>>, String> {
   let audio = match backend {
@@ -712,8 +826,14 @@ async fn render_streamed(
     return Ok(None);
   };
   let audio = Arc::new(audio);
-  let start_at = tap.as_ref().map_or(Duration::ZERO, |tap| tap.start_at);
-  let plan = StreamPlan::new(audio.frame_length(), DEFAULT_CHUNK_SCHEDULE, start_at);
+  let start_frame = tap.map_or(0, |tap| {
+    tap.start_frame(
+      audio.frame_length(),
+      audio.output_sampling_rate(),
+      audio.output_stereo(),
+    )
+  });
+  let plan = StreamPlan::new(audio.frame_length(), DEFAULT_CHUNK_SCHEDULE, start_frame);
   progress.send_replace(Some(RenderProgress::new(
     audio.frame_length(),
     audio.output_sampling_rate(),
@@ -754,15 +874,6 @@ async fn render_streamed(
         });
       }
     });
-    if let (Some(tap), Some(skip)) = (tap.as_deref_mut(), plan.playback_skip(index)) {
-      tap.feed.pcm(
-        pcm.to_vec(),
-        audio.output_sampling_rate(),
-        audio.output_stereo(),
-        skip,
-      );
-      tap.streamed = true;
-    }
     parts[index] = pcm;
   }
   let pcm: Vec<u8> = parts.iter().flat_map(|part| part.iter().copied()).collect();
@@ -893,7 +1004,8 @@ where
 
 /// Synthesizes or retrieves a waveform without holding the shared cache lock during inference.
 /// With streaming synthesis enabled, a cache miss on a model that supports it renders in
-/// chunks, which are also forwarded to `tap` for playback.
+/// chunks. With a playback `tap`, the waveform is queued for playback as it becomes available,
+/// including the chunks of a render another caller already started.
 // Each optional observer (owner, playback tap, progress subscription) serves a different caller.
 #[allow(clippy::too_many_arguments)]
 async fn synthesize_cached(
@@ -903,7 +1015,7 @@ async fn synthesize_cached(
   speaker_id: StyleId,
   owner: Option<WaveformCacheOwner>,
   backend: SynthesisBackend,
-  tap: Option<&mut PlaybackTap<'_>>,
+  tap: Option<&PlaybackTap<'_>>,
   subscribe: Option<oneshot::Sender<watch::Receiver<Option<RenderProgress>>>>,
 ) -> std::result::Result<Vec<u8>, String> {
   let query_string = serde_json::to_string(&audio_query).map_err(|e| e.to_string())?;
@@ -930,7 +1042,7 @@ async fn synthesize_cached(
 
   let query_for_task = audio_query.clone();
   let progress = &cell.progress;
-  let wav = initialize_waveform_cell(&cell.wav, move || async move {
+  let initialization = initialize_waveform_cell(&cell.wav, move || async move {
     // Load the nonblocking model only when this caller renders, so a caller following another
     // render does not take the core gate from it.
     if backend == SynthesisBackend::Nonblocking {
@@ -964,8 +1076,20 @@ async fn synthesize_cached(
         run_nonblocking_synthesis_task(state, query_for_task, speaker_id).await
       }
     }
-  })
-  .await?;
+  });
+  let wav = match tap {
+    None => initialization.await?,
+    Some(tap) => {
+      // While another caller renders this waveform, play its chunks as they arrive.
+      let following = follow_render_into_playback(cell.progress.subscribe(), tap);
+      let wav = match select(Box::pin(initialization), Box::pin(following)).await {
+        Either::Left((result, _)) => result?,
+        Either::Right((never, _)) => match never {},
+      };
+      tap.queue_rest(&wav);
+      wav
+    }
+  };
 
   ensure_core_generation(state, generation)?;
   let evicted = {
@@ -1128,11 +1252,7 @@ async fn feed_playback(
     if streaming {
       feed.begin_item(index);
     }
-    let mut tap = PlaybackTap {
-      feed,
-      start_at: item_start,
-      streamed: false,
-    };
+    let tap = PlaybackTap::new(feed, item_start);
     let wav = synthesize_cached(
       app,
       state,
@@ -1140,15 +1260,11 @@ async fn feed_playback(
       item.speaker_id,
       None,
       SynthesisBackend::Blocking,
-      streaming.then_some(&mut tap),
+      streaming.then_some(&tap),
       None,
     )
     .await?;
-    if streaming {
-      if !tap.streamed {
-        feed.wav(wav, item_start);
-      }
-    } else {
+    if !streaming {
       wavs.push((wav, item_start));
     }
   }
@@ -1520,6 +1636,89 @@ mod tests {
       speaker_id: StyleId(1),
       hash: hash.into(),
     }
+  }
+
+  /// Mono 24 kHz PCM whose every sample holds its frame index.
+  fn frame_pcm(frames: std::ops::Range<usize>) -> Vec<u8> {
+    frames
+      .flat_map(|frame| std::iter::repeat_n((frame as i16).to_le_bytes(), 256).flatten())
+      .collect()
+  }
+
+  #[test]
+  fn playback_follows_another_render_takes_over_and_finishes_from_the_waveform() {
+    use crate::audio::player::FeedMessage;
+    tauri::async_runtime::block_on(async {
+      let (feed, messages) = PlaybackFeed::for_test();
+      let tap = PlaybackTap::new(&feed, Duration::ZERO);
+      let mut progress = RenderProgress::new(100, 24_000, false);
+      progress.chunks.push(RenderedChunk {
+        frames: 0..40,
+        pcm: Arc::new(frame_pcm(0..40)),
+        rendered_in: Duration::ZERO,
+      });
+      let (publisher, subscription) = watch::channel(Some(progress));
+      let following = follow_render_into_playback(subscription, &tap);
+      let idle = tokio::time::sleep(Duration::from_millis(20));
+      let _ = select(Box::pin(following), Box::pin(idle)).await;
+      drop(publisher);
+
+      // A render taken over now continues where following stopped.
+      assert_eq!(tap.start_frame(100, 24_000, false), 40);
+      tap.queue_rest(&voicevox_core::__wav_from_s16le(
+        &frame_pcm(0..100),
+        24_000,
+        false,
+      ));
+      // A non-core WAV after streaming started is not queued again.
+      tap.queue_rest(b"not a wave file");
+
+      let queued: Vec<i16> = messages
+        .try_iter()
+        .flat_map(|message| match message {
+          FeedMessage::Pcm { pcm, skip, .. } => {
+            assert_eq!(skip, Duration::ZERO);
+            let (samples, _) = pcm.as_chunks::<2>();
+            samples
+              .iter()
+              .step_by(256)
+              .map(|sample| i16::from_le_bytes(*sample))
+              .collect::<Vec<_>>()
+          }
+          other => panic!("unexpected feed message {other:?}"),
+        })
+        .collect();
+      assert_eq!(queued, (0..100).collect::<Vec<i16>>());
+    });
+  }
+
+  #[test]
+  fn playback_of_an_unrecognized_waveform_queues_it_whole_once() {
+    use crate::audio::player::FeedMessage;
+    let (feed, messages) = PlaybackFeed::for_test();
+    let tap = PlaybackTap::new(&feed, Duration::from_millis(5));
+    tap.queue_rest(b"not a wave file");
+    tap.queue_rest(b"not a wave file");
+    let queued: Vec<FeedMessage> = messages.try_iter().collect();
+    assert_eq!(queued.len(), 1);
+    assert!(matches!(
+      &queued[0],
+      FeedMessage::Wav { skip, .. } if *skip == Duration::from_millis(5)
+    ));
+  }
+
+  #[test]
+  fn core_wavs_are_recognized_and_other_layouts_are_not() {
+    let wav = voicevox_core::__wav_from_s16le(&[1, 0, 2, 0], 48_000, true);
+    assert_eq!(
+      pcm_from_wav(&wav),
+      Some((48_000, true, &[1u8, 0, 2, 0][..]))
+    );
+    assert_eq!(pcm_from_wav(&wav[..40]), None);
+    assert_eq!(
+      pcm_from_wav(&voicevox_core::__wav_from_s16le(&[], 44_100, false)),
+      None
+    );
   }
 
   #[test]

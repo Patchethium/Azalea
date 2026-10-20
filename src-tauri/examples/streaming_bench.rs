@@ -161,7 +161,7 @@ fn main() {
   for query in queries.iter().take(3) {
     core.synthesis(query, style_id).unwrap();
     let audio = core.prepare_streaming(query, style_id).unwrap();
-    for range in StreamPlan::new(audio.frame_length(), schedule, Duration::ZERO).chunks {
+    for range in StreamPlan::new(audio.frame_length(), schedule, 0).chunks {
       core.render_streaming(&audio, range).unwrap();
     }
   }
@@ -177,7 +177,7 @@ fn main() {
       let started = Instant::now();
       let audio = core.prepare_streaming(query, style_id).unwrap();
       let prepare = started.elapsed();
-      let plan = StreamPlan::new(audio.frame_length(), schedule, Duration::ZERO);
+      let plan = StreamPlan::new(audio.frame_length(), schedule, 0);
       let mut first_chunk = None;
       // Playback position on the wall clock: each chunk plays once rendered and the one
       // before it finished playing.
