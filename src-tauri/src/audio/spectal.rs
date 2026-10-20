@@ -1,6 +1,6 @@
 //! A very simple mel spectrogram implementation
 //! used for users to refer how the audio looks like in frequency domain
-use ndarray::{s, Array1, Array2, Axis};
+use ndarray::{Array1, Array2, Axis};
 use rayon::prelude::*;
 use rustfft::num_complex::Complex;
 use rustfft::FftPlanner;
@@ -71,65 +71,90 @@ impl MelSpec {
     filterbank
   }
 
-  fn spectrogram(&mut self, signal: Array1<f64>) -> Array2<f64> {
-    let fft = self.fft_planner.plan_fft_forward(self.n_fft);
-
-    let n_samples = signal.len();
-    // Keep one zero-padded frame for short clips. Apart from avoiding an
-    // underflow here, this lets the preview represent very short utterances.
+  /// Number of columns for a signal of `n_samples`. Short clips keep one zero-padded column,
+  /// which avoids an underflow and lets the preview represent very short utterances.
+  pub fn frame_count(&self, n_samples: usize) -> usize {
     let remaining = n_samples.saturating_sub(self.n_fft);
-    let n_frames = remaining.saturating_add(self.hop_length - 1) / self.hop_length + 1;
-    let mut spec = Array2::zeros((self.n_fft / 2 + 1, n_frames));
+    remaining.saturating_add(self.hop_length - 1) / self.hop_length + 1
+  }
 
-    let n_fft = self.n_fft;
-    let hop_length = self.hop_length;
-    let window = &self.window;
-    spec
-      .axis_iter_mut(Axis(1))
-      .into_par_iter()
-      .enumerate()
-      .for_each(|(i, mut output)| {
-        let start = i * hop_length;
-        let end = (start + n_fft).min(n_samples);
-        let frame = signal.slice(s![start..end]);
-        let mut windowed = vec![Complex::new(0., 0.); n_fft];
-        for ((sample, window), output) in frame.iter().zip(window.iter()).zip(windowed.iter_mut()) {
-          output.re = sample * window;
-        }
+  /// Samples column `index` reads, starting at `index * hop_length`. Windows past the end of
+  /// the signal are zero-padded, so only the samples before `n_samples` are needed.
+  pub fn window_range(&self, index: usize, n_samples: usize) -> std::ops::Range<usize> {
+    let start = index * self.hop_length;
+    start.min(n_samples)..(start + self.n_fft).min(n_samples)
+  }
 
-        fft.process(&mut windowed);
+  /// Power spectrum of one zero-padded, windowed frame.
+  fn power_frame(
+    fft: &dyn rustfft::Fft<f64>,
+    window: &Array1<f64>,
+    n_fft: usize,
+    frame: &[f64],
+    output: &mut [f64],
+  ) {
+    let mut windowed = vec![Complex::new(0., 0.); n_fft];
+    for ((sample, window), output) in frame.iter().zip(window.iter()).zip(windowed.iter_mut()) {
+      output.re = sample * window;
+    }
 
-        // compute power spectrum
-        for (j, complex_val) in windowed.iter().take(n_fft / 2 + 1).enumerate() {
-          output[j] = (complex_val.norm() / n_fft as f64).powi(2);
-        }
-      });
-    spec
+    fft.process(&mut windowed);
+
+    for (output, complex_val) in output.iter_mut().zip(windowed.iter().take(n_fft / 2 + 1)) {
+      *output = (complex_val.norm() / n_fft as f64).powi(2);
+    }
   }
 
   fn amp2db(amp: f64) -> f64 {
     10. * amp.max(f64::MIN_POSITIVE).log10()
   }
 
+  fn mel_db(filterbank: &Array2<f64>, spectrum: ndarray::ArrayView1<f64>, output: &mut [f64]) {
+    for (output, filter) in output.iter_mut().zip(filterbank.axis_iter(Axis(0))) {
+      *output = Self::amp2db(filter.dot(&spectrum));
+    }
+  }
+
   pub fn process(&mut self, signal: Array1<f64>) -> Array2<f64> {
-    let spec = self.spectrogram(signal);
-    let n_mels = self.filterbank.nrows();
-    let n_frames = spec.ncols();
-    let mut mel_spec = Array2::zeros((n_mels, n_frames));
-    let filterbank = &self.filterbank;
+    let n_samples = signal.len();
+    let n_frames = self.frame_count(n_samples);
+    let mut mel_spec = Array2::zeros((self.filterbank.nrows(), n_frames));
+    let fft = self.fft_planner.plan_fft_forward(self.n_fft);
+    let signal = signal.as_slice().expect("signal is contiguous");
+    let this = &*self;
 
     mel_spec
       .axis_iter_mut(Axis(1))
       .into_par_iter()
       .enumerate()
-      .for_each(|(frame, mut output)| {
-        let spectrum = spec.column(frame);
-        for (mel, filter) in filterbank.axis_iter(Axis(0)).enumerate() {
-          output[mel] = Self::amp2db(filter.dot(&spectrum));
-        }
+      .for_each(|(index, mut output)| {
+        let column = this.column_with(fft.as_ref(), signal, index);
+        output.assign(&Array1::from(column));
       });
 
     mel_spec
+  }
+
+  /// Mel decibels of one column, computed the same way by [`Self::process`] and
+  /// [`Self::column`] so both give identical values.
+  fn column_with(&self, fft: &dyn rustfft::Fft<f64>, signal: &[f64], index: usize) -> Vec<f64> {
+    let frame = &signal[self.window_range(index, signal.len())];
+    let mut power = vec![0.; self.n_fft / 2 + 1];
+    Self::power_frame(fft, &self.window, self.n_fft, frame, &mut power);
+    let mut column = vec![0.; self.filterbank.nrows()];
+    Self::mel_db(
+      &self.filterbank,
+      ndarray::ArrayView1::from(&power),
+      &mut column,
+    );
+    column
+  }
+
+  /// Mel decibels of column `index` alone, identical to that column of [`Self::process`].
+  /// `signal` needs valid samples only in [`Self::window_range`].
+  pub fn column(&mut self, signal: &[f64], index: usize) -> Vec<f64> {
+    let fft = self.fft_planner.plan_fft_forward(self.n_fft);
+    self.column_with(fft.as_ref(), signal, index)
   }
 }
 
@@ -189,5 +214,20 @@ mod tests {
     let minimum = result.iter().copied().fold(f64::INFINITY, f64::min);
     let maximum = result.iter().copied().fold(f64::NEG_INFINITY, f64::max);
     assert!(maximum > minimum);
+  }
+
+  #[test]
+  fn single_columns_match_the_whole_signal_spectrogram() {
+    let signal: Vec<f64> = (0..5000)
+      .map(|sample| (2.0 * std::f64::consts::PI * 220.0 * sample as f64 / 24_000.0).sin())
+      .collect();
+    let mut extractor = MelSpec::new(1024, 48, 256, 24_000);
+    let whole = extractor.process(Array1::from(signal.clone()));
+    assert_eq!(whole.ncols(), extractor.frame_count(signal.len()));
+    for index in [0, 7, whole.ncols() - 1] {
+      let column = extractor.column(&signal, index);
+      assert_eq!(column, whole.column(index).to_vec());
+    }
+    assert_eq!(extractor.window_range(16, 5000), 4096..5000);
   }
 }

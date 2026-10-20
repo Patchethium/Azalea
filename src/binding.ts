@@ -483,6 +483,7 @@ downloadProgressEvent: DownloadProgressEvent,
 frontendReadyEvent: FrontendReadyEvent,
 initializationEvent: InitializationEvent,
 openProjectRequested: OpenProjectRequested,
+spectrogramColumnsEvent: SpectrogramColumnsEvent,
 spectrogramJobEvent: SpectrogramJobEvent,
 synthesisJobEvent: SynthesisJobEvent
 }>({
@@ -490,6 +491,7 @@ downloadProgressEvent: "download-progress-event",
 frontendReadyEvent: "frontend-ready-event",
 initializationEvent: "initialization-event",
 openProjectRequested: "open-project-requested",
+spectrogramColumnsEvent: "spectrogram-columns-event",
 spectrogramJobEvent: "spectrogram-job-event",
 synthesisJobEvent: "synthesis-job-event"
 })
@@ -820,6 +822,20 @@ export type SpeakerPortraitResult = { speaker_uuid: string;
  * Whether the speaker's default portrait is cached after the download.
  */
 cached: boolean; error: string | null }
+/**
+ * Columns of a spectrogram preview revealed while a streamed render is in progress. Decibels
+ * are raw: the frontend normalizes them to its loudest revealed column, as the finished
+ * preview is normalized to its loudest column.
+ */
+export type SpectrogramColumnsEvent = { blockId: string; generationId: number; hash: string; 
+/**
+ * Columns, mel bins and duration of the finished preview.
+ */
+frameCount: number; melBins: number; durationSeconds: number; columns: number[]; 
+/**
+ * `mel_bins` decibels per entry of `columns`, in the same order, lowest bin first.
+ */
+decibels: number[] }
 export type SpectrogramJobEvent = { blockId: string; generationId: number; hash: string; state: SynthesisJobState; error: string | null; preview: SpectrogramPreview | null }
 export type SpectrogramJobRequest = { blockId: string; generationId: number; audioQuery: AudioQuery; speakerId: StyleId; hash: string }
 export type SpectrogramPreview = { values: number[]; frameCount: number; melBins: number; durationSeconds: number }

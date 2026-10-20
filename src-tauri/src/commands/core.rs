@@ -3,13 +3,13 @@ use crate::async_job::run_cancellable;
 use crate::config::manager::user_dictionary_path;
 use crate::config::CoreConfig;
 use crate::spectrogram::{
-  create_spectrogram_preview, validate_spectrogram_request, SpectrogramJob, SpectrogramJobEvent,
-  SpectrogramJobRequest,
+  create_spectrogram_preview, validate_spectrogram_request, SlidingSpectrogram, SpectrogramJob,
+  SpectrogramJobEvent, SpectrogramJobIdentity, SpectrogramJobRequest, SLIDING_TICK,
 };
-use crate::streaming::{StreamPlan, DEFAULT_CHUNK_SCHEDULE};
+use crate::streaming::{RenderProgress, RenderedChunk, StreamPlan, DEFAULT_CHUNK_SCHEDULE};
 use crate::synthesis::{
   eviction_events, SynthesisBackend, SynthesisJob, SynthesisJobEvent, SynthesisJobRequest,
-  SynthesisJobState, WaveformCacheEntry, WaveformCacheOwner,
+  SynthesisJobState, WaveformCacheEntry, WaveformCacheOwner, WaveformCell,
 };
 use crate::AppState;
 use crate::{
@@ -19,6 +19,7 @@ use crate::{
   core::Core,
 };
 
+use futures_util::future::{select, Either};
 use std::future::Future;
 #[cfg(test)]
 use std::io::Cursor;
@@ -26,12 +27,12 @@ use std::io::Write;
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 use std::sync::{atomic::Ordering, Arc};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use tauri_specta::Event;
-use tokio::sync::{OnceCell, OwnedSemaphorePermit};
+use tokio::sync::{oneshot, watch, OnceCell, OwnedSemaphorePermit};
 use voicevox_core::{AccentPhrase, AudioQuery, StyleId, VoiceModelMeta};
 
 /// Load the voicevox core and create lru cache
@@ -504,31 +505,21 @@ pub fn start_synthesis_worker(app: AppHandle) {
       } else {
         emit_synthesis_events(&app, [job.identity.event(SynthesisJobState::Running, None)]);
         let state = app.state::<AppState>();
-        let preparation = match job.backend {
-          SynthesisBackend::Blocking => Ok(()),
-          SynthesisBackend::Nonblocking => {
-            prepare_nonblocking_synthesis_task(&state, job.request.speaker_id).await
-          }
-        };
-        match preparation {
-          Err(error) => Some(Err(error)),
-          Ok(()) => {
-            let synthesis = synthesize_cached(
-              &app,
-              &state,
-              job.request.audio_query,
-              job.request.speaker_id,
-              Some(WaveformCacheOwner {
-                identity: job.identity.clone(),
-              }),
-              job.backend,
-              None,
-            );
-            match job.backend {
-              SynthesisBackend::Blocking => Some(synthesis.await),
-              SynthesisBackend::Nonblocking => run_cancellable(&cancellation, synthesis).await,
-            }
-          }
+        let synthesis = synthesize_cached(
+          &app,
+          &state,
+          job.request.audio_query,
+          job.request.speaker_id,
+          Some(WaveformCacheOwner {
+            identity: job.identity.clone(),
+          }),
+          job.backend,
+          None,
+          None,
+        );
+        match job.backend {
+          SynthesisBackend::Blocking => Some(synthesis.await),
+          SynthesisBackend::Nonblocking => run_cancellable(&cancellation, synthesis).await,
         }
       };
 
@@ -603,30 +594,29 @@ pub fn start_spectrogram_worker(app: AppHandle) {
           [job.identity.event(SynthesisJobState::Running, None, None)],
         );
         let state = app.state::<AppState>();
-        match prepare_nonblocking_synthesis_task(&state, job.request.speaker_id).await {
-          Err(error) => Some(Err(error)),
-          Ok(()) => {
-            let synthesis = synthesize_cached(
-              &app,
-              &state,
-              job.request.audio_query,
-              job.request.speaker_id,
-              None,
-              SynthesisBackend::Nonblocking,
-              None,
-            );
-            match run_cancellable(&cancellation, synthesis).await {
-              None => None,
-              Some(Err(error)) => Some(Err(error)),
-              Some(Ok(wav)) => {
-                let extraction = async move {
-                  tauri::async_runtime::spawn_blocking(move || create_spectrogram_preview(wav))
-                    .await
-                    .map_err(|e| format!("Spectrogram task failed: {e}"))?
-                };
-                run_cancellable(&cancellation, extraction).await
-              }
-            }
+        let (subscribe, subscription) = oneshot::channel();
+        let synthesis = synthesize_cached(
+          &app,
+          &state,
+          job.request.audio_query,
+          job.request.speaker_id,
+          None,
+          SynthesisBackend::Nonblocking,
+          None,
+          Some(subscribe),
+        );
+        let synthesis =
+          synthesize_with_sliding_preview(&app, &job.identity, synthesis, subscription);
+        match run_cancellable(&cancellation, synthesis).await {
+          None => None,
+          Some(Err(error)) => Some(Err(error)),
+          Some(Ok(wav)) => {
+            let extraction = async move {
+              tauri::async_runtime::spawn_blocking(move || create_spectrogram_preview(wav))
+                .await
+                .map_err(|e| format!("Spectrogram task failed: {e}"))?
+            };
+            run_cancellable(&cancellation, extraction).await
           }
         }
       };
@@ -685,6 +675,7 @@ async fn render_streamed(
   speaker_id: StyleId,
   backend: SynthesisBackend,
   mut tap: Option<&mut PlaybackTap<'_>>,
+  progress: &watch::Sender<Option<RenderProgress>>,
 ) -> Result<Option<Vec<u8>>, String> {
   let audio = match backend {
     SynthesisBackend::Blocking => {
@@ -723,9 +714,18 @@ async fn render_streamed(
   let audio = Arc::new(audio);
   let start_at = tap.as_ref().map_or(Duration::ZERO, |tap| tap.start_at);
   let plan = StreamPlan::new(audio.frame_length(), DEFAULT_CHUNK_SCHEDULE, start_at);
-  let mut parts = vec![Vec::new(); plan.chunks.len()];
+  progress.send_replace(Some(RenderProgress::new(
+    audio.frame_length(),
+    audio.output_sampling_rate(),
+    audio.output_stereo(),
+  )));
+  let _reset_progress = ProgressReset(progress);
+  let mut parts: Vec<Arc<Vec<u8>>> = std::iter::repeat_with(Default::default)
+    .take(plan.chunks.len())
+    .collect();
   for &index in &plan.order {
     let range = plan.chunks[index].clone();
+    let chunk_started = Instant::now();
     let pcm = match backend {
       SynthesisBackend::Blocking => {
         let audio = audio.clone();
@@ -744,9 +744,19 @@ async fn render_streamed(
           .map_err(|e| e.to_string())?
       }
     };
+    let pcm = Arc::new(pcm);
+    progress.send_modify(|progress| {
+      if let Some(progress) = progress {
+        progress.chunks.push(RenderedChunk {
+          frames: plan.chunks[index].clone(),
+          pcm: pcm.clone(),
+          rendered_in: chunk_started.elapsed(),
+        });
+      }
+    });
     if let (Some(tap), Some(skip)) = (tap.as_deref_mut(), plan.playback_skip(index)) {
       tap.feed.pcm(
-        pcm.clone(),
+        pcm.to_vec(),
         audio.output_sampling_rate(),
         audio.output_stereo(),
         skip,
@@ -755,12 +765,137 @@ async fn render_streamed(
     }
     parts[index] = pcm;
   }
-  Ok(Some(audio.wav(&parts.concat())))
+  let pcm: Vec<u8> = parts.iter().flat_map(|part| part.iter().copied()).collect();
+  Ok(Some(audio.wav(&pcm)))
+}
+
+/// Clears published render progress when a streamed render ends: finished, failed or cancelled.
+struct ProgressReset<'a>(&'a watch::Sender<Option<RenderProgress>>);
+
+impl Drop for ProgressReset<'_> {
+  fn drop(&mut self) {
+    self.0.send_replace(None);
+  }
+}
+
+/// Runs `synthesis` while following its streamed render, whoever started it, with a sliding
+/// spectrogram window: columns are revealed a step at a time through
+/// [`SpectrogramColumnsEvent`]s, paced over each chunk's render time. Chunks rendered before
+/// following started are revealed at once. After a successful render the remaining columns
+/// are still revealed at their pace before returning, so the last chunk does not pop.
+async fn synthesize_with_sliding_preview<F>(
+  app: &AppHandle,
+  identity: &SpectrogramJobIdentity,
+  synthesis: F,
+  subscription: oneshot::Receiver<watch::Receiver<Option<RenderProgress>>>,
+) -> Result<Vec<u8>, String>
+where
+  F: Future<Output = Result<Vec<u8>, String>>,
+{
+  enum Wake {
+    Finished(Result<Vec<u8>, String>),
+    Changed(bool),
+    Tick,
+  }
+
+  let mut synthesis = Box::pin(synthesis);
+  // `synthesize_cached` sends the subscription once it has found the cache entry.
+  let mut progress = match select(synthesis.as_mut(), subscription).await {
+    Either::Left((result, _)) => return result,
+    Either::Right((Ok(progress), _)) => Some(progress),
+    Either::Right((Err(_), _)) => return synthesis.await,
+  };
+  let mut sliding: Option<SlidingSpectrogram> = None;
+  let mut paced = false;
+  let mut finished: Option<Vec<u8>> = None;
+  loop {
+    let snapshot = progress
+      .as_mut()
+      .and_then(|progress| progress.borrow_and_update().clone());
+    if let Some(snapshot) = snapshot {
+      let now = Instant::now();
+      let current = sliding
+        .take()
+        .filter(|sliding| sliding.follows(&snapshot))
+        .unwrap_or_else(|| SlidingSpectrogram::new(&snapshot));
+      let ingest_paced = paced;
+      let ingested = tauri::async_runtime::spawn_blocking(move || {
+        let mut current = current;
+        current.ingest(&snapshot, now, ingest_paced);
+        current
+      })
+      .await
+      .map_err(|e| format!("Spectrogram task failed: {e}"))?;
+      sliding = Some(ingested);
+    }
+    // Chunks seen at the first look were rendered before following started.
+    paced = true;
+
+    if let Some(current) = sliding.as_mut() {
+      let due = current.due(Instant::now());
+      if !due.is_empty() {
+        if let Err(error) = identity.columns_event(current, due).emit(app) {
+          eprintln!("Failed to emit spectrogram columns: {error}");
+        }
+      }
+    }
+    let pending = sliding
+      .as_ref()
+      .is_some_and(SlidingSpectrogram::has_pending);
+    if finished.is_some() && !pending {
+      return Ok(finished.take().expect("checked above"));
+    }
+
+    let tick = async {
+      if pending {
+        tokio::time::sleep(SLIDING_TICK).await;
+      } else {
+        std::future::pending::<()>().await;
+      }
+      Wake::Tick
+    };
+    let following = finished.is_none();
+    let changed = async {
+      match progress.as_mut() {
+        Some(progress) if following => Wake::Changed(progress.changed().await.is_ok()),
+        _ => std::future::pending().await,
+      }
+    };
+    let completion = async {
+      if following {
+        Wake::Finished(synthesis.as_mut().await)
+      } else {
+        std::future::pending().await
+      }
+    };
+    let wake = match select(
+      Box::pin(completion),
+      select(Box::pin(changed), Box::pin(tick)),
+    )
+    .await
+    {
+      Either::Left((wake, _)) => wake,
+      Either::Right((Either::Left((wake, _)), _))
+      | Either::Right((Either::Right((wake, _)), _)) => wake,
+    };
+    match wake {
+      Wake::Finished(Err(error)) => return Err(error),
+      Wake::Finished(Ok(wav)) => {
+        finished = Some(wav);
+        progress = None;
+      }
+      // The cache entry was dropped; nothing more will be published.
+      Wake::Changed(false) => progress = None,
+      Wake::Changed(true) | Wake::Tick => {}
+    }
+  }
 }
 
 /// Synthesizes or retrieves a waveform without holding the shared cache lock during inference.
 /// With streaming synthesis enabled, a cache miss on a model that supports it renders in
 /// chunks, which are also forwarded to `tap` for playback.
+// Each optional observer (owner, playback tap, progress subscription) serves a different caller.
+#[allow(clippy::too_many_arguments)]
 async fn synthesize_cached(
   app: &AppHandle,
   state: &AppState,
@@ -769,6 +904,7 @@ async fn synthesize_cached(
   owner: Option<WaveformCacheOwner>,
   backend: SynthesisBackend,
   tap: Option<&mut PlaybackTap<'_>>,
+  subscribe: Option<oneshot::Sender<watch::Receiver<Option<RenderProgress>>>>,
 ) -> std::result::Result<Vec<u8>, String> {
   let query_string = serde_json::to_string(&audio_query).map_err(|e| e.to_string())?;
   let generation = state.core_generation.load(Ordering::SeqCst);
@@ -780,7 +916,7 @@ async fn synthesize_cached(
     if let Some(entry) = cache.get(&cache_key) {
       (entry.cell.clone(), None)
     } else {
-      let cell = Arc::new(OnceCell::new());
+      let cell = Arc::new(WaveformCell::default());
       let evicted = cache.push(cache_key.clone(), WaveformCacheEntry::new(cell.clone()));
       (cell, evicted)
     }
@@ -788,12 +924,29 @@ async fn synthesize_cached(
   if let Some((_, entry)) = evicted {
     emit_synthesis_events(app, eviction_events(entry));
   }
+  if let Some(subscribe) = subscribe {
+    let _ = subscribe.send(cell.progress.subscribe());
+  }
 
   let query_for_task = audio_query.clone();
-  let wav = initialize_waveform_cell(&cell, move || async move {
+  let progress = &cell.progress;
+  let wav = initialize_waveform_cell(&cell.wav, move || async move {
+    // Load the nonblocking model only when this caller renders, so a caller following another
+    // render does not take the core gate from it.
+    if backend == SynthesisBackend::Nonblocking {
+      prepare_nonblocking_synthesis_task(state, speaker_id).await?;
+    }
     if streaming_synthesis_enabled(state) {
-      if let Some(wav) =
-        render_streamed(state, generation, &query_for_task, speaker_id, backend, tap).await?
+      if let Some(wav) = render_streamed(
+        state,
+        generation,
+        &query_for_task,
+        speaker_id,
+        backend,
+        tap,
+        progress,
+      )
+      .await?
       {
         return Ok(wav);
       }
@@ -988,6 +1141,7 @@ async fn feed_playback(
       None,
       SynthesisBackend::Blocking,
       streaming.then_some(&mut tap),
+      None,
     )
     .await?;
     if streaming {
@@ -1190,6 +1344,7 @@ pub async fn save_audio(
     None,
     SynthesisBackend::Blocking,
     None,
+    None,
   )
   .await?;
   let saved_path = write_audio_file(Path::new(&path), &waveform, prevent_overwrite)?;
@@ -1226,6 +1381,7 @@ pub async fn save_combined_audio(
         item.speaker_id,
         None,
         SynthesisBackend::Blocking,
+        None,
         None,
       )
       .await?,
@@ -1307,7 +1463,7 @@ pub async fn synthesize_state(
   let cache = cache_guard.as_mut().ok_or("wav_lru is not initialized")?;
   let key = generation_key(query_string, state.core_generation.load(Ordering::SeqCst));
   if let Some(entry) = cache.get(&(key, speaker_id)) {
-    if entry.cell.get().is_some() {
+    if entry.cell.wav.get().is_some() {
       return Ok(SynthState::Done);
     } else {
       return Ok(SynthState::Pending);

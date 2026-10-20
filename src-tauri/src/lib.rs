@@ -25,7 +25,7 @@ use voicevox_core::{AudioQuery, StyleId};
 
 pub use launch::OpenProjectRequested;
 use launch::{take_startup_project, StartupProject};
-use spectrogram::{SpectrogramJobEvent, SpectrogramQueue};
+use spectrogram::{SpectrogramColumnsEvent, SpectrogramJobEvent, SpectrogramQueue};
 use synthesis::{SynthesisJobEvent, SynthesisQueue, WaveformCacheEntry};
 
 pub(crate) type WavLruType = lru::LruCache<(String, StyleId), WaveformCacheEntry>;
@@ -105,6 +105,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
       FrontendReadyEvent,
       SynthesisJobEvent,
       SpectrogramJobEvent,
+      SpectrogramColumnsEvent,
       DownloadProgressEvent,
       OpenProjectRequested
     ])
@@ -237,7 +238,6 @@ mod tests {
   use std::num::NonZeroUsize;
   use tauri::test::{get_ipc_response, mock_builder, mock_context, noop_assets, INVOKE_KEY};
   use tauri::webview::InvokeRequest;
-  use tokio::sync::OnceCell;
 
   fn empty_app_state(
     wav_lru: Option<WavLruType>,
@@ -465,7 +465,7 @@ mod tests {
 
     assert_eq!(invoke_state(), json!("UnInitialized"));
 
-    let cell = Arc::new(OnceCell::new());
+    let cell = Arc::new(crate::synthesis::WaveformCell::default());
     let query_key = serde_json::to_string(&query).unwrap();
     tauri::async_runtime::block_on(async {
       app
@@ -482,7 +482,7 @@ mod tests {
     });
     assert_eq!(invoke_state(), json!("Pending"));
 
-    cell.set(vec![1, 2, 3]).unwrap();
+    cell.wav.set(vec![1, 2, 3]).unwrap();
     assert_eq!(invoke_state(), json!("Done"));
   }
 }

@@ -27,6 +27,15 @@ import {
 } from "@contexts/pitchBaseline";
 import { useSpectrogramStore } from "@contexts/spectrogram";
 import {
+  addSpectrogramColumns,
+  createPartialSpectrogram,
+  type DisplayedSpectrogram,
+  type PartialSpectrogram,
+  partialSpectrogramMatches,
+  partialSpectrogramPreview,
+  plainSpectrogram,
+} from "@layout/bottomPanel/tuning/partialSpectrogram";
+import {
   findPresetById,
   findPresetStyle,
   isQueryModified,
@@ -57,6 +66,8 @@ import { unwrap } from "solid-js/store";
 import { createDriftScale, createPitchScale } from "./pitchScale";
 
 let spectrogramGenerationSequence = 0;
+/** Coalesces streamed spectrogram columns into one redraw per display frame. */
+const PARTIAL_SPECTROGRAM_DRAW_MS = 16;
 
 // Pitch prediction depends on phonemes and accents but not on pitch or
 // duration values, so tuning edits keep the same baseline.
@@ -81,6 +92,12 @@ type ActiveSpectrogramRequest = {
   buffered: boolean;
   attempt: number;
   settled: boolean;
+  /** Columns of a streamed render received so far; never cached. */
+  partial?: PartialSpectrogram;
+  /** Whether a partial preview of a streamed render is on the canvas. */
+  partialShown?: boolean;
+  /** The grayed-out previous preview kept under columns not revealed yet. */
+  underlay?: SpectrogramPreview | null;
 };
 
 export function useTuningPanel(
@@ -165,16 +182,76 @@ export function useTuningPanel(
     if (block === null || query === null || preset === null) return null;
     return getCachedSpectrogram(block.id, query, preset.style_id);
   };
-  const [spectrogram, setSpectrogram] = createSignal<SpectrogramPreview | null>(
-    null,
-  );
+  const [spectrogram, setSpectrogram] =
+    createSignal<DisplayedSpectrogram | null>(null);
   const [spectrogramStale, setSpectrogramStale] = createSignal(false);
   let mounted = true;
   let activeSpectrogramRequest: ActiveSpectrogramRequest | null = null;
   let lastSpectrogramSignature: string | null = null;
   let unlistenSpectrogram: (() => void) | undefined;
+  let unlistenSpectrogramColumns: (() => void) | undefined;
   let listenerReady: Promise<void> = Promise.resolve();
   let retryTimer: ReturnType<typeof setTimeout> | undefined;
+  let partialDrawTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const showsRequest = ({
+    blockId,
+    audioQuery,
+    speakerId,
+  }: SpectrogramJobRequest) => {
+    const currentQuery = currentModifiedQuery();
+    const preset = currentPreset();
+    return (
+      mounted &&
+      currentText()?.id === blockId &&
+      currentQuery !== null &&
+      preset !== null &&
+      getCacheKey(currentQuery, preset.style_id) ===
+        getCacheKey(audioQuery, speakerId)
+    );
+  };
+
+  const isActiveRequestFor = (
+    activeRequest: ActiveSpectrogramRequest | null,
+    payload: { blockId: string; generationId: number; hash: string },
+  ): activeRequest is ActiveSpectrogramRequest =>
+    activeRequest !== null &&
+    !activeRequest.settled &&
+    payload.blockId === activeRequest.request.blockId &&
+    payload.generationId === activeRequest.request.generationId &&
+    payload.hash === activeRequest.request.hash;
+
+  /** Draws received columns at most once per display frame. */
+  const schedulePartialDraw = () => {
+    if (partialDrawTimer !== undefined) return;
+    partialDrawTimer = setTimeout(() => {
+      partialDrawTimer = undefined;
+      const activeRequest = activeSpectrogramRequest;
+      if (
+        activeRequest === null ||
+        activeRequest.settled ||
+        activeRequest.partial === undefined ||
+        !showsRequest(activeRequest.request)
+      ) {
+        return;
+      }
+      if (activeRequest.underlay === undefined) {
+        const shown = untrack(spectrogram);
+        activeRequest.underlay =
+          shown !== null && untrack(spectrogramStale)
+            ? plainSpectrogram(shown)
+            : null;
+      }
+      activeRequest.partialShown = true;
+      setSpectrogram(
+        partialSpectrogramPreview(
+          activeRequest.partial,
+          activeRequest.underlay,
+        ),
+      );
+      setSpectrogramStale(false);
+    }, PARTIAL_SPECTROGRAM_DRAW_MS);
+  };
 
   const cancelSpectrogramRequest = (
     activeRequest: ActiveSpectrogramRequest | null,
@@ -212,6 +289,7 @@ export function useTuningPanel(
         attempt: activeRequest.attempt + 1,
         submitted: false,
         settled: false,
+        partial: undefined,
       };
       activeSpectrogramRequest = next;
       void submitSpectrogramRequest(next.request, next);
@@ -307,7 +385,7 @@ export function useTuningPanel(
     activeSpectrogramRequest = activeRequest;
     lastSpectrogramSignature = activeRequest.signature;
     if (currentText()?.id === blockId) {
-      setSpectrogramStale(spectrogram() !== null);
+      setSpectrogramStale(untrack(spectrogram) !== null);
     }
 
     if (!buffered) {
@@ -325,19 +403,20 @@ export function useTuningPanel(
   };
 
   onMount(() => {
-    listenerReady = events.spectrogramJobEvent
+    const jobListener = events.spectrogramJobEvent
       .listen(({ payload }) => {
         const activeRequest = activeSpectrogramRequest;
-        if (
-          activeRequest === null ||
-          activeRequest.settled ||
-          payload.blockId !== activeRequest.request.blockId ||
-          payload.generationId !== activeRequest.request.generationId ||
-          payload.hash !== activeRequest.request.hash
-        ) {
-          return;
-        }
+        if (!isActiveRequestFor(activeRequest, payload)) return;
+        const { blockId, audioQuery, speakerId } = activeRequest.request;
         if (payload.state === "Failed") {
+          if (
+            activeRequest.partialShown &&
+            showsRequest(activeRequest.request)
+          ) {
+            const lastSpectrogram = getLastCachedSpectrogram(blockId);
+            setSpectrogram(lastSpectrogram);
+            setSpectrogramStale(lastSpectrogram !== null);
+          }
           retrySpectrogram(activeRequest);
           console.error("Failed to create spectrogram preview:", payload.error);
           return;
@@ -353,18 +432,8 @@ export function useTuningPanel(
         }
         activeRequest.settled = true;
         activeSpectrogramRequest = null;
-        const { blockId, audioQuery, speakerId } = activeRequest.request;
         cacheSpectrogram(blockId, audioQuery, speakerId, payload.preview);
-        const currentQuery = currentModifiedQuery();
-        const preset = currentPreset();
-        if (
-          mounted &&
-          currentText()?.id === blockId &&
-          currentQuery !== null &&
-          preset !== null &&
-          getCacheKey(currentQuery, preset.style_id) ===
-            getCacheKey(audioQuery, speakerId)
-        ) {
+        if (showsRequest(activeRequest.request)) {
           setSpectrogram(payload.preview);
           setSpectrogramStale(false);
         }
@@ -372,7 +441,27 @@ export function useTuningPanel(
       .then((unlisten) => {
         if (!mounted) unlisten();
         else unlistenSpectrogram = unlisten;
+      });
+    // Streamed renders reveal columns while running; they are drawn but never cached.
+    const columnsListener = events.spectrogramColumnsEvent
+      .listen(({ payload }) => {
+        const activeRequest = activeSpectrogramRequest;
+        if (!isActiveRequestFor(activeRequest, payload)) return;
+        if (
+          activeRequest.partial === undefined ||
+          !partialSpectrogramMatches(activeRequest.partial, payload)
+        ) {
+          activeRequest.partial = createPartialSpectrogram(payload);
+        }
+        addSpectrogramColumns(activeRequest.partial, payload);
+        schedulePartialDraw();
       })
+      .then((unlisten) => {
+        if (!mounted) unlisten();
+        else unlistenSpectrogramColumns = unlisten;
+      });
+    listenerReady = Promise.all([jobListener, columnsListener])
+      .then(() => undefined)
       .catch((error) => {
         console.error("Failed to listen for spectrogram events:", error);
       });
@@ -409,7 +498,7 @@ export function useTuningPanel(
       activeSpectrogramRequest = null;
       lastSpectrogramSignature = null;
       setSpectrogram(getLastCachedSpectrogram(block.id));
-      setSpectrogramStale(spectrogram() !== null);
+      setSpectrogramStale(untrack(spectrogram) !== null);
       return;
     }
     const { signature } = renderRequestFingerprint(
@@ -766,7 +855,9 @@ export function useTuningPanel(
     clearScheduledSpectrogramRefresh();
     cancelSpectrogramRequest(activeSpectrogramRequest);
     activeSpectrogramRequest = null;
+    clearTimeout(partialDrawTimer);
     unlistenSpectrogram?.();
+    unlistenSpectrogramColumns?.();
     if (scrollAreaRef) {
       setUIStore("bottom_scroll_pos", scrollAreaRef.scrollLeft);
     }

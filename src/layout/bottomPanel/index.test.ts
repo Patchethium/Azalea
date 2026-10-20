@@ -64,6 +64,41 @@ describe("SpectrogramCanvas", () => {
     expect(canvas).not.toHaveClass("opacity-55");
   });
 
+  it("draws the previous preview grayed out under columns not revealed yet", () => {
+    const putImageData = vi.mocked(
+      HTMLCanvasElement.prototype.getContext("2d")!.putImageData,
+    );
+    putImageData.mockClear();
+    const underlay = {
+      values: Array.from({ length: 8 }, () => 255),
+      frameCount: 4,
+      melBins: 2,
+      durationSeconds: 4,
+    };
+    const partial = {
+      values: [0, 255, 0, 0, 0, 255, 0, 0],
+      frameCount: 4,
+      melBins: 2,
+      durationSeconds: 4,
+      revealed: new Uint8Array([0, 1, 0, 0]),
+    };
+    // One second of configured silence on each side leaves columns 1 and 2 visible.
+    const { unmount } = renderCanvas({ ...partial, underlay });
+    const pixels = putImageData.mock.lastCall![0].data;
+    const pixel = (x: number, y: number) =>
+      Array.from(pixels.slice((y * 2 + x) * 4, (y * 2 + x) * 4 + 4));
+    // Column 1 is revealed: the primary color at full strength.
+    expect(pixel(0, 0)).toEqual([59, 130, 246, 94]);
+    // Column 2 is not: the underlay in the primary color's gray at the stale opacity.
+    expect(pixel(1, 0)).toEqual([123, 123, 123, 52]);
+    expect(pixel(1, 1)).toEqual([123, 123, 123, 52]);
+    unmount();
+
+    // Without an underlay, unrevealed columns stay transparent.
+    renderCanvas({ ...partial, underlay: null });
+    expect(putImageData.mock.lastCall![0].data[(0 * 2 + 1) * 4 + 3]).toBe(0);
+  });
+
   it("grays stale previews and clears invalid payloads", () => {
     const { container } = renderCanvas(
       {
@@ -1021,6 +1056,103 @@ describe("BottomPanel playback", () => {
     await waitFor(() =>
       expect(container.querySelector("canvas")).not.toBeInTheDocument(),
     );
+  });
+
+  it("draws streamed spectrogram columns without caching them and restores the last preview on failure", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const requestPreview = vi
+      .spyOn(commands, "requestSpectrogramPreview")
+      .mockResolvedValue({ status: "ok", data: null });
+    vi.spyOn(commands, "cancelSpectrogramPreview").mockResolvedValue({
+      status: "ok",
+      data: null,
+    });
+    const { container, getTextStore } = renderPanel({
+      buffer_render: true,
+      synthesis_delay_ms: 0,
+    });
+    const canvas = () => container.querySelector("canvas");
+    const emitColumns = (
+      request: SpectrogramJobRequest,
+      columns: number[],
+      decibels: number[],
+      frameCount = 4,
+    ) =>
+      events.spectrogramColumnsEvent.emit({
+        blockId: request.blockId,
+        generationId: request.generationId,
+        hash: request.hash,
+        frameCount,
+        melBins: 2,
+        durationSeconds: 1,
+        columns,
+        decibels,
+      });
+
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    await waitFor(() => expect(requestPreview).toHaveBeenCalledOnce());
+    const firstRequest = requestPreview.mock.calls[0][0];
+    await emitCompletedSpectrogram(firstRequest, {
+      values: [0, 64, 128, 128, 192, 255],
+      frameCount: 3,
+      melBins: 2,
+      durationSeconds: 1,
+    });
+    await waitFor(() => expect(canvas()?.width).toBe(3));
+
+    getTextStore().setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      0,
+      "moras",
+      0,
+      "pitch",
+      5.25,
+    );
+    await waitFor(() => expect(requestPreview).toHaveBeenCalledTimes(2));
+    const secondRequest = requestPreview.mock.calls[1][0];
+    await waitFor(() => expect(canvas()).toHaveClass("opacity-55"));
+
+    // Columns for the superseded request are ignored.
+    await emitColumns(firstRequest, [0], [0, 0], 1);
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    expect(canvas()?.width).toBe(3);
+
+    // A different geometry starts over; columns arriving within a frame draw together.
+    await emitColumns(secondRequest, [0], [0, 0], 5);
+    await emitColumns(secondRequest, [0, 1], [-20, -100, -60, -20]);
+    await emitColumns(secondRequest, [2], [-40, -40]);
+    await waitFor(() => expect(canvas()?.width).toBe(4));
+    expect(canvas()).not.toHaveClass("opacity-55");
+    // Column 3 is not revealed yet, so the previous preview shows there in gray.
+    const pixels = vi.mocked(
+      HTMLCanvasElement.prototype.getContext("2d")!.putImageData,
+    ).mock.lastCall![0].data;
+    const grayUnderlay = [0, 1].some((y) => {
+      const pixel = (y * 4 + 3) * 4;
+      return (
+        pixels[pixel] === 123 &&
+        pixels[pixel + 1] === 123 &&
+        pixels[pixel + 2] === 123 &&
+        pixels[pixel + 3] > 0
+      );
+    });
+    expect(grayUnderlay).toBe(true);
+
+    await events.spectrogramJobEvent.emit({
+      blockId: secondRequest.blockId,
+      generationId: secondRequest.generationId,
+      hash: secondRequest.hash,
+      state: "Failed",
+      error: "render failed",
+      preview: null,
+    });
+    await waitFor(() => expect(canvas()?.width).toBe(3));
+    expect(canvas()).toHaveClass("opacity-55");
   });
 
   it("refreshes with buffering and rejects an older async preview", async () => {

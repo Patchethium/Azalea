@@ -258,6 +258,32 @@ previous canvas while a replacement is pending and render it grayed out until
 the new spectrogram arrives. Match completion events by block ID, generation
 ID, and hash so stale async responses cannot replace newer previews.
 
+While a streamed render is in progress, the waveform cache cell publishes the
+chunks rendered so far, each with its render time, through a
+`tokio::sync::watch` channel (`WaveformCell.progress`, a `RenderProgress` reset
+when the render ends for any reason), so the preview worker follows a render
+it did not start, including one started by playback. The nonblocking model is
+loaded only when a caller renders itself, so a follower subscribes without
+waiting for the core gate. `SlidingSpectrogram` keeps the received audio and
+computes only the columns whose whole FFT window a new chunk completes
+(`MelSpec::column`, identical to the whole-signal path), then reveals them
+`SLIDING_STEP_COLUMNS` (2) at a time, spread over that chunk's render time so
+the preview trails the render by about one chunk; chunks rendered before
+following started are revealed at once. Steps due within one `SLIDING_TICK`
+(16 ms) go out together as one `SpectrogramColumnsEvent` carrying raw decibels
+for just those columns. After the render finishes, the worker reveals the
+remaining columns at their pace before emitting `Completed`. The frontend
+accumulates columns per request (`partialSpectrogram.ts`), normalizes them to
+the loudest revealed value with the backend's 80 dB range, redraws at most
+every 16 ms, never caches them, and restores the last cached preview if the
+request fails. A partial `DisplayedSpectrogram` carries its revealed columns
+and the previous preview as `underlay`; the canvas draws revealed columns in
+full color and, in the same canvas, the underlay grayed out at the stale
+opacity under columns not revealed yet, sampled at the same timeline
+position, so the old preview stays visible until replaced. Read `spectrogram()`
+untracked inside the panel's request effect so drawing columns does not rerun
+it.
+
 `UIConfig.spectrogram_preview` controls the feature and defaults to enabled. Disabling it must cancel pending refreshes, clear the canvas, and avoid spectrogram extraction. Keep its switch in `src/layout/ConfigPage.tsx`, synchronize its English, Japanese, and Simplified Chinese labels, and regenerate `src/binding.ts` after changing related Rust commands or types.
 
 ## Build, Test, and Development Commands

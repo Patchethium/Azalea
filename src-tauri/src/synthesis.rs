@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use tokio::sync::OnceCell;
+use tokio::sync::{watch, OnceCell};
 use voicevox_core::{AudioQuery, StyleId};
 
 #[cfg(test)]
 use crate::async_job::DEFAULT_QUEUE_CAPACITY;
 use crate::async_job::{LatestJob, LatestJobQueue, QueueEvent, QueueEventState, QueuedJob};
+use crate::streaming::RenderProgress;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum SynthesisBackend {
@@ -176,13 +177,29 @@ pub(crate) struct WaveformCacheOwner {
   pub identity: SynthesisJobIdentity,
 }
 
+/// A cached waveform and, while it is being streamed, the chunks rendered so far.
+pub(crate) struct WaveformCell {
+  pub wav: OnceCell<Vec<u8>>,
+  /// `Some` while a streamed render is in progress; reset when it ends for any reason.
+  pub progress: watch::Sender<Option<RenderProgress>>,
+}
+
+impl Default for WaveformCell {
+  fn default() -> Self {
+    Self {
+      wav: OnceCell::new(),
+      progress: watch::channel(None).0,
+    }
+  }
+}
+
 pub(crate) struct WaveformCacheEntry {
-  pub cell: Arc<OnceCell<Vec<u8>>>,
+  pub cell: Arc<WaveformCell>,
   pub owners: Vec<WaveformCacheOwner>,
 }
 
 impl WaveformCacheEntry {
-  pub fn new(cell: Arc<OnceCell<Vec<u8>>>) -> Self {
+  pub fn new(cell: Arc<WaveformCell>) -> Self {
     Self {
       cell,
       owners: Vec::new(),
@@ -441,7 +458,7 @@ mod tests {
 
   #[test]
   fn cache_ownership_is_unique_per_block_and_emits_evictions() {
-    let cell = Arc::new(OnceCell::new());
+    let cell = Arc::new(WaveformCell::default());
     let mut entry = WaveformCacheEntry::new(cell);
     entry.add_owner(WaveformCacheOwner {
       identity: job("same", 1, 1.0).identity,

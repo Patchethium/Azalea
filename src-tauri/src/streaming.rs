@@ -1,8 +1,58 @@
 //! Chunk planning for streaming synthesis through the fork's segmented rendering API.
 use std::ops::Range;
+use std::sync::Arc;
 use std::time::Duration;
 
 use voicevox_core::{DEFAULT_STREAMING_CHUNK_FRAMES, STREAMING_FRAME_RATE};
+
+/// Samples per channel in one frame at the core's native 24 kHz.
+const NATIVE_SAMPLES_PER_FRAME: usize = 256;
+const NATIVE_SAMPLING_RATE: u32 = 24_000;
+
+/// One rendered chunk of a streamed waveform.
+#[derive(Clone, Debug)]
+pub struct RenderedChunk {
+  pub frames: Range<usize>,
+  /// 16-bit little-endian PCM, interleaved when stereo.
+  pub pcm: Arc<Vec<u8>>,
+  /// Time from requesting the chunk to receiving it, including waiting for the core.
+  pub rendered_in: Duration,
+}
+
+/// The chunks of a streamed render so far, in rendering order, so consumers such as the
+/// spectrogram preview can follow a render they did not start.
+#[derive(Clone, Debug)]
+pub struct RenderProgress {
+  pub frame_length: usize,
+  pub sample_rate: u32,
+  pub stereo: bool,
+  pub chunks: Vec<RenderedChunk>,
+}
+
+impl RenderProgress {
+  pub fn new(frame_length: usize, sample_rate: u32, stereo: bool) -> Self {
+    Self {
+      frame_length,
+      sample_rate,
+      stereo,
+      chunks: Vec::new(),
+    }
+  }
+
+  /// Samples per channel in one frame. The core upsamples by repeating samples, so output
+  /// rates are whole multiples of 24 kHz and every frame has the same number of samples.
+  pub fn samples_per_frame(&self) -> usize {
+    NATIVE_SAMPLES_PER_FRAME * (self.sample_rate / NATIVE_SAMPLING_RATE).max(1) as usize
+  }
+
+  pub fn channels(&self) -> usize {
+    if self.stereo {
+      2
+    } else {
+      1
+    }
+  }
+}
 
 /// Chunk sizes for one stream. Each chunk is vocoded with 14 frames of context on both sides,
 /// so small chunks start playback early but repeat work; the first played chunk is small and
