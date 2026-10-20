@@ -2,17 +2,26 @@
 //!
 //! Usage: `cargo run --release --example streaming_bench -- [text-file] [csv-out]`
 //! The core comes from `AZALEA_TEST_CORE_DIR` or `config_dev/config.toml`.
+//! `BENCH_FIRST_CHUNK_FRAMES` and `BENCH_MAX_CHUNK_FRAMES` override the chunk schedule.
 use std::{
   io::Write,
   path::Path,
   time::{Duration, Instant},
 };
 
+use azalea_lib::streaming::{ChunkSchedule, StreamPlan, DEFAULT_CHUNK_SCHEDULE};
 use azalea_lib::{
   config::{ConfigManager, CoreConfig},
   core::Core,
 };
-use voicevox_core::DEFAULT_STREAMING_CHUNK_FRAMES;
+use voicevox_core::STREAMING_FRAME_RATE;
+
+fn env_frames(name: &str, default: usize) -> usize {
+  std::env::var(name)
+    .ok()
+    .map(|value| value.parse().expect("chunk sizes must be frame counts"))
+    .unwrap_or(default)
+}
 
 fn core_config() -> CoreConfig {
   if let Some(root) = std::env::var_os("AZALEA_TEST_CORE_DIR") {
@@ -39,6 +48,8 @@ struct Sample {
   first_chunk: Duration,
   streaming_total: Duration,
   chunks: usize,
+  /// Silence inserted by playback waiting for a chunk that was not rendered yet.
+  stall: Duration,
 }
 
 impl Sample {
@@ -80,6 +91,8 @@ fn summarize(label: &str, samples: &[&Sample]) {
   let (sl_mean, sl_p50, sl_p90) = stats(&|s| ms(s.streaming_latency()));
   let (pr_mean, _, _) = stats(&|s| ms(s.prepare));
   let (fc_mean, _, _) = stats(&|s| ms(s.first_chunk));
+  let stalled = samples.iter().filter(|s| !s.stall.is_zero()).count();
+  let stall: f64 = samples.iter().map(|s| ms(s.stall)).sum();
   println!(
     "\n## {label}: {} utterances, {audio:.1} s audio (mean {:.2} s)",
     samples.len(),
@@ -95,6 +108,7 @@ fn summarize(label: &str, samples: &[&Sample]) {
     streaming / audio,
     (streaming / vanilla - 1.0) * 100.0
   );
+  println!("playback stalls: {stalled} utterances, {stall:.0} ms in total");
 }
 
 fn main() {
@@ -119,10 +133,18 @@ fn main() {
     core.supports_streaming(style_id).unwrap(),
     "style {style_id:?} cannot stream"
   );
+  let schedule = ChunkSchedule {
+    first_frames: env_frames(
+      "BENCH_FIRST_CHUNK_FRAMES",
+      DEFAULT_CHUNK_SCHEDULE.first_frames,
+    ),
+    max_frames: env_frames("BENCH_MAX_CHUNK_FRAMES", DEFAULT_CHUNK_SCHEDULE.max_frames),
+  };
   println!(
-    "style {style_id:?}, cpu_num_threads {}, chunk {} frames, {} lines from {text_path}",
+    "style {style_id:?}, cpu_num_threads {}, chunks {}..{} frames, {} lines from {text_path}",
     config.cpu_num_threads,
-    DEFAULT_STREAMING_CHUNK_FRAMES,
+    schedule.first_frames,
+    schedule.max_frames,
     lines.len()
   );
 
@@ -139,7 +161,7 @@ fn main() {
   for query in queries.iter().take(3) {
     core.synthesis(query, style_id).unwrap();
     let audio = core.prepare_streaming(query, style_id).unwrap();
-    for range in audio.chunk_ranges(DEFAULT_STREAMING_CHUNK_FRAMES) {
+    for range in StreamPlan::new(audio.frame_length(), schedule, Duration::ZERO).chunks {
       core.render_streaming(&audio, range).unwrap();
     }
   }
@@ -155,30 +177,42 @@ fn main() {
       let started = Instant::now();
       let audio = core.prepare_streaming(query, style_id).unwrap();
       let prepare = started.elapsed();
+      let plan = StreamPlan::new(audio.frame_length(), schedule, Duration::ZERO);
       let mut first_chunk = None;
-      let mut chunks = 0;
-      for range in audio.chunk_ranges(DEFAULT_STREAMING_CHUNK_FRAMES) {
+      // Playback position on the wall clock: each chunk plays once rendered and the one
+      // before it finished playing.
+      let mut playback_end = Duration::ZERO;
+      let mut stall = Duration::ZERO;
+      for range in &plan.chunks {
         let chunk_started = Instant::now();
-        core.render_streaming(&audio, range).unwrap();
+        core.render_streaming(&audio, range.clone()).unwrap();
+        let ready = started.elapsed();
         first_chunk.get_or_insert(chunk_started.elapsed());
-        chunks += 1;
+        if playback_end.is_zero() {
+          playback_end = ready;
+        } else if ready > playback_end {
+          stall += ready - playback_end;
+          playback_end = ready;
+        }
+        playback_end += Duration::from_secs_f64(range.len() as f64 / STREAMING_FRAME_RATE);
       }
       (
         prepare,
         first_chunk.unwrap_or_default(),
         started.elapsed(),
-        chunks,
+        plan.chunks.len(),
+        stall,
       )
     };
     // Alternate the order so drift (thermal, caches) affects both paths alike.
-    let ((vanilla_total, wav), (prepare, first_chunk, streaming_total, chunks)) = if index % 2 == 0
-    {
-      let v = run_vanilla();
-      (v, run_streaming())
-    } else {
-      let s = run_streaming();
-      (run_vanilla(), s)
-    };
+    let ((vanilla_total, wav), (prepare, first_chunk, streaming_total, chunks, stall)) =
+      if index % 2 == 0 {
+        let v = run_vanilla();
+        (v, run_streaming())
+      } else {
+        let s = run_streaming();
+        (run_vanilla(), s)
+      };
     samples.push(Sample {
       audio: wav_seconds(&wav),
       vanilla_total,
@@ -186,6 +220,7 @@ fn main() {
       first_chunk,
       streaming_total,
       chunks,
+      stall,
     });
   }
 
@@ -193,13 +228,13 @@ fn main() {
     let mut csv = std::fs::File::create(csv_path).unwrap();
     writeln!(
       csv,
-      "line,chars,audio_s,chunks,vanilla_ms,prepare_ms,first_chunk_ms,streaming_latency_ms,streaming_total_ms"
+      "line,chars,audio_s,chunks,vanilla_ms,prepare_ms,first_chunk_ms,streaming_latency_ms,streaming_total_ms,stall_ms"
     )
     .unwrap();
     for (index, s) in samples.iter().enumerate() {
       writeln!(
         csv,
-        "{},{},{:.3},{},{:.2},{:.2},{:.2},{:.2},{:.2}",
+        "{},{},{:.3},{},{:.2},{:.2},{:.2},{:.2},{:.2},{:.2}",
         index + 1,
         lines[index].chars().count(),
         s.audio,
@@ -208,7 +243,8 @@ fn main() {
         ms(s.prepare),
         ms(s.first_chunk),
         ms(s.streaming_latency()),
-        ms(s.streaming_total)
+        ms(s.streaming_total),
+        ms(s.stall)
       )
       .unwrap();
     }

@@ -6,7 +6,7 @@ use crate::spectrogram::{
   create_spectrogram_preview, validate_spectrogram_request, SpectrogramJob, SpectrogramJobEvent,
   SpectrogramJobRequest,
 };
-use crate::streaming::{StreamPlan, STREAMING_CHUNK_FRAMES};
+use crate::streaming::{StreamPlan, DEFAULT_CHUNK_SCHEDULE};
 use crate::synthesis::{
   eviction_events, SynthesisBackend, SynthesisJob, SynthesisJobEvent, SynthesisJobRequest,
   SynthesisJobState, WaveformCacheEntry, WaveformCacheOwner,
@@ -722,7 +722,7 @@ async fn render_streamed(
   };
   let audio = Arc::new(audio);
   let start_at = tap.as_ref().map_or(Duration::ZERO, |tap| tap.start_at);
-  let plan = StreamPlan::new(audio.frame_length(), STREAMING_CHUNK_FRAMES, start_at);
+  let plan = StreamPlan::new(audio.frame_length(), DEFAULT_CHUNK_SCHEDULE, start_at);
   let mut parts = vec![Vec::new(); plan.chunks.len()];
   for &index in &plan.order {
     let range = plan.chunks[index].clone();

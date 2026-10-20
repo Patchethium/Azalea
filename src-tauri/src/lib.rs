@@ -7,7 +7,7 @@ pub mod config;
 pub mod core;
 mod launch;
 mod spectrogram;
-mod streaming;
+pub mod streaming;
 mod synthesis;
 use core::Core;
 

@@ -6,7 +6,11 @@ use std::{
   time::{Duration, Instant},
 };
 
-use azalea_lib::{audio::spectal::MelSpec, core::Core};
+use azalea_lib::{
+  audio::spectal::MelSpec,
+  core::Core,
+  streaming::{StreamPlan, DEFAULT_CHUNK_SCHEDULE},
+};
 use hound::{SampleFormat, WavSpec};
 use ndarray::Array1;
 use serde::{Deserialize, Serialize};
@@ -457,15 +461,16 @@ fn real_core_streamed_chunks_match_whole_synthesis() {
   let audio = core
     .prepare_streaming(&query, style_id)
     .expect("streaming preparation failed");
-  assert!(audio.frame_length() > voicevox_core::DEFAULT_STREAMING_CHUNK_FRAMES);
-  let chunks = audio
-    .chunk_ranges(voicevox_core::DEFAULT_STREAMING_CHUNK_FRAMES)
-    .collect::<Vec<_>>();
-  // Render out of order, as seeking playback does, then reassemble in frame order.
-  let mut parts = vec![Vec::new(); chunks.len()];
-  for index in (1..chunks.len()).chain([0]) {
+  let frame_length = audio.frame_length();
+  assert!(frame_length > 2 * voicevox_core::DEFAULT_STREAMING_CHUNK_FRAMES);
+  // Seek to the middle so the plan renders out of order, then reassemble in frame order.
+  let start_at = Duration::from_secs_f64(audio.duration_seconds() / 2.0);
+  let plan = StreamPlan::new(frame_length, DEFAULT_CHUNK_SCHEDULE, start_at);
+  assert!(plan.first_played > 0);
+  let mut parts = vec![Vec::new(); plan.chunks.len()];
+  for &index in &plan.order {
     parts[index] = core
-      .render_streaming(&audio, chunks[index].clone())
+      .render_streaming(&audio, plan.chunks[index].clone())
       .expect("chunk rendering failed");
   }
   assert_waveforms_match(&audio.wav(&parts.concat()), &whole);
@@ -481,7 +486,7 @@ fn real_core_streamed_chunks_match_whole_synthesis() {
       .await
       .expect("nonblocking streaming preparation failed");
     let mut pcm = Vec::new();
-    for range in chunks {
+    for range in StreamPlan::new(frame_length, DEFAULT_CHUNK_SCHEDULE, Duration::ZERO).chunks {
       pcm.extend(
         core
           .render_streaming_nonblocking(&audio, range)

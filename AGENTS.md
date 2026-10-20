@@ -85,23 +85,29 @@ be rendered by the synthesizer that prepared it.
 
 `UIConfig.streaming_synthesis` (default on, an experimental config-dialog
 switch) makes every `synthesize_cached` cache miss on a supporting model render
-in `DEFAULT_STREAMING_CHUNK_FRAMES` chunks, taking the core task gate per chunk
-and checking the core generation each time; unsupported models fall back to
-whole synthesis. Streamed waveforms match whole synthesis to within one sample
+in chunks, taking the core task gate per chunk and checking the core generation
+each time; unsupported models fall back to whole synthesis. Each chunk is
+vocoded with 14 frames of context on both sides, so `DEFAULT_CHUNK_SCHEDULE`
+starts with a `DEFAULT_STREAMING_CHUNK_FRAMES` (50-frame) chunk for latency and
+doubles later chunks up to 400 frames to limit repeated work; remainders shorter
+than the first chunk join the chunk before them. Streamed waveforms match whole synthesis to within one sample
 quantization step and share the waveform cache. Playback (`play_audio`,
 `play_audio_sequence`) feeds an `AudioPlayer` through a `PlaybackFeed` from a
 producer task owned by the player, so stopping playback stops rendering. The
 command returns once the first audio is queued; later rendering errors emit
 `audio-playback-failed` with the message, which the frontend shows as a toast.
-Seeking renders the chunk containing the start time first and the skipped head
-last only to complete the cached waveform (`StreamPlan` in
+Seeking streams from the start frame first and renders the skipped head last in
+maximum-size chunks, only to complete the cached waveform (`StreamPlan` in
 `src-tauri/src/streaming.rs`). With streaming enabled, sequence items render
 while earlier items play; with it disabled, every item is synthesized before
 playback starts, as before.
 
 `src-tauri/examples/streaming_bench.rs` compares latency to first audio and
 total RTF of whole and streamed synthesis on the real core, one utterance per
-line of a text file (default `tests/rashoumon.txt`), optionally writing a CSV.
+line of a text file (default `tests/rashoumon.txt`), optionally writing a CSV,
+and simulates playback stalls. `BENCH_FIRST_CHUNK_FRAMES` and
+`BENCH_MAX_CHUNK_FRAMES` override the schedule. A full run synthesizes the text
+twice and takes several minutes.
 Release builds do not read `config_dev`, so set `AZALEA_TEST_CORE_DIR`:
 `cargo run --release --example streaming_bench -- tests/rashoumon.txt out.csv`.
 
