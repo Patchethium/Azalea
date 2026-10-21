@@ -2,7 +2,7 @@
 //
 //   pnpm e2e:build                 build the debug app with the embedded frontend
 //   pnpm e2e start                 launch the app and keep a WebDriver session
-//   pnpm e2e exec '<js>'           run JS with `browser`, `$` and `$$` in scope
+//   pnpm e2e exec '<js>'           run JS with `browser`, `$`, `$$` and `type`
 //   pnpm e2e shot [path.png]       save a screenshot of the window
 //   pnpm e2e stop                  close the app and tauri-driver
 //   pnpm e2e smoke                 start, check the main page renders, stop
@@ -138,14 +138,37 @@ async function connect() {
   });
 }
 
+type Browser = Awaited<ReturnType<typeof connect>>;
+
+/**
+ * Types into the focused element one key at a time. WebKitWebDriver drops
+ * repeated characters sent by `browser.keys` ("Hello" arrives as "Helo"), so
+ * each key is released and followed by a short pause.
+ */
+async function typeText(browser: Browser, text: string) {
+  await browser.performActions([
+    {
+      type: "key",
+      id: "keyboard",
+      actions: [...text].flatMap((value) => [
+        { type: "keyDown", value },
+        { type: "keyUp", value },
+        { type: "pause", duration: 30 },
+      ]),
+    },
+  ]);
+  await browser.releaseActions();
+}
+
 async function exec(code: string) {
   const browser = await connect();
   const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
-  const run = new AsyncFunction("browser", "$", "$$", code);
+  const run = new AsyncFunction("browser", "$", "$$", "type", code);
   const result = await run(
     browser,
     browser.$.bind(browser),
     browser.$$.bind(browser),
+    (text: string) => typeText(browser, text),
   );
   if (result !== undefined) console.log(JSON.stringify(result, null, 2));
 }
