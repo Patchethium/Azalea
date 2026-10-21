@@ -17,7 +17,9 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:coverage:rust": "cargo llvm-cov --branch --locked --manifest-path src-tauri/Cargo.toml -- --test-threads=1",
-    "test:all": "pnpm check && pnpm build && pnpm test:coverage && cargo test --locked --manifest-path src-tauri/Cargo.toml -- --test-threads=1"
+    "test:all": "pnpm check && pnpm build && pnpm test:coverage && cargo test --locked --manifest-path src-tauri/Cargo.toml -- --test-threads=1",
+    "e2e:build": "tauri build --debug --no-bundle",
+    "e2e": "tsx e2e/driver.ts"
   },
   "license": "GPL-3.0-or-later",
   "dependencies": {
@@ -55,6 +57,7 @@
     "unocss-preset-primitives": "0.0.2-beta.1",
     "vite": "^6.4.4",
     "vite-plugin-solid": "^2.11.14",
-    "vitest": "^4.1.12"
+    "vitest": "^4.1.12",
+    "webdriverio": "9.32.0"
   }
 }

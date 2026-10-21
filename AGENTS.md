@@ -314,6 +314,27 @@ it.
 
 Linux development also requires the Tauri prerequisites, `clang`, and `mold`. The development core path is stored in `config_dev/config.toml`.
 
+## Driving the Running App
+
+Agents cannot see the Tauri webview from a browser, so `e2e/driver.ts` drives
+the real window through `tauri-driver` (`cargo install tauri-driver --locked`)
+and WebKitGTK's `WebKitWebDriver` with WebdriverIO. This works on Linux and
+Windows only.
+
+- `pnpm e2e:build` builds the debug app with the frontend embedded; rebuild
+  after frontend or Rust changes.
+- `pnpm e2e start` launches the app and waits for the main page; the session
+  persists in `logs/e2e-session.json` until `pnpm e2e stop`.
+- `pnpm e2e exec '<js>'` runs async JS with `browser`, `$` and `$$` in scope
+  and prints any returned value as JSON. Prefer accessible selectors such as
+  `$("aria/Play selected cell")`.
+- `pnpm e2e shot [path]` saves a screenshot (default `logs/e2e-shot.png`).
+- `pnpm e2e smoke` starts, screenshots and stops in one command.
+
+The debug build uses the real core and the shared `config_dev` configuration,
+so UI changes made through the driver persist there. A running `pnpm tauri dev`
+instance shares the single-instance identifier and must be closed first.
+
 `src/binding.ts` is generated from the registered Tauri commands, events, and their Rust types by `tauri-specta`. After changing any of them, agents and other automation should run the dedicated `regenerate_typescript_bindings` test and commit the resulting binding changes. Do not edit the generated file by hand.
 
 ## Coding Style & Naming Conventions

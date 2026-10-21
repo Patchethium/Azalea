@@ -1,2 +1,6 @@
 allowBuilds:
   esbuild: true
+  # WebdriverIO only drives the app through tauri-driver; browser driver
+  # downloads are unnecessary.
+  edgedriver: false
+  geckodriver: false
