@@ -87,6 +87,9 @@ export function ConfigPage() {
     setSpectrogramPreviewEnabled,
     streamingSynthesisEnabled,
     setStreamingSynthesisEnabled,
+    englishTransformEnabled,
+    englishAccentPredictionEnabled,
+    englishNgramFilterEnabled,
     setupSource,
   } = useConfigStore()!;
 
@@ -396,6 +399,66 @@ export function ConfigPage() {
             <ConfigItem label={t1("config.cpu_num_threads")}>
               <CPUThreadSetting />
             </ConfigItem>
+            <ConfigItem
+              label={t1("config.english_transform")}
+              description={t1("config.english_transform_description")}
+            >
+              <Switch
+                checked={englishTransformEnabled()}
+                onChange={(value) =>
+                  setConfig("ui", "english_transform", value)
+                }
+                class="inline-flex items-center select-none cursor-pointer justify-center"
+              >
+                <Switch.Input
+                  aria-label={t1("config.english_transform")}
+                  class="outline-2px"
+                />
+                <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
+                  <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
+                </Switch.Control>
+              </Switch>
+            </ConfigItem>
+            <Show when={englishTransformEnabled()}>
+              <ConfigItem label={t1("config.english_accent_prediction")} nested>
+                <Switch
+                  checked={englishAccentPredictionEnabled()}
+                  onChange={(value) =>
+                    setConfig("ui", "english_accent_prediction", value)
+                  }
+                  class="inline-flex items-center select-none cursor-pointer justify-center"
+                >
+                  <Switch.Input
+                    aria-label={t1("config.english_accent_prediction")}
+                    class="outline-2px"
+                  />
+                  <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
+                    <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
+                  </Switch.Control>
+                </Switch>
+              </ConfigItem>
+              <ConfigItem
+                label={t1("config.english_ngram_filter")}
+                description={t1("config.english_ngram_filter_description")}
+                nested
+              >
+                <Switch
+                  checked={englishNgramFilterEnabled()}
+                  onChange={(value) =>
+                    setConfig("ui", "english_ngram_filter", value)
+                  }
+                  class="inline-flex items-center select-none cursor-pointer justify-center"
+                >
+                  <Switch.Input
+                    aria-label={t1("config.english_ngram_filter")}
+                    class="outline-2px"
+                  />
+                  <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
+                    <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
+                  </Switch.Control>
+                </Switch>
+              </ConfigItem>
+            </Show>
             <ConfigItem
               label={t1("config.pitch_noise_enabled")}
               description={t1("config.pitch_noise_description")}

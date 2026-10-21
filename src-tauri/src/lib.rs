@@ -5,6 +5,7 @@ pub mod audio;
 pub mod commands;
 pub mod config;
 pub mod core;
+pub mod english;
 mod launch;
 mod spectrogram;
 pub mod streaming;
@@ -290,6 +291,16 @@ mod tests {
       .write()
       .unwrap()
       .replace(config::ConfigManager::default());
+    // The cached entry was made without the English reading options.
+    state
+      .config_manager
+      .write()
+      .unwrap()
+      .as_mut()
+      .unwrap()
+      .config
+      .ui
+      .english_transform = false;
     let app = mock_builder()
       .manage(state)
       .invoke_handler(tauri::generate_handler![audio_query])
@@ -346,6 +357,30 @@ mod tests {
         .get(&("cached".into(), StyleId(1))),
       Some(&query)
     );
+
+    // Enabling them changes the analysis, so the cached query no longer applies.
+    app
+      .state::<AppState>()
+      .config_manager
+      .write()
+      .unwrap()
+      .as_mut()
+      .unwrap()
+      .config
+      .ui
+      .english_transform = true;
+    let error = get_ipc_response(
+      &webview,
+      invoke_request(
+        "audio_query",
+        json!({
+          "text": "cached", "speakerId": 1, "seed": 0
+        }),
+      ),
+    )
+    .unwrap_err()
+    .to_string();
+    assert!(error.contains("core is not initialized"), "{error}");
   }
 
   #[test]

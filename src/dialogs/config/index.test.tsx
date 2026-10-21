@@ -290,6 +290,75 @@ describe("ConfigPage", () => {
     );
   });
 
+  it("toggles English word transformation and hides its nested switches", async () => {
+    vi.spyOn(commands, "getAssetsSize").mockResolvedValue({
+      status: "ok",
+      data: 0,
+    });
+    let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
+    const Harness: Component = () => {
+      appConfig = useConfigStore()!;
+      const ui = useUIStore()!;
+      onMount(() => {
+        batch(() => {
+          appConfig.setConfig(config({ english_ngram_filter: false }));
+          ui.setUIStore("configSection", "synthesis");
+          ui.setUIStore("page", "config");
+        });
+      });
+      return <ConfigPage />;
+    };
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [i18nProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+
+    const transform = await screen.findByRole("switch", {
+      name: en.config.english_transform,
+    });
+    expect(transform).toBeChecked();
+    const accent = screen.getByRole("switch", {
+      name: en.config.english_accent_prediction,
+    });
+    const ngram = screen.getByRole("switch", {
+      name: en.config.english_ngram_filter,
+    });
+    expect(accent).toBeChecked();
+    expect(ngram).not.toBeChecked();
+    fireEvent.click(accent);
+    expect(appConfig.config.ui.english_accent_prediction).toBe(false);
+    fireEvent.click(ngram);
+    expect(appConfig.englishNgramFilterEnabled()).toBe(true);
+
+    fireEvent.click(transform);
+    expect(appConfig.config.ui.english_transform).toBe(false);
+    expect(
+      screen.queryByRole("switch", {
+        name: en.config.english_accent_prediction,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("switch", { name: en.config.english_ngram_filter }),
+    ).not.toBeInTheDocument();
+
+    // Re-enabling restores the hidden settings.
+    fireEvent.click(transform);
+    expect(
+      screen.getByRole("switch", { name: en.config.english_accent_prediction }),
+    ).not.toBeChecked();
+    expect(
+      screen.getByRole("switch", { name: en.config.english_ngram_filter }),
+    ).toBeChecked();
+  });
+
   it("switches pitch tuning mode and keeps the hidden drift range", async () => {
     let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
     const Harness: Component = () => {

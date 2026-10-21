@@ -285,8 +285,17 @@ pub async fn audio_query(
     .config
     .ui
     .pitch_noise_options(seed);
+  let english = state_ref!(state, config_manager)
+    .config
+    .ui
+    .english_options();
   let generation = state.core_generation.load(Ordering::SeqCst);
-  let cache_key = (generation_key(text.clone(), generation), speaker_id);
+  // The English reading options change the analysis, so they are part of the key.
+  let text_key = match english {
+    Some(options) => format!("{options:?}:{text}"),
+    None => text.clone(),
+  };
+  let cache_key = (generation_key(text_key, generation), speaker_id);
   let cached = state_mut!(state, query_lru).get(&cache_key).cloned();
   // Cache the ordinary query so changing the seed or sigma cannot reuse old noise.
   let mut query = match cached {
@@ -294,7 +303,7 @@ pub async fn audio_query(
     None => {
       let query = run_core_task(&state, move |core| {
         core
-          .audio_query(&text, speaker_id)
+          .audio_query_with_english(&text, speaker_id, english)
           .map_err(|e| e.to_string())
       })
       .await?;
@@ -328,9 +337,13 @@ pub async fn accent_phrases(
     .config
     .ui
     .pitch_noise_options(seed);
+  let english = state_ref!(state, config_manager)
+    .config
+    .ui
+    .english_options();
   run_core_task(&state, move |core| {
     core
-      .accent_phrases(&text, speaker_id)
+      .accent_phrases_with_english(&text, speaker_id, english)
       .and_then(|ap| core.apply_pitch_noise(ap, speaker_id, noise))
       .map_err(|e| e.to_string())
   })

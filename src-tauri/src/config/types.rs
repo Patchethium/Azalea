@@ -178,6 +178,15 @@ pub struct UIConfig {
   /// starts after the first chunk instead of the whole utterance.
   #[serde(default = "streaming_synthesis_default")]
   pub streaming_synthesis: bool,
+  /// Reads English words OpenJTalk cannot pronounce through e2k instead of spelling them out.
+  #[serde(default = "english_transform_default")]
+  pub english_transform: bool,
+  /// Applies e2k's predicted accent to transformed English words.
+  #[serde(default = "english_transform_default")]
+  pub english_accent_prediction: bool,
+  /// Keeps acronyms the n-gram model rejects spelled out instead of transliterated.
+  #[serde(default = "english_transform_default")]
+  pub english_ngram_filter: bool,
   #[serde(default = "playback_timeline_default")]
   pub playback_timeline: bool,
   #[serde(default)]
@@ -240,6 +249,9 @@ impl Default for UIConfig {
       synthesis_delay_ms: synthesis_delay_ms_default(),
       spectrogram_preview: spectrogram_preview_default(),
       streaming_synthesis: streaming_synthesis_default(),
+      english_transform: english_transform_default(),
+      english_accent_prediction: english_transform_default(),
+      english_ngram_filter: english_transform_default(),
       playback_timeline: playback_timeline_default(),
       pitch_scale: Default::default(),
       pitch_ruler: pitch_ruler_default(),
@@ -266,6 +278,15 @@ impl UIConfig {
       .then_some(voicevox_core::PitchNoiseOptions {
         sigma: self.pitch_noise_sigma,
         seed,
+      })
+  }
+
+  pub fn english_options(&self) -> Option<crate::english::EnglishOptions> {
+    self
+      .english_transform
+      .then_some(crate::english::EnglishOptions {
+        accent_prediction: self.english_accent_prediction,
+        ngram_filter: self.english_ngram_filter,
       })
   }
 }
@@ -363,6 +384,10 @@ fn spectrogram_preview_default() -> bool {
 }
 
 fn streaming_synthesis_default() -> bool {
+  true
+}
+
+fn english_transform_default() -> bool {
   true
 }
 
@@ -601,6 +626,13 @@ mod tests {
     assert!(!config.pitch_completion_locked);
     assert_eq!(config.pitch_noise_sigma, 0.05);
     assert!(config.pitch_noise_options(42).is_none());
+    assert_eq!(
+      config.english_options(),
+      Some(crate::english::EnglishOptions {
+        accent_prediction: true,
+        ngram_filter: true,
+      })
+    );
     assert!(!config.embedded_font);
     assert!(matches!(config.titlebar_style, TitlebarStyle::Custom));
     assert!(config.default_export_dir.is_none());
@@ -709,6 +741,27 @@ mod tests {
     let options = config.pitch_noise_options(u32::MAX).unwrap();
     assert_eq!(options.sigma, 0.0);
     assert_eq!(options.seed, u32::MAX);
+  }
+
+  #[test]
+  fn disabled_english_transform_keeps_its_nested_settings() {
+    let config: UIConfig = toml::from_str(
+      "english_transform = false\nenglish_accent_prediction = false\nenglish_ngram_filter = true",
+    )
+    .unwrap();
+    assert!(config.english_options().is_none());
+    assert!(!config.english_accent_prediction);
+    let config = UIConfig {
+      english_transform: true,
+      ..config
+    };
+    assert_eq!(
+      config.english_options(),
+      Some(crate::english::EnglishOptions {
+        accent_prediction: false,
+        ngram_filter: true,
+      })
+    );
   }
 
   #[test]

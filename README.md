@@ -23,6 +23,10 @@ without running `voicevox_engine`.
   mel spectrogram behind the tuning controls. Choose absolute pitch editing or
   relative editing in semitones around the predicted pitch; absolute mode also
   offers fitted and density-aware scales for each voice style.
+- **Read English words naturally.** English words the dictionary doesn't know
+  are read as katakana with a predicted accent instead of being spelled out
+  letter by letter, while acronyms stay spelled out. Turn off the accent
+  prediction or the acronym filter separately in the settings.
 - **Explore pitch variation.** Optional seeded pitch noise gives repeatable
   variations. Optional pitch completion regenerates pitches after an edited
   mora while preserving the edited prefix; lock completion from the tuning
@@ -89,6 +93,9 @@ Rust版VOICEVOX Coreを直接利用します。
 - **音声を見ながら調整：** 読み、アクセント、音高、長さを編集でき、調整パネルには
   メルスペクトログラムが表示されます。音高は絶対値のほか、予測値からの差を半音単位で
   調整できます。絶対値モードではスタイルごとに最適化したスケールも選べます。
+- **英単語の読み：** 辞書にない英単語は、一文字ずつ読む代わりに、予測したアクセントの
+  カタカナで読みます。略語は一文字ずつ読みます。アクセント予測と略語の判定は設定で
+  個別に無効にできます。
 - **音高のバリエーション：** 任意で有効にするノイズ付き音高生成は、シードを指定して
   同じ変化を再現できます。音高補完を有効にすると、編集したモーラまでの音高を保ったまま
   後続を再生成します。調整ツールバーのロックで補完を一時的に止められます。
@@ -369,6 +376,9 @@ A great thank for these projects, which Azalea heavily relies on:
 - [Solid-js](https://github.com/solidjs/solid)
 - [UnoCSS](https://unocss.dev/)
 - [Kobalte](https://kobalte.dev/)
+- [e2k](https://github.com/Patchethium/e2k), whose embedded models are trained on
+  Wiktionary and JMdict/EDICT (CC BY-SA), UniDic (GPLv2/LGPLv2.1/BSD) and
+  CMUdict (BSD-2-Clause)
 
 ## About the name
 

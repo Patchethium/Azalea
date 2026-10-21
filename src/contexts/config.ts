@@ -15,6 +15,9 @@ import { batch, createEffect, createResource, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import {
   DEFAULT_CPU_NUM_THREADS,
+  DEFAULT_ENGLISH_ACCENT_PREDICTION,
+  DEFAULT_ENGLISH_NGRAM_FILTER,
+  DEFAULT_ENGLISH_TRANSFORM,
   DEFAULT_TITLEBAR_STYLE,
   DEFAULT_PITCH_RULER,
   DEFAULT_PLAYBACK_TIMELINE,
@@ -102,6 +105,23 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
   const setStreamingSynthesisEnabled = (enabled: boolean) => {
     setConfig("ui", "streaming_synthesis", enabled);
   };
+  const englishTransformEnabled = () =>
+    config.ui.english_transform ?? DEFAULT_ENGLISH_TRANSFORM;
+  const englishAccentPredictionEnabled = () =>
+    config.ui.english_accent_prediction ?? DEFAULT_ENGLISH_ACCENT_PREDICTION;
+  const englishNgramFilterEnabled = () =>
+    config.ui.english_ngram_filter ?? DEFAULT_ENGLISH_NGRAM_FILTER;
+  /** The English reading options the backend applies, null when disabled. */
+  const englishReadingKey = () =>
+    englishTransformEnabled()
+      ? JSON.stringify([
+          englishAccentPredictionEnabled(),
+          englishNgramFilterEnabled(),
+        ])
+      : null;
+  /** Bumped once the backend has saved changed English reading options. */
+  const [englishReadingRevision, setEnglishReadingRevision] = createSignal(0);
+  let savedEnglishReading: string | null | undefined;
   const playbackTimelineEnabled = () =>
     config.ui.playback_timeline ?? DEFAULT_PLAYBACK_TIMELINE;
   const setPlaybackTimelineEnabled = (enabled: boolean) => {
@@ -237,10 +257,19 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
   } | null>(null);
   const saveConfig = async () => {
     if (configInitialized()) {
+      const englishReading = englishReadingKey();
       const res = await commands.setConfig(config);
       if (res.status === "error") {
         console.error("Failed to save config:", res.error);
         setConfigSaveFailure({ error: res.error });
+      } else {
+        // Queries are regenerated only after the backend reads the new options.
+        if (
+          savedEnglishReading !== undefined &&
+          savedEnglishReading !== englishReading
+        )
+          setEnglishReadingRevision((revision) => revision + 1);
+        savedEnglishReading = englishReading;
       }
     }
   };
@@ -264,6 +293,10 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     coreError,
     setCoreError,
     configSaveFailure,
+    englishTransformEnabled,
+    englishAccentPredictionEnabled,
+    englishNgramFilterEnabled,
+    englishReadingRevision,
     setupChangePending,
     setupSwitchPending,
     setSetupSwitchPending,

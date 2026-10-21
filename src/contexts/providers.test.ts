@@ -289,6 +289,66 @@ describe("ConfigProvider", () => {
     });
   });
 
+  it("refreshes generated queries once changed English reading options are saved", async () => {
+    let saveResult:
+      | { status: "ok"; data: null }
+      | { status: "error"; error: string } = {
+      status: "ok",
+      data: null,
+    };
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const setConfig = vi
+      .spyOn(commands, "setConfig")
+      .mockImplementation(async () => saveResult);
+    const { text, config: configStore } = renderTextStores();
+    batch(() => {
+      configStore.setConfig(config());
+      configStore.setConfigInitialized(true);
+      text.setTextStore([
+        { ...text.textStore[0], query: audioQuery() },
+        {
+          ...text.textStore[0],
+          id: "edited",
+          query: audioQuery(),
+          pitch_is_modified: true,
+        },
+      ]);
+    });
+    await waitFor(() => expect(setConfig).toHaveBeenCalled());
+    await Promise.resolve();
+    expect(configStore.englishTransformEnabled()).toBe(true);
+    expect(configStore.englishReadingRevision()).toBe(0);
+    const refreshes = text.queryRefreshVersion();
+
+    // Nested options are ignored while the transform is off.
+    configStore.setConfig("ui", "english_transform", false);
+    await waitFor(() => expect(configStore.englishReadingRevision()).toBe(1));
+    expect(text.queryRefreshVersion()).toBe(refreshes + 1);
+    expect(text.textStore[0].query).toBeNull();
+    expect(text.textStore[1].query).not.toBeNull();
+    const calls = setConfig.mock.calls.length;
+    configStore.setConfig("ui", "english_ngram_filter", false);
+    await waitFor(() => expect(setConfig.mock.calls.length).toBe(calls + 1));
+    await Promise.resolve();
+    expect(configStore.englishReadingRevision()).toBe(1);
+
+    // A failed save leaves the backend on the old options.
+    saveResult = { status: "error", error: "save failed" };
+    configStore.setConfig("ui", "english_transform", true);
+    await waitFor(() =>
+      expect(console.error).toHaveBeenCalledWith(
+        "Failed to save config:",
+        "save failed",
+      ),
+    );
+    expect(configStore.englishReadingRevision()).toBe(1);
+    expect(configStore.englishNgramFilterEnabled()).toBe(false);
+    expect(configStore.englishAccentPredictionEnabled()).toBe(true);
+    saveResult = { status: "ok", data: null };
+    configStore.setConfig("ui", "english_accent_prediction", false);
+    await waitFor(() => expect(configStore.englishReadingRevision()).toBe(2));
+  });
+
   it("reports config persistence failures", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.spyOn(commands, "setConfig").mockResolvedValue({

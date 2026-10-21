@@ -89,10 +89,12 @@ export function renderTextStores() {
   let text!: NonNullable<ReturnType<typeof useTextStore>>;
   let ui!: NonNullable<ReturnType<typeof useUIStore>>;
   let meta!: NonNullable<ReturnType<typeof useMetaStore>>;
+  let config!: NonNullable<ReturnType<typeof useConfigStore>>;
   const Probe: Component = () => {
     text = useTextStore()!;
     ui = useUIStore()!;
     meta = useMetaStore()!;
+    config = useConfigStore()!;
     return null;
   };
   render(() => (
@@ -109,5 +111,5 @@ export function renderTextStores() {
       <Probe />
     </MultiProvider>
   ));
-  return { text, ui, meta };
+  return { text, ui, meta, config };
 }

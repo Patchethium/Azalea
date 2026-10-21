@@ -18,6 +18,7 @@ use std::{
 use walkdir::WalkDir;
 
 use crate::config::types::SetupSource;
+use crate::english::{is_english_letter, EnglishOptions, EnglishReader};
 use anyhow::{Context, Result};
 
 pub fn search_file(filename: &str, dir: impl AsRef<Path>, partial: bool) -> Option<PathBuf> {
@@ -60,11 +61,7 @@ pub struct Core {
   nonblocking_synthesizer: NonblockingSynthesizer<()>,
   pub metas: HashMap<String, VoiceModelMeta>,
   pub speaker_to_vvm: HashMap<StyleId, VoiceModelId>,
-}
-
-fn is_english_letter(character: char) -> bool {
-  character.is_ascii_alphabetic()
-    || matches!(character, '\u{ff21}'..='\u{ff3a}' | '\u{ff41}'..='\u{ff5a}')
+  english: EnglishReader,
 }
 
 fn pascal_case_english(surface: &str) -> String {
@@ -198,6 +195,7 @@ impl Core {
       nonblocking_synthesizer,
       metas,
       speaker_to_vvm,
+      english: EnglishReader::default(),
     })
   }
 
@@ -235,13 +233,39 @@ impl Core {
   }
 
   pub fn audio_query(&self, text: &str, speaker_id: StyleId) -> Result<AudioQuery> {
-    self.ensure_speaker_loaded(speaker_id)?;
-    Ok(self.synthesizer.create_audio_query(text, speaker_id)?)
+    self.audio_query_with_english(text, speaker_id, None)
+  }
+
+  /// Like `audio_query`, reading unknown English words through e2k when `english` is set.
+  pub fn audio_query_with_english(
+    &self,
+    text: &str,
+    speaker_id: StyleId,
+    english: Option<EnglishOptions>,
+  ) -> Result<AudioQuery> {
+    Ok(AudioQuery::from_accent_phrases(
+      self.accent_phrases_with_english(text, speaker_id, english)?,
+    ))
   }
 
   pub fn accent_phrases(&self, text: &str, speaker_id: StyleId) -> Result<Vec<AccentPhrase>> {
+    self.accent_phrases_with_english(text, speaker_id, None)
+  }
+
+  pub fn accent_phrases_with_english(
+    &self,
+    text: &str,
+    speaker_id: StyleId,
+    english: Option<EnglishOptions>,
+  ) -> Result<Vec<AccentPhrase>> {
     self.ensure_speaker_loaded(speaker_id)?;
-    Ok(self.synthesizer.create_accent_phrases(text, speaker_id)?)
+    let Some(options) = english else {
+      return Ok(self.synthesizer.create_accent_phrases(text, speaker_id)?);
+    };
+    let phrases = self
+      .english
+      .analyze(self.synthesizer.text_analyzer(), text, options)?;
+    Ok(self.synthesizer.replace_mora_data(&phrases, speaker_id)?)
   }
 
   pub fn use_user_dictionary(&self, dictionary: &UserDict) -> Result<()> {
@@ -250,6 +274,7 @@ impl Core {
       .synthesizer
       .text_analyzer()
       .use_user_dict(&runtime_dictionary)?;
+    self.english.clear();
     Ok(())
   }
 

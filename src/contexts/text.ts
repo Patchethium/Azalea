@@ -182,7 +182,7 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
   const { availableStyleIds, metas } = useMetaStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
   const { t1 } = usei18n()!;
-  const { coreRevision } = useConfigStore()!;
+  const { coreRevision, englishReadingRevision } = useConfigStore()!;
   const spectrogramStore = useSpectrogramStore();
   const [project, setProject] = createStore<Project>({
     blocks: [
@@ -397,6 +397,11 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
       setQueryRefreshVersion((version) => version + 1);
     });
   };
+
+  createEffect(() => {
+    if (englishReadingRevision() === 0) return;
+    untrack(refreshGeneratedQueries);
+  });
 
   createEffect(() => {
     if (coreRevision() === 0) return;

@@ -949,7 +949,19 @@ portrait_ratio?: number; buffer_render?: boolean; nonblocking_synthesis?: boolea
  * Renders waveforms in frame-range chunks when the voice model supports it, so playback
  * starts after the first chunk instead of the whole utterance.
  */
-streaming_synthesis?: boolean; playback_timeline?: boolean; pitch_scale?: PitchScale; pitch_ruler?: boolean; pitch_tuning_mode?: PitchTuningMode; 
+streaming_synthesis?: boolean; 
+/**
+ * Reads English words OpenJTalk cannot pronounce through e2k instead of spelling them out.
+ */
+english_transform?: boolean; 
+/**
+ * Applies e2k's predicted accent to transformed English words.
+ */
+english_accent_prediction?: boolean; 
+/**
+ * Keeps acronyms the n-gram model rejects spelled out instead of transliterated.
+ */
+english_ngram_filter?: boolean; playback_timeline?: boolean; pitch_scale?: PitchScale; pitch_ruler?: boolean; pitch_tuning_mode?: PitchTuningMode; 
 /**
  * Relative slider range in semitones on either side of the prediction.
  */

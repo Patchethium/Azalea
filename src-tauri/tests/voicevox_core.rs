@@ -9,6 +9,7 @@ use std::{
 use azalea_lib::{
   audio::spectal::MelSpec,
   core::Core,
+  english::EnglishOptions,
   streaming::{start_frame, StreamPlan, DEFAULT_CHUNK_SCHEDULE},
 };
 use hound::{SampleFormat, WavSpec};
@@ -353,6 +354,88 @@ fn real_core_applies_and_clears_user_dictionary_entries() {
       .expect("accent phrase generation after clearing dictionary failed"),
   );
   assert_eq!(cleared, original);
+}
+
+#[test]
+fn real_core_reads_unknown_english_words_through_e2k() {
+  let core = test_core();
+  let style_id = first_talk_style_id(&core);
+  let all = Some(EnglishOptions {
+    accent_prediction: true,
+    ngram_filter: true,
+  });
+  let reading = |text: &str, english: Option<EnglishOptions>| {
+    core
+      .accent_phrases_with_english(text, style_id, english)
+      .expect("accent phrase generation failed")
+      .iter()
+      .map(|phrase| {
+        let text = phrase
+          .moras
+          .iter()
+          .map(|mora| mora.text.as_str())
+          .collect::<String>();
+        format!("{text}:{}", phrase.accent)
+      })
+      .collect::<Vec<_>>()
+      .join(" ")
+  };
+
+  assert_eq!(
+    reading("こんにちは", all),
+    reading("こんにちは", None),
+    "Japanese text is analyzed as before"
+  );
+  let spelled = reading("Geogaddiです", None);
+  let transformed = reading("Geogaddiです", all);
+  assert_ne!(transformed, spelled);
+  assert!(
+    transformed.chars().filter(|&c| c != ' ').count() < spelled.len() / 3,
+    "{transformed} should be shorter than {spelled}"
+  );
+  // OpenJTalk would read the substituted ヘ as the particle エ.
+  assert!(
+    reading("hello", all).starts_with('ヘ'),
+    "{}",
+    reading("hello", all)
+  );
+  // Words OpenJTalk knows and acronyms the n-gram filter rejects keep their reading.
+  assert_eq!(reading("iPhoneを", all), reading("iPhoneを", None));
+  assert_eq!(reading("GPUと", all), reading("GPUと", None));
+  // Without the filter, VOICEVOX ENGINE's rules spell all-capital words and split camel case.
+  let engine_rules = Some(EnglishOptions {
+    accent_prediction: true,
+    ngram_filter: false,
+  });
+  assert_eq!(reading("GPUと", engine_rules), reading("GPUと", None));
+  assert_ne!(
+    reading("VoiceVoxは", engine_rules),
+    reading("VoiceVoxは", None)
+  );
+  let query = core
+    .audio_query_with_english("Geogaddiです", style_id, all)
+    .expect("audio query generation failed");
+  assert!(pitches(&query.accent_phrases)
+    .iter()
+    .any(|&pitch| pitch > 0.0));
+
+  // A user dictionary entry takes precedence over e2k.
+  let dictionary = UserDict::new();
+  dictionary
+    .add_word(
+      UserDictWord::builder()
+        .build("Geogaddi", "テスト".into(), 1)
+        .expect("test dictionary word is invalid"),
+    )
+    .expect("failed to add dictionary word");
+  core
+    .use_user_dictionary(&dictionary)
+    .expect("failed to apply user dictionary");
+  assert!(reading("Geogaddi", all).starts_with("テスト"));
+  core
+    .use_user_dictionary(&UserDict::new())
+    .expect("failed to clear user dictionary");
+  assert_eq!(reading("Geogaddiです", all), transformed);
 }
 
 #[test]

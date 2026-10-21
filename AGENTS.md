@@ -118,6 +118,38 @@ twice and takes several minutes.
 Release builds do not read `config_dev`, so set `AZALEA_TEST_CORE_DIR`:
 `cargo run --release --example streaming_bench -- tests/rashoumon.txt out.csv`.
 
+## English Word Readings
+
+`src-tauri/src/english/` reads English words OpenJTalk does not know through
+[e2k](https://github.com/Patchethium/e2k), a git dependency pinned by tag
+whose models are embedded in the binary and loaded once per process on first
+use. Text analysis needs NJD features VOICEVOX Core does not expose, so
+`EnglishReader` works around OpenJTalk's public `TextAnalyzer`: a run of
+ASCII or fullwidth letters is unknown when OpenJTalk reads it exactly as its
+letter names (`LETTER_NAMES`, OpenJTalk's table), so user dictionary entries
+always win. Unknown words are replaced with e2k's katakana before analysis,
+spaces next to a replaced word are dropped (as VOICEVOX ENGINE does) and the
+whole text is analyzed once. The replaced katakana is then found in the
+analyzed moras; moras OpenJTalk misread, such as a leading ヘ read as the
+particle エ, are restored from the katakana (`kana.rs`, from the core's mora
+table) while matching devoicing is kept. Readings are cached per word and
+options and cleared whenever the user dictionary is applied.
+
+`UIConfig.english_transform` (default on, the "Transform English words"
+switch) enables it; its nested switches, shown only while it is on, are
+`english_accent_prediction` and `english_ngram_filter` (both default on).
+Accent prediction makes each replaced word start an accent phrase carrying
+e2k's nucleus (heiban spans the phrase), merging a word OpenJTalk split and
+splitting consecutive replaced words, but leaves a word inside a Japanese
+compound to OpenJTalk. With the n-gram filter, words its model rejects keep
+OpenJTalk's spelling whatever their case; without it, VOICEVOX ENGINE's rules
+apply: split at capitals, spell single letters and all-capital pieces, and
+transliterate the rest. Single letters are always spelled.
+`Core::audio_query_with_english` and `accent_phrases_with_english` take the options;
+the plain methods keep OpenJTalk's reading. The query cache key includes the
+options, and the frontend regenerates pristine queries after a save that
+changes the effective options (`englishReadingRevision`).
+
 ## Project Files
 
 `.azp` files are versioned TOML documents. The disk-only wrapper and
