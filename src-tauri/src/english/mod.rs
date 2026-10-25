@@ -10,12 +10,14 @@ mod kana;
 
 use std::{
   collections::HashMap,
+  num::NonZero,
   ops::Range,
   sync::{Mutex, OnceLock},
 };
 
 use anyhow::{anyhow, Result};
 use e2k::{AccentPredictor, NGram, C2K};
+use typed_floats::tf32;
 use voicevox_core::{blocking::TextAnalyzer, AccentPhrase, Mora};
 
 /// How unknown English words are read, present only when the transform is enabled.
@@ -204,11 +206,18 @@ fn transliterate(models: Models, word: &str, ngram_filter: bool) -> Option<Strin
 /// A mora's phonemes, ignoring vowel devoicing, which depends on context.
 type MoraKey = (Option<String>, String);
 
+fn mora_key(mora: &Mora) -> MoraKey {
+  (
+    mora.consonant.map(|consonant| consonant.to_string()),
+    mora.vowel.to_string().to_lowercase(),
+  )
+}
+
 fn mora_keys(phrases: &[AccentPhrase]) -> Vec<MoraKey> {
   phrases
     .iter()
     .flat_map(|phrase| &phrase.moras)
-    .map(|mora| (mora.consonant.clone(), mora.vowel.to_lowercase()))
+    .map(mora_key)
     .collect()
 }
 
@@ -398,16 +407,26 @@ fn locate(phrases: &[AccentPhrase], mut flat: usize) -> Option<(usize, usize)> {
   None
 }
 
-/// A mora with `reading`'s text and phonemes, keeping `template`'s other fields.
-fn read_mora(template: &Mora, reading: &KanaMora) -> Mora {
+/// A mora with `reading`'s text and phonemes, keeping `template`'s other fields. `None` when
+/// a phoneme is not one the core knows.
+fn read_mora(template: &Mora, reading: &KanaMora) -> Option<Mora> {
+  let consonant = match &reading.consonant {
+    Some(consonant) => Some(consonant.parse().ok()?),
+    None => None,
+  };
   let mut mora = template.clone();
   mora.text = reading.text.clone();
-  mora.consonant = reading.consonant.clone();
-  mora.consonant_length = reading.consonant.as_ref().map(|_| 0.0);
-  mora.vowel = reading.vowel.clone();
-  mora.vowel_length = 0.0;
-  mora.pitch = 0.0;
-  mora
+  mora.consonant = consonant;
+  mora.consonant_length = consonant.map(|_| tf32::ZERO);
+  mora.vowel = reading.vowel.parse().ok()?;
+  mora.vowel_length = tf32::ZERO;
+  mora.pitch = tf32::ZERO.into();
+  Some(mora)
+}
+
+/// `accent` clamped to a phrase of `len` moras.
+fn clamp_accent(accent: usize, len: usize) -> NonZero<usize> {
+  NonZero::new(accent.min(len)).unwrap_or(NonZero::<usize>::MIN)
 }
 
 /// Restores the `len` moras at flat index `start` to `reading`, returning the word's new mora
@@ -420,8 +439,10 @@ fn repair(phrases: &mut [AccentPhrase], start: usize, len: usize, reading: &[Kan
         return len;
       };
       let mora = &mut phrases[phrase].moras[index];
-      if (mora.consonant.clone(), mora.vowel.to_lowercase()) != key(expected) {
-        *mora = read_mora(mora, expected);
+      if mora_key(mora) != key(expected) {
+        if let Some(read) = read_mora(mora, expected) {
+          *mora = read;
+        }
       }
     }
     return len;
@@ -436,14 +457,16 @@ fn repair(phrases: &mut [AccentPhrase], start: usize, len: usize, reading: &[Kan
     return len;
   }
   let phrase = &mut phrases[phrase];
-  let template = phrase.moras[index].clone();
-  phrase.moras.splice(
-    index..index + len,
-    reading
-      .iter()
-      .map(|expected| read_mora(&template, expected)),
-  );
-  phrase.accent = phrase.accent.clamp(1, phrase.moras.len());
+  let template = &phrase.moras[index];
+  let Some(moras) = reading
+    .iter()
+    .map(|expected| read_mora(template, expected))
+    .collect::<Option<Vec<_>>>()
+  else {
+    return len;
+  };
+  phrase.moras.splice(index..index + len, moras);
+  phrase.accent = clamp_accent(phrase.accent.get(), phrase.moras.len());
   reading.len()
 }
 
@@ -496,7 +519,7 @@ fn apply_substitutions(phrases: &mut Vec<AccentPhrase>, substitutions: &[Substit
       tail.moras = head.moras.split_off(offset);
       head.pause_mora = None;
       head.is_interrogative = false;
-      head.accent = head.accent.clamp(1, head.moras.len());
+      head.accent = clamp_accent(head.accent.get(), head.moras.len());
       phrases.insert(first + 1, tail);
       first += 1;
       last += 1;
@@ -509,9 +532,9 @@ fn apply_substitutions(phrases: &mut Vec<AccentPhrase>, substitutions: &[Substit
       phrase.is_interrogative = next.is_interrogative;
     }
     phrase.accent = if accent == 0 {
-      phrase.moras.len()
+      clamp_accent(phrase.moras.len(), phrase.moras.len())
     } else {
-      accent.min(len)
+      clamp_accent(accent, len)
     };
     previous_end = Some(end);
   }
@@ -747,7 +770,7 @@ mod tests {
 
     // A different mora count is spliced within one phrase and clamps its accent.
     let mut analyzed = phrases("アアアデス");
-    analyzed[0].accent = 5;
+    analyzed[0].accent = NonZero::new(5).unwrap();
     apply_substitutions(&mut analyzed, &[substitution("アア", "アアア", None)]);
     assert_eq!(render(&analyzed), "アアデス:4");
   }

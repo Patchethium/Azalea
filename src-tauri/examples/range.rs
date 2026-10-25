@@ -45,7 +45,7 @@ fn main() {
             audio_query
               .accent_phrases
               .iter()
-              .flat_map(|phrase| phrase.moras.iter().map(|mora| mora.pitch))
+              .flat_map(|phrase| phrase.moras.iter().map(|mora| f32::from(mora.pitch)))
               .filter(|&pitch| pitch > 0.1)
               .collect::<Vec<_>>()
           })

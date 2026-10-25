@@ -24,7 +24,7 @@ import { Switch } from "@kobalte/core/switch";
 import { Tabs } from "@kobalte/core/tabs";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import _ from "lodash";
-import { createSignal, For, Show } from "solid-js";
+import { createSignal, For, type ParentComponent, Show } from "solid-js";
 import {
   DEFAULT_PITCH_DRIFT_RANGE,
   DEFAULT_PITCH_NOISE_SIGMA,
@@ -92,7 +92,18 @@ export function ConfigPage() {
     englishNgramFilterEnabled,
     englishTurboModelEnabled,
     setupSource,
+    pitchControlSupported,
+    pitchNoiseActive,
+    pitchCompletionAvailable,
   } = useConfigStore()!;
+  /** Explains a pitch-control switch the ONNX Runtime cannot support. */
+  const PitchControlTooltip: ParentComponent = (props) => (
+    <Show when={!pitchControlSupported()} fallback={props.children}>
+      <Tooltip content={t1("config.pitch_control_unavailable")}>
+        {props.children}
+      </Tooltip>
+    </Show>
+  );
 
   return (
     <Dialog
@@ -490,23 +501,26 @@ export function ConfigPage() {
               description={t1("config.pitch_noise_description")}
               experimental
             >
-              <Switch
-                checked={config.ui.pitch_noise_enabled ?? false}
-                onChange={(value) =>
-                  setConfig("ui", "pitch_noise_enabled", value)
-                }
-                class="inline-flex items-center select-none cursor-pointer justify-center"
-              >
-                <Switch.Input
-                  aria-label={t1("config.pitch_noise_enabled")}
-                  class="outline-2px"
-                />
-                <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
-                  <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
-                </Switch.Control>
-              </Switch>
+              <PitchControlTooltip>
+                <Switch
+                  checked={pitchNoiseActive()}
+                  disabled={!pitchControlSupported()}
+                  onChange={(value) =>
+                    setConfig("ui", "pitch_noise_enabled", value)
+                  }
+                  class="inline-flex items-center select-none cursor-pointer justify-center ui-disabled:(cursor-not-allowed opacity-50)"
+                >
+                  <Switch.Input
+                    aria-label={t1("config.pitch_noise_enabled")}
+                    class="outline-2px"
+                  />
+                  <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
+                    <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
+                  </Switch.Control>
+                </Switch>
+              </PitchControlTooltip>
             </ConfigItem>
-            <Show when={config.ui.pitch_noise_enabled}>
+            <Show when={pitchNoiseActive()}>
               <ConfigItem label={t1("config.pitch_noise_sigma")} nested>
                 <div class="flex items-center gap1">
                   <Show
@@ -556,21 +570,24 @@ export function ConfigPage() {
               description={t1("config.pitch_completion_description")}
               experimental
             >
-              <Switch
-                checked={config.ui.pitch_completion_enabled ?? false}
-                onChange={(value) =>
-                  setConfig("ui", "pitch_completion_enabled", value)
-                }
-                class="inline-flex items-center select-none cursor-pointer justify-center"
-              >
-                <Switch.Input
-                  aria-label={t1("config.pitch_completion_enabled")}
-                  class="outline-2px"
-                />
-                <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:bg-primary-5 dark:ui-checked:bg-primary-5">
-                  <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:translate-x-6" />
-                </Switch.Control>
-              </Switch>
+              <PitchControlTooltip>
+                <Switch
+                  checked={pitchCompletionAvailable()}
+                  disabled={!pitchControlSupported()}
+                  onChange={(value) =>
+                    setConfig("ui", "pitch_completion_enabled", value)
+                  }
+                  class="inline-flex items-center select-none cursor-pointer justify-center ui-disabled:(cursor-not-allowed opacity-50)"
+                >
+                  <Switch.Input
+                    aria-label={t1("config.pitch_completion_enabled")}
+                    class="outline-2px"
+                  />
+                  <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:bg-primary-5 dark:ui-checked:bg-primary-5">
+                    <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:translate-x-6" />
+                  </Switch.Control>
+                </Switch>
+              </PitchControlTooltip>
             </ConfigItem>
             <ConfigItem label={t1("config.background_buffering")} experimental>
               <Switch

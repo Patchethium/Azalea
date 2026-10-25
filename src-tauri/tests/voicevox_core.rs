@@ -8,15 +8,16 @@ use std::{
 
 use azalea_lib::{
   audio::spectal::MelSpec,
-  core::Core,
+  core::{is_talk_style, Core},
   english::EnglishOptions,
   streaming::{start_frame, StreamPlan, DEFAULT_CHUNK_SCHEDULE},
 };
 use hound::{SampleFormat, WavSpec};
 use ndarray::Array1;
 use serde::{Deserialize, Serialize};
+use typed_floats::{NonNaNFinite, PositiveFinite};
 use voicevox_core::{
-  blocking::UserDict, AccentPhrase, AudioQuery, Mora, PitchNoiseOptions, StyleId, StyleType,
+  blocking::UserDict, AccentPhrase, AudioQuery, Mora, PitchNoiseOptions, SamplingRate, StyleId,
   UserDictWord,
 };
 
@@ -48,12 +49,17 @@ fn moras(phrases: &[AccentPhrase]) -> impl Iterator<Item = &Mora> {
 }
 
 fn pitches(phrases: &[AccentPhrase]) -> Vec<f32> {
-  moras(phrases).map(|mora| mora.pitch).collect()
+  moras(phrases).map(|mora| mora.pitch.into()).collect()
 }
 
 fn phoneme_lengths(phrases: &[AccentPhrase]) -> Vec<(Option<f32>, f32)> {
   moras(phrases)
-    .map(|mora| (mora.consonant_length, mora.vowel_length))
+    .map(|mora| {
+      (
+        mora.consonant_length.map(f32::from),
+        mora.vowel_length.into(),
+      )
+    })
     .collect()
 }
 
@@ -77,6 +83,13 @@ fn real_core_pitch_completion_preserves_prefix_and_changes_suffix() {
     sigma: 0.05,
     seed: 42,
   };
+  if !core.supports_pitch_control() {
+    // Runtimes that refuse model exports cannot complete pitch.
+    assert!(core
+      .complete_mora_pitch(original, style_id, &[], options)
+      .is_err());
+    return;
+  }
   let noisy = core
     .complete_mora_pitch(original.clone(), style_id, &[], options)
     .unwrap();
@@ -138,6 +151,11 @@ fn real_core_pitch_noise_is_seeded_and_preserves_non_pitch_fields() {
       .unwrap(),
     original
   );
+  if !core.supports_pitch_control() {
+    // Runtimes that refuse model exports ignore noise.
+    assert_eq!(generate(0.05, 42), original);
+    return;
+  }
   let zero = generate(0.0, 42);
   for (actual, expected) in pitches(&zero).iter().zip(pitches(&original)) {
     assert!((actual - expected).abs() <= 1e-6);
@@ -186,7 +204,7 @@ fn real_core_exposes_consistent_talk_metadata() {
       assert!(!character.name.trim().is_empty());
       assert!(!character.speaker_uuid.trim().is_empty());
       for style in &character.styles {
-        if style.r#type == StyleType::Talk {
+        if is_talk_style(style.r#type) {
           assert!(
             metadata_ids.insert(style.id),
             "duplicate talk style ID {}",
@@ -263,14 +281,13 @@ fn real_core_produces_valid_queries_and_interrogative_phrases() {
   assert!(query.volume_scale.is_finite() && query.volume_scale >= 0.);
   assert!(query.pre_phoneme_length >= 0.);
   assert!(query.post_phoneme_length >= 0.);
-  assert!(query.output_sampling_rate > 0);
 
   for phrase in &query.accent_phrases {
     assert!(!phrase.moras.is_empty());
-    assert!((1..=phrase.moras.len()).contains(&phrase.accent));
+    assert!((1..=phrase.moras.len()).contains(&phrase.accent.get()));
     for mora in moras(std::slice::from_ref(phrase)) {
       assert!(!mora.text.is_empty());
-      assert!(!mora.vowel.is_empty());
+      assert!(!mora.vowel.to_string().is_empty());
       assert!(mora.vowel_length.is_finite() && mora.vowel_length >= 0.);
       assert!(mora.pitch.is_finite() && mora.pitch >= 0.);
       assert_eq!(mora.consonant.is_some(), mora.consonant_length.is_some());
@@ -462,10 +479,10 @@ fn real_core_mora_replacements_only_update_requested_values() {
 
   for phrase in &mut modified {
     for mora in phrase.moras.iter_mut().chain(phrase.pause_mora.iter_mut()) {
-      mora.pitch += 0.5;
-      mora.vowel_length += 0.01;
+      mora.pitch = NonNaNFinite::<f32>::new(f32::from(mora.pitch) + 0.5).unwrap();
+      mora.vowel_length = PositiveFinite::<f32>::new(f32::from(mora.vowel_length) + 0.01).unwrap();
       if let Some(length) = &mut mora.consonant_length {
-        *length += 0.01;
+        *length = PositiveFinite::<f32>::new(f32::from(*length) + 0.01).unwrap();
       }
     }
   }
@@ -499,7 +516,7 @@ fn real_core_synthesis_honors_requested_wav_format() {
   let mut query = core
     .audio_query("出力形式を確認します。", style_id)
     .expect("audio query failed");
-  query.output_sampling_rate = 48_000;
+  query.output_sampling_rate = SamplingRate::new(48_000).unwrap();
   query.output_stereo = true;
 
   let wav = core
@@ -539,16 +556,21 @@ fn assert_waveforms_match(streamed: &[u8], whole: &[u8]) {
 fn real_core_streamed_chunks_match_whole_synthesis() {
   let core = test_core();
   let style_id = first_talk_style_id(&core);
+  let streaming = core
+    .supports_streaming(style_id)
+    .expect("streaming support check failed");
+  // Without model exports, monolithic (voicevox_vvm 0.16.x) decoders cannot be split.
   assert!(
-    core
-      .supports_streaming(style_id)
-      .expect("streaming support check failed"),
+    streaming || !core.supports_pitch_control(),
     "the installed talk model does not support segmented rendering"
   );
+  if !streaming {
+    return;
+  }
   let mut query = core
     .audio_query("ストリーミング合成を確認します。", style_id)
     .expect("audio query failed");
-  query.output_sampling_rate = 48_000;
+  query.output_sampling_rate = SamplingRate::new(48_000).unwrap();
   query.output_stereo = true;
   let whole = core
     .synthesis(&query, style_id)
@@ -707,7 +729,12 @@ fn real_core_mora_operations_load_models_on_demand() {
       Box::new(|| core.complete_mora_pitch(phrases.clone(), style_id, &[], noise)),
     ),
   ];
-  for (name, operation) in operations {
+  // Without pitch control, noise is skipped without a model and completion fails.
+  let pitch_operation = |name: &str| matches!(name, "apply_pitch_noise" | "complete_mora_pitch");
+  for (name, operation) in operations
+    .into_iter()
+    .filter(|(name, _)| core.supports_pitch_control() || !pitch_operation(name))
+  {
     core.unload_all_speakers().unwrap();
     assert!(!core.is_speaker_loaded(style_id));
     let replaced = operation().unwrap_or_else(|error| panic!("{name} failed: {error:#}"));

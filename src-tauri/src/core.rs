@@ -21,6 +21,12 @@ use crate::config::types::SetupSource;
 use crate::english::{is_english_letter, EnglishOptions, EnglishReader};
 use anyhow::{Context, Result};
 
+/// Whether a style creates queries and synthesizes speech: `talk` styles of voicevox_vvm 0.16.x
+/// and `streaming_talk` styles of 0.17.x.
+pub fn is_talk_style(style_type: StyleType) -> bool {
+  matches!(style_type, StyleType::Talk | StyleType::StreamingTalk)
+}
+
 pub fn search_file(filename: &str, dir: impl AsRef<Path>, partial: bool) -> Option<PathBuf> {
   for entry in WalkDir::new(dir).max_depth(8).into_iter().flatten() {
     let name = entry.file_name().to_string_lossy();
@@ -62,6 +68,8 @@ pub struct Core {
   pub metas: HashMap<String, VoiceModelMeta>,
   pub speaker_to_vvm: HashMap<StyleId, VoiceModelId>,
   english: EnglishReader,
+  /// Whether the process's ONNX Runtime allows pitch noise and pitch completion.
+  pitch_control: bool,
 }
 
 fn pascal_case_english(surface: &str) -> String {
@@ -130,7 +138,7 @@ impl Core {
         let mut filtered_meta = HashMap::new();
         for m in meta.iter() {
           for style in &m.styles {
-            if style.r#type == StyleType::Talk {
+            if is_talk_style(style.r#type) {
               speaker_to_vvm.insert(style.id, vvm.id());
               filtered_meta.insert(m.speaker_uuid.clone(), m.clone());
             }
@@ -196,6 +204,7 @@ impl Core {
       metas,
       speaker_to_vvm,
       english: EnglishReader::default(),
+      pitch_control: ort.supports_pitch_control(),
     })
   }
 
@@ -301,13 +310,20 @@ impl Core {
     Ok(self.synthesizer.replace_mora_pitch(&ap, style_id)?)
   }
 
+  /// Whether pitch noise and pitch completion are available. VOICEVOX ONNX Runtime 1.23 refuses
+  /// the model export they need; the first runtime loaded serves the whole process.
+  pub fn supports_pitch_control(&self) -> bool {
+    self.pitch_control
+  }
+
+  /// Adds pitch noise, leaving the phrases unchanged without options or pitch control.
   pub fn apply_pitch_noise(
     &self,
     ap: Vec<AccentPhrase>,
     style_id: StyleId,
     options: Option<voicevox_core::PitchNoiseOptions>,
   ) -> Result<Vec<AccentPhrase>> {
-    let Some(options) = options else {
+    let Some(options) = options.filter(|_| self.pitch_control) else {
       return Ok(ap);
     };
     self.ensure_speaker_loaded(style_id)?;
@@ -498,6 +514,15 @@ impl Core {
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn talk_and_streaming_talk_styles_are_talk_styles() {
+    assert!(is_talk_style(StyleType::Talk));
+    assert!(is_talk_style(StyleType::StreamingTalk));
+    assert!(!is_talk_style(StyleType::SingingTeacher));
+    assert!(!is_talk_style(StyleType::FrameDecode));
+    assert!(!is_talk_style(StyleType::Sing));
+  }
 
   #[test]
   fn user_dictionary_expands_english_case_variants_without_mutating_saved_entries() {

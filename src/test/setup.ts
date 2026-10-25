@@ -36,7 +36,14 @@ const canvasContext = {
   fillStyle: "",
 } as unknown as CanvasRenderingContext2D;
 
-beforeEach(() => {
+beforeEach(async () => {
+  // Every core reload asks for pitch control; the stock test runtime allows it.
+  // Imported here so the binding sees each test file's module mocks.
+  const { commands } = await import("$binding");
+  vi.spyOn(commands, "supportsPitchControl").mockResolvedValue({
+    status: "ok",
+    data: true,
+  });
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
     value: vi.fn().mockReturnValue({

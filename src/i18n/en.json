@@ -208,6 +208,7 @@
     "pitch_noise_enabled": "Noised pitch generation",
     "pitch_completion_enabled": "Pitch completion",
     "pitch_completion_description": "When enabled, every change in pitch will trigger an autoregressive update on rear pitches.",
+    "pitch_control_unavailable": "Unavailable with this ONNX Runtime. Use Azalea-managed models and restart Azalea.",
     "pitch_noise_sigma": "Noise strength",
     "reset_pitch_noise_sigma": "Restore default noise strength",
     "pitch_noise_seed": "Noise seed",

@@ -763,7 +763,7 @@ fn validate_model(
     .metas()
     .iter()
     .flat_map(|m| &m.styles)
-    .filter(|s| s.r#type == voicevox_core::StyleType::Talk)
+    .filter(|s| crate::core::is_talk_style(s.r#type))
     .map(|s| s.id.0)
     .collect();
   let expected = package
@@ -781,7 +781,7 @@ fn validate_model(
       .filter_map(|m| {
         m.styles
           .iter()
-          .filter(|s| s.r#type == voicevox_core::StyleType::Talk)
+          .filter(|s| crate::core::is_talk_style(s.r#type))
           .min_by_key(|s| s.order.unwrap_or(u32::MAX))
           .map(|s| super::assets::SpeakerIconRequest {
             speaker_uuid: m.speaker_uuid.clone(),

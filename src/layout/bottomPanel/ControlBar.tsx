@@ -19,8 +19,9 @@ export function ControlBar(props: {
 }) {
   const { t1 } = usei18n()!;
   const {
-    config,
     playbackTimelineEnabled,
+    pitchNoiseActive,
+    pitchCompletionAvailable,
     pitchCompletionActive,
     togglePitchCompletionLock,
   } = useConfigStore()!;
@@ -39,7 +40,7 @@ export function ControlBar(props: {
       if (
         props.disabled ||
         uiStore.page !== null ||
-        !config.ui.pitch_completion_enabled ||
+        !pitchCompletionAvailable() ||
         !isApplicationShortcutAllowed(event) ||
         !matchesShortcut(event, "toggle_pitch_completion")
       )
@@ -99,8 +100,7 @@ export function ControlBar(props: {
         <div class="flex flex-1 items-center justify-end">
           <Show
             when={
-              config.ui.pitch_completion_enabled &&
-              uiStore.bottomPanel === "tuning"
+              pitchCompletionAvailable() && uiStore.bottomPanel === "tuning"
             }
           >
             <ToolbarButton
@@ -120,11 +120,7 @@ export function ControlBar(props: {
               onClick={togglePitchCompletionLock}
             />
           </Show>
-          <Show
-            when={
-              config.ui.pitch_noise_enabled && uiStore.bottomPanel === "tuning"
-            }
-          >
+          <Show when={pitchNoiseActive() && uiStore.bottomPanel === "tuning"}>
             <ToolbarButton
               icon="i-lucide:dices"
               label={t1("bottom.regenerate_pitch_noise_seed")}

@@ -289,6 +289,81 @@ describe("ConfigProvider", () => {
     });
   });
 
+  it("disables pitch noise and completion when the runtime refuses model exports", async () => {
+    vi.spyOn(commands, "initCore").mockResolvedValue({
+      status: "ok",
+      data: null,
+    });
+    vi.spyOn(commands, "getRange").mockResolvedValue({
+      status: "ok",
+      data: {},
+    });
+    vi.spyOn(commands, "getMetas").mockResolvedValue({
+      status: "ok",
+      data: [],
+    });
+    vi.mocked(commands.supportsPitchControl).mockResolvedValue({
+      status: "ok",
+      data: false,
+    });
+    const configStore = renderConfigStore();
+    configStore.setConfig(
+      config({ pitch_noise_enabled: true, pitch_completion_enabled: true }),
+    );
+    expect(configStore.pitchNoiseActive()).toBe(true);
+    expect(configStore.pitchCompletionActive()).toBe(true);
+
+    configStore.setConfig("core", {
+      ort_path: "/core",
+      ojt_dir: "/dict",
+      vvm_dir: "/models",
+    });
+    await waitFor(() =>
+      expect(configStore.pitchControlSupported()).toBe(false),
+    );
+    expect(configStore.pitchNoiseActive()).toBe(false);
+    expect(configStore.pitchCompletionAvailable()).toBe(false);
+    expect(configStore.pitchCompletionActive()).toBe(false);
+    configStore.togglePitchCompletionLock();
+    expect(configStore.config.ui.pitch_completion_locked).toBeFalsy();
+    // Stored settings survive, so a supporting runtime restores them.
+    expect(configStore.config.ui.pitch_noise_enabled).toBe(true);
+    expect(configStore.config.ui.pitch_completion_enabled).toBe(true);
+  });
+
+  it("keeps pitch control available when its support check fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(commands, "initCore").mockResolvedValue({
+      status: "ok",
+      data: null,
+    });
+    vi.spyOn(commands, "getRange").mockResolvedValue({
+      status: "ok",
+      data: {},
+    });
+    vi.spyOn(commands, "getMetas").mockResolvedValue({
+      status: "ok",
+      data: [],
+    });
+    vi.mocked(commands.supportsPitchControl).mockResolvedValue({
+      status: "error",
+      error: "check failed",
+    });
+    const configStore = renderConfigStore();
+    configStore.setConfig("core", {
+      ort_path: "/core",
+      ojt_dir: "/dict",
+      vvm_dir: "/models",
+    });
+    await waitFor(() =>
+      expect(console.error).toHaveBeenCalledWith(
+        "Failed to get pitch control support:",
+        "check failed",
+      ),
+    );
+    expect(configStore.pitchControlSupported()).toBe(true);
+  });
+
   it("refreshes generated queries once changed English reading options are saved", async () => {
     let saveResult:
       | { status: "ok"; data: null }

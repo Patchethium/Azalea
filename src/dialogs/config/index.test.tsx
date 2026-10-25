@@ -43,6 +43,80 @@ describe("ConfigPage", () => {
     vi.restoreAllMocks();
   });
 
+  it("disables pitch control switches the ONNX Runtime cannot support", async () => {
+    vi.spyOn(commands, "getAssetsSize").mockResolvedValue({
+      status: "ok",
+      data: 0,
+    });
+    vi.spyOn(commands, "initCore").mockResolvedValue({
+      status: "ok",
+      data: null,
+    });
+    vi.spyOn(commands, "getRange").mockResolvedValue({
+      status: "ok",
+      data: {},
+    });
+    vi.spyOn(commands, "getMetas").mockResolvedValue({
+      status: "ok",
+      data: [],
+    });
+    vi.mocked(commands.supportsPitchControl).mockResolvedValue({
+      status: "ok",
+      data: false,
+    });
+    let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
+    const Harness: Component = () => {
+      appConfig = useConfigStore()!;
+      const ui = useUIStore()!;
+      onMount(() => {
+        batch(() => {
+          appConfig.setConfig({
+            ...config({
+              pitch_noise_enabled: true,
+              pitch_completion_enabled: true,
+            }),
+            core: { ort_path: "/core", ojt_dir: "/dict", vvm_dir: "/models" },
+          });
+          ui.setUIStore("page", "config");
+        });
+      });
+      return <ConfigPage />;
+    };
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [i18nProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+    await screen.findByRole("dialog", { name: "Config" });
+    await openSection("Synthesis");
+
+    const noise = screen.getByRole("switch", {
+      name: "Noised pitch generation",
+    });
+    const completion = screen.getByRole("switch", { name: "Pitch completion" });
+    await waitFor(() => expect(noise).toBeDisabled());
+    expect(noise).not.toBeChecked();
+    expect(completion).toBeDisabled();
+    expect(completion).not.toBeChecked();
+    expect(
+      screen.queryByRole("spinbutton", { name: en.config.pitch_noise_sigma }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(noise);
+    expect(appConfig.config.ui.pitch_noise_enabled).toBe(true);
+
+    fireEvent.pointerEnter(noise.closest("span")!, { pointerType: "mouse" });
+    expect(
+      await screen.findByRole("tooltip", {}, { timeout: 2000 }),
+    ).toHaveTextContent(en.config.pitch_control_unavailable);
+  });
+
   // Walks every synthesis setting, which takes over 5 s in the parallel coverage run.
   it("updates synthesis feature settings and closes accessibly", async () => {
     vi.spyOn(commands, "getAssetsSize").mockResolvedValue({

@@ -41,25 +41,26 @@ pub fn lab_from_audio_query_at(query: &AudioQuery, offset_seconds: f64) -> Strin
   let mut lab = LabWriter {
     text: String::new(),
     timestamp: offset_seconds * UNITS_PER_SECOND,
-    speed_scale: f64::from(query.speed_scale),
+    speed_scale: f64::from(f32::from(query.speed_scale)),
   };
-  lab.push(query.pre_phoneme_length, "pau");
+  lab.push(query.pre_phoneme_length.into(), "pau");
   for phrase in &query.accent_phrases {
     for mora in &phrase.moras {
       if let (Some(consonant), Some(length)) = (&mora.consonant, mora.consonant_length) {
-        lab.push(length, consonant);
+        lab.push(length.into(), &consonant.to_string());
       }
-      if mora.vowel == "N" {
-        lab.push(mora.vowel_length, "N");
+      let vowel = mora.vowel.to_string();
+      if vowel == "N" {
+        lab.push(mora.vowel_length.into(), "N");
       } else {
-        lab.push(mora.vowel_length, &mora.vowel.to_lowercase());
+        lab.push(mora.vowel_length.into(), &vowel.to_lowercase());
       }
     }
     if let Some(pause) = &phrase.pause_mora {
-      lab.push(pause.vowel_length, &pause.vowel);
+      lab.push(pause.vowel_length.into(), &pause.vowel.to_string());
     }
   }
-  lab.push(query.post_phoneme_length, "pau");
+  lab.push(query.post_phoneme_length.into(), "pau");
   lab.text
 }
 

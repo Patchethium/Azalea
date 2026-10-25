@@ -20,6 +20,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+typed_floats = "1.0.7"
 png = "0.18"
 hound = "3.5"
 tauri = { version = "2.1.1", features = ["macos-private-api"] }

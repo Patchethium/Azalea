@@ -65,6 +65,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
       init_core,
       reinit_core,
       get_metas,
+      supports_pitch_control,
       get_range,
       open_config_dir,
       open_path_location,
@@ -426,7 +427,11 @@ mod tests {
   fn mock_runtime_reports_uninitialized_managed_state_errors() {
     let app = mock_builder()
       .manage(empty_app_state(None, None))
-      .invoke_handler(tauri::generate_handler![synthesize_state, get_metas])
+      .invoke_handler(tauri::generate_handler![
+        synthesize_state,
+        get_metas,
+        supports_pitch_control
+      ])
       .build(mock_context(noop_assets()))
       .unwrap();
     let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
@@ -459,6 +464,14 @@ mod tests {
       .unwrap_err()
       .to_string();
     assert!(metas_error.contains("core is not initialized"));
+
+    let pitch_control_error = get_ipc_response(
+      &webview,
+      invoke_request("supports_pitch_control", json!({})),
+    )
+    .unwrap_err()
+    .to_string();
+    assert!(pitch_control_error.contains("core is not initialized"));
   }
 
   #[test]

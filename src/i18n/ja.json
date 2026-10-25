@@ -241,6 +241,7 @@
     "pitch_noise_enabled": "ノイズ付き音高生成",
     "pitch_completion_enabled": "音高補完",
     "pitch_completion_description": "有効にすると、音高を変更するたびに、後続の音高が自己回帰的に更新されます。",
+    "pitch_control_unavailable": "このONNX Runtimeでは使用できません。Azalea管理のモデルに切り替えて、Azaleaを再起動してください。",
     "pitch_noise_sigma": "ノイズの強さ",
     "reset_pitch_noise_sigma": "既定のノイズの強さに戻す",
     "pitch_noise_seed": "ノイズのシード",

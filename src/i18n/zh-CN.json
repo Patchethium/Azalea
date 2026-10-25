@@ -208,6 +208,7 @@
     "pitch_noise_enabled": "带噪音高生成",
     "pitch_completion_enabled": "音高补全",
     "pitch_completion_description": "启用后，每次修改音高都会触发后续音高的自回归更新。",
+    "pitch_control_unavailable": "当前 ONNX Runtime 不支持此功能。请切换到 Azalea 管理的模型并重启 Azalea。",
     "pitch_noise_sigma": "噪声强度",
     "reset_pitch_noise_sigma": "恢复默认噪声强度",
     "pitch_noise_seed": "噪声种子",

@@ -186,6 +186,23 @@ pub async fn get_metas(state: State<'_, AppState>) -> std::result::Result<VoiceM
   Ok(metas.values().flatten().cloned().collect())
 }
 
+/// Whether the loaded ONNX Runtime allows pitch noise and pitch completion.
+#[tauri::command]
+#[specta::specta]
+pub async fn supports_pitch_control(
+  state: State<'_, AppState>,
+) -> std::result::Result<bool, String> {
+  Ok(
+    state
+      .core
+      .read()
+      .await
+      .as_ref()
+      .ok_or("core is not initialized")?
+      .supports_pitch_control(),
+  )
+}
+
 fn ensure_core_generation(state: &AppState, generation: u64) -> Result<(), String> {
   if state.core_generation.load(Ordering::SeqCst) != generation {
     return Err("Voice setup changed; retry the operation".into());
@@ -1678,7 +1695,7 @@ mod tests {
 
       // A render taken over now continues where following stopped.
       assert_eq!(tap.start_frame(100, 24_000, false), 40);
-      tap.queue_rest(&voicevox_core::__wav_from_s16le(
+      tap.queue_rest(&voicevox_core::wav_from_s16le(
         &frame_pcm(0..100),
         24_000,
         false,
@@ -1722,14 +1739,14 @@ mod tests {
 
   #[test]
   fn core_wavs_are_recognized_and_other_layouts_are_not() {
-    let wav = voicevox_core::__wav_from_s16le(&[1, 0, 2, 0], 48_000, true);
+    let wav = voicevox_core::wav_from_s16le(&[1, 0, 2, 0], 48_000, true);
     assert_eq!(
       pcm_from_wav(&wav),
       Some((48_000, true, &[1u8, 0, 2, 0][..]))
     );
     assert_eq!(pcm_from_wav(&wav[..40]), None);
     assert_eq!(
-      pcm_from_wav(&voicevox_core::__wav_from_s16le(&[], 44_100, false)),
+      pcm_from_wav(&voicevox_core::wav_from_s16le(&[], 44_100, false)),
       None
     );
   }

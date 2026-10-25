@@ -56,6 +56,17 @@ Specta support synchronized with the fork's `specta` branch when updating it.
   mora. Lock changes cancel queued completion and invalidate in-flight responses
   without regenerating pitches.
 
+The transformation exports each predictor, which VOICEVOX ONNX Runtime 1.23
+refuses. The fork probes exports once per process
+(`Onnxruntime::supports_pitch_control`) and, without them, loads predictors
+untransformed and leaves 0.16.x decoders unsplit (whole synthesis). Do not work
+around the refusal; it is part of the runtime's terms. `Core` records the probe,
+ignores noise without it, and the `supports_pitch_control` command lets the
+frontend gate both features (`pitchNoiseActive`, `pitchCompletionAvailable`):
+the config switches are disabled with a tooltip suggesting Azalea-managed
+models and a restart, and stored settings are preserved. The downloader stays
+on ONNX Runtime 1.17.3 and voicevox_vvm 0.16.4 for this reason.
+
 Noise is injected only at voiced mora steps and feeds subsequent predictions;
 unvoiced moras and pauses remain zero after prediction. Existing
 `replace_mora_pitch`, query creation and TTS APIs use zero noise. Ordinary VVM
@@ -74,8 +85,10 @@ project reload matches the saved pitches bit for bit.
 
 ## Streaming Synthesis
 
-The fork's `generative-noise` branch also splits monolithic talk decoders (for
-example voicevox_vvm 0.16.x) at the mel bottleneck while loading, and exposes
+The fork's `generative-noise` branch tracks upstream 0.17.x, whose
+voicevox_vvm 0.17.x models ship a split streaming-talk decoder natively. It
+also splits monolithic talk decoders (voicevox_vvm 0.16.x) at the mel
+bottleneck while loading, so both model generations stream, and exposes
 segmented rendering on both synthesizers: `supports_streaming(style_id)`,
 `prepare_streaming(&query, style_id, StreamingOptions)` returning a
 `StreamingAudio`, and `render_streaming(&audio, frame_range)` returning 16-bit

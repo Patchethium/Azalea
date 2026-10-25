@@ -154,6 +154,17 @@ async getMetas() : Promise<Result<CharacterMeta[], string>> {
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Whether the loaded ONNX Runtime allows pitch noise and pitch completion.
+ */
+async supportsPitchControl() : Promise<Result<boolean, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("supports_pitch_control") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async getRange() : Promise<Result<Partial<{ [key in StyleId]: PitchRange }>, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_range") };
@@ -920,7 +931,18 @@ export type StyleType =
  * 
  * [Serde]: serde
  */
-"sing"
+"sing" | 
+/**
+ * 音声合成クエリの作成と通常ないしストリーミングでの音声合成が可能。
+ * Talkスタイルの機能を包含する。
+ * 
+ * # Serde
+ * 
+ * [Serde]においては`"streaming_talk"`という値で表される。
+ * 
+ * [Serde]: serde
+ */
+"streaming_talk"
 export type SynthState = 
 /**
  * not started yet or not present in cache (dropped automatically)

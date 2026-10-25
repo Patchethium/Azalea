@@ -4,7 +4,9 @@ use std::path::Path;
 use std::sync::Arc;
 use tauri::State;
 use uuid::Uuid;
-use voicevox_core::{blocking::UserDict, UserDictWord, UserDictWordType as CoreUserDictWordType};
+use voicevox_core::{
+  blocking::UserDict, UserDictWord, UserDictWordPriority, UserDictWordType as CoreUserDictWordType,
+};
 
 #[derive(Clone, Copy, Debug, serde::Deserialize, serde::Serialize, specta::Type, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -64,9 +66,12 @@ fn build_word(input: DictionaryEntryInput) -> Result<UserDictWord, String> {
   }
   let accent_type = usize::try_from(input.accent_type)
     .map_err(|_| "Dictionary accent type is too large".to_string())?;
+  let priority = u8::try_from(input.priority)
+    .map_err(|_| "Dictionary priority is too large".to_string())
+    .and_then(|priority| UserDictWordPriority::new(priority).map_err(|error| error.to_string()))?;
   UserDictWord::builder()
     .word_type(input.word_type.into())
-    .priority(input.priority)
+    .priority(priority)
     .build(&input.surface, input.pronunciation, accent_type)
     .map_err(|error| error.to_string())
 }
@@ -79,7 +84,7 @@ fn entry_from_word(id: Uuid, word: &UserDictWord) -> Result<DictionaryEntry, Str
     accent_type: u32::try_from(word.accent_type())
       .map_err(|_| "Dictionary accent type is too large".to_string())?,
     word_type: dictionary_word_type(word.word_type())?,
-    priority: word.priority(),
+    priority: word.priority().get().into(),
   })
 }
 

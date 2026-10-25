@@ -137,11 +137,16 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     setConfig("ui", "titlebar_style", style);
   };
   const pitchRulerEnabled = () => config.ui.pitch_ruler ?? DEFAULT_PITCH_RULER;
+  /** Whether the loaded ONNX Runtime allows pitch noise and pitch completion. */
+  const [pitchControlSupported, setPitchControlSupported] = createSignal(true);
+  const pitchNoiseActive = () =>
+    (config.ui.pitch_noise_enabled ?? false) && pitchControlSupported();
+  const pitchCompletionAvailable = () =>
+    (config.ui.pitch_completion_enabled ?? false) && pitchControlSupported();
   const pitchCompletionActive = () =>
-    (config.ui.pitch_completion_enabled ?? false) &&
-    !config.ui.pitch_completion_locked;
+    pitchCompletionAvailable() && !config.ui.pitch_completion_locked;
   const togglePitchCompletionLock = () => {
-    if (config.ui.pitch_completion_enabled)
+    if (pitchCompletionAvailable())
       setConfig(
         "ui",
         "pitch_completion_locked",
@@ -174,8 +179,17 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     }
   };
 
+  const load_pitch_control = async () => {
+    const res = await commands.supportsPitchControl();
+    if (res.status === "ok") {
+      setPitchControlSupported(res.data);
+    } else {
+      console.error("Failed to get pitch control support:", res.error);
+    }
+  };
+
   const reloadCoreDependentState = async () => {
-    await Promise.all([load_meta(), load_range()]);
+    await Promise.all([load_meta(), load_range(), load_pitch_control()]);
   };
 
   const refreshCoreAfterModelDeletion = async () => {
@@ -326,6 +340,9 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     setTitlebarStyle,
     pitchRulerEnabled,
     setPitchRulerEnabled,
+    pitchControlSupported,
+    pitchNoiseActive,
+    pitchCompletionAvailable,
     pitchCompletionActive,
     togglePitchCompletionLock,
     themeMode,
