@@ -616,10 +616,23 @@ export function useTuningPanel(
       if (block.pitch_is_modified !== true) {
         // Record the seeded prediction only after a regenerated query for
         // this key has settled. Until then the query still holds pitches
-        // from the previous seed.
+        // from the previous seed. The text block begins that regeneration in
+        // its own effect, which may run after this one in the same update,
+        // so check again once the update has finished.
+        await Promise.resolve();
+        const current = untrack(currentText);
+        if (
+          !mounted ||
+          untrack(pitchBaselineKey) !== key ||
+          untrack(currentQueryPending) !== undefined ||
+          untrack(() => getPitchBaseline(key)) !== null ||
+          !current?.query ||
+          current.pitch_is_modified === true
+        )
+          return;
         setPitchBaseline(
           key,
-          block.query.accent_phrases.map((phrase) =>
+          current.query.accent_phrases.map((phrase) =>
             phrase.moras.map((mora) => mora.pitch),
           ),
           false,

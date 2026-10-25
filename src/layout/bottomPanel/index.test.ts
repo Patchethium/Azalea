@@ -4478,4 +4478,33 @@ describe("Absolute pitch tuning baseline ghost", () => {
       expect(baselineBottom()).toBeCloseTo(((5 - 3.4) / 3.1) * 100),
     );
   });
+
+  it("waits for a query refresh begun after the seed change in the same update", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const { getTextStore } = renderPanel({ spectrogram_preview: false });
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    await screen.findByRole("slider", { name: "コ" });
+    const baselineBottom = () =>
+      Number.parseFloat(
+        document.querySelector<HTMLElement>("[data-pitch-baseline]")!.style
+          .bottom,
+      );
+
+    // The text block's effect may begin the refresh after the tuning panel
+    // has already seen the new seed, so the old pitches must not be cached.
+    getTextStore().setTextStore(0, "pitch_noise_seed", 42);
+    const update = getTextStore().beginQueryUpdate("first-block");
+    await Promise.resolve();
+
+    const query = audioQuery();
+    query.accent_phrases[0].moras[0].pitch = 5;
+    getTextStore().setTextStore(0, "query", query);
+    update.finish();
+
+    await waitFor(() =>
+      expect(baselineBottom()).toBeCloseTo(((5 - 3.4) / 3.1) * 100),
+    );
+  });
 });
