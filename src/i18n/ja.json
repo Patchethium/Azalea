@@ -41,6 +41,8 @@
   },
   "bottom": {
     "regenerate_pitch_noise_seed": "ノイズのシードを再生成",
+    "previous_pitch_noise_seed": "前のノイズのシード",
+    "next_pitch_noise_seed": "次のノイズのシード",
     "no_query": "テキストを入力してください",
     "no_block": "テキストセルが選択されていません",
     "accent": "アクセント",

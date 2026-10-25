@@ -1,3 +1,4 @@
+import { Separator } from "@kobalte/core/separator";
 import { Tooltip } from "@components/tooltip";
 import { NumberField } from "@components/numberField";
 import { ToolbarButton } from "@components/toolbarButton";
@@ -27,8 +28,14 @@ export function ControlBar(props: {
   } = useConfigStore()!;
   const { matchesShortcut, formatShortcut, isApplicationShortcutAllowed } =
     useShortcutsStore()!;
-  const { selectedTextBlock, selectedTextBlockIndex, setTextStore } =
-    useTextStore()!;
+  const {
+    selectedTextBlock,
+    selectedTextBlockIndex,
+    setTextStore,
+    commitPitchNoiseSeed,
+    canStepSeedHistory,
+    stepSeedHistory,
+  } = useTextStore()!;
   const { uiStore } = useUIStore()!;
   const controls = usePlaybackControls(
     props.onWaveformSynthesized,
@@ -122,14 +129,22 @@ export function ControlBar(props: {
           </Show>
           <Show when={pitchNoiseActive() && uiStore.bottomPanel === "tuning"}>
             <ToolbarButton
+              icon="i-lucide:chevron-left"
+              label={t1("bottom.previous_pitch_noise_seed")}
+              disabled={
+                tuningModified() ||
+                !canStepSeedHistory(selectedTextBlockIndex(), -1)
+              }
+              onClick={() => stepSeedHistory(selectedTextBlockIndex(), -1)}
+            />
+            <ToolbarButton
               icon="i-lucide:dices"
               label={t1("bottom.regenerate_pitch_noise_seed")}
               disabled={tuningModified()}
               onClick={() => {
                 const seed = Math.floor(Math.random() * 2 ** 32);
-                setTextStore(
+                commitPitchNoiseSeed(
                   selectedTextBlockIndex(),
-                  "pitch_noise_seed",
                   seed === selectedTextBlock()?.pitch_noise_seed
                     ? (seed + 1) % 2 ** 32
                     : seed,
@@ -158,9 +173,29 @@ export function ControlBar(props: {
                 <NumberField.Input
                   aria-label={t1("config.pitch_noise_seed")}
                   class="h-6 w-24 rounded b b-slate-2 px1 outline-none focus:b-primary-3 dark:(b-slate-6 bg-slate-8)"
+                  // Typed seeds apply live but join the history only once
+                  // committed, not once per keystroke.
+                  onBlur={() => commitPitchNoiseSeed(selectedTextBlockIndex())}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter")
+                      commitPitchNoiseSeed(selectedTextBlockIndex());
+                  }}
                 />
               </Tooltip>
             </NumberField>
+            <ToolbarButton
+              icon="i-lucide:chevron-right"
+              label={t1("bottom.next_pitch_noise_seed")}
+              disabled={
+                tuningModified() ||
+                !canStepSeedHistory(selectedTextBlockIndex(), 1)
+              }
+              onClick={() => stepSeedHistory(selectedTextBlockIndex(), 1)}
+            />
+            <Separator
+              orientation="vertical"
+              class="mx1 h-4 b-0 b-l b-slate-3 dark:b-slate-5"
+            />
           </Show>
           <ToolbarButton
             icon="i-lucide:rotate-ccw"

@@ -11,6 +11,7 @@ import {
   renderPlaybackHook,
   renderTuningHook,
 } from "@layout/bottomPanel/testUtils";
+import { unwrap } from "solid-js/store";
 import * as scheduled from "@solid-primitives/scheduled";
 import { fireEvent, screen, waitFor, within } from "@solidjs/testing-library";
 import userEvent from "@testing-library/user-event";
@@ -2891,6 +2892,18 @@ describe("BottomPanel playback", () => {
     const seedField = seed.closest("[role='group']") as HTMLElement;
     expect(seedField.previousElementSibling).toContainElement(regenerate);
     expect(seedField.nextElementSibling).toContainElement(
+      screen.getByRole("button", { name: "Next noise seed" }),
+    );
+    expect(
+      seedField.previousElementSibling!.previousElementSibling,
+    ).toContainElement(
+      screen.getByRole("button", { name: "Previous noise seed" }),
+    );
+    // A splitter separates the seed controls from the remaining tools.
+    const splitter = seedField.nextElementSibling!.nextElementSibling!;
+    expect(splitter.tagName).toBe("HR");
+    expect(splitter).toHaveAttribute("aria-orientation", "vertical");
+    expect(splitter.nextElementSibling).toContainElement(
       screen.getByRole("button", { name: "Reset pitch and duration edits" }),
     );
     expect(seed).toHaveValue("0");
@@ -2995,6 +3008,108 @@ describe("BottomPanel playback", () => {
     expect(
       screen.queryByRole("button", { name: "Regenerate noise seed" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("navigates per-block seed histories like undo and redo", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    const { getTextStore, getUiStore } = renderPanel({
+      spectrogram_preview: false,
+      pitch_noise_enabled: true,
+    });
+    const text = getTextStore();
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    const seed = await screen.findByRole("spinbutton", { name: "Noise seed" });
+    const regenerate = screen.getByRole("button", {
+      name: "Regenerate noise seed",
+    });
+    const previous = screen.getByRole("button", {
+      name: "Previous noise seed",
+    });
+    const next = screen.getByRole("button", { name: "Next noise seed" });
+    const seedOf = (index: number) => text.textStore[index].pitch_noise_seed;
+    expect(previous).toBeDisabled();
+    expect(next).toBeDisabled();
+
+    const random = vi
+      .spyOn(Math, "random")
+      .mockReturnValueOnce(0.25)
+      .mockReturnValueOnce(0.75)
+      .mockReturnValueOnce(0.5);
+    fireEvent.click(regenerate);
+    expect(seedOf(0)).toBe(1073741824);
+    expect(previous).toBeEnabled();
+    expect(next).toBeDisabled();
+
+    // Intermediate keystrokes are not entries; the committed seed is.
+    fireEvent.input(seed, { target: { value: "4" } });
+    fireEvent.input(seed, { target: { value: "42" } });
+    fireEvent.keyDown(seed, { key: "Enter" });
+    fireEvent.blur(seed);
+    expect(seedOf(0)).toBe(42);
+    fireEvent.click(previous);
+    expect(seedOf(0)).toBe(1073741824);
+    expect(seed).toHaveValue("1073741824");
+    fireEvent.click(previous);
+    expect(seedOf(0)).toBe(0);
+    expect(previous).toBeDisabled();
+    fireEvent.click(previous);
+    expect(seedOf(0)).toBe(0);
+    fireEvent.click(next);
+    fireEvent.click(next);
+    expect(seedOf(0)).toBe(42);
+    expect(next).toBeDisabled();
+    fireEvent.click(next);
+    expect(seedOf(0)).toBe(42);
+
+    // A new seed in the middle of the history discards later entries.
+    fireEvent.click(previous);
+    fireEvent.click(regenerate);
+    expect(seedOf(0)).toBe(3221225472);
+    expect(next).toBeDisabled();
+    fireEvent.click(previous);
+    expect(seedOf(0)).toBe(1073741824);
+
+    // A seed typed without committing joins the history when navigating.
+    fireEvent.input(seed, { target: { value: "7" } });
+    expect(next).toBeDisabled();
+    fireEvent.click(previous);
+    expect(seedOf(0)).toBe(1073741824);
+    fireEvent.click(next);
+    expect(seedOf(0)).toBe(7);
+
+    // Each block keeps its own history.
+    getUiStore().setUIStore("selectedTextBlockIndex", 1);
+    expect(previous).toBeDisabled();
+    fireEvent.click(regenerate);
+    expect(seedOf(1)).toBe(2147483648);
+    fireEvent.click(previous);
+    expect(seedOf(1)).toBe(0);
+    expect(seedOf(0)).toBe(7);
+    getUiStore().setUIStore("selectedTextBlockIndex", 0);
+    expect(previous).toBeEnabled();
+    expect(next).toBeDisabled();
+    random.mockRestore();
+
+    // Navigation follows the other seed controls' tuning-edit lock.
+    text.markQueryPitchModified(0);
+    expect(previous).toBeDisabled();
+    text.setTextStore(0, "pitch_is_modified", false);
+    expect(previous).toBeEnabled();
+
+    // Removed blocks lose their history, and loading starts fresh ones.
+    const second = structuredClone(unwrap(text.textStore[1]));
+    text.setTextStore((blocks) => blocks.slice(0, 1));
+    text.setTextStore((blocks) => [...blocks, second]);
+    getUiStore().setUIStore("selectedTextBlockIndex", 1);
+    expect(next).toBeDisabled();
+    expect(previous).toBeDisabled();
+    getUiStore().setUIStore("selectedTextBlockIndex", 0);
+    expect(previous).toBeEnabled();
+    text.replaceTextBlocks(structuredClone(unwrap(text.textStore)));
+    expect(previous).toBeDisabled();
+    expect(next).toBeDisabled();
   });
 
   it("keeps accent and phoneme edits while resetting pitch and duration", async () => {

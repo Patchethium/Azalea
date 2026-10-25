@@ -41,6 +41,8 @@
   },
   "bottom": {
     "regenerate_pitch_noise_seed": "重新生成噪声种子",
+    "previous_pitch_noise_seed": "上一个噪声种子",
+    "next_pitch_noise_seed": "下一个噪声种子",
     "no_query": "尚无查询",
     "no_block": "未选择文本单元格",
     "accent": "重音",

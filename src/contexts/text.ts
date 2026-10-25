@@ -14,7 +14,7 @@ import {
   onMount,
   untrack,
 } from "solid-js";
-import { createStore, produce } from "solid-js/store";
+import { createStore, produce, reconcile } from "solid-js/store";
 import { usei18n } from "@contexts/i18n";
 import { useMetaStore } from "@contexts/meta";
 import { useConfigStore } from "@contexts/config";
@@ -23,6 +23,7 @@ import { useUIStore } from "@contexts/ui";
 import { indexAfterMove } from "$utils";
 
 type TextBlockProps = ProjectTextBlockProps;
+type SeedHistory = { seeds: number[]; index: number };
 
 let fallbackIdSequence = 0;
 
@@ -342,8 +343,86 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
   );
   const markProjectSaved = () => setSavedProjectSnapshot(projectSnapshot());
 
+  // Per-block noise seed histories, navigated like undo/redo. They are kept
+  // only in memory, so a loaded project starts with fresh histories.
+  const [seedHistories, setSeedHistories] = createStore<
+    Record<string, SeedHistory | undefined>
+  >({});
+
   const replaceTextBlocks = (blocks: ProjectTextBlockProps[]) => {
-    setTextStore(blocks.map((block) => ({ ...block })));
+    batch(() => {
+      setSeedHistories(reconcile({}));
+      setTextStore(blocks.map((block) => ({ ...block })));
+    });
+  };
+
+  // Every block's history starts with its seed when the block appears, and
+  // is dropped with the block.
+  createEffect(() => {
+    const ids = new Set(textStore.map((block) => block.id));
+    untrack(() =>
+      setSeedHistories(
+        produce((histories) => {
+          for (const id of Object.keys(histories))
+            if (!ids.has(id)) delete histories[id];
+          for (const block of textStore)
+            histories[block.id] ??= {
+              seeds: [block.pitch_noise_seed],
+              index: 0,
+            };
+        }),
+      ),
+    );
+  });
+
+  // A seed set outside the history (typing, loading) joins it as the newest
+  // entry, discarding entries after the current one as a new edit would.
+  const syncedSeedHistory = (block: TextBlockProps): SeedHistory => {
+    const seed = block.pitch_noise_seed;
+    const history = seedHistories[block.id];
+    if (history === undefined) return { seeds: [seed], index: 0 };
+    if (history.seeds[history.index] === seed)
+      return { seeds: [...history.seeds], index: history.index };
+    return {
+      seeds: [...history.seeds.slice(0, history.index + 1), seed],
+      index: history.index + 1,
+    };
+  };
+
+  /** Records a block's current seed, or a new one, as a history entry. */
+  const commitPitchNoiseSeed = (index: number, seed?: number) => {
+    const block = textStore[index];
+    if (block === undefined) return;
+    batch(() => {
+      let history = syncedSeedHistory(block);
+      if (seed !== undefined && seed !== history.seeds[history.index]) {
+        history = {
+          seeds: [...history.seeds.slice(0, history.index + 1), seed],
+          index: history.index + 1,
+        };
+        setTextStore(index, "pitch_noise_seed", seed);
+      }
+      setSeedHistories(block.id, history);
+    });
+  };
+
+  const canStepSeedHistory = (index: number, delta: -1 | 1) => {
+    const block = textStore[index];
+    if (block === undefined) return false;
+    const history = syncedSeedHistory(block);
+    const target = history.index + delta;
+    return target >= 0 && target < history.seeds.length;
+  };
+
+  const stepSeedHistory = (index: number, delta: -1 | 1) => {
+    const block = textStore[index];
+    if (block === undefined || !canStepSeedHistory(index, delta)) return;
+    const history = syncedSeedHistory(block);
+    const target = history.index + delta;
+    batch(() => {
+      setSeedHistories(block.id, { seeds: history.seeds, index: target });
+      setTextStore(index, "pitch_noise_seed", history.seeds[target]);
+    });
   };
 
   const removeProjectPreset = (presetId: string) => {
@@ -554,6 +633,9 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     refreshGeneratedQueries,
     resetQueryEdits,
     replaceTextBlocks,
+    commitPitchNoiseSeed,
+    canStepSeedHistory,
+    stepSeedHistory,
     removeProjectPreset,
     newProject,
     isProjectDirty,
