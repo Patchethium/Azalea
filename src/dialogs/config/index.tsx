@@ -421,7 +421,11 @@ export function ConfigPage() {
               </Switch>
             </ConfigItem>
             <Show when={englishTransformEnabled()}>
-              <ConfigItem label={t1("config.english_accent_prediction")} nested>
+              <ConfigItem
+                label={t1("config.english_accent_prediction")}
+                description={t1("config.english_accent_prediction_description")}
+                nested
+              >
                 <Switch
                   checked={englishAccentPredictionEnabled()}
                   onChange={(value) =>

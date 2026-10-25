@@ -475,6 +475,15 @@ describe("ConfigPage", () => {
     expect(tooltips[tooltips.length - 1]).toHaveTextContent(
       en.config.pitch_completion_description,
     );
+    fireEvent.pointerLeave(completionLabel, { pointerType: "mouse" });
+
+    const accentLabel = screen.getByText(en.config.english_accent_prediction);
+    fireEvent.pointerEnter(accentLabel, { pointerType: "mouse" });
+    await vi.advanceTimersByTimeAsync(400);
+    const accentTooltips = screen.getAllByRole("tooltip", { hidden: true });
+    expect(accentTooltips[accentTooltips.length - 1]).toHaveTextContent(
+      en.config.english_accent_prediction_description,
+    );
     vi.useRealTimers();
   });
 

@@ -200,6 +200,7 @@
     "english_transform": "Transform English words",
     "english_transform_description": "Reads English words the dictionary doesn't know as katakana instead of spelling them out letter by letter.",
     "english_accent_prediction": "Accent prediction",
+    "english_accent_prediction_description": "Predicts the pitch accent of converted words instead of using OpenJTalk's.",
     "english_ngram_filter": "N-gram filtering",
     "english_ngram_filter_description": "Keeps words that don't look like English words, such as acronyms, spelled out.",
     "english_turbo_model": "Turbo model",

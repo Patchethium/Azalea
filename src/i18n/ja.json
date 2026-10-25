@@ -233,6 +233,7 @@
     "english_transform": "英単語をカタカナ読みに変換",
     "english_transform_description": "辞書にない英単語を、一文字ずつ読む代わりにカタカナで読みます。",
     "english_accent_prediction": "アクセント予測",
+    "english_accent_prediction_description": "変換した英単語のアクセントを、OpenJTalkの代わりに予測します。",
     "english_ngram_filter": "N-gramフィルタ",
     "english_ngram_filter_description": "略語など英単語らしくない語は一文字ずつ読みます。",
     "english_turbo_model": "ターボモデル",
