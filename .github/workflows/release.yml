@@ -39,7 +39,7 @@ jobs:
       - name: setup node
         uses: actions/setup-node@v6
         with:
-          node-version: 22.11.0
+          node-version: 22
           cache: pnpm
 
       - name: install Rust nightly
