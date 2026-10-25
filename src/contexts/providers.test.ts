@@ -347,6 +347,12 @@ describe("ConfigProvider", () => {
     saveResult = { status: "ok", data: null };
     configStore.setConfig("ui", "english_accent_prediction", false);
     await waitFor(() => expect(configStore.englishReadingRevision()).toBe(2));
+
+    // Switching the transliteration model changes the readings too.
+    expect(configStore.englishTurboModelEnabled()).toBe(false);
+    configStore.setConfig("ui", "english_turbo_model", true);
+    await waitFor(() => expect(configStore.englishReadingRevision()).toBe(3));
+    expect(configStore.englishTurboModelEnabled()).toBe(true);
   });
 
   it("reports config persistence failures", async () => {

@@ -18,6 +18,7 @@ import {
   DEFAULT_ENGLISH_ACCENT_PREDICTION,
   DEFAULT_ENGLISH_NGRAM_FILTER,
   DEFAULT_ENGLISH_TRANSFORM,
+  DEFAULT_ENGLISH_TURBO_MODEL,
   DEFAULT_TITLEBAR_STYLE,
   DEFAULT_PITCH_RULER,
   DEFAULT_PLAYBACK_TIMELINE,
@@ -111,12 +112,15 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     config.ui.english_accent_prediction ?? DEFAULT_ENGLISH_ACCENT_PREDICTION;
   const englishNgramFilterEnabled = () =>
     config.ui.english_ngram_filter ?? DEFAULT_ENGLISH_NGRAM_FILTER;
+  const englishTurboModelEnabled = () =>
+    config.ui.english_turbo_model ?? DEFAULT_ENGLISH_TURBO_MODEL;
   /** The English reading options the backend applies, null when disabled. */
   const englishReadingKey = () =>
     englishTransformEnabled()
       ? JSON.stringify([
           englishAccentPredictionEnabled(),
           englishNgramFilterEnabled(),
+          englishTurboModelEnabled(),
         ])
       : null;
   /** Bumped once the backend has saved changed English reading options. */
@@ -296,6 +300,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     englishTransformEnabled,
     englishAccentPredictionEnabled,
     englishNgramFilterEnabled,
+    englishTurboModelEnabled,
     englishReadingRevision,
     setupChangePending,
     setupSwitchPending,

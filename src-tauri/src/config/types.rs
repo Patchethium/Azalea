@@ -187,6 +187,9 @@ pub struct UIConfig {
   /// Keeps acronyms the n-gram model rejects spelled out instead of transliterated.
   #[serde(default = "english_transform_default")]
   pub english_ngram_filter: bool,
+  /// Transliterates English words with e2k's faster distilled model.
+  #[serde(default)]
+  pub english_turbo_model: bool,
   #[serde(default = "playback_timeline_default")]
   pub playback_timeline: bool,
   #[serde(default)]
@@ -252,6 +255,7 @@ impl Default for UIConfig {
       english_transform: english_transform_default(),
       english_accent_prediction: english_transform_default(),
       english_ngram_filter: english_transform_default(),
+      english_turbo_model: false,
       playback_timeline: playback_timeline_default(),
       pitch_scale: Default::default(),
       pitch_ruler: pitch_ruler_default(),
@@ -287,6 +291,7 @@ impl UIConfig {
       .then_some(crate::english::EnglishOptions {
         accent_prediction: self.english_accent_prediction,
         ngram_filter: self.english_ngram_filter,
+        turbo: self.english_turbo_model,
       })
   }
 }
@@ -631,6 +636,7 @@ mod tests {
       Some(crate::english::EnglishOptions {
         accent_prediction: true,
         ngram_filter: true,
+        turbo: false,
       })
     );
     assert!(!config.embedded_font);
@@ -746,7 +752,7 @@ mod tests {
   #[test]
   fn disabled_english_transform_keeps_its_nested_settings() {
     let config: UIConfig = toml::from_str(
-      "english_transform = false\nenglish_accent_prediction = false\nenglish_ngram_filter = true",
+      "english_transform = false\nenglish_accent_prediction = false\nenglish_ngram_filter = true\nenglish_turbo_model = true",
     )
     .unwrap();
     assert!(config.english_options().is_none());
@@ -760,6 +766,7 @@ mod tests {
       Some(crate::english::EnglishOptions {
         accent_prediction: false,
         ngram_filter: true,
+        turbo: true,
       })
     );
   }

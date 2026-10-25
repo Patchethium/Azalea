@@ -122,8 +122,8 @@ Release builds do not read `config_dev`, so set `AZALEA_TEST_CORE_DIR`:
 
 `src-tauri/src/english/` reads English words OpenJTalk does not know through
 [e2k](https://github.com/Patchethium/e2k), a git dependency pinned by tag
-whose models are embedded in the binary and loaded once per process on first
-use. Text analysis needs NJD features VOICEVOX Core does not expose, so
+whose models are embedded in the binary and each loaded once per process on
+first use. Text analysis needs NJD features VOICEVOX Core does not expose, so
 `EnglishReader` works around OpenJTalk's public `TextAnalyzer`: a run of
 ASCII or fullwidth letters is unknown when OpenJTalk reads it exactly as its
 letter names (`LETTER_NAMES`, OpenJTalk's table), so user dictionary entries
@@ -137,7 +137,10 @@ options and cleared whenever the user dictionary is applied.
 
 `UIConfig.english_transform` (default on, the "Transform English words"
 switch) enables it; its nested switches, shown only while it is on, are
-`english_accent_prediction` and `english_ngram_filter` (both default on).
+`english_accent_prediction` and `english_ngram_filter` (both default on) and
+`english_turbo_model` (default off), which transliterates with e2k's distilled
+turbo C2K model (`C2K::embedded_turbo`) instead of the base one; the model not
+selected is never loaded.
 Accent prediction makes each replaced word start an accent phrase carrying
 e2k's nucleus (heiban spans the phrase), merging a word OpenJTalk split and
 splitting consecutive replaced words, but leaves a word inside a Japanese

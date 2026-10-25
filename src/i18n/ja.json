@@ -235,6 +235,8 @@
     "english_accent_prediction": "アクセント予測",
     "english_ngram_filter": "N-gramフィルタ",
     "english_ngram_filter_description": "略語など英単語らしくない語は一文字ずつ読みます。",
+    "english_turbo_model": "ターボモデル",
+    "english_turbo_model_description": "英単語の変換に、蒸留した高速なモデルを使います。一部の読みは標準モデルと異なります。",
     "pitch_noise_enabled": "ノイズ付き音高生成",
     "pitch_completion_enabled": "音高補完",
     "pitch_completion_description": "有効にすると、音高を変更するたびに、後続の音高が自己回帰的に更新されます。",

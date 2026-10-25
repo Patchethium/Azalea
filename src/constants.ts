@@ -21,6 +21,7 @@ export const DEFAULT_STREAMING_SYNTHESIS = true;
 export const DEFAULT_ENGLISH_TRANSFORM = true;
 export const DEFAULT_ENGLISH_ACCENT_PREDICTION = true;
 export const DEFAULT_ENGLISH_NGRAM_FILTER = true;
+export const DEFAULT_ENGLISH_TURBO_MODEL = false;
 export const DEFAULT_PLAYBACK_TIMELINE = true;
 export const DEFAULT_PITCH_SCALE = "Optimal" as const;
 export const DEFAULT_PITCH_RULER = true;

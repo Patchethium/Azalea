@@ -363,6 +363,7 @@ fn real_core_reads_unknown_english_words_through_e2k() {
   let all = Some(EnglishOptions {
     accent_prediction: true,
     ngram_filter: true,
+    turbo: false,
   });
   let reading = |text: &str, english: Option<EnglishOptions>| {
     core
@@ -406,6 +407,7 @@ fn real_core_reads_unknown_english_words_through_e2k() {
   let engine_rules = Some(EnglishOptions {
     accent_prediction: true,
     ngram_filter: false,
+    turbo: false,
   });
   assert_eq!(reading("GPUと", engine_rules), reading("GPUと", None));
   assert_ne!(
@@ -418,6 +420,17 @@ fn real_core_reads_unknown_english_words_through_e2k() {
   assert!(pitches(&query.accent_phrases)
     .iter()
     .any(|&pitch| pitch > 0.0));
+
+  // The turbo model transliterates too, without spelling the word out.
+  let turbo = reading(
+    "Geogaddiです",
+    Some(EnglishOptions {
+      accent_prediction: true,
+      ngram_filter: true,
+      turbo: true,
+    }),
+  );
+  assert_ne!(turbo, spelled);
 
   // A user dictionary entry takes precedence over e2k.
   let dictionary = UserDict::new();

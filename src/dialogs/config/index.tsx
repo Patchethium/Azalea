@@ -90,6 +90,7 @@ export function ConfigPage() {
     englishTransformEnabled,
     englishAccentPredictionEnabled,
     englishNgramFilterEnabled,
+    englishTurboModelEnabled,
     setupSource,
   } = useConfigStore()!;
 
@@ -451,6 +452,27 @@ export function ConfigPage() {
                 >
                   <Switch.Input
                     aria-label={t1("config.english_ngram_filter")}
+                    class="outline-2px"
+                  />
+                  <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
+                    <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
+                  </Switch.Control>
+                </Switch>
+              </ConfigItem>
+              <ConfigItem
+                label={t1("config.english_turbo_model")}
+                description={t1("config.english_turbo_model_description")}
+                nested
+              >
+                <Switch
+                  checked={englishTurboModelEnabled()}
+                  onChange={(value) =>
+                    setConfig("ui", "english_turbo_model", value)
+                  }
+                  class="inline-flex items-center select-none cursor-pointer justify-center"
+                >
+                  <Switch.Input
+                    aria-label={t1("config.english_turbo_model")}
                     class="outline-2px"
                   />
                   <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">

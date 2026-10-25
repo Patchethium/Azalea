@@ -961,7 +961,11 @@ english_accent_prediction?: boolean;
 /**
  * Keeps acronyms the n-gram model rejects spelled out instead of transliterated.
  */
-english_ngram_filter?: boolean; playback_timeline?: boolean; pitch_scale?: PitchScale; pitch_ruler?: boolean; pitch_tuning_mode?: PitchTuningMode; 
+english_ngram_filter?: boolean; 
+/**
+ * Transliterates English words with e2k's faster distilled model.
+ */
+english_turbo_model?: boolean; playback_timeline?: boolean; pitch_scale?: PitchScale; pitch_ruler?: boolean; pitch_tuning_mode?: PitchTuningMode; 
 /**
  * Relative slider range in semitones on either side of the prediction.
  */

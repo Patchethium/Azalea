@@ -43,6 +43,7 @@ describe("ConfigPage", () => {
     vi.restoreAllMocks();
   });
 
+  // Walks every synthesis setting, which takes over 5 s in the parallel coverage run.
   it("updates synthesis feature settings and closes accessibly", async () => {
     vi.spyOn(commands, "getAssetsSize").mockResolvedValue({
       status: "ok",
@@ -288,7 +289,7 @@ describe("ConfigPage", () => {
     expect(screen.getByRole("dialog", { name: "Config" })).toHaveAttribute(
       "data-closed",
     );
-  });
+  }, 15_000);
 
   it("toggles English word transformation and hides its nested switches", async () => {
     vi.spyOn(commands, "getAssetsSize").mockResolvedValue({
@@ -337,6 +338,13 @@ describe("ConfigPage", () => {
     expect(appConfig.config.ui.english_accent_prediction).toBe(false);
     fireEvent.click(ngram);
     expect(appConfig.englishNgramFilterEnabled()).toBe(true);
+    const turbo = screen.getByRole("switch", {
+      name: en.config.english_turbo_model,
+    });
+    expect(turbo).not.toBeChecked();
+    fireEvent.click(turbo);
+    expect(appConfig.config.ui.english_turbo_model).toBe(true);
+    expect(appConfig.englishTurboModelEnabled()).toBe(true);
 
     fireEvent.click(transform);
     expect(appConfig.config.ui.english_transform).toBe(false);
@@ -348,6 +356,9 @@ describe("ConfigPage", () => {
     expect(
       screen.queryByRole("switch", { name: en.config.english_ngram_filter }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("switch", { name: en.config.english_turbo_model }),
+    ).not.toBeInTheDocument();
 
     // Re-enabling restores the hidden settings.
     fireEvent.click(transform);
@@ -356,6 +367,9 @@ describe("ConfigPage", () => {
     ).not.toBeChecked();
     expect(
       screen.getByRole("switch", { name: en.config.english_ngram_filter }),
+    ).toBeChecked();
+    expect(
+      screen.getByRole("switch", { name: en.config.english_turbo_model }),
     ).toBeChecked();
   });
 

@@ -202,6 +202,8 @@
     "english_accent_prediction": "Accent prediction",
     "english_ngram_filter": "N-gram filtering",
     "english_ngram_filter_description": "Keeps words that don't look like English words, such as acronyms, spelled out.",
+    "english_turbo_model": "Turbo model",
+    "english_turbo_model_description": "Uses a faster distilled model to transliterate English words. Some readings differ from the base model.",
     "pitch_noise_enabled": "Noised pitch generation",
     "pitch_completion_enabled": "Pitch completion",
     "pitch_completion_description": "When enabled, every change in pitch will trigger an autoregressive update on rear pitches.",

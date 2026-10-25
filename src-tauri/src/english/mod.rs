@@ -26,6 +26,8 @@ pub struct EnglishOptions {
   /// Transliterates only words the n-gram model reads as words, leaving acronyms spelled out.
   /// Without it, VOICEVOX ENGINE's rules decide.
   pub ngram_filter: bool,
+  /// Transliterates with e2k's distilled turbo model instead of the base one.
+  pub turbo: bool,
 }
 
 /// Leaves room for long words; e2k's default of 16 symbols truncates them.
@@ -64,26 +66,42 @@ const LETTER_NAMES: [&str; 26] = [
   "ズィー",
 ];
 
+/// The models one reading uses; each is loaded once per process, on first use.
+#[derive(Clone, Copy)]
 struct Models {
-  c2k: C2K,
-  accent: AccentPredictor,
-  ngram: NGram,
+  c2k: &'static C2K,
+  accent: &'static AccentPredictor,
+  ngram: &'static NGram,
 }
 
-/// Loads the embedded models once per process, on first use.
-fn models() -> Result<&'static Models> {
-  static MODELS: OnceLock<std::result::Result<Models, String>> = OnceLock::new();
-  MODELS
-    .get_or_init(|| {
-      let error = |e: e2k::Error| e.to_string();
-      Ok(Models {
-        c2k: C2K::embedded().map_err(error)?.with_max_len(C2K_MAX_LEN),
-        accent: AccentPredictor::embedded().map_err(error)?,
-        ngram: NGram::embedded().map_err(error)?,
-      })
-    })
+type Loaded<T> = OnceLock<std::result::Result<T, String>>;
+
+fn load<T>(cell: &'static Loaded<T>, init: impl FnOnce() -> e2k::Result<T>) -> Result<&'static T> {
+  cell
+    .get_or_init(|| init().map_err(|e| e.to_string()))
     .as_ref()
     .map_err(|e| anyhow!("failed to load the English reading models: {e}"))
+}
+
+/// The embedded models, with the turbo C2K model when `turbo` is set. The model that is not
+/// selected is never loaded.
+fn models(turbo: bool) -> Result<Models> {
+  static C2K_BASE: Loaded<C2K> = OnceLock::new();
+  static C2K_TURBO: Loaded<C2K> = OnceLock::new();
+  static ACCENT: Loaded<AccentPredictor> = OnceLock::new();
+  static NGRAM: Loaded<NGram> = OnceLock::new();
+  let c2k = if turbo {
+    load(&C2K_TURBO, || {
+      Ok(C2K::embedded_turbo()?.with_max_len(C2K_MAX_LEN))
+    })?
+  } else {
+    load(&C2K_BASE, || Ok(C2K::embedded()?.with_max_len(C2K_MAX_LEN)))?
+  };
+  Ok(Models {
+    c2k,
+    accent: load(&ACCENT, AccentPredictor::embedded)?,
+    ngram: load(&NGRAM, NGram::embedded)?,
+  })
 }
 
 pub(crate) fn is_english_letter(character: char) -> bool {
@@ -149,7 +167,7 @@ fn spelled_by_engine_rules(piece: &str) -> bool {
 }
 
 /// The katakana reading of an unknown ASCII word, or `None` to keep OpenJTalk's spelling.
-fn transliterate(models: &Models, word: &str, ngram_filter: bool) -> Option<String> {
+fn transliterate(models: Models, word: &str, ngram_filter: bool) -> Option<String> {
   if word.len() < 2 {
     return None;
   }
@@ -349,7 +367,7 @@ fn substitution(
   if known {
     return Ok(None);
   }
-  let models = models()?;
+  let models = models(options.turbo)?;
   let Some(katakana) = transliterate(models, word, options.ngram_filter) else {
     return Ok(None);
   };
@@ -594,6 +612,7 @@ mod tests {
   const ALL: EnglishOptions = EnglishOptions {
     accent_prediction: true,
     ngram_filter: true,
+    turbo: false,
   };
 
   #[test]
@@ -642,7 +661,7 @@ mod tests {
 
   #[test]
   fn transliteration_honors_the_ngram_filter_and_engine_rules() {
-    let models = models().unwrap();
+    let models = models(false).unwrap();
     assert!(transliterate(models, "a", true).is_none());
     assert!(transliterate(models, "a", false).is_none());
     // The n-gram model rejects acronyms whatever their case.
@@ -652,6 +671,17 @@ mod tests {
     assert!(transliterate(models, "GPU", false).is_none());
     let reading = transliterate(models, "iPhone", false).unwrap();
     assert!(reading.starts_with("アイ"), "{reading}");
+  }
+
+  #[test]
+  fn turbo_option_selects_the_distilled_model() {
+    let base = models(false).unwrap();
+    let turbo = models(true).unwrap();
+    assert!(!std::ptr::eq(base.c2k, turbo.c2k));
+    assert!(std::ptr::eq(base.ngram, turbo.ngram));
+    assert!(std::ptr::eq(models(true).unwrap().c2k, turbo.c2k));
+    let reading = transliterate(turbo, "streaming", true).unwrap();
+    assert!(kana_moras(&reading).is_some(), "{reading}");
   }
 
   #[test]
@@ -724,7 +754,7 @@ mod tests {
 
   #[test]
   fn analysis_substitutes_only_unknown_words() {
-    let geogaddi = transliterate(models().unwrap(), "geogaddi", true).unwrap();
+    let geogaddi = transliterate(models(false).unwrap(), "geogaddi", true).unwrap();
     let spelled = spell_out("Geogaddi");
     let analyzer = FakeAnalyzer::new(&[
       ("Geogaddi", spelled.as_str()),
@@ -757,7 +787,7 @@ mod tests {
   #[test]
   fn analysis_drops_spaces_next_to_substituted_words_and_caches_until_cleared() {
     let spelled = spell_out("Geogaddi");
-    let geogaddi = transliterate(models().unwrap(), "geogaddi", true).unwrap();
+    let geogaddi = transliterate(models(false).unwrap(), "geogaddi", true).unwrap();
     let analyzer = FakeAnalyzer::new(&[
       ("Geogaddi", spelled.as_str()),
       (spelled.as_str(), spelled.as_str()),

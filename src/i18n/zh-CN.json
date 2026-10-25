@@ -202,6 +202,8 @@
     "english_accent_prediction": "重音预测",
     "english_ngram_filter": "N-gram 过滤",
     "english_ngram_filter_description": "缩写等不像英文单词的词仍逐个字母拼读。",
+    "english_turbo_model": "Turbo 模型",
+    "english_turbo_model_description": "使用蒸馏得到的更快模型转换英文单词。部分读音与基础模型不同。",
     "pitch_noise_enabled": "带噪音高生成",
     "pitch_completion_enabled": "音高补全",
     "pitch_completion_description": "启用后，每次修改音高都会触发后续音高的自回归更新。",

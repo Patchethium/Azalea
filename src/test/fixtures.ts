@@ -21,6 +21,7 @@ import {
   DEFAULT_ENGLISH_ACCENT_PREDICTION,
   DEFAULT_ENGLISH_NGRAM_FILTER,
   DEFAULT_ENGLISH_TRANSFORM,
+  DEFAULT_ENGLISH_TURBO_MODEL,
   DEFAULT_SYNTHESIS_DELAY_MS,
   DEFAULT_THEME_MODE,
 } from "$constants";
@@ -105,6 +106,7 @@ export const config = (
     english_transform: DEFAULT_ENGLISH_TRANSFORM,
     english_accent_prediction: DEFAULT_ENGLISH_ACCENT_PREDICTION,
     english_ngram_filter: DEFAULT_ENGLISH_NGRAM_FILTER,
+    english_turbo_model: DEFAULT_ENGLISH_TURBO_MODEL,
     playback_timeline: DEFAULT_PLAYBACK_TIMELINE,
     name_truncation_len: 0,
     default_export_dir: null,
