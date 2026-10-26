@@ -44,6 +44,14 @@ beforeEach(async () => {
     status: "ok",
     data: true,
   });
+  // Tests start with the optional downloads in place unless they say otherwise.
+  vi.spyOn(commands, "getExtrasStatus").mockResolvedValue({
+    status: "ok",
+    data: [
+      { pack: "Fonts", bytes: 23187805, installed: true },
+      { pack: "EnglishModels", bytes: 7887840, installed: true },
+    ],
+  });
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
     value: vi.fn().mockReturnValue({

@@ -11,7 +11,13 @@ import {
   TitlebarStyle,
 } from "$binding";
 import { createContextProvider } from "@solid-primitives/context";
-import { batch, createEffect, createResource, createSignal } from "solid-js";
+import {
+  batch,
+  createEffect,
+  createResource,
+  createSignal,
+  on,
+} from "solid-js";
 import { createStore } from "solid-js/store";
 import {
   DEFAULT_CPU_NUM_THREADS,
@@ -26,6 +32,7 @@ import {
   DEFAULT_STREAMING_SYNTHESIS,
   DEFAULT_THEME_MODE,
 } from "$constants";
+import { createExtras } from "@contexts/extras";
 import { useMetaStore } from "@contexts/meta";
 import { useUIStore } from "@contexts/ui";
 
@@ -114,6 +121,10 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     config.ui.english_ngram_filter ?? DEFAULT_ENGLISH_NGRAM_FILTER;
   const englishTurboModelEnabled = () =>
     config.ui.english_turbo_model ?? DEFAULT_ENGLISH_TURBO_MODEL;
+  const extras = createExtras();
+  void extras.refresh();
+  const englishModelsInstalled = () => extras.installed("EnglishModels");
+  const fontsInstalled = () => extras.installed("Fonts");
   /** The English reading options the backend applies, null when disabled. */
   const englishReadingKey = () =>
     englishTransformEnabled()
@@ -291,6 +302,19 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
       }
     }
   };
+  // The backend checks for the models itself, so a download or deletion
+  // changes the applied reading without a config save.
+  createEffect(
+    on(
+      () => extras.status.EnglishModels?.installed,
+      (installed, previous) => {
+        // The first status only reports what the backend already applied.
+        if (previous === undefined || installed === previous) return;
+        if (englishTransformEnabled())
+          setEnglishReadingRevision((revision) => revision + 1);
+      },
+    ),
+  );
   createEffect(() => {
     if (!configInitialized()) return;
 
@@ -316,6 +340,9 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     englishNgramFilterEnabled,
     englishTurboModelEnabled,
     englishReadingRevision,
+    englishModelsInstalled,
+    fontsInstalled,
+    extras,
     setupChangePending,
     setupSwitchPending,
     setSetupSwitchPending,

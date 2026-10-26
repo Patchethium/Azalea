@@ -93,6 +93,33 @@ async cancelSetupDownload(operationId: string) : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async getExtrasStatus() : Promise<Result<ExtraStatus[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_extras_status") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Downloads a pack and returns whether it was cancelled.
+ */
+async downloadExtra(operationId: string, pack: ExtraPack) : Promise<Result<boolean, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("download_extra", { operationId, pack }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async cancelExtraDownload(operationId: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cancel_extra_download", { operationId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async pickCore() : Promise<CoreConfig | null> {
     return await TAURI_INVOKE("pick_core");
 },
@@ -491,6 +518,7 @@ async takeStartupProject() : Promise<string | null> {
 
 export const events = __makeEvents__<{
 downloadProgressEvent: DownloadProgressEvent,
+extraDownloadProgressEvent: ExtraDownloadProgressEvent,
 frontendReadyEvent: FrontendReadyEvent,
 initializationEvent: InitializationEvent,
 openProjectRequested: OpenProjectRequested,
@@ -499,6 +527,7 @@ spectrogramJobEvent: SpectrogramJobEvent,
 synthesisJobEvent: SynthesisJobEvent
 }>({
 downloadProgressEvent: "download-progress-event",
+extraDownloadProgressEvent: "extra-download-progress-event",
 frontendReadyEvent: "frontend-ready-event",
 initializationEvent: "initialization-event",
 openProjectRequested: "open-project-requested",
@@ -739,6 +768,9 @@ export type DownloadSetup = { directory: string; components: DownloadComponent[]
  */
 loaded_models: string[] | null }
 export type DownloadedSetupConfig = { cache_size?: number; cpu_num_threads?: number }
+export type ExtraDownloadProgressEvent = { operation_id: string; pack: ExtraPack; completed_bytes: number; total_bytes: number }
+export type ExtraPack = "Fonts" | "EnglishModels"
+export type ExtraStatus = { pack: ExtraPack; bytes: number; installed: boolean }
 export type FrontendReadyEvent = null
 export type InitializationEvent = { config: AzaleaConfig | null; core_initialized: boolean; metas: CharacterMeta[] | null; range: ([StyleId, PitchRange])[]; error: string | null; resolved_core?: CoreConfig | null; active_setup_source?: SetupSource | null; 
 /**

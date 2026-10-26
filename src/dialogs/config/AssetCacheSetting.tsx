@@ -4,6 +4,7 @@ import { ConfigItem } from "@dialogs/config/Item";
 import { Button } from "@kobalte/core/button";
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { usei18n } from "@contexts/i18n";
+import { useConfigStore } from "@contexts/config";
 import { useMetaStore } from "@contexts/meta";
 
 type AssetCacheStatus = "idle" | "loading" | "clearing" | "error";
@@ -26,6 +27,7 @@ function formatAssetSize(bytes: number) {
 export function AssetCacheSetting(props: { open: boolean }) {
   const { t1 } = usei18n()!;
   const { clearSpeakerIcons } = useMetaStore()!;
+  const { extras } = useConfigStore()!;
   const [size, setSize] = createSignal<number | null>(null);
   const [status, setStatus] = createSignal<AssetCacheStatus>("idle");
   let requestRevision = 0;
@@ -61,6 +63,8 @@ export function AssetCacheSetting(props: { open: boolean }) {
         return;
       }
       clearSpeakerIcons();
+      // Clearing also deletes the downloaded fonts and English reading models.
+      await extras.refresh();
       if (!requestIsCurrent(revision)) return;
 
       const sizeResult = await commands.getAssetsSize();

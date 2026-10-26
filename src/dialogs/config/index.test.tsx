@@ -1165,6 +1165,8 @@ describe("ConfigPage", () => {
     await waitFor(() => expect(screen.getByText("0 B")).toBeInTheDocument());
     expect(meta.clearSpeakerIcons).toHaveBeenCalledOnce();
     expect(commands.getAssetsSize).toHaveBeenCalledTimes(2);
+    // Clearing also removes the downloaded fonts and English models.
+    expect(commands.getExtrasStatus).toHaveBeenCalledTimes(2);
     expect(clear).toBeDisabled();
   });
 

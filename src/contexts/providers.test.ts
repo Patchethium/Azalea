@@ -430,6 +430,107 @@ describe("ConfigProvider", () => {
     expect(configStore.englishTurboModelEnabled()).toBe(true);
   });
 
+  it("refreshes generated queries when the English models are downloaded or removed", async () => {
+    const extrasStatus = (installed: boolean) => ({
+      status: "ok" as const,
+      data: [
+        { pack: "Fonts" as const, bytes: 1, installed: false },
+        { pack: "EnglishModels" as const, bytes: 1, installed },
+      ],
+    });
+    vi.mocked(commands.getExtrasStatus).mockResolvedValue(extrasStatus(false));
+    vi.spyOn(commands, "setConfig").mockResolvedValue({
+      status: "ok",
+      data: null,
+    });
+    const { text, config: configStore } = renderTextStores();
+    batch(() => {
+      configStore.setConfig(config());
+      configStore.setConfigInitialized(true);
+      text.setTextStore([{ ...text.textStore[0], query: audioQuery() }]);
+    });
+    // The first status reports what the backend already applies.
+    await waitFor(() =>
+      expect(configStore.extras.status.EnglishModels).toBeDefined(),
+    );
+    expect(configStore.englishModelsInstalled()).toBe(false);
+    expect(configStore.fontsInstalled()).toBe(false);
+    expect(configStore.englishReadingRevision()).toBe(0);
+
+    vi.mocked(commands.getExtrasStatus).mockResolvedValue(extrasStatus(true));
+    await configStore.extras.refresh();
+    await waitFor(() => expect(configStore.englishReadingRevision()).toBe(1));
+    expect(text.textStore[0].query).toBeNull();
+
+    // An unchanged status changes nothing.
+    await configStore.extras.refresh();
+    expect(configStore.englishReadingRevision()).toBe(1);
+
+    // Without the transform, the models do not affect readings.
+    configStore.setConfig("ui", "english_transform", false);
+    await waitFor(() => expect(configStore.englishReadingRevision()).toBe(2));
+    vi.mocked(commands.getExtrasStatus).mockResolvedValue(extrasStatus(false));
+    await configStore.extras.refresh();
+    expect(configStore.englishModelsInstalled()).toBe(false);
+    expect(configStore.englishReadingRevision()).toBe(2);
+  });
+
+  it("ignores download status reads that are superseded or throw", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const configStore = renderConfigStore();
+    await waitFor(() =>
+      expect(configStore.extras.status.EnglishModels).toBeDefined(),
+    );
+    let resolveStale!: (value: unknown) => void;
+    vi.mocked(commands.getExtrasStatus)
+      .mockImplementationOnce(
+        () => new Promise((resolve) => (resolveStale = resolve as never)),
+      )
+      .mockResolvedValueOnce({
+        status: "ok",
+        data: [{ pack: "Fonts", bytes: 1, installed: false }],
+      })
+      .mockRejectedValueOnce("ipc failed");
+    const stale = configStore.extras.refresh();
+    await configStore.extras.refresh();
+    resolveStale({
+      status: "ok",
+      data: [{ pack: "Fonts", bytes: 1, installed: true }],
+    });
+    await stale;
+    expect(configStore.fontsInstalled()).toBe(false);
+    await configStore.extras.refresh();
+    expect(console.error).toHaveBeenCalledWith(
+      "Failed to read download status:",
+      "ipc failed",
+    );
+  });
+
+  it("runs one download per pack and cancels only a running one", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    const configStore = renderConfigStore();
+    const cancel = vi
+      .spyOn(commands, "cancelExtraDownload")
+      .mockResolvedValue({ status: "ok", data: null });
+    configStore.extras.cancel("Fonts");
+    expect(cancel).not.toHaveBeenCalled();
+    let finish!: () => void;
+    const download = vi.spyOn(commands, "downloadExtra").mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = () => resolve({ status: "ok", data: true });
+        }),
+    );
+    const first = configStore.extras.download("Fonts");
+    expect(configStore.extras.downloading("Fonts")).toBe(true);
+    expect(await configStore.extras.download("Fonts")).toBeNull();
+    await waitFor(() => expect(download).toHaveBeenCalledOnce());
+    finish();
+    // A cancelled download is not an error.
+    expect(await first).toBeNull();
+    expect(configStore.extras.downloading("Fonts")).toBe(false);
+  });
+
   it("reports config persistence failures", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.spyOn(commands, "setConfig").mockResolvedValue({

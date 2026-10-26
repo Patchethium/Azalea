@@ -58,6 +58,9 @@ fn specta_builder() -> Builder<tauri::Wry> {
       download_cpu_setup,
       delete_downloaded_models,
       cancel_setup_download,
+      get_extras_status,
+      download_extra,
+      cancel_extra_download,
       pick_core,
       init_config,
       get_config,
@@ -109,6 +112,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
       SpectrogramJobEvent,
       SpectrogramColumnsEvent,
       DownloadProgressEvent,
+      ExtraDownloadProgressEvent,
       OpenProjectRequested
     ])
 }
@@ -173,6 +177,13 @@ pub fn run() {
     })
     .manage(StartupProject::from_process())
     .invoke_handler(builder.invoke_handler())
+    .register_asynchronous_uri_scheme_protocol("azalea-font", |_, request, responder| {
+      let path = request.uri().path().to_owned();
+      // Fonts are megabytes; read them off the webview thread.
+      tauri::async_runtime::spawn_blocking(move || {
+        responder.respond(commands::font_response(&path))
+      });
+    })
     .setup(move |app| {
       builder.mount_events(app);
       let app_handle = app.handle().clone();

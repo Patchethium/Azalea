@@ -17,6 +17,7 @@ import { ShortcutSettings } from "@dialogs/config/Shortcuts";
 import { PathButton } from "@components/pathButton";
 import { useToasts } from "@components/toast";
 import { AppButton } from "@components/button";
+import { ExtraDownloadButton } from "@components/extraDownload";
 import { Tooltip } from "@components/tooltip";
 import { Button } from "@kobalte/core/button";
 import { Dialog } from "@kobalte/core/dialog";
@@ -91,6 +92,7 @@ export function ConfigPage() {
     englishAccentPredictionEnabled,
     englishNgramFilterEnabled,
     englishTurboModelEnabled,
+    englishModelsInstalled,
     setupSource,
     pitchControlSupported,
     pitchNoiseActive,
@@ -415,23 +417,33 @@ export function ConfigPage() {
               label={t1("config.english_transform")}
               description={t1("config.english_transform_description")}
             >
-              <Switch
-                checked={englishTransformEnabled()}
-                onChange={(value) =>
-                  setConfig("ui", "english_transform", value)
+              <Show
+                when={englishModelsInstalled()}
+                fallback={
+                  <ExtraDownloadButton
+                    pack="EnglishModels"
+                    label={t1("config.english_transform")}
+                  />
                 }
-                class="inline-flex items-center select-none cursor-pointer justify-center"
               >
-                <Switch.Input
-                  aria-label={t1("config.english_transform")}
-                  class="outline-2px"
-                />
-                <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
-                  <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
-                </Switch.Control>
-              </Switch>
+                <Switch
+                  checked={englishTransformEnabled()}
+                  onChange={(value) =>
+                    setConfig("ui", "english_transform", value)
+                  }
+                  class="inline-flex items-center select-none cursor-pointer justify-center"
+                >
+                  <Switch.Input
+                    aria-label={t1("config.english_transform")}
+                    class="outline-2px"
+                  />
+                  <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
+                    <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
+                  </Switch.Control>
+                </Switch>
+              </Show>
             </ConfigItem>
-            <Show when={englishTransformEnabled()}>
+            <Show when={englishTransformEnabled() && englishModelsInstalled()}>
               <ConfigItem
                 label={t1("config.english_accent_prediction")}
                 description={t1("config.english_accent_prediction_description")}

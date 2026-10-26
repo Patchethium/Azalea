@@ -12,9 +12,11 @@ use std::{
   collections::HashMap,
   num::NonZero,
   ops::Range,
+  path::PathBuf,
   sync::{Mutex, OnceLock},
 };
 
+use crate::config::manager::english_models_dir;
 use anyhow::{anyhow, Result};
 use e2k::{AccentPredictor, NGram, C2K};
 use typed_floats::tf32;
@@ -76,33 +78,57 @@ struct Models {
   ngram: &'static NGram,
 }
 
-type Loaded<T> = OnceLock<std::result::Result<T, String>>;
+static C2K_BASE: OnceLock<C2K> = OnceLock::new();
+static C2K_TURBO: OnceLock<C2K> = OnceLock::new();
+static ACCENT: OnceLock<AccentPredictor> = OnceLock::new();
+static NGRAM: OnceLock<NGram> = OnceLock::new();
 
-fn load<T>(cell: &'static Loaded<T>, init: impl FnOnce() -> e2k::Result<T>) -> Result<&'static T> {
-  cell
-    .get_or_init(|| init().map_err(|e| e.to_string()))
-    .as_ref()
-    .map_err(|e| anyhow!("failed to load the English reading models: {e}"))
+/// Whether the downloaded models are in place. Readings fall back to
+/// OpenJTalk's without them.
+pub fn models_available() -> bool {
+  crate::commands::pack_present(crate::commands::ExtraPack::EnglishModels)
 }
 
-/// The embedded models, with the turbo C2K model when `turbo` is set. The model that is not
-/// selected is never loaded.
+/// Supplies already loaded models in place of the downloaded files, for tests
+/// that use the copies built into e2k.
+pub fn provide_models(base: C2K, turbo: C2K, accent: AccentPredictor, ngram: NGram) {
+  let _ = C2K_BASE.set(base.with_max_len(C2K_MAX_LEN));
+  let _ = C2K_TURBO.set(turbo.with_max_len(C2K_MAX_LEN));
+  let _ = ACCENT.set(accent);
+  let _ = NGRAM.set(ngram);
+}
+
+/// Loads a downloaded model once. Failures are not cached, so a model
+/// downloaded later is picked up.
+fn load<T>(
+  cell: &'static OnceLock<T>,
+  file: &str,
+  init: impl FnOnce(PathBuf) -> e2k::Result<T>,
+) -> Result<&'static T> {
+  if let Some(model) = cell.get() {
+    return Ok(model);
+  }
+  let path = english_models_dir().map_err(|e| anyhow!(e))?.join(file);
+  let model = init(path).map_err(|e| anyhow!("failed to load the English reading models: {e}"))?;
+  Ok(cell.get_or_init(|| model))
+}
+
+/// The downloaded models, with the turbo C2K model when `turbo` is set. The
+/// model that is not selected is never loaded.
 fn models(turbo: bool) -> Result<Models> {
-  static C2K_BASE: Loaded<C2K> = OnceLock::new();
-  static C2K_TURBO: Loaded<C2K> = OnceLock::new();
-  static ACCENT: Loaded<AccentPredictor> = OnceLock::new();
-  static NGRAM: Loaded<NGram> = OnceLock::new();
   let c2k = if turbo {
-    load(&C2K_TURBO, || {
-      Ok(C2K::embedded_turbo()?.with_max_len(C2K_MAX_LEN))
+    load(&C2K_TURBO, "model-c2k-turbo.safetensors", |path| {
+      Ok(C2K::from_path(path)?.with_max_len(C2K_MAX_LEN))
     })?
   } else {
-    load(&C2K_BASE, || Ok(C2K::embedded()?.with_max_len(C2K_MAX_LEN)))?
+    load(&C2K_BASE, "model-c2k.safetensors", |path| {
+      Ok(C2K::from_path(path)?.with_max_len(C2K_MAX_LEN))
+    })?
   };
   Ok(Models {
     c2k,
-    accent: load(&ACCENT, AccentPredictor::embedded)?,
-    ngram: load(&NGRAM, NGram::embedded)?,
+    accent: load(&ACCENT, "accent.safetensors", AccentPredictor::from_path)?,
+    ngram: load(&NGRAM, "ngram.json.zip", NGram::from_path)?,
   })
 }
 
@@ -544,6 +570,20 @@ fn apply_substitutions(phrases: &mut Vec<AccentPhrase>, substitutions: &[Substit
 mod tests {
   use super::*;
 
+  /// The models, taken from the copies built into e2k so tests need no download.
+  fn test_models(turbo: bool) -> Result<Models> {
+    static PROVIDED: std::sync::Once = std::sync::Once::new();
+    PROVIDED.call_once(|| {
+      provide_models(
+        C2K::embedded().unwrap(),
+        C2K::embedded_turbo().unwrap(),
+        AccentPredictor::embedded().unwrap(),
+        NGram::embedded().unwrap(),
+      )
+    });
+    models(turbo)
+  }
+
   /// Phrases for `kana`, with `/` separating phrases and `、` ending one with a pause.
   fn phrases(kana: &str) -> Vec<AccentPhrase> {
     kana
@@ -684,7 +724,7 @@ mod tests {
 
   #[test]
   fn transliteration_honors_the_ngram_filter_and_engine_rules() {
-    let models = models(false).unwrap();
+    let models = test_models(false).unwrap();
     assert!(transliterate(models, "a", true).is_none());
     assert!(transliterate(models, "a", false).is_none());
     // The n-gram model rejects acronyms whatever their case.
@@ -698,11 +738,11 @@ mod tests {
 
   #[test]
   fn turbo_option_selects_the_distilled_model() {
-    let base = models(false).unwrap();
-    let turbo = models(true).unwrap();
+    let base = test_models(false).unwrap();
+    let turbo = test_models(true).unwrap();
     assert!(!std::ptr::eq(base.c2k, turbo.c2k));
     assert!(std::ptr::eq(base.ngram, turbo.ngram));
-    assert!(std::ptr::eq(models(true).unwrap().c2k, turbo.c2k));
+    assert!(std::ptr::eq(test_models(true).unwrap().c2k, turbo.c2k));
     let reading = transliterate(turbo, "streaming", true).unwrap();
     assert!(kana_moras(&reading).is_some(), "{reading}");
   }
@@ -777,7 +817,7 @@ mod tests {
 
   #[test]
   fn analysis_substitutes_only_unknown_words() {
-    let geogaddi = transliterate(models(false).unwrap(), "geogaddi", true).unwrap();
+    let geogaddi = transliterate(test_models(false).unwrap(), "geogaddi", true).unwrap();
     let spelled = spell_out("Geogaddi");
     let analyzer = FakeAnalyzer::new(&[
       ("Geogaddi", spelled.as_str()),
@@ -810,7 +850,7 @@ mod tests {
   #[test]
   fn analysis_drops_spaces_next_to_substituted_words_and_caches_until_cleared() {
     let spelled = spell_out("Geogaddi");
-    let geogaddi = transliterate(models(false).unwrap(), "geogaddi", true).unwrap();
+    let geogaddi = transliterate(test_models(false).unwrap(), "geogaddi", true).unwrap();
     let analyzer = FakeAnalyzer::new(&[
       ("Geogaddi", spelled.as_str()),
       (spelled.as_str(), spelled.as_str()),

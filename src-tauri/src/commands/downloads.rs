@@ -160,17 +160,17 @@ fn digest_file(path: &Path) -> Result<(u64, String), String> {
   Ok((length, format!("{:x}", hash.finalize())))
 }
 
-fn verified_file(path: &Path, bytes: u64, sha256: &str) -> bool {
+pub(crate) fn verified_file(path: &Path, bytes: u64, sha256: &str) -> bool {
   fs::symlink_metadata(path).is_ok_and(|m| m.file_type().is_file() && m.len() == bytes)
     && digest_file(path).is_ok_and(|(length, hash)| length == bytes && hash == sha256)
 }
 
 const VERIFIED_FILES: &str = ".verified.json";
 
-struct FileCheck {
-  path: PathBuf,
-  bytes: u64,
-  sha256: String,
+pub(crate) struct FileCheck {
+  pub(crate) path: PathBuf,
+  pub(crate) bytes: u64,
+  pub(crate) sha256: String,
 }
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
@@ -182,14 +182,14 @@ struct VerifiedStamp {
 
 /// Hashing every model on each status check is slow, so a successful hash is
 /// reused while the file keeps the same size and modification time.
-struct VerifiedFiles {
+pub(crate) struct VerifiedFiles {
   root: PathBuf,
   previous: HashMap<PathBuf, VerifiedStamp>,
   current: HashMap<PathBuf, VerifiedStamp>,
 }
 
 impl VerifiedFiles {
-  fn load(root: &Path) -> Self {
+  pub(crate) fn load(root: &Path) -> Self {
     let path = root.join(VERIFIED_FILES);
     let previous = regular_file(&path)
       .then(|| fs::read(&path).ok())
@@ -213,7 +213,7 @@ impl VerifiedFiles {
   }
 
   /// Hashes uncached files in parallel and returns one result per file.
-  fn check_all(&mut self, files: &[FileCheck]) -> Vec<bool> {
+  pub(crate) fn check_all(&mut self, files: &[FileCheck]) -> Vec<bool> {
     let results: Vec<_> = files
       .par_iter()
       .map(|file| self.verify(&file.path, file.bytes, &file.sha256))
@@ -263,7 +263,7 @@ impl VerifiedFiles {
   }
 
   /// Persists only files verified by this check; failures are not fatal.
-  fn save(self) {
+  pub(crate) fn save(self) {
     if self.current == self.previous
       || !fs::symlink_metadata(&self.root).is_ok_and(|m| m.file_type().is_dir())
     {
@@ -349,7 +349,7 @@ fn archive_contents_valid(directory: &Path, archive: &Archive) -> bool {
   }
 }
 
-fn directory(path: &Path) -> Result<(), String> {
+pub(crate) fn directory(path: &Path) -> Result<(), String> {
   fs::create_dir_all(path).map_err(|e| e.to_string())?;
   if !fs::symlink_metadata(path)
     .map_err(|e| e.to_string())?
@@ -597,7 +597,7 @@ pub async fn delete_downloaded_models(
   result
 }
 
-async fn fetch_file(
+pub(crate) async fn fetch_file(
   client: &reqwest::Client,
   url: &str,
   path: &Path,
@@ -731,7 +731,7 @@ fn extract_archive(
   Ok(())
 }
 
-fn remove_owned_path(path: &Path) -> Result<(), String> {
+pub(crate) fn remove_owned_path(path: &Path) -> Result<(), String> {
   match fs::symlink_metadata(path) {
     Ok(m) if m.file_type().is_dir() => fs::remove_dir_all(path).map_err(|e| e.to_string()),
     Ok(_) => fs::remove_file(path).map_err(|e| e.to_string()),
@@ -740,7 +740,11 @@ fn remove_owned_path(path: &Path) -> Result<(), String> {
   }
 }
 
-fn commit(source: &Path, destination: &Path, cancellation: &JobCancellation) -> Result<(), String> {
+pub(crate) fn commit(
+  source: &Path,
+  destination: &Path,
+  cancellation: &JobCancellation,
+) -> Result<(), String> {
   if cancellation.is_cancelled() {
     return Err("Download cancelled".into());
   }

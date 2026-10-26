@@ -54,11 +54,16 @@ pub(crate) fn init_config_dir(identifier: &str) {
   }
 }
 
-pub(crate) fn downloaded_components_dir() -> Result<PathBuf, String> {
+/// Base directory for downloaded components that are not part of the asset cache.
+///
+/// During development this is the repository's `config_dev` directory, keeping
+/// development and release downloads isolated. Release builds use
+/// `{data_local_dir}/{bundle_identifier}`.
+fn local_data_dir() -> Result<PathBuf, String> {
   if cfg!(debug_assertions) {
-    return Ok(config_dir().join("voicevox"));
+    return Ok(config_dir().clone());
   }
-  local_components_dir(
+  app_local_data_dir(
     dirs::data_local_dir(),
     BUNDLE_IDENTIFIER
       .get()
@@ -67,10 +72,24 @@ pub(crate) fn downloaded_components_dir() -> Result<PathBuf, String> {
   )
 }
 
-fn local_components_dir(base: Option<PathBuf>, identifier: &str) -> Result<PathBuf, String> {
+fn app_local_data_dir(base: Option<PathBuf>, identifier: &str) -> Result<PathBuf, String> {
   base
-    .map(|base| base.join(identifier).join("voicevox"))
+    .map(|base| base.join(identifier))
     .ok_or_else(|| "The local data directory is unavailable".into())
+}
+
+pub(crate) fn downloaded_components_dir() -> Result<PathBuf, String> {
+  Ok(local_data_dir()?.join("voicevox"))
+}
+
+/// Downloaded Noto Sans CJK fonts.
+pub(crate) fn fonts_dir() -> Result<PathBuf, String> {
+  Ok(local_data_dir()?.join("fonts"))
+}
+
+/// Downloaded e2k English reading models.
+pub(crate) fn english_models_dir() -> Result<PathBuf, String> {
+  Ok(local_data_dir()?.join("e2k"))
 }
 
 pub(crate) fn assets_dir() -> PathBuf {
@@ -181,23 +200,25 @@ mod tests {
   fn release_downloaded_components_use_local_data_and_report_missing_base() {
     let directory = tempfile::tempdir().unwrap();
     assert_eq!(
-      local_components_dir(Some(directory.path().to_owned()), "com.azalea.app").unwrap(),
-      directory.path().join("com.azalea.app/voicevox")
+      app_local_data_dir(Some(directory.path().to_owned()), "com.azalea.app").unwrap(),
+      directory.path().join("com.azalea.app")
     );
-    assert!(local_components_dir(None, "com.azalea.app").is_err());
+    assert!(app_local_data_dir(None, "com.azalea.app").is_err());
   }
 
   #[cfg(debug_assertions)]
   #[test]
   fn development_downloaded_components_are_isolated_from_release_data() {
-    let development_root = downloaded_components_dir().unwrap();
+    let development_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+      .parent()
+      .unwrap()
+      .join("config_dev");
     assert_eq!(
-      development_root,
-      PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .unwrap()
-        .join("config_dev/voicevox")
+      downloaded_components_dir().unwrap(),
+      development_root.join("voicevox")
     );
+    assert_eq!(fonts_dir().unwrap(), development_root.join("fonts"));
+    assert_eq!(english_models_dir().unwrap(), development_root.join("e2k"));
   }
 
   #[test]

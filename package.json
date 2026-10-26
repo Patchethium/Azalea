@@ -6,9 +6,8 @@
   "packageManager": "pnpm@11.28.6",
   "scripts": {
     "start": "pnpm run dev",
-    "fonts": "node scripts/download-fonts.mjs",
-    "dev": "pnpm run fonts && vite",
-    "build": "pnpm run fonts && vite build",
+    "dev": "vite",
+    "build": "vite build",
     "serve": "vite preview",
     "tauri": "tauri",
     "check": "oxlint -c .oxlintrc.jsonc src/ && oxfmt -c .oxfmtrc.jsonc --check src/ && tsc --noEmit",

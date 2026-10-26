@@ -17,6 +17,30 @@ dictionaries. Seamless switching reuses the first compatible ONNX Runtime loaded
 in the process; the shared runtime determines the available execution providers.
 Their custom user dictionary is shared.
 
+## Optional Downloads
+
+To keep the bundle small, the Noto Sans CJK fonts (`UIConfig.embedded_font`)
+and the e2k English reading models are not bundled. `src-tauri/src/commands/extras.rs`
+downloads them as `ExtraPack`s (`Fonts`, `EnglishModels`) from pinned URLs with
+fixed sizes and SHA-256 hashes, staging each file and moving it into place only
+after it verifies. They live next to the VOICEVOX downloads:
+`config_dev/{fonts,e2k}` in development and
+`dirs::data_local_dir()/{bundle_identifier}/{fonts,e2k}` in release. Unlike the
+VOICEVOX components, clearing the asset cache (`clear_assets`) also deletes
+them and `get_assets_size` counts them. When the e2k tag in `Cargo.toml`
+changes, update `ENGLISH_MODEL_FILES` to that tag's models.
+
+Until a pack is installed, `ExtraDownloadButton` (`src/components/extraDownload/`)
+replaces the setting's control (the font toggle group, the "Transform English
+words" switch) with a Download button that shows progress and a cancel button;
+the control appears once the download verifies. Stored settings are preserved
+either way. The frontend reads pack status through `createExtras`
+(`src/contexts/extras.ts`, exposed as `useConfigStore().extras`). Downloaded
+fonts are served to the webview by the `azalea-font` URI scheme, which only
+serves the listed font files, and registered as `FontFace`s by
+`src/embeddedFonts.ts`; the `embedded-font` class applies only while the fonts
+are installed.
+
 The Rust backend is under `src-tauri/`. Tauri commands are grouped in `src-tauri/src/commands/`, configuration handling in `config/`, and audio code in `audio/`. Rust integration tests and fixtures live in `src-tauri/tests/`. Application icons are in `src-tauri/icons/`; project artwork is in `icon/`. Treat `src/binding.ts` as generated bindings and avoid hand-editing it.
 
 ## VOICEVOX Core Generative Noise
@@ -135,8 +159,14 @@ Release builds do not read `config_dev`, so set `AZALEA_TEST_CORE_DIR`:
 
 `src-tauri/src/english/` reads English words OpenJTalk does not know through
 [e2k](https://github.com/Patchethium/e2k), a git dependency pinned by tag
-whose models are embedded in the binary and each loaded once per process on
-first use. Text analysis needs NJD features VOICEVOX Core does not expose, so
+whose models are downloaded on demand (see Optional Downloads) and each loaded
+once per process on first use; failed loads are not cached, so models downloaded
+later are picked up. The query commands apply the English options only while
+`english::models_available()` finds the files, so without them readings are
+OpenJTalk's and the query cache key changes when the models arrive. The
+frontend bumps `englishReadingRevision` when the installed state changes. Tests
+call `english::provide_models` with e2k's embedded copies instead of
+downloading; only test binaries embed them. Text analysis needs NJD features VOICEVOX Core does not expose, so
 `EnglishReader` works around OpenJTalk's public `TextAnalyzer`: a run of
 ASCII or fullwidth letters is unknown when OpenJTalk reads it exactly as its
 letter names (`LETTER_NAMES`, OpenJTalk's table), so user dictionary entries
@@ -152,8 +182,9 @@ options and cleared whenever the user dictionary is applied.
 switch) enables it; its nested switches, shown only while it is on, are
 `english_accent_prediction` and `english_ngram_filter` (both default on) and
 `english_turbo_model` (default off), which transliterates with e2k's distilled
-turbo C2K model (`C2K::embedded_turbo`) instead of the base one; the model not
-selected is never loaded.
+turbo C2K model instead of the base one; the model not selected is never
+loaded. The switch and its nested switches appear only once the models are
+downloaded.
 Accent prediction makes each replaced word start an accent phrase carrying
 e2k's nucleus (heiban spans the phrase), merging a word OpenJTalk split and
 splitting consecutive replaced words, but leaves a word inside a Japanese

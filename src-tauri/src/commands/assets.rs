@@ -753,14 +753,18 @@ pub async fn get_speaker_portrait(request: SpeakerIconRequest) -> Result<Option<
 #[specta::specta]
 pub async fn get_assets_size() -> Result<u64, String> {
   let _operation = ASSET_OPERATION_LOCK.lock().await;
-  assets_size_at(&assets_dir())
+  assets_size_at(&assets_dir())?
+    .checked_add(super::extras::extras_size()?)
+    .ok_or_else(|| "Saved asset size exceeds the supported range".into())
 }
 
 #[tauri::command]
 #[specta::specta]
 pub async fn clear_assets() -> Result<(), String> {
   let _operation = ASSET_OPERATION_LOCK.lock().await;
-  clear_assets_at(&assets_dir())
+  clear_assets_at(&assets_dir())?;
+  // Downloaded fonts and English reading models count as assets too.
+  super::extras::clear_extras()
 }
 
 #[cfg(test)]

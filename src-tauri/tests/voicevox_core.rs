@@ -375,6 +375,13 @@ fn real_core_applies_and_clears_user_dictionary_entries() {
 
 #[test]
 fn real_core_reads_unknown_english_words_through_e2k() {
+  // The app downloads the models; the copies built into e2k need no network.
+  azalea_lib::english::provide_models(
+    e2k::C2K::embedded().unwrap(),
+    e2k::C2K::embedded_turbo().unwrap(),
+    e2k::AccentPredictor::embedded().unwrap(),
+    e2k::NGram::embedded().unwrap(),
+  );
   let core = test_core();
   let style_id = first_talk_style_id(&core);
   let all = Some(EnglishOptions {

@@ -745,6 +745,38 @@ describe("App initialization", () => {
     },
   );
 
+  it("uses the embedded font only once the fonts are downloaded", async () => {
+    mockIPC((cmd) => (cmd.includes("theme") ? "light" : null), {
+      shouldMockEvents: true,
+    });
+    mockWindows("main");
+    vi.mocked(commands.getExtrasStatus).mockResolvedValue({
+      status: "ok",
+      data: [{ pack: "Fonts", bytes: 1, installed: false }],
+    });
+    const { getConfigStore } = renderApp();
+    await events.initializationEvent.emit({
+      config: config({ embedded_font: true }),
+      core_initialized: false,
+      metas: null,
+      range: [],
+      error: null,
+    });
+    await waitFor(() =>
+      expect(getConfigStore().extras.status.Fonts).toBeDefined(),
+    );
+    expect(document.documentElement).not.toHaveClass("embedded-font");
+
+    vi.mocked(commands.getExtrasStatus).mockResolvedValue({
+      status: "ok",
+      data: [{ pack: "Fonts", bytes: 1, installed: true }],
+    });
+    await getConfigStore().extras.refresh();
+    await waitFor(() =>
+      expect(document.documentElement).toHaveClass("embedded-font"),
+    );
+  });
+
   it("leaves loading for the empty workspace and applies validated appearance settings", async () => {
     const calls: string[] = [];
     mockIPC(

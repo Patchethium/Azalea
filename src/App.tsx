@@ -16,6 +16,7 @@ import {
   untrack,
 } from "solid-js";
 import style from "./app.module.css";
+import { registerEmbeddedFonts } from "./embeddedFonts";
 import {
   DEFAULT_PRIMARY_COLOR,
   DEFAULT_TITLEBAR_STYLE,
@@ -46,6 +47,7 @@ function App() {
     setRange,
     themeMode,
     titlebarStyle,
+    fontsInstalled,
   } = useConfigStore()!;
   const { setMetas, availableStyleIds } = useMetaStore()!;
   const { t1, t2 } = usei18n()!;
@@ -247,10 +249,9 @@ function App() {
       Ja: "ja",
       ZhCn: "zh-CN",
     }[locale];
-    document.documentElement.classList.toggle(
-      "embedded-font",
-      config.ui.embedded_font ?? false,
-    );
+    const embeddedFont = (config.ui.embedded_font ?? false) && fontsInstalled();
+    if (embeddedFont) registerEmbeddedFonts();
+    document.documentElement.classList.toggle("embedded-font", embeddedFont);
   });
 
   return (

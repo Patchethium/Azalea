@@ -305,7 +305,9 @@ pub async fn audio_query(
   let english = state_ref!(state, config_manager)
     .config
     .ui
-    .english_options();
+    .english_options()
+    // Without the downloaded models, OpenJTalk's reading is used.
+    .filter(|_| crate::english::models_available());
   let generation = state.core_generation.load(Ordering::SeqCst);
   // The English reading options change the analysis, so they are part of the key.
   let text_key = match english {
@@ -357,7 +359,9 @@ pub async fn accent_phrases(
   let english = state_ref!(state, config_manager)
     .config
     .ui
-    .english_options();
+    .english_options()
+    // Without the downloaded models, OpenJTalk's reading is used.
+    .filter(|_| crate::english::models_available());
   run_core_task(&state, move |core| {
     core
       .accent_phrases_with_english(&text, speaker_id, english)

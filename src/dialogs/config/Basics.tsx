@@ -1,3 +1,4 @@
+import { ExtraDownloadButton } from "@components/extraDownload";
 import { Tooltip } from "@components/tooltip";
 import {
   type Locale,
@@ -113,30 +114,35 @@ export function TitlebarStyleSelect() {
 }
 
 export function FontSelect() {
-  const { config, setConfig } = useConfigStore()!;
+  const { config, setConfig, fontsInstalled } = useConfigStore()!;
   const { t1 } = usei18n()!;
 
   return (
-    <ToggleGroup
-      value={config.ui.embedded_font ? "embedded" : "native"}
-      onChange={(value) => {
-        if (value !== null) {
-          setConfig("ui", "embedded_font", value === "embedded");
-        }
-      }}
-      aria-label={t1("config.font")}
-      class="flex h-8 overflow-hidden rounded-md border border-slate-2 dark:border-slate-6"
+    <Show
+      when={fontsInstalled()}
+      fallback={<ExtraDownloadButton pack="Fonts" label={t1("config.font")} />}
     >
-      <ToggleGroup.Item value="native" class={toggleItemClass}>
-        {t1("config.font_native")}
-      </ToggleGroup.Item>
-      <ToggleGroup.Item
-        value="embedded"
-        class={`${toggleItemClass} border-l border-slate-2 dark:border-slate-6`}
+      <ToggleGroup
+        value={config.ui.embedded_font ? "embedded" : "native"}
+        onChange={(value) => {
+          if (value !== null) {
+            setConfig("ui", "embedded_font", value === "embedded");
+          }
+        }}
+        aria-label={t1("config.font")}
+        class="flex h-8 overflow-hidden rounded-md border border-slate-2 dark:border-slate-6"
       >
-        {t1("config.font_embedded")}
-      </ToggleGroup.Item>
-    </ToggleGroup>
+        <ToggleGroup.Item value="native" class={toggleItemClass}>
+          {t1("config.font_native")}
+        </ToggleGroup.Item>
+        <ToggleGroup.Item
+          value="embedded"
+          class={`${toggleItemClass} border-l border-slate-2 dark:border-slate-6`}
+        >
+          {t1("config.font_embedded")}
+        </ToggleGroup.Item>
+      </ToggleGroup>
+    </Show>
   );
 }
 
