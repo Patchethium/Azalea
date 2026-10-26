@@ -204,10 +204,13 @@ changes the effective options (`englishReadingRevision`).
 `src-tauri/src/commands/project.rs`; keep the schema marker at this
 serialization boundary rather than adding it to the frontend `Project` model
 unless the UI needs it as application state. Current saves must always include
-the current schema version. Azalea is unreleased, so only the current schema is
-supported; reject unversioned files and files with any other schema version.
+the current schema version, which is `2`. `load_project` reads
+`schema_version` first and parses the rest of the file with that schema:
+version `2` directly, version `1` (Azalea 0.3.0) through its own block DTO
+(`ProjectBlockV1`) migrated to the current one. Reject unversioned files and
+files with any other schema version.
 
-Schema version `1` persists stable text-block and preset IDs plus preset
+Schema version `1`, the first released schema, persists stable text-block and preset IDs plus preset
 `speaker_uuid` and `style_name` fallbacks. Preserve IDs when loading or moving
 existing blocks and presets, and generate a new ID only when creating or
 copying one. Text blocks reference presets by stable ID rather than array
@@ -219,10 +222,18 @@ preserve manually edited queries as `query_override`. Track manual edits per
 block with `accent_is_modified`, `duration_is_modified`, and
 `pitch_is_modified`; `query_override` is persisted whenever any of them is set.
 
-Evolve schema version `1` in place until the first release containing
-versioned project files; do not add compatibility or migrations for unreleased
-formats. Add Rust tests for the current-version round trip, malformed and
-unversioned files, and rejection of unsupported versions. A disk-wrapper-only
+Schema version `2` adds each block's optional post-processing edit
+(`post_f0`, see Post-Processing), omitted when empty. Version `1` projects
+predate post-processing, so the migration gives every block no post edit and
+ignores any `post_f0` table such a file might contain. A migrated project is
+written as version `2` on its next save.
+
+Released schemas are frozen: a change to the persisted format bumps
+`CURRENT_PROJECT_SCHEMA_VERSION`, keeps a DTO for every older released
+version, and migrates it to the current one. Evolve the current version in
+place only until a release ships it. Add Rust tests for the current-version
+round trip, each migration, malformed and unversioned files, and rejection of
+unsupported versions. A disk-wrapper-only
 change does not require regenerating `src/binding.ts`; changes to registered
 command signatures or shared Rust command types do.
 
@@ -388,7 +399,8 @@ proxies so nested edits are tracked, and it waits while a query regenerates
 or a preset cannot be resolved. A core revision (voice setup change) clears
 every post edit. Accent and tuning keep their existing semantics; only the
 post tab is cleared by changes before it. Post edits are persisted in `.azp`
-schema 1 (empty edits are omitted, malformed ones rejected).
+schema 2 (empty edits are omitted, malformed ones rejected; version 1
+projects load without post edits).
 
 WORLD is the `src-tauri/third_party/world` git submodule (upstream
 [mmorise/World](https://github.com/mmorise/World), pinned by commit and

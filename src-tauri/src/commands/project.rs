@@ -5,7 +5,10 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::Path, result::Result};
 use voicevox_core::AudioQuery;
 
-const CURRENT_PROJECT_SCHEMA_VERSION: u32 = 1;
+/// Version 2 added post-processing f0 edits (`post_f0`) to blocks.
+const CURRENT_PROJECT_SCHEMA_VERSION: u32 = 2;
+/// The schema of Azalea 0.3.0, before post-processing edits existed.
+const PROJECT_SCHEMA_VERSION_1: u32 = 1;
 
 #[derive(Serialize)]
 struct ProjectFileRef<'a> {
@@ -14,10 +17,15 @@ struct ProjectFileRef<'a> {
   presets: &'a [Preset],
 }
 
+/// Read first, so the rest of the file is parsed with the schema it declares.
 #[derive(Deserialize)]
-struct ProjectFile {
+struct ProjectFileVersion {
   schema_version: u32,
-  blocks: Vec<ProjectBlock>,
+}
+
+#[derive(Deserialize)]
+struct ProjectFile<Block> {
+  blocks: Vec<Block>,
   presets: Vec<Preset>,
 }
 
@@ -34,6 +42,40 @@ struct ProjectBlockRef<'a> {
   preset_id: Option<&'a str>,
   #[serde(skip_serializing_if = "Option::is_none")]
   post_f0: Option<&'a PostF0Edit>,
+}
+
+/// A block of schema version 1, which has no post-processing edits.
+#[derive(Deserialize)]
+struct ProjectBlockV1 {
+  id: String,
+  text: String,
+  pitch_noise_seed: u32,
+  #[serde(default)]
+  query_override: Option<AudioQuery>,
+  #[serde(default)]
+  accent_is_modified: bool,
+  #[serde(default)]
+  duration_is_modified: bool,
+  #[serde(default)]
+  pitch_is_modified: bool,
+  preset_id: Option<String>,
+}
+
+impl From<ProjectBlockV1> for ProjectBlock {
+  /// Version 1 projects predate post-processing, so their blocks start without edits.
+  fn from(block: ProjectBlockV1) -> Self {
+    Self {
+      id: block.id,
+      text: block.text,
+      pitch_noise_seed: block.pitch_noise_seed,
+      query_override: block.query_override,
+      accent_is_modified: block.accent_is_modified,
+      duration_is_modified: block.duration_is_modified,
+      pitch_is_modified: block.pitch_is_modified,
+      preset_id: block.preset_id,
+      post_f0: None,
+    }
+  }
 }
 
 #[derive(Deserialize)]
@@ -163,13 +205,19 @@ pub async fn save_project(
 #[specta::specta]
 pub async fn load_project(path: String) -> Result<Project, String> {
   let project_toml = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
-  let project_file: ProjectFile = toml::from_str(&project_toml).map_err(|e| e.to_string())?;
-  if project_file.schema_version != CURRENT_PROJECT_SCHEMA_VERSION {
-    return Err(format!(
-      "Unsupported project schema version {}",
-      project_file.schema_version
-    ));
-  }
+  let version: ProjectFileVersion = toml::from_str(&project_toml).map_err(|e| e.to_string())?;
+  let project_file: ProjectFile<ProjectBlock> = match version.schema_version {
+    CURRENT_PROJECT_SCHEMA_VERSION => toml::from_str(&project_toml).map_err(|e| e.to_string())?,
+    PROJECT_SCHEMA_VERSION_1 => {
+      let file: ProjectFile<ProjectBlockV1> =
+        toml::from_str(&project_toml).map_err(|e| e.to_string())?;
+      ProjectFile {
+        blocks: file.blocks.into_iter().map(ProjectBlock::from).collect(),
+        presets: file.presets,
+      }
+    }
+    other => return Err(format!("Unsupported project schema version {other}")),
+  };
   for (index, block) in project_file.blocks.iter().enumerate() {
     let modified =
       block.accent_is_modified || block.duration_is_modified || block.pitch_is_modified;
@@ -698,6 +746,59 @@ mod tests {
         Err(error) => error,
       };
       assert!(error.contains("invalid f0"), "{error}");
+    });
+  }
+
+  #[test]
+  fn version_1_projects_migrate_without_post_edits() {
+    tauri::async_runtime::block_on(async {
+      let directory = tempfile::tempdir().unwrap();
+      let path = directory.path().join("v1.azp");
+      // A version 2 save of a project without post edits is a version 1 project apart from
+      // its marker.
+      save_project(project(), path.to_string_lossy().into_owned(), true)
+        .await
+        .unwrap();
+      let current = std::fs::read_to_string(&path).unwrap();
+      let marker = format!("schema_version = {CURRENT_PROJECT_SCHEMA_VERSION}\n");
+      assert!(current.starts_with(&marker), "{current}");
+      // Version 1 has no post edits; a stray table is ignored rather than migrated.
+      let v1 = current
+        .replacen(&marker, "schema_version = 1\n", 1)
+        .replacen(
+          "[[blocks]]\n",
+          "[[blocks]]\npost_f0 = { base = \"stale\", segments = [{ start = 0, f0 = [200.0] }] }\n",
+          1,
+        );
+      std::fs::write(&path, v1).unwrap();
+
+      let loaded = match load_project(path.to_string_lossy().into_owned()).await {
+        Ok(project) => project,
+        Err(error) => panic!("version 1 projects should load: {error}"),
+      };
+      let expected = project();
+      assert_eq!(loaded.blocks.len(), 1);
+      assert_eq!(loaded.blocks[0].post_f0, None);
+      assert_eq!(loaded.blocks[0].id, expected.blocks[0].id);
+      assert_eq!(loaded.blocks[0].text, expected.blocks[0].text);
+      assert_eq!(loaded.blocks[0].pitch_noise_seed, 42);
+      assert!(loaded.blocks[0].query.is_some());
+      assert!(loaded.blocks[0].accent_is_modified);
+      assert!(loaded.blocks[0].duration_is_modified);
+      assert!(!loaded.blocks[0].pitch_is_modified);
+      assert_eq!(loaded.blocks[0].preset_id.as_deref(), Some("preset-1"));
+      assert_eq!(loaded.presets[0].id, "preset-1");
+
+      // Saving a migrated project writes the current schema.
+      save_project(loaded, path.to_string_lossy().into_owned(), true)
+        .await
+        .unwrap();
+      let saved: toml::Value = toml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+      assert_eq!(
+        saved["schema_version"].as_integer(),
+        Some(CURRENT_PROJECT_SCHEMA_VERSION.into())
+      );
+      assert!(saved["blocks"][0].get("post_f0").is_none());
     });
   }
 }
