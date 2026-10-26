@@ -59,7 +59,21 @@
     "reset_accent_edits": "アクセント句の編集をリセット（ピッチと長さもリセットされます）",
     "reset_tuning_edits": "ピッチと長さの編集をリセット",
     "pitch_drift_value": "{{ value }} 半音",
-    "tuning_options": "調整オプション"
+    "tuning_options": "調整オプション",
+    "post": "ポスト",
+    "post_canvas": "フレーム単位のピッチエディタ。ドラッグで描画、右ドラッグで分析値に戻します。",
+    "post_analyzing": "ピッチを分析中…",
+    "post_failed": "ピッチの分析に失敗しました",
+    "post_retry": "再試行",
+    "post_pencil": "ペン",
+    "post_line": "直線",
+    "post_draw_unvoiced": "無声フレームにも描画",
+    "post_zoom": "ズーム",
+    "post_hint": "ドラッグでピッチを描画、右ドラッグで元に戻します。Ctrl+スクロールでズーム。",
+    "post_hz": "{{ value }} Hz",
+    "post_unvoiced": "無声",
+    "post_readout": "{{ time }} 秒 · カーソル {{ cursor }} Hz（{{ note }}）· 分析 {{ analyzed }} · 編集後 {{ edited }}",
+    "reset_post_edits": "ポスト処理の編集をリセット"
   },
   "shortcuts": {
     "title": "ショートカット",

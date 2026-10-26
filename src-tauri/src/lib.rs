@@ -7,6 +7,7 @@ pub mod config;
 pub mod core;
 pub mod english;
 mod launch;
+pub mod post;
 mod spectrogram;
 pub mod streaming;
 mod synthesis;
@@ -42,6 +43,7 @@ pub struct AppState {
   pub(crate) spectrogram_queue: SpectrogramQueue,
   pub(crate) config_manager: LockedState<config::ConfigManager>,
   pub(crate) audio_player: LockedState<audio::AudioPlayer>,
+  pub(crate) post_cache: post::PostCache,
 }
 
 fn specta_builder() -> Builder<tauri::Wry> {
@@ -89,6 +91,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
       synthesize_state,
       request_spectrogram_preview,
       cancel_spectrogram_preview,
+      analyze_post_f0,
       play_audio,
       play_audio_sequence,
       stop_audio,
@@ -174,6 +177,7 @@ pub fn run() {
       spectrogram_queue: SpectrogramQueue::default(),
       config_manager: RwLock::new(None),
       audio_player: RwLock::new(None),
+      post_cache: post::PostCache::default(),
     })
     .manage(StartupProject::from_process())
     .invoke_handler(builder.invoke_handler())
@@ -266,6 +270,7 @@ mod tests {
       spectrogram_queue: SpectrogramQueue::default(),
       config_manager: RwLock::new(None),
       audio_player: RwLock::new(None),
+      post_cache: post::PostCache::default(),
     }
   }
 

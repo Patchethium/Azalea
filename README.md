@@ -272,8 +272,9 @@ remain intact. This uses the fork's `generative-noise` core branch.
 ### Setup
 
 ```sh
-git clone https://github.com/Patchethium/Azalea.git
+git clone --recurse-submodules --shallow-submodules https://github.com/Patchethium/Azalea.git
 cd Azalea
+# for an existing clone: git submodule update --init
 # install the dependencies
 pnpm i
 # dev build
@@ -286,6 +287,23 @@ pnpm check
 cd src-tauri
 cargo clean
 ```
+
+### Updating WORLD
+
+The WORLD vocoder used by the Post tab is the `src-tauri/third_party/world`
+git submodule, pinned to a commit of
+[mmorise/World](https://github.com/mmorise/World). To move it to a newer
+upstream commit:
+
+```sh
+# from the repository root; replace <commit> with the upstream commit hash
+git -C src-tauri/third_party/world fetch --depth 1 origin <commit>
+git -C src-tauri/third_party/world checkout <commit>
+git add src-tauri/third_party/world
+git commit -m "chore: update WORLD to <commit>"
+```
+
+Run the Rust tests afterwards, since `build.rs` compiles the new sources.
 
 ### Testing
 

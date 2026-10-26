@@ -27,6 +27,7 @@ export function useQueryReset() {
     selectedTextBlock,
     selectedTextBlockIndex,
     resetQueryEdits,
+    setPostEdit,
   } = useTextStore()!;
   const { metas } = useMetaStore()!;
   const { uiStore } = useUIStore()!;
@@ -47,6 +48,9 @@ export function useQueryReset() {
     if (block === null || currentPreset() === null || resetPending()) {
       return false;
     }
+    if (uiStore.bottomPanel === "post") {
+      return (block.post_f0?.segments.length ?? 0) > 0;
+    }
     return uiStore.bottomPanel === "accent"
       ? block.accent_is_modified === true
       : tuningModified(block);
@@ -55,7 +59,9 @@ export function useQueryReset() {
     t1(
       uiStore.bottomPanel === "accent"
         ? "bottom.reset_accent_edits"
-        : "bottom.reset_tuning_edits",
+        : uiStore.bottomPanel === "post"
+          ? "bottom.reset_post_edits"
+          : "bottom.reset_tuning_edits",
     );
 
   // The accent-panel reset rebuilds the query from the block text, discarding
@@ -72,6 +78,10 @@ export function useQueryReset() {
       preset === null ||
       resetPending()
     ) {
+      return;
+    }
+    if (uiStore.bottomPanel === "post") {
+      setPostEdit(index, null);
       return;
     }
     if (uiStore.bottomPanel === "accent") {

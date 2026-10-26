@@ -1278,7 +1278,8 @@ describe("Sidebar export all", () => {
     ]);
     expect(saveAudio.mock.calls[0][0]).toBe("/exports/First block.wav");
     expect(saveAudio.mock.calls[1][0]).toBe("/exports/Second block.wav");
-    expect(saveAudio.mock.calls[0][3]).toBe(false);
+    expect(saveAudio.mock.calls[0][3]).toBeNull();
+    expect(saveAudio.mock.calls[0][4]).toBe(false);
     await waitFor(() =>
       expect(getConfig().config.ui.last_exported_dir).toBe("/exports"),
     );
@@ -1331,6 +1332,7 @@ describe("Sidebar export all", () => {
       "/pinned/hello.wav",
       expect.any(Object),
       1,
+      null,
       true,
       { text: "hello", lab: false },
     );

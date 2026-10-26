@@ -32,6 +32,12 @@ const canvasContext = {
   restore: vi.fn(),
   scale: vi.fn(),
   translate: vi.fn(),
+  beginPath: vi.fn(),
+  moveTo: vi.fn(),
+  lineTo: vi.fn(),
+  stroke: vi.fn(),
+  setLineDash: vi.fn(),
+  fillText: vi.fn(),
   globalAlpha: 1,
   fillStyle: "",
 } as unknown as CanvasRenderingContext2D;

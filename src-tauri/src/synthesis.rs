@@ -7,6 +7,7 @@ use voicevox_core::{AudioQuery, StyleId};
 #[cfg(test)]
 use crate::async_job::DEFAULT_QUEUE_CAPACITY;
 use crate::async_job::{LatestJob, LatestJobQueue, QueueEvent, QueueEventState, QueuedJob};
+use crate::post::PostF0Edit;
 use crate::streaming::RenderProgress;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -23,6 +24,9 @@ pub struct SynthesisJobRequest {
   pub audio_query: AudioQuery,
   pub speaker_id: StyleId,
   pub hash: String,
+  /// Post-processing f0 edits applied after synthesis.
+  #[serde(default)]
+  pub post: Option<PostF0Edit>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
@@ -250,6 +254,7 @@ mod tests {
       audio_query,
       speaker_id: StyleId(1),
       hash: format!("hash-{generation_id}"),
+      post: None,
     }
   }
 

@@ -38,6 +38,7 @@ import {
   getModifiedQuery,
   splitTextIntoBlocks,
 } from "$utils";
+import { activePostEdit } from "@layout/bottomPanel/post/postEdit";
 
 export { renderRequestFingerprint as synthesisRequestFingerprint } from "$utils";
 
@@ -278,10 +279,12 @@ function TextBlock(props: { index: number; sortable?: Sortable }) {
     setSaveState("saving");
     let result: Awaited<ReturnType<typeof commands.saveAudio>>;
     try {
+      const audioQuery = getModifiedQuery(unwrap(currentText().query!), preset);
       result = await commands.saveAudio(
         path,
-        getModifiedQuery(unwrap(currentText().query!), preset),
+        audioQuery,
         preset.style_id,
+        activePostEdit(currentText(), audioQuery, preset.style_id),
         preventOverwriteOnSave,
         createAudioSidecars(config.ui, currentText().text),
       );

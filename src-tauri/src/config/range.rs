@@ -56,6 +56,12 @@ impl PitchRange {
 
 pub type RangeMap = HashMap<StyleId, PitchRange>;
 
+/// The built-in pitch range of one style, parsed once per process.
+pub fn style_range(style_id: StyleId) -> Option<&'static PitchRange> {
+  static RANGES: std::sync::OnceLock<RangeMap> = std::sync::OnceLock::new();
+  RANGES.get_or_init(get_range).get(&style_id)
+}
+
 pub fn get_range() -> RangeMap {
   serde_json::from_str(RANGE_JSON).expect("Built-in range.json is invalid; this is a bug")
 }

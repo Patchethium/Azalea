@@ -20,6 +20,7 @@ import { i18nProvider } from "@contexts/i18n";
 import { MetaProvider, useMetaStore } from "@contexts/meta";
 import { ShortcutsProvider } from "@contexts/shortcuts";
 import { PitchBaselineProvider } from "@contexts/pitchBaseline";
+import { PostAnalysisProvider } from "@contexts/postAnalysis";
 import { SpectrogramProvider } from "@contexts/spectrogram";
 import { SystemProvider } from "@contexts/system";
 import { findPresetById, TextProvider, useTextStore } from "@contexts/text";
@@ -144,6 +145,7 @@ export const renderPanel = (
         [UIProvider, null],
         [SpectrogramProvider, null],
         [PitchBaselineProvider, null],
+        [PostAnalysisProvider, null],
         [ConfigProvider, null],
         [SystemProvider, null],
         [ShortcutsProvider, null],
@@ -211,6 +213,7 @@ export const renderTuningHook = (
         [UIProvider, null],
         [SpectrogramProvider, null],
         [PitchBaselineProvider, null],
+        [PostAnalysisProvider, null],
         [ConfigProvider, null],
         [SystemProvider, null],
         [i18nProvider, null],

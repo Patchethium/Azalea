@@ -36,7 +36,7 @@ export function ControlBar(props: {
     canStepSeedHistory,
     stepSeedHistory,
   } = useTextStore()!;
-  const { uiStore } = useUIStore()!;
+  const { uiStore, setUIStore } = useUIStore()!;
   const controls = usePlaybackControls(
     props.onWaveformSynthesized,
     () => props.disabled ?? false,
@@ -191,6 +191,40 @@ export function ControlBar(props: {
                 !canStepSeedHistory(selectedTextBlockIndex(), 1)
               }
               onClick={() => stepSeedHistory(selectedTextBlockIndex(), 1)}
+            />
+            <Separator
+              orientation="vertical"
+              class="mx1 h-4 b-0 b-l b-slate-3 dark:b-slate-5"
+            />
+          </Show>
+          <Show when={uiStore.bottomPanel === "post"}>
+            <ToolbarButton
+              icon="i-lucide:pencil"
+              label={t1("bottom.post_pencil")}
+              ariaPressed={uiStore.postTool === "pencil"}
+              onClick={() => setUIStore("postTool", "pencil")}
+            />
+            <ToolbarButton
+              icon="i-lucide:slash"
+              label={t1("bottom.post_line")}
+              ariaPressed={uiStore.postTool === "line"}
+              onClick={() => setUIStore("postTool", "line")}
+            />
+            <ToolbarButton
+              icon="i-lucide:audio-waveform"
+              label={t1("bottom.post_draw_unvoiced")}
+              ariaPressed={uiStore.postDrawUnvoiced}
+              tooltip={
+                <>
+                  <div>{t1("bottom.post_draw_unvoiced")}</div>
+                  <div>
+                    {uiStore.postDrawUnvoiced ? t1("enabled") : t1("disabled")}
+                  </div>
+                </>
+              }
+              onClick={() =>
+                setUIStore("postDrawUnvoiced", !uiStore.postDrawUnvoiced)
+              }
             />
             <Separator
               orientation="vertical"

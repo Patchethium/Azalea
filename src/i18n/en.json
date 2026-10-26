@@ -59,7 +59,21 @@
     "reset_accent_edits": "Reset accent phrase edits (also resets pitch and duration)",
     "reset_tuning_edits": "Reset pitch and duration edits",
     "pitch_drift_value": "{{ value }} semitones",
-    "tuning_options": "Tuning options"
+    "tuning_options": "Tuning options",
+    "post": "Post",
+    "post_canvas": "Frame-level pitch editor. Drag to draw; right-drag to restore the analyzed pitch.",
+    "post_analyzing": "Analyzing pitch…",
+    "post_failed": "Pitch analysis failed",
+    "post_retry": "Retry",
+    "post_pencil": "Pencil",
+    "post_line": "Line",
+    "post_draw_unvoiced": "Draw on unvoiced frames",
+    "post_zoom": "Zoom",
+    "post_hint": "Drag to draw the pitch, right-drag to restore it. Ctrl+scroll zooms.",
+    "post_hz": "{{ value }} Hz",
+    "post_unvoiced": "unvoiced",
+    "post_readout": "{{ time }} s · cursor {{ cursor }} Hz ({{ note }}) · analyzed {{ analyzed }} · edited {{ edited }}",
+    "reset_post_edits": "Reset post-processing edits"
   },
   "shortcuts": {
     "title": "Shortcuts",

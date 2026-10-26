@@ -25,6 +25,7 @@ import { useConfigStore } from "@contexts/config";
 import { usei18n } from "@contexts/i18n";
 import { type TextBlockProps, useTextStore } from "@contexts/text";
 import { renderRequestFingerprint } from "$utils";
+import { activePostEdit } from "@layout/bottomPanel/post/postEdit";
 
 let synthesisGenerationSequence = 0;
 
@@ -226,10 +227,12 @@ export function useTextBlockSynthesis(props: {
 
     const blockId = props.currentText().id;
     const speakerId = preset.style_id;
+    const post = activePostEdit(props.currentText(), query, speakerId);
     const { hash, signature } = renderRequestFingerprint(
       query,
       speakerId,
       coreRevision(),
+      post,
     );
     const blockSignature = `${blockId}:${signature}`;
     if (blockSignature === lastSynthesisSignature) return;
@@ -243,6 +246,7 @@ export function useTextBlockSynthesis(props: {
         audioQuery: query,
         speakerId,
         hash,
+        post,
       },
       attempt: 1,
       submitted: false,

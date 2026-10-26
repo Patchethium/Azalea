@@ -1,6 +1,7 @@
 import { Tabs } from "@kobalte/core/tabs";
 import { ControlBar } from "@layout/bottomPanel/ControlBar";
 import { PhonemePanel } from "@layout/bottomPanel/PhonemePanel";
+import { PostPanel } from "@layout/bottomPanel/post/Panel";
 import { TuningPanel } from "@layout/bottomPanel/tuning/Panel";
 import type { WaveformSynthesisNotice } from "@layout/bottomPanel/types";
 import { createSignal, Show } from "solid-js";
@@ -19,7 +20,11 @@ function BottomPanel(props: { disabled?: boolean }) {
     <fieldset
       disabled={props.disabled}
       aria-disabled={props.disabled}
-      aria-label={t1("bottom.accent") + " / " + t1("bottom.tuning")}
+      aria-label={[
+        t1("bottom.accent"),
+        t1("bottom.tuning"),
+        t1("bottom.post"),
+      ].join(" / ")}
       class="m0 min-w-0 size-full border-0 p0"
     >
       <Show
@@ -60,6 +65,13 @@ function BottomPanel(props: { disabled?: boolean }) {
               >
                 {t1("bottom.tuning")}
               </Tabs.Trigger>
+              <Tabs.Trigger
+                disabled={props.disabled}
+                class="bg-transparent enabled:hover:bg-slate-1 dark:enabled:hover:bg-slate-7 disabled:cursor-not-allowed px-2 rounded-md outline-none select-none"
+                value="post"
+              >
+                {t1("bottom.post")}
+              </Tabs.Trigger>
               <Tabs.Indicator class="bg-primary-5 h-1px absolute transition-all bottom-0 left-0" />
             </Tabs.List>
           </div>
@@ -95,6 +107,22 @@ function BottomPanel(props: { disabled?: boolean }) {
               <TuningPanel
                 waveformSynthesisNotice={waveformSynthesisNotice()}
               />
+            </Show>
+          </Tabs.Content>
+          <Tabs.Content
+            class="flex-1 size-full min-h-0"
+            value="post"
+            inert={props.disabled}
+          >
+            <Show
+              when={!props.disabled}
+              fallback={
+                <div class="size-full flex items-center justify-center text-slate-4">
+                  {t1("bottom.no_query")}
+                </div>
+              }
+            >
+              <PostPanel />
             </Show>
           </Tabs.Content>
         </Tabs>

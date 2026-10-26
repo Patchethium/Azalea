@@ -1,7 +1,9 @@
 use super::utils::{state_mut, state_ref};
 use crate::async_job::run_cancellable;
 use crate::config::manager::user_dictionary_path;
+use crate::config::range::style_range;
 use crate::config::CoreConfig;
+use crate::post::{self, PostF0Analysis, PostF0Edit};
 use crate::spectrogram::{
   create_spectrogram_preview, validate_spectrogram_request, SlidingSpectrogram, SpectrogramJob,
   SpectrogramJobEvent, SpectrogramJobIdentity, SpectrogramJobRequest, SLIDING_TICK,
@@ -159,6 +161,7 @@ pub(crate) async fn discard_core_work(app: &AppHandle, state: &AppState) -> Resu
   if let Some(cache) = state.query_lru.write().map_err(|e| e.to_string())?.as_mut() {
     cache.clear();
   }
+  state.post_cache.clear();
   let player = state
     .audio_player
     .write()
@@ -484,7 +487,10 @@ fn enqueue_synthesis(
   backend: SynthesisBackend,
 ) -> std::result::Result<(), String> {
   validate_synthesis_request(&request)?;
-  let query_key = serde_json::to_string(&request.audio_query).map_err(|e| e.to_string())?;
+  let mut query_key = serde_json::to_string(&request.audio_query).map_err(|e| e.to_string())?;
+  if let Some(post) = &request.post {
+    query_key.push_str(&serde_json::to_string(post).map_err(|e| e.to_string())?);
+  }
   let job = SynthesisJob::new(request, query_key, backend);
   let events = state.synthesis_queue.enqueue(job);
   emit_synthesis_events(app, events);
@@ -497,6 +503,9 @@ fn validate_synthesis_request(request: &SynthesisJobRequest) -> Result<(), Strin
   }
   if request.hash.trim().is_empty() {
     return Err("hash must not be empty".into());
+  }
+  if let Some(post) = &request.post {
+    post.validate()?;
   }
   Ok(())
 }
@@ -541,16 +550,16 @@ pub fn start_synthesis_worker(app: AppHandle) {
       } else {
         emit_synthesis_events(&app, [job.identity.event(SynthesisJobState::Running, None)]);
         let state = app.state::<AppState>();
-        let synthesis = synthesize_cached(
+        let synthesis = synthesize_post_processed(
           &app,
           &state,
           job.request.audio_query,
           job.request.speaker_id,
+          job.request.post.as_ref(),
           Some(WaveformCacheOwner {
             identity: job.identity.clone(),
           }),
           job.backend,
-          None,
           None,
         );
         match job.backend {
@@ -1170,6 +1179,103 @@ where
   cell.get_or_try_init(initialize).await.cloned()
 }
 
+/// Like [`synthesize_cached`], then applies `post` f0 edits with WORLD when there are any.
+/// The base waveform is cached as usual; its WORLD analysis and the edited result are cached
+/// in [`post::PostCache`]. Edited items cannot stream, so a playback `tap` gets the finished
+/// waveform.
+#[allow(clippy::too_many_arguments)]
+async fn synthesize_post_processed(
+  app: &AppHandle,
+  state: &AppState,
+  audio_query: AudioQuery,
+  speaker_id: StyleId,
+  post: Option<&PostF0Edit>,
+  owner: Option<WaveformCacheOwner>,
+  backend: SynthesisBackend,
+  tap: Option<&PlaybackTap<'_>>,
+) -> Result<Vec<u8>, String> {
+  let Some(edit) = post.filter(|edit| !edit.segments.is_empty()) else {
+    return synthesize_cached(
+      app,
+      state,
+      audio_query,
+      speaker_id,
+      owner,
+      backend,
+      tap,
+      None,
+    )
+    .await;
+  };
+  edit.validate()?;
+  let generation = state.core_generation.load(Ordering::SeqCst);
+  let key = post_key(&audio_query, speaker_id, generation)?;
+  let base = synthesize_cached(
+    app,
+    state,
+    audio_query,
+    speaker_id,
+    owner,
+    backend,
+    None,
+    None,
+  )
+  .await?;
+  let wav = state
+    .post_cache
+    .render(&key, base, edit, post_f0_range(speaker_id))
+    .await?;
+  ensure_core_generation(state, generation)?;
+  if let Some(tap) = tap {
+    tap.queue_rest(&wav);
+  }
+  Ok(wav)
+}
+
+fn post_key(
+  audio_query: &AudioQuery,
+  speaker_id: StyleId,
+  generation: u64,
+) -> Result<post::PostKey, String> {
+  let query_string = serde_json::to_string(audio_query).map_err(|e| e.to_string())?;
+  Ok((generation_key(query_string, generation), speaker_id))
+}
+
+fn post_f0_range(speaker_id: StyleId) -> crate::audio::world::F0Range {
+  post::f0_range(style_range(speaker_id))
+}
+
+#[tauri::command]
+#[specta::specta]
+/// Synthesizes (or reuses) the waveform and estimates its frame-level f0 with WORLD for the
+/// post-processing tab.
+pub async fn analyze_post_f0(
+  app: AppHandle,
+  state: State<'_, AppState>,
+  audio_query: AudioQuery,
+  speaker_id: StyleId,
+) -> Result<PostF0Analysis, String> {
+  let generation = state.core_generation.load(Ordering::SeqCst);
+  let key = post_key(&audio_query, speaker_id, generation)?;
+  let base = synthesize_cached(
+    &app,
+    &state,
+    audio_query,
+    speaker_id,
+    None,
+    SynthesisBackend::Blocking,
+    None,
+    None,
+  )
+  .await?;
+  let analysis = state
+    .post_cache
+    .analysis(&key, base, post_f0_range(speaker_id))
+    .await?;
+  ensure_core_generation(&state, generation)?;
+  Ok(analysis.summary())
+}
+
 #[tauri::command]
 #[specta::specta]
 /// Plays one audio query. With streaming synthesis, playback starts after the first chunk.
@@ -1178,12 +1284,14 @@ pub async fn play_audio(
   state: State<'_, AppState>,
   audio_query: AudioQuery,
   speaker_id: StyleId,
+  post: Option<PostF0Edit>,
   start_time_seconds: Option<f64>,
 ) -> std::result::Result<(), String> {
   let start_at = playback_start_duration(start_time_seconds)?;
   let item = AudioSequenceItem {
     audio_query,
     speaker_id,
+    post,
   };
   start_playback(app, &state, vec![item], start_at, false).await
 }
@@ -1192,6 +1300,9 @@ pub async fn play_audio(
 pub struct AudioSequenceItem {
   pub audio_query: AudioQuery,
   pub speaker_id: StyleId,
+  /// Post-processing f0 edits applied after synthesis.
+  #[serde(default)]
+  pub post: Option<PostF0Edit>,
 }
 
 #[tauri::command]
@@ -1287,15 +1398,15 @@ async fn feed_playback(
       feed.begin_item(index);
     }
     let tap = PlaybackTap::new(feed, item_start);
-    let wav = synthesize_cached(
+    let wav = synthesize_post_processed(
       app,
       state,
       item.audio_query,
       item.speaker_id,
+      item.post.as_ref(),
       None,
       SynthesisBackend::Blocking,
       streaming.then_some(&tap),
-      None,
     )
     .await?;
     if !streaming {
@@ -1483,17 +1594,18 @@ pub async fn save_audio(
   path: String,
   audio_query: AudioQuery,
   speaker_id: StyleId,
+  post: Option<PostF0Edit>,
   prevent_overwrite: bool,
   sidecars: AudioSidecars,
 ) -> std::result::Result<String, String> {
-  let waveform = synthesize_cached(
+  let waveform = synthesize_post_processed(
     &app,
     &state,
     audio_query.clone(),
     speaker_id,
+    post.as_ref(),
     None,
     SynthesisBackend::Blocking,
-    None,
     None,
   )
   .await?;
@@ -1524,14 +1636,14 @@ pub async fn save_combined_audio(
   let mut wavs = Vec::with_capacity(items.len());
   for item in items {
     wavs.push(
-      synthesize_cached(
+      synthesize_post_processed(
         &app,
         &state,
         item.audio_query.clone(),
         item.speaker_id,
+        item.post.as_ref(),
         None,
         SynthesisBackend::Blocking,
-        None,
         None,
       )
       .await?,
@@ -1585,6 +1697,7 @@ pub async fn clear_caches(app: AppHandle, state: State<'_, AppState>) -> Result<
   };
   emit_synthesis_events(&app, eviction_events);
   state_mut!(state, query_lru).clear();
+  state.post_cache.clear();
   Ok(())
 }
 
@@ -1669,6 +1782,7 @@ mod tests {
       .unwrap(),
       speaker_id: StyleId(1),
       hash: hash.into(),
+      post: None,
     }
   }
 

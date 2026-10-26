@@ -1,0 +1,4 @@
+[submodule "src-tauri/third_party/world"]
+	path = src-tauri/third_party/world
+	url = https://github.com/mmorise/World
+	shallow = true

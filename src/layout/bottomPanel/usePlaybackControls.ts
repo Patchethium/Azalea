@@ -21,6 +21,7 @@ import { useShortcutsStore } from "@contexts/shortcuts";
 import { findPresetById, findPresetStyle, useTextStore } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
 import { getModifiedQuery } from "$utils";
+import { activePostEdit } from "@layout/bottomPanel/post/postEdit";
 
 export function usePlaybackControls(
   onWaveformSynthesized: (notice: WaveformSynthesisNotice) => void,
@@ -225,6 +226,7 @@ export function usePlaybackControls(
       const result = await commands.playAudio(
         audioQuery,
         preset.style_id,
+        activePostEdit(block, audioQuery, preset.style_id),
         playbackStartTime(),
       );
       if (result.status === "ok") {
@@ -337,11 +339,13 @@ export function usePlaybackControls(
       ) {
         return [];
       }
+      const audioQuery = getModifiedQuery(unwrap(block.query), unwrap(preset));
       return [
         {
           blockId: block.id,
-          audioQuery: getModifiedQuery(unwrap(block.query), unwrap(preset)),
+          audioQuery,
           speakerId: preset.style_id,
+          post: activePostEdit(block, audioQuery, preset.style_id),
         },
       ];
     }),
@@ -363,6 +367,7 @@ export function usePlaybackControls(
         playable.map((item) => ({
           audio_query: item.audioQuery,
           speaker_id: item.speakerId,
+          post: item.post ?? null,
         })),
         playbackStartTime(),
       );

@@ -1,5 +1,6 @@
 import {
   CharacterMeta,
+  PostF0Edit,
   Preset,
   Project,
   TextBlockProps as ProjectTextBlockProps,
@@ -20,7 +21,7 @@ import { useMetaStore } from "@contexts/meta";
 import { useConfigStore } from "@contexts/config";
 import { useSpectrogramStore } from "@contexts/spectrogram";
 import { useUIStore } from "@contexts/ui";
-import { indexAfterMove } from "$utils";
+import { getModifiedQuery, indexAfterMove, postEditBase } from "$utils";
 
 type TextBlockProps = ProjectTextBlockProps;
 type SeedHistory = { seeds: number[]; index: number };
@@ -50,6 +51,7 @@ const createTextBlock = (
   duration_is_modified: false,
   pitch_is_modified: false,
   pitch_noise_seed: Math.floor(Math.random() * 2 ** 32),
+  post_f0: null,
 });
 
 /** Whether any accent, duration, or pitch edit was made to the block query. */
@@ -163,6 +165,7 @@ const serializeProject = (
       pitch_is_modified: block.pitch_is_modified === true,
       preset_id: block.preset_id,
       pitch_noise_seed: block.pitch_noise_seed,
+      post_f0: block.post_f0?.segments.length ? block.post_f0 : null,
     })),
     presets: presets.map((preset) => ({
       id: preset.id,
@@ -482,11 +485,48 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     untrack(refreshGeneratedQueries);
   });
 
+  // A new voice setup renders different waveforms, so post edits made on the
+  // previous ones no longer apply.
+  const clearPostEdits = () =>
+    setTextStore(
+      produce((blocks) => {
+        for (const block of blocks) block.post_f0 = null;
+      }),
+    );
+
   createEffect(() => {
     if (coreRevision() === 0) return;
     untrack(() => {
       spectrogramStore?.clearSpectrogramCache();
-      refreshGeneratedQueries();
+      batch(() => {
+        clearPostEdits();
+        refreshGeneratedQueries();
+      });
+    });
+  });
+
+  const setPostEdit = (index: number, edit: PostF0Edit | null) => {
+    if (textStore[index] === undefined) return;
+    setTextStore(index, "post_f0", edit);
+  };
+
+  // Post edits depend on the content before them: once a block's synthesized
+  // query or style no longer matches the one they were made on, they are
+  // dropped. Blocks whose query is regenerating or whose preset cannot be
+  // resolved yet keep their edits until they can be compared.
+  createEffect(() => {
+    textStore.forEach((block, index) => {
+      const edit = block.post_f0;
+      if (edit == null || block.query === null) return;
+      const preset = findPresetById(projectPresetStore, block.preset_id);
+      if (preset === null || findPresetStyle(preset, metas) === null) return;
+      // Reading through the store proxies tracks every nested query and
+      // preset field, so any edit before the post tab is noticed.
+      const base = postEditBase(
+        getModifiedQuery(block.query, preset),
+        preset.style_id,
+      );
+      if (base !== edit.base) untrack(() => setPostEdit(index, null));
     });
   });
 
@@ -632,6 +672,7 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     beginQueryUpdate,
     refreshGeneratedQueries,
     resetQueryEdits,
+    setPostEdit,
     replaceTextBlocks,
     commitPitchNoiseSeed,
     canStepSeedHistory,

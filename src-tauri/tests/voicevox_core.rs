@@ -890,3 +890,71 @@ fn real_core_supports_the_complete_talk_pipeline() {
   assert!(preview.ncols() > 0);
   assert!(preview.iter().all(|value| value.is_finite()));
 }
+
+fn voiced_median(values: &[f64]) -> f64 {
+  let mut voiced: Vec<f64> = values.iter().copied().filter(|v| *v > 0.0).collect();
+  assert!(!voiced.is_empty(), "no voiced frames");
+  voiced.sort_by(f64::total_cmp);
+  voiced[voiced.len() / 2]
+}
+
+#[test]
+fn real_core_post_processing_raises_only_the_edited_frames() {
+  use azalea_lib::{
+    config::range::style_range,
+    post::{f0_range, PostAnalysisData, PostF0Edit, PostF0Segment},
+  };
+
+  let core = test_core();
+  let style_id = first_talk_style_id(&core);
+  let range = f0_range(style_range(style_id));
+  for (sampling_rate, stereo) in [(24_000, false), (48_000, true)] {
+    let mut query = core
+      .audio_query("ある日の暮方の事である。", style_id)
+      .expect("audio query failed");
+    query.output_sampling_rate = SamplingRate::new(sampling_rate).unwrap();
+    query.output_stereo = stereo;
+    let wav = core.synthesis(&query, style_id).expect("synthesis failed");
+    let analysis = PostAnalysisData::compute(&wav, range).expect("analysis failed");
+    let summary = analysis.summary();
+    let f0: Vec<f64> = summary.f0.iter().map(|v| f64::from(*v)).collect();
+    let voiced = f0.iter().filter(|v| **v > 0.0).count();
+    assert!(voiced * 3 > f0.len(), "too few voiced frames: {voiced}");
+    let median = voiced_median(&f0);
+    assert!(median > range.floor && median < range.ceil, "{median} Hz");
+
+    // Raise the middle third of the frames by three semitones.
+    let (start, end) = (f0.len() / 3, 2 * f0.len() / 3);
+    let raise = 2f64.powf(3.0 / 12.0);
+    let edit = PostF0Edit {
+      base: "real-core".into(),
+      segments: vec![PostF0Segment {
+        start: start as u32,
+        f0: f0[start..end].iter().map(|v| (v * raise) as f32).collect(),
+      }],
+    };
+    let rendered = analysis.render(&wav, &edit).expect("render failed");
+    assert_eq!(rendered.len(), wav.len());
+    let (spec, samples) = decode_wav(&rendered);
+    let (original_spec, original) = decode_wav(&wav);
+    assert_eq!(spec, original_spec);
+    // Audio well before the edit keeps VOICEVOX's own samples.
+    let untouched = (start.saturating_sub(20) as f64 * 0.005 * sampling_rate as f64) as usize
+      * spec.channels as usize;
+    assert_eq!(samples[..untouched], original[..untouched]);
+
+    let reanalyzed = PostAnalysisData::compute(&rendered, range).expect("reanalysis failed");
+    let after: Vec<f64> = reanalyzed
+      .summary()
+      .f0
+      .iter()
+      .map(|v| f64::from(*v))
+      .collect();
+    let ratio =
+      voiced_median(&after[start + 10..end - 10]) / voiced_median(&f0[start + 10..end - 10]);
+    assert!(
+      (ratio / raise - 1.0).abs() < 0.04,
+      "edited frames moved by {ratio}, expected {raise}"
+    );
+  }
+}

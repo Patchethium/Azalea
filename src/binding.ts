@@ -394,11 +394,23 @@ async cancelSpectrogramPreview(blockId: string, generationId: number | null) : P
 }
 },
 /**
+ * Synthesizes (or reuses) the waveform and estimates its frame-level f0 with WORLD for the
+ * post-processing tab.
+ */
+async analyzePostF0(audioQuery: AudioQuery, speakerId: StyleId) : Promise<Result<PostF0Analysis, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("analyze_post_f0", { audioQuery, speakerId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Plays one audio query. With streaming synthesis, playback starts after the first chunk.
  */
-async playAudio(audioQuery: AudioQuery, speakerId: StyleId, startTimeSeconds: number | null) : Promise<Result<null, string>> {
+async playAudio(audioQuery: AudioQuery, speakerId: StyleId, post: PostF0Edit | null, startTimeSeconds: number | null) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("play_audio", { audioQuery, speakerId, startTimeSeconds }) };
+    return { status: "ok", data: await TAURI_INVOKE("play_audio", { audioQuery, speakerId, post, startTimeSeconds }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -438,9 +450,9 @@ async resolveAudioSavePath(path: string) : Promise<Result<string, string>> {
 /**
  * Save the audio waveform to a file, plus any requested sidecar files.
  */
-async saveAudio(path: string, audioQuery: AudioQuery, speakerId: StyleId, preventOverwrite: boolean, sidecars: AudioSidecars) : Promise<Result<string, string>> {
+async saveAudio(path: string, audioQuery: AudioQuery, speakerId: StyleId, post: PostF0Edit | null, preventOverwrite: boolean, sidecars: AudioSidecars) : Promise<Result<string, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("save_audio", { path, audioQuery, speakerId, preventOverwrite, sidecars }) };
+    return { status: "ok", data: await TAURI_INVOKE("save_audio", { path, audioQuery, speakerId, post, preventOverwrite, sidecars }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -702,7 +714,11 @@ outputStereo: boolean;
  * [`Synthesizer::create_audio_query`]: crate::blocking::Synthesizer::create_audio_query
  */
 kana: string | null }
-export type AudioSequenceItem = { audio_query: AudioQuery; speaker_id: StyleId }
+export type AudioSequenceItem = { audio_query: AudioQuery; speaker_id: StyleId; 
+/**
+ * Post-processing f0 edits applied after synthesis.
+ */
+post?: PostF0Edit | null }
 /**
  * Extra files written beside an exported WAV, sharing its file stem.
  */
@@ -839,6 +855,40 @@ export type PitchScale = "Linear" | "Optimal" | "DensityAware"
  * drift from the seeded model prediction.
  */
 export type PitchTuningMode = "Absolute" | "Relative"
+/**
+ * The f0 analysis shown in the post-processing tab.
+ */
+export type PostF0Analysis = { frame_period_ms: number; 
+/**
+ * Analyzed f0 in Hz per frame; 0 is unvoiced.
+ */
+f0: number[]; f0_floor: number; f0_ceil: number; 
+/**
+ * Waveform length in seconds.
+ */
+duration: number; spectrogram: PostSpectrogram }
+/**
+ * Frame-level f0 edits for one block. `base` fingerprints the synthesized content the edits
+ * were made on; the frontend drops edits whose base no longer matches.
+ */
+export type PostF0Edit = { base: string; segments: PostF0Segment[] }
+/**
+ * A run of consecutive edited frames, starting at frame `start`.
+ */
+export type PostF0Segment = { start: number; 
+/**
+ * Edited f0 in Hz, one value per frame.
+ */
+f0: number[] }
+/**
+ * A log-frequency power spectrogram, one column per analysis frame.
+ */
+export type PostSpectrogram = { rows: number; min_hz: number; max_hz: number; 
+/**
+ * Base64 of `frames × rows` bytes, frame-major, low frequencies first; 255 is the loudest
+ * value and 0 is 80 dB below it.
+ */
+data: string }
 export type Preset = { id?: string; name: string; style_id: StyleId; 
 /**
  * in percentage, 50-200
@@ -989,9 +1039,17 @@ export type SynthState =
  */
 "Done"
 export type SynthesisJobEvent = { blockId: string; generationId: number; hash: string; state: SynthesisJobState; error: string | null }
-export type SynthesisJobRequest = { blockId: string; generationId: number; audioQuery: AudioQuery; speakerId: StyleId; hash: string }
+export type SynthesisJobRequest = { blockId: string; generationId: number; audioQuery: AudioQuery; speakerId: StyleId; hash: string; 
+/**
+ * Post-processing f0 edits applied after synthesis.
+ */
+post?: PostF0Edit | null }
 export type SynthesisJobState = "Queued" | "Running" | "Completed" | "Failed" | "Cancelled" | "Evicted"
-export type TextBlockProps = { id: string; text: string; query: AudioQuery | null; accent_is_modified?: boolean; duration_is_modified?: boolean; pitch_is_modified?: boolean; pitch_noise_seed: number; preset_id: string | null }
+export type TextBlockProps = { id: string; text: string; query: AudioQuery | null; accent_is_modified?: boolean; duration_is_modified?: boolean; pitch_is_modified?: boolean; pitch_noise_seed: number; preset_id: string | null; 
+/**
+ * Frame-level f0 edits from the post-processing tab, applied after synthesis.
+ */
+post_f0?: PostF0Edit | null }
 export type ThemeMode = "System" | "Light" | "Dark"
 export type TitlebarStyle = "Native" | "Custom" | "Hidden"
 export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; embedded_font?: boolean; titlebar_style?: TitlebarStyle; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; bottom_duration_height?: number; side_width?: number; 

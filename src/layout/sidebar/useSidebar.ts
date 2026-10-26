@@ -45,6 +45,7 @@ import {
   parseSrt,
   splitTextIntoBlocks,
 } from "$utils";
+import { activePostEdit } from "@layout/bottomPanel/post/postEdit";
 
 const projectFileFilters = [
   { name: "Azalea Project Files", extensions: ["azp"] },
@@ -566,10 +567,12 @@ export function useSidebar() {
                 dir,
                 createAudioFileName(block.text, config.ui.name_truncation_len),
               );
+              const audioQuery = getModifiedQuery(unwrap(query), preset);
               const result = await commands.saveAudio(
                 targetPath,
-                getModifiedQuery(unwrap(query), preset),
+                audioQuery,
                 identity.style.id,
+                activePostEdit(block, audioQuery, identity.style.id),
                 preventOverwrite,
                 createAudioSidecars(config.ui, block.text),
               );
@@ -723,9 +726,11 @@ export function useSidebar() {
           }
           query = fetched.data;
         }
+        const audioQuery = getModifiedQuery(unwrap(query), preset);
         items.push({
-          audio_query: getModifiedQuery(unwrap(query), preset),
+          audio_query: audioQuery,
           speaker_id: identity.style.id,
+          post: activePostEdit(block, audioQuery, identity.style.id),
         });
       }
 

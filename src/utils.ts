@@ -100,11 +100,13 @@ export const renderRequestFingerprint = (
   query: AudioQuery,
   speakerId: number,
   coreRevision = 0,
+  /** Anything else the render depends on, such as post-processing edits. */
+  extra: unknown = null,
 ) => {
-  const serialized =
-    coreRevision === 0
-      ? JSON.stringify([speakerId, query])
-      : JSON.stringify([speakerId, query, coreRevision]);
+  const parts: unknown[] = [speakerId, query];
+  if (coreRevision !== 0 || extra !== null) parts.push(coreRevision);
+  if (extra !== null) parts.push(extra);
+  const serialized = JSON.stringify(parts);
   let hash = 0x811c9dc5;
   for (let index = 0; index < serialized.length; index += 1) {
     hash ^= serialized.charCodeAt(index);
@@ -115,6 +117,14 @@ export const renderRequestFingerprint = (
     signature: serialized,
   };
 };
+
+/**
+ * Fingerprints the synthesized content a post edit applies to: the query as
+ * synthesized (preset applied) and its style. Any change to either clears the
+ * block's post edits.
+ */
+export const postEditBase = (query: AudioQuery, styleId: number) =>
+  renderRequestFingerprint(query, styleId).hash;
 
 /**
  * Adds a side effect to a function.

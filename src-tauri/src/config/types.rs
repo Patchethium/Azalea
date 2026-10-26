@@ -565,6 +565,9 @@ pub struct TextBlockProps {
   pub pitch_is_modified: bool,
   pub pitch_noise_seed: u32,
   pub preset_id: Option<String>,
+  /// Frame-level f0 edits from the post-processing tab, applied after synthesis.
+  #[serde(default)]
+  pub post_f0: Option<crate::post::PostF0Edit>,
 }
 
 impl TextBlockProps {

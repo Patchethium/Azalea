@@ -412,7 +412,8 @@ describe("BottomPanel playback", () => {
 
     fireEvent.keyDown(window, { key: " " });
     await waitFor(() => expect(play).toHaveBeenCalledOnce());
-    expect(play.mock.calls[0][2]).toBeCloseTo(0.3);
+    expect(play.mock.calls[0][2]).toBeNull();
+    expect(play.mock.calls[0][3]).toBeCloseTo(0.3);
     expect(play.mock.calls[0][0].accent_phrases).toHaveLength(2);
 
     await emit("audio-playback-finished");
@@ -615,6 +616,7 @@ describe("BottomPanel playback", () => {
         postPhonemeLength: 0.2,
       },
       1,
+      null,
       null,
     ]);
 

@@ -1,5 +1,6 @@
 use crate::atomic_file::write_with_backup;
 use crate::config::types::{Preset, Project, TextBlockProps};
+use crate::post::PostF0Edit;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::Path, result::Result};
 use voicevox_core::AudioQuery;
@@ -31,6 +32,8 @@ struct ProjectBlockRef<'a> {
   duration_is_modified: bool,
   pitch_is_modified: bool,
   preset_id: Option<&'a str>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  post_f0: Option<&'a PostF0Edit>,
 }
 
 #[derive(Deserialize)]
@@ -47,6 +50,8 @@ struct ProjectBlock {
   #[serde(default)]
   pitch_is_modified: bool,
   preset_id: Option<String>,
+  #[serde(default)]
+  post_f0: Option<PostF0Edit>,
 }
 
 fn validate_project(project: &Project) -> Result<(), String> {
@@ -88,6 +93,11 @@ fn validate_project(project: &Project) -> Result<(), String> {
         "Project block {index} marks a missing query as modified"
       ));
     }
+    if let Some(post) = &block.post_f0 {
+      post
+        .validate()
+        .map_err(|error| format!("Project block {index}: {error}"))?;
+    }
     if let Some(preset_id) = &block.preset_id {
       if !preset_ids.contains(preset_id) {
         return Err(format!(
@@ -126,6 +136,11 @@ pub async fn save_project(
         duration_is_modified: block.duration_is_modified,
         pitch_is_modified: block.pitch_is_modified,
         preset_id: block.preset_id.as_deref(),
+        // Empty edits carry nothing worth saving.
+        post_f0: block
+          .post_f0
+          .as_ref()
+          .filter(|post| !post.segments.is_empty()),
       })
       .collect(),
     presets: &project.presets,
@@ -177,6 +192,7 @@ pub async fn load_project(path: String) -> Result<Project, String> {
         duration_is_modified: block.duration_is_modified,
         pitch_is_modified: block.pitch_is_modified,
         preset_id: block.preset_id,
+        post_f0: block.post_f0,
       })
       .collect(),
     presets: project_file.presets,
@@ -205,6 +221,7 @@ mod tests {
         duration_is_modified: true,
         pitch_is_modified: false,
         preset_id: Some("preset-1".into()),
+        post_f0: None,
       }],
       presets: vec![preset],
     }
@@ -598,6 +615,89 @@ mod tests {
         .err()
         .expect("missing preset references should be rejected");
       assert!(error.contains("references missing preset"));
+    });
+  }
+
+  fn post_edit() -> PostF0Edit {
+    PostF0Edit {
+      base: "fingerprint".into(),
+      segments: vec![
+        crate::post::PostF0Segment {
+          start: 3,
+          f0: vec![201.5, 0.0, 333.25],
+        },
+        crate::post::PostF0Segment {
+          start: 10,
+          f0: vec![180.125],
+        },
+      ],
+    }
+  }
+
+  #[test]
+  fn post_edits_round_trip_and_empty_edits_are_omitted() {
+    tauri::async_runtime::block_on(async {
+      let directory = tempfile::tempdir().unwrap();
+      let path = directory.path().join("post.azp");
+      let mut edited = project();
+      edited.blocks[0].post_f0 = Some(post_edit());
+      save_project(edited, path.to_string_lossy().into_owned(), true)
+        .await
+        .unwrap();
+      let loaded = load_project(path.to_string_lossy().into_owned())
+        .await
+        .unwrap();
+      assert_eq!(loaded.blocks[0].post_f0, Some(post_edit()));
+
+      let mut empty = project();
+      empty.blocks[0].post_f0 = Some(PostF0Edit {
+        base: "fingerprint".into(),
+        segments: vec![],
+      });
+      save_project(empty, path.to_string_lossy().into_owned(), true)
+        .await
+        .unwrap();
+      let saved_toml: toml::Value =
+        toml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+      assert!(saved_toml["blocks"][0].get("post_f0").is_none());
+      let loaded = load_project(path.to_string_lossy().into_owned())
+        .await
+        .unwrap();
+      assert_eq!(loaded.blocks[0].post_f0, None);
+    });
+  }
+
+  #[test]
+  fn malformed_post_edits_are_rejected() {
+    tauri::async_runtime::block_on(async {
+      let directory = tempfile::tempdir().unwrap();
+      let path = directory.path().join("post.azp");
+      let mut overlapping = project();
+      let mut edit = post_edit();
+      edit.segments[1].start = 4;
+      overlapping.blocks[0].post_f0 = Some(edit);
+      assert!(
+        save_project(overlapping, path.to_string_lossy().into_owned(), true)
+          .await
+          .is_err()
+      );
+
+      save_project(project(), path.to_string_lossy().into_owned(), true)
+        .await
+        .unwrap();
+      let saved = std::fs::read_to_string(&path).unwrap();
+      let corrupted = saved.replacen(
+        "[[blocks]]\n",
+        "[[blocks]]\npost_f0 = { base = \"fingerprint\", segments = [{ start = 0, f0 = [-1.0] }] }\n",
+        1,
+      );
+      assert_ne!(corrupted, saved);
+      std::fs::write(&path, corrupted).unwrap();
+      let error = match load_project(path.to_string_lossy().into_owned()).await {
+        Ok(_) => panic!("a negative post f0 should be rejected"),
+        Err(error) => error,
+      };
+      assert!(error.contains("invalid f0"), "{error}");
     });
   }
 }

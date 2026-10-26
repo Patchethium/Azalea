@@ -1311,6 +1311,7 @@ describe("TextBlock", () => {
         postPhonemeLength: 0.2,
       },
       1,
+      null,
       false,
       { text: "hello", lab: false },
     ]);
@@ -1448,6 +1449,7 @@ describe("TextBlock", () => {
       "/exports/rendered.wav",
       expect.any(Object),
       1,
+      null,
       false,
       { text: "hello", lab: false },
     );
@@ -1484,6 +1486,7 @@ describe("TextBlock", () => {
       "/pinned/rendered.wav",
       expect.any(Object),
       1,
+      null,
       false,
       { text: "hello", lab: false },
     ]);
@@ -1524,6 +1527,7 @@ describe("TextBlock", () => {
       "/pinned/hello.wav",
       expect.any(Object),
       1,
+      null,
       false,
       { text: "hello", lab: false },
     );
@@ -1539,6 +1543,7 @@ describe("TextBlock", () => {
       "/pinned/hello.wav",
       expect.any(Object),
       1,
+      null,
       true,
       { text: "hello", lab: true },
     );
@@ -1588,6 +1593,7 @@ describe("TextBlock", () => {
       "/last/hello.wav",
       expect.any(Object),
       1,
+      null,
       false,
       { text: "hello", lab: false },
     ]);
@@ -1627,6 +1633,7 @@ describe("TextBlock", () => {
       "/home/user/rendered.wav",
       expect.any(Object),
       1,
+      null,
       false,
       { text: "hello", lab: false },
     ]);
@@ -1682,6 +1689,7 @@ describe("TextBlock", () => {
       "/custom/rendered.wav",
       expect.any(Object),
       1,
+      null,
       false,
       { text: "hello", lab: false },
     );

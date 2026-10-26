@@ -228,8 +228,9 @@ command signatures or shared Rust command types do.
 
 ## Query Reset Semantics
 
-The bottom panel is split into two orthogonal panels; keep their edit tracking
-and controls independent:
+The accent and tuning panels of the bottom panel are orthogonal; keep their
+edit tracking and controls independent (the post panel is described under
+Post-Processing):
 
 - The accent panel tracks `accent_is_modified`. Its reset
   (`bottom.reset_accent_edits`) is enabled only by that flag and rebuilds the
@@ -371,6 +372,58 @@ untracked inside the panel's request effect so drawing columns does not rerun
 it.
 
 `UIConfig.spectrogram_preview` controls the feature and defaults to enabled. Disabling it must cancel pending refreshes, clear the canvas, and avoid spectrogram extraction. Keep its switch in `src/layout/ConfigPage.tsx`, synchronize its English, Japanese, and Simplified Chinese labels, and regenerate `src/binding.ts` after changing related Rust commands or types.
+
+## Post-Processing (WORLD)
+
+The bottom panel's third tab, Post (`src/layout/bottomPanel/post/`), edits
+the f0 of the synthesized waveform frame by frame with the WORLD vocoder.
+Tabs depend on each other in order: post edits are made on the waveform the
+accent and tuning content produce, so they are dropped as soon as that
+content changes. `TextBlockProps.post_f0` (`PostF0Edit`) stores the edited
+frames as sparse `segments` of absolute f0 in Hz with a `base` fingerprint
+(`postEditBase` in `src/utils.ts`: the query with the preset applied, plus
+its style). A text-store effect clears the edit whenever a block's current
+fingerprint differs; it reads the query and preset through the store
+proxies so nested edits are tracked, and it waits while a query regenerates
+or a preset cannot be resolved. A core revision (voice setup change) clears
+every post edit. Accent and tuning keep their existing semantics; only the
+post tab is cleared by changes before it. Post edits are persisted in `.azp`
+schema 1 (empty edits are omitted, malformed ones rejected).
+
+WORLD is the `src-tauri/third_party/world` git submodule (upstream
+[mmorise/World](https://github.com/mmorise/World), pinned by commit and
+cloned shallow); `build.rs` compiles its Harvest, CheapTrick, D4C and
+Synthesis sources with `cc` and fails with a hint when the submodule is not
+checked out. Run `git submodule update --init` after cloning; CI and release
+checkouts fetch submodules. Update WORLD by checking out a newer commit in
+the submodule and committing the new pointer; do not copy its sources into
+the repository.
+`src-tauri/src/audio/world.rs` binds it by hand and validates every input
+before crossing the FFI boundary, because WORLD itself does not. The frame
+period is fixed at 5 ms. Harvest searches the style's built-in pitch range
+(`config::range::style_range`) widened by half an octave, with WORLD's
+71–800 Hz default for styles without one.
+
+`src-tauri/src/post.rs` analyzes a base waveform once
+(`PostAnalysisData`, cached per waveform-cache key in `PostCache`) and
+renders edits by splicing: WORLD's resynthesis is used only around edited
+frames (20 ms margin, 15 ms raised-cosine crossfade), so untouched audio keeps
+VOICEVOX's samples bit for bit; stereo and 48 kHz output are handled.
+`synthesize_post_processed` wraps `synthesize_cached` for playback, buffered
+synthesis (`SynthesisJobRequest.post`), single and combined export
+(`AudioSequenceItem.post`) whenever a block has an active edit; edited items
+render whole and are queued from the finished waveform rather than streamed.
+The tuning spectrogram keeps showing the base waveform. The frontend passes
+an edit only when `activePostEdit` confirms its base still matches the query
+being synthesized. `analyze_post_f0` returns the analyzed contour and a
+compact log-frequency spectrogram for the editor; `PostAnalysisProvider`
+caches it per fingerprint.
+
+The editor draws with the pencil or line tool (left button), restores the
+analyzed f0 with a right-button drag, and only voices frames WORLD found
+unvoiced while "Draw on unvoiced frames" is on. Strokes update a local draft
+and commit one `setPostEdit` on release. The tab's reset clears `post_f0`.
+WORLD's modified BSD license must be reproduced with binary distributions.
 
 ## Build, Test, and Development Commands
 
