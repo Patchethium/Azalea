@@ -1,6 +1,6 @@
 import {
   CharacterMeta,
-  PostF0Edit,
+  PostEdit,
   Preset,
   Project,
   TextBlockProps as ProjectTextBlockProps,
@@ -15,7 +15,7 @@ import {
   onMount,
   untrack,
 } from "solid-js";
-import { createStore, produce, reconcile } from "solid-js/store";
+import { createStore, produce, reconcile, unwrap } from "solid-js/store";
 import { usei18n } from "@contexts/i18n";
 import { useMetaStore } from "@contexts/meta";
 import { useConfigStore } from "@contexts/config";
@@ -25,6 +25,16 @@ import { getModifiedQuery, indexAfterMove, postEditBase } from "$utils";
 
 type TextBlockProps = ProjectTextBlockProps;
 type SeedHistory = { seeds: number[]; index: number };
+/** Whole post edits before (undo) and after (redo) the current one. */
+type PostHistory = {
+  base: string;
+  undo: (PostEdit | null)[];
+  redo: (PostEdit | null)[];
+};
+type PostHistoryDirection = "undo" | "redo";
+
+/** How many post edits a block's undo stack keeps. */
+const POST_HISTORY_LIMIT = 100;
 
 let fallbackIdSequence = 0;
 
@@ -51,7 +61,7 @@ const createTextBlock = (
   duration_is_modified: false,
   pitch_is_modified: false,
   pitch_noise_seed: Math.floor(Math.random() * 2 ** 32),
-  post_f0: null,
+  post: null,
 });
 
 /** Whether any accent, duration, or pitch edit was made to the block query. */
@@ -165,7 +175,11 @@ const serializeProject = (
       pitch_is_modified: block.pitch_is_modified === true,
       preset_id: block.preset_id,
       pitch_noise_seed: block.pitch_noise_seed,
-      post_f0: block.post_f0?.segments.length ? block.post_f0 : null,
+      post:
+        block.post != null &&
+        (block.post.f0.length > 0 || block.post.time.length > 0)
+          ? block.post
+          : null,
     })),
     presets: presets.map((preset) => ({
       id: preset.id,
@@ -352,9 +366,20 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     Record<string, SeedHistory | undefined>
   >({});
 
+  // Per-block post edit undo and redo stacks, kept only in memory and only
+  // while the content before the post tab stays the same.
+  const postHistories = new Map<string, PostHistory>();
+  const [postHistoryRevision, setPostHistoryRevision] = createSignal(0);
+  const dropPostHistories = (ids: Iterable<string>) => {
+    let dropped = false;
+    for (const id of ids) dropped = postHistories.delete(id) || dropped;
+    if (dropped) setPostHistoryRevision((revision) => revision + 1);
+  };
+
   const replaceTextBlocks = (blocks: ProjectTextBlockProps[]) => {
     batch(() => {
       setSeedHistories(reconcile({}));
+      dropPostHistories([...postHistories.keys()]);
       setTextStore(blocks.map((block) => ({ ...block })));
     });
   };
@@ -363,6 +388,9 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
   // is dropped with the block.
   createEffect(() => {
     const ids = new Set(textStore.map((block) => block.id));
+    untrack(() =>
+      dropPostHistories([...postHistories.keys()].filter((id) => !ids.has(id))),
+    );
     untrack(() =>
       setSeedHistories(
         produce((histories) => {
@@ -488,11 +516,14 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
   // A new voice setup renders different waveforms, so post edits made on the
   // previous ones no longer apply.
   const clearPostEdits = () =>
-    setTextStore(
-      produce((blocks) => {
-        for (const block of blocks) block.post_f0 = null;
-      }),
-    );
+    batch(() => {
+      dropPostHistories([...postHistories.keys()]);
+      setTextStore(
+        produce((blocks) => {
+          for (const block of blocks) block.post = null;
+        }),
+      );
+    });
 
   createEffect(() => {
     if (coreRevision() === 0) return;
@@ -505,19 +536,85 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     });
   });
 
-  const setPostEdit = (index: number, edit: PostF0Edit | null) => {
+  const setPostEdit = (index: number, edit: PostEdit | null) => {
     if (textStore[index] === undefined) return;
-    setTextStore(index, "post_f0", edit);
+    setTextStore(index, "post", edit);
+  };
+
+  // Setting an object in a store merges it into the previous one, so history
+  // entries are copies rather than the store's own objects.
+  const postEditSnapshot = (edit: PostEdit | null | undefined, base: string) =>
+    edit != null && edit.base === base ? structuredClone(unwrap(edit)) : null;
+
+  /**
+   * Saves a block's post edit made on content `base` as an undoable step,
+   * unless it equals the current one.
+   */
+  const commitPostEdit = (
+    index: number,
+    base: string,
+    edit: PostEdit | null,
+  ) => {
+    const block = textStore[index];
+    if (block === undefined) return;
+    const current = postEditSnapshot(block.post, base);
+    if (JSON.stringify(current) === JSON.stringify(edit)) return;
+    const history = postHistories.get(block.id);
+    const undo = history?.base === base ? history.undo : [];
+    postHistories.set(block.id, {
+      base,
+      undo: [...undo, current].slice(-POST_HISTORY_LIMIT),
+      redo: [],
+    });
+    batch(() => {
+      setPostHistoryRevision((revision) => revision + 1);
+      setPostEdit(index, edit);
+    });
+  };
+
+  const canStepPostHistory = (
+    index: number,
+    direction: PostHistoryDirection,
+  ) => {
+    postHistoryRevision();
+    const block = textStore[index];
+    if (block === undefined) return false;
+    return (postHistories.get(block.id)?.[direction].length ?? 0) > 0;
+  };
+
+  /** Restores the post edit before (undo) or after (redo) the current one. */
+  const stepPostHistory = (index: number, direction: PostHistoryDirection) => {
+    const block = textStore[index];
+    const history = block && postHistories.get(block.id);
+    if (block === undefined || history === undefined) return;
+    const stack = [...history[direction]];
+    if (stack.length === 0) return;
+    const target = stack.pop()!;
+    const current = postEditSnapshot(block.post, history.base);
+    const opposite = direction === "undo" ? "redo" : "undo";
+    postHistories.set(block.id, {
+      ...history,
+      [direction]: stack,
+      [opposite]: [...history[opposite], current],
+    });
+    batch(() => {
+      setPostHistoryRevision((revision) => revision + 1);
+      setPostEdit(index, target);
+    });
   };
 
   // Post edits depend on the content before them: once a block's synthesized
-  // query or style no longer matches the one they were made on, they are
-  // dropped. Blocks whose query is regenerating or whose preset cannot be
-  // resolved yet keep their edits until they can be compared.
+  // query or style no longer matches the one they were made on, they and the
+  // block's post history are dropped. Blocks whose query is regenerating or
+  // whose preset cannot be resolved yet keep them until they can be compared.
   createEffect(() => {
+    postHistoryRevision();
     textStore.forEach((block, index) => {
-      const edit = block.post_f0;
-      if (edit == null || block.query === null) return;
+      const edit = block.post;
+      const history = postHistories.get(block.id);
+      if ((edit == null && history === undefined) || block.query === null) {
+        return;
+      }
       const preset = findPresetById(projectPresetStore, block.preset_id);
       if (preset === null || findPresetStyle(preset, metas) === null) return;
       // Reading through the store proxies tracks every nested query and
@@ -526,7 +623,14 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
         getModifiedQuery(block.query, preset),
         preset.style_id,
       );
-      if (base !== edit.base) untrack(() => setPostEdit(index, null));
+      untrack(() =>
+        batch(() => {
+          if (history !== undefined && history.base !== base) {
+            dropPostHistories([block.id]);
+          }
+          if (edit != null && edit.base !== base) setPostEdit(index, null);
+        }),
+      );
     });
   });
 
@@ -673,6 +777,9 @@ const [TextProvider, useTextStore] = createContextProvider(() => {
     refreshGeneratedQueries,
     resetQueryEdits,
     setPostEdit,
+    commitPostEdit,
+    canStepPostHistory,
+    stepPostHistory,
     replaceTextBlocks,
     commitPitchNoiseSeed,
     canStepSeedHistory,

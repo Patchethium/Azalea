@@ -1,11 +1,11 @@
 use crate::atomic_file::write_with_backup;
 use crate::config::types::{Preset, Project, TextBlockProps};
-use crate::post::PostF0Edit;
+use crate::post::PostEdit;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::Path, result::Result};
 use voicevox_core::AudioQuery;
 
-/// Version 2 added post-processing f0 edits (`post_f0`) to blocks.
+/// Version 2 added post-processing edits (`post`) to blocks.
 const CURRENT_PROJECT_SCHEMA_VERSION: u32 = 2;
 /// The schema of Azalea 0.3.0, before post-processing edits existed.
 const PROJECT_SCHEMA_VERSION_1: u32 = 1;
@@ -41,7 +41,7 @@ struct ProjectBlockRef<'a> {
   pitch_is_modified: bool,
   preset_id: Option<&'a str>,
   #[serde(skip_serializing_if = "Option::is_none")]
-  post_f0: Option<&'a PostF0Edit>,
+  post: Option<&'a PostEdit>,
 }
 
 /// A block of schema version 1, which has no post-processing edits.
@@ -73,7 +73,7 @@ impl From<ProjectBlockV1> for ProjectBlock {
       duration_is_modified: block.duration_is_modified,
       pitch_is_modified: block.pitch_is_modified,
       preset_id: block.preset_id,
-      post_f0: None,
+      post: None,
     }
   }
 }
@@ -93,7 +93,7 @@ struct ProjectBlock {
   pitch_is_modified: bool,
   preset_id: Option<String>,
   #[serde(default)]
-  post_f0: Option<PostF0Edit>,
+  post: Option<PostEdit>,
 }
 
 fn validate_project(project: &Project) -> Result<(), String> {
@@ -135,7 +135,7 @@ fn validate_project(project: &Project) -> Result<(), String> {
         "Project block {index} marks a missing query as modified"
       ));
     }
-    if let Some(post) = &block.post_f0 {
+    if let Some(post) = &block.post {
       post
         .validate()
         .map_err(|error| format!("Project block {index}: {error}"))?;
@@ -179,10 +179,7 @@ pub async fn save_project(
         pitch_is_modified: block.pitch_is_modified,
         preset_id: block.preset_id.as_deref(),
         // Empty edits carry nothing worth saving.
-        post_f0: block
-          .post_f0
-          .as_ref()
-          .filter(|post| !post.segments.is_empty()),
+        post: block.post.as_ref().filter(|post| !post.is_empty()),
       })
       .collect(),
     presets: &project.presets,
@@ -240,7 +237,7 @@ pub async fn load_project(path: String) -> Result<Project, String> {
         duration_is_modified: block.duration_is_modified,
         pitch_is_modified: block.pitch_is_modified,
         preset_id: block.preset_id,
-        post_f0: block.post_f0,
+        post: block.post,
       })
       .collect(),
     presets: project_file.presets,
@@ -269,7 +266,7 @@ mod tests {
         duration_is_modified: true,
         pitch_is_modified: false,
         preset_id: Some("preset-1".into()),
-        post_f0: None,
+        post: None,
       }],
       presets: vec![preset],
     }
@@ -666,10 +663,10 @@ mod tests {
     });
   }
 
-  fn post_edit() -> PostF0Edit {
-    PostF0Edit {
+  fn post_edit() -> PostEdit {
+    PostEdit {
       base: "fingerprint".into(),
-      segments: vec![
+      f0: vec![
         crate::post::PostF0Segment {
           start: 3,
           f0: vec![201.5, 0.0, 333.25],
@@ -679,6 +676,10 @@ mod tests {
           f0: vec![180.125],
         },
       ],
+      time: vec![crate::post::PostTimeAnchor {
+        source: 0.25,
+        target: 0.375,
+      }],
     }
   }
 
@@ -688,30 +689,31 @@ mod tests {
       let directory = tempfile::tempdir().unwrap();
       let path = directory.path().join("post.azp");
       let mut edited = project();
-      edited.blocks[0].post_f0 = Some(post_edit());
+      edited.blocks[0].post = Some(post_edit());
       save_project(edited, path.to_string_lossy().into_owned(), true)
         .await
         .unwrap();
       let loaded = load_project(path.to_string_lossy().into_owned())
         .await
         .unwrap();
-      assert_eq!(loaded.blocks[0].post_f0, Some(post_edit()));
+      assert_eq!(loaded.blocks[0].post, Some(post_edit()));
 
       let mut empty = project();
-      empty.blocks[0].post_f0 = Some(PostF0Edit {
+      empty.blocks[0].post = Some(PostEdit {
         base: "fingerprint".into(),
-        segments: vec![],
+        f0: vec![],
+        time: vec![],
       });
       save_project(empty, path.to_string_lossy().into_owned(), true)
         .await
         .unwrap();
       let saved_toml: toml::Value =
         toml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
-      assert!(saved_toml["blocks"][0].get("post_f0").is_none());
+      assert!(saved_toml["blocks"][0].get("post").is_none());
       let loaded = load_project(path.to_string_lossy().into_owned())
         .await
         .unwrap();
-      assert_eq!(loaded.blocks[0].post_f0, None);
+      assert_eq!(loaded.blocks[0].post, None);
     });
   }
 
@@ -722,8 +724,8 @@ mod tests {
       let path = directory.path().join("post.azp");
       let mut overlapping = project();
       let mut edit = post_edit();
-      edit.segments[1].start = 4;
-      overlapping.blocks[0].post_f0 = Some(edit);
+      edit.f0[1].start = 4;
+      overlapping.blocks[0].post = Some(edit);
       assert!(
         save_project(overlapping, path.to_string_lossy().into_owned(), true)
           .await
@@ -736,7 +738,7 @@ mod tests {
       let saved = std::fs::read_to_string(&path).unwrap();
       let corrupted = saved.replacen(
         "[[blocks]]\n",
-        "[[blocks]]\npost_f0 = { base = \"fingerprint\", segments = [{ start = 0, f0 = [-1.0] }] }\n",
+        "[[blocks]]\npost = { base = \"fingerprint\", f0 = [{ start = 0, f0 = [-1.0] }], time = [] }\n",
         1,
       );
       assert_ne!(corrupted, saved);
@@ -767,7 +769,7 @@ mod tests {
         .replacen(&marker, "schema_version = 1\n", 1)
         .replacen(
           "[[blocks]]\n",
-          "[[blocks]]\npost_f0 = { base = \"stale\", segments = [{ start = 0, f0 = [200.0] }] }\n",
+          "[[blocks]]\npost = { base = \"stale\", f0 = [{ start = 0, f0 = [200.0] }] }\n",
           1,
         );
       std::fs::write(&path, v1).unwrap();
@@ -778,7 +780,7 @@ mod tests {
       };
       let expected = project();
       assert_eq!(loaded.blocks.len(), 1);
-      assert_eq!(loaded.blocks[0].post_f0, None);
+      assert_eq!(loaded.blocks[0].post, None);
       assert_eq!(loaded.blocks[0].id, expected.blocks[0].id);
       assert_eq!(loaded.blocks[0].text, expected.blocks[0].text);
       assert_eq!(loaded.blocks[0].pitch_noise_seed, 42);
@@ -798,7 +800,7 @@ mod tests {
         saved["schema_version"].as_integer(),
         Some(CURRENT_PROJECT_SCHEMA_VERSION.into())
       );
-      assert!(saved["blocks"][0].get("post_f0").is_none());
+      assert!(saved["blocks"][0].get("post").is_none());
     });
   }
 }

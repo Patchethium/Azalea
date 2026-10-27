@@ -250,7 +250,9 @@ describe("ConfigProvider", () => {
     });
     const configStore = renderConfigStore();
 
-    expect(configStore.spectrogramPreviewEnabled()).toBe(true);
+    expect(configStore.spectrogramPreviewEnabled()).toBe(false);
+    expect(configStore.postProcessingEnabled()).toBe(false);
+    expect(configStore.streamingSynthesisEnabled()).toBe(true);
     expect(configStore.pitchRulerEnabled()).toBe(true);
     expect(configStore.themeMode()).toBe("System");
     expect(configStore.pitchCompletionActive()).toBe(false);

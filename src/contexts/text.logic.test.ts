@@ -32,7 +32,7 @@ describe("text-block helpers", () => {
       duration_is_modified: false,
       pitch_is_modified: false,
       pitch_noise_seed: 0,
-      post_f0: null,
+      post: null,
     });
     expect(second.id).not.toBe(first.id);
     expect(second.pitch_noise_seed).toBe(4294967295);

@@ -6,6 +6,10 @@ import type { JSX } from "solid-js";
 export const TOOLBAR_BUTTON_CLASS =
   "size-8 flex shrink-0 items-center justify-center rounded-md bg-transparent outline-none enabled:hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) disabled:(cursor-not-allowed text-slate-3) dark:enabled:hover:bg-slate-7 dark:disabled:text-slate-5";
 
+/** Highlights a pressed toggle button with the primary color. */
+const PRESSED_CLASS =
+  "aria-pressed:(bg-primary-1 text-primary-7) dark:aria-pressed:(bg-primary-9 text-primary-2)";
+
 /** A toolbar icon button with a hover background and a tooltip. */
 export function ToolbarButton(props: {
   icon: string;
@@ -13,6 +17,8 @@ export function ToolbarButton(props: {
   tooltip?: JSX.Element;
   ariaBusy?: boolean;
   ariaPressed?: boolean;
+  /** Whether a pressed button looks different from an unpressed one. */
+  highlightPressed?: boolean;
   disabled?: boolean;
   onClick?: () => void;
 }) {
@@ -24,7 +30,11 @@ export function ToolbarButton(props: {
         aria-pressed={props.ariaPressed}
         onClick={() => props.onClick?.()}
         disabled={props.disabled}
-        class={TOOLBAR_BUTTON_CLASS}
+        class={
+          props.highlightPressed
+            ? `${TOOLBAR_BUTTON_CLASS} ${PRESSED_CLASS}`
+            : TOOLBAR_BUTTON_CLASS
+        }
       >
         <div aria-hidden="true" class={`${props.icon} size-4`} />
       </Button>

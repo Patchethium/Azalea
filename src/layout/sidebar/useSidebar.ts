@@ -73,7 +73,8 @@ export function useSidebar() {
     setSuppressFocusBlockId,
     setPendingFocusPlacement,
   } = useTextStore()!;
-  const { config, setConfig, voicesReady } = useConfigStore()!;
+  const { config, setConfig, voicesReady, postProcessingEnabled } =
+    useConfigStore()!;
   const { isApplicationShortcutAllowed, matchesShortcut } =
     useShortcutsStore()!;
   const { t1, t2 } = usei18n()!;
@@ -572,7 +573,9 @@ export function useSidebar() {
                 targetPath,
                 audioQuery,
                 identity.style.id,
-                activePostEdit(block, audioQuery, identity.style.id),
+                postProcessingEnabled()
+                  ? activePostEdit(block, audioQuery, identity.style.id)
+                  : null,
                 preventOverwrite,
                 createAudioSidecars(config.ui, block.text),
               );
@@ -730,7 +733,9 @@ export function useSidebar() {
         items.push({
           audio_query: audioQuery,
           speaker_id: identity.style.id,
-          post: activePostEdit(block, audioQuery, identity.style.id),
+          post: postProcessingEnabled()
+            ? activePostEdit(block, audioQuery, identity.style.id)
+            : null,
         });
       }
 

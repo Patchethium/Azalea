@@ -42,7 +42,7 @@ export function useTextBlockSynthesis(props: {
   currentPreset: Accessor<Preset | null>;
   currentModifiedQuery: Accessor<AudioQuery | null>;
 }) {
-  const { config, coreRevision } = useConfigStore()!;
+  const { config, coreRevision, postProcessingEnabled } = useConfigStore()!;
   const { queryPending } = useTextStore()!;
   const { t1 } = usei18n()!;
   const [synthState, setSynthState] = createSignal<SynthesisJobState | "Idle">(
@@ -227,7 +227,9 @@ export function useTextBlockSynthesis(props: {
 
     const blockId = props.currentText().id;
     const speakerId = preset.style_id;
-    const post = activePostEdit(props.currentText(), query, speakerId);
+    const post = postProcessingEnabled()
+      ? activePostEdit(props.currentText(), query, speakerId)
+      : null;
     const { hash, signature } = renderRequestFingerprint(
       query,
       speakerId,

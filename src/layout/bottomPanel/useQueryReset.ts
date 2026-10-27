@@ -11,6 +11,7 @@ import {
 import { useUIStore } from "@contexts/ui";
 import { batch, createMemo, createSignal } from "solid-js";
 import { unwrap } from "solid-js/store";
+import { getModifiedQuery, postEditBase } from "$utils";
 
 // The tuning panel is orthogonal to the accent panel: its controls only track
 // pitch and duration edits, regardless of accent or phoneme edits.
@@ -27,7 +28,7 @@ export function useQueryReset() {
     selectedTextBlock,
     selectedTextBlockIndex,
     resetQueryEdits,
-    setPostEdit,
+    commitPostEdit,
   } = useTextStore()!;
   const { metas } = useMetaStore()!;
   const { uiStore } = useUIStore()!;
@@ -49,7 +50,9 @@ export function useQueryReset() {
       return false;
     }
     if (uiStore.bottomPanel === "post") {
-      return (block.post_f0?.segments.length ?? 0) > 0;
+      return (
+        (block.post?.f0.length ?? 0) > 0 || (block.post?.time.length ?? 0) > 0
+      );
     }
     return uiStore.bottomPanel === "accent"
       ? block.accent_is_modified === true
@@ -81,7 +84,12 @@ export function useQueryReset() {
       return;
     }
     if (uiStore.bottomPanel === "post") {
-      setPostEdit(index, null);
+      // Clearing the post edit can be undone like any other post edit.
+      commitPostEdit(
+        index,
+        postEditBase(getModifiedQuery(block.query, preset), preset.style_id),
+        null,
+      );
       return;
     }
     if (uiStore.bottomPanel === "accent") {

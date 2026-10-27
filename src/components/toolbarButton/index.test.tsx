@@ -16,6 +16,7 @@ describe("ToolbarButton", () => {
 
     const button = screen.getByRole("button", { name: "Choose folder" });
     expect(button).toHaveClass("size-8", "enabled:hover:bg-slate-1");
+    expect(button.className).not.toContain("aria-pressed:");
     expect(button).toHaveAttribute("aria-pressed", "true");
     expect(button.firstElementChild).toHaveAttribute("aria-hidden", "true");
     fireEvent.focusIn(button);
@@ -48,5 +49,21 @@ describe("ToolbarButton", () => {
     expect(await screen.findByRole("tooltip")).toHaveTextContent(
       "Still loading",
     );
+  });
+
+  it("highlights the pressed state on request", () => {
+    render(() => (
+      <ToolbarButton
+        icon="i-lucide:audio-waveform"
+        label="Draw on unvoiced frames"
+        ariaPressed={false}
+        highlightPressed
+      />
+    ));
+    const button = screen.getByRole("button", {
+      name: "Draw on unvoiced frames",
+    });
+    expect(button).toHaveAttribute("aria-pressed", "false");
+    expect(button.className).toContain("aria-pressed:(bg-primary-1");
   });
 });

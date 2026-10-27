@@ -1,4 +1,4 @@
-import { type AudioQuery, type PostF0Edit } from "$binding";
+import { type AudioQuery, type PostEdit } from "$binding";
 
 export type DraggingMode = "consonant" | "vowel" | "pause";
 
@@ -7,7 +7,7 @@ export type WaveformSynthesisNotice = {
   audioQuery: AudioQuery;
   speakerId: number;
   /** Post-processing edits applied to this item's playback. */
-  post?: PostF0Edit | null;
+  post?: PostEdit | null;
 };
 
 export type PlaybackSequence = {

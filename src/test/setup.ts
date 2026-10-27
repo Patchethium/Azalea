@@ -36,6 +36,7 @@ const canvasContext = {
   moveTo: vi.fn(),
   lineTo: vi.fn(),
   stroke: vi.fn(),
+  fill: vi.fn(),
   setLineDash: vi.fn(),
   fillText: vi.fn(),
   globalAlpha: 1,

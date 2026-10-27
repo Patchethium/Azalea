@@ -382,16 +382,25 @@ position, so the old preview stays visible until replaced. Read `spectrogram()`
 untracked inside the panel's request effect so drawing columns does not rerun
 it.
 
-`UIConfig.spectrogram_preview` controls the feature and defaults to enabled. Disabling it must cancel pending refreshes, clear the canvas, and avoid spectrogram extraction. Keep its switch in `src/layout/ConfigPage.tsx`, synchronize its English, Japanese, and Simplified Chinese labels, and regenerate `src/binding.ts` after changing related Rust commands or types.
+`UIConfig.spectrogram_preview` controls the feature and, like the other
+experimental features except streaming synthesis, defaults to disabled. Disabling it must cancel pending refreshes, clear the canvas, and avoid spectrogram extraction. Keep its switch in `src/layout/ConfigPage.tsx`, synchronize its English, Japanese, and Simplified Chinese labels, and regenerate `src/binding.ts` after changing related Rust commands or types.
 
-## Post-Processing (WORLD)
+## Post-Processing (WORLD and WSOLA)
 
 The bottom panel's third tab, Post (`src/layout/bottomPanel/post/`), edits
-the f0 of the synthesized waveform frame by frame with the WORLD vocoder.
+the synthesized waveform's f0 frame by frame with the WORLD vocoder and its
+timing with time anchors rendered by WSOLA.
+The tab is experimental and shown only while `UIConfig.post_processing`
+(default off, a config-dialog switch) is on; switching it off moves an open
+post tab to tuning. While it is off, blocks keep their post edits, but
+playback, buffering and export ignore them (each `activePostEdit` caller
+checks `postProcessingEnabled`), and the edits are still cleared when
+earlier tabs change.
 Tabs depend on each other in order: post edits are made on the waveform the
 accent and tuning content produce, so they are dropped as soon as that
-content changes. `TextBlockProps.post_f0` (`PostF0Edit`) stores the edited
-frames as sparse `segments` of absolute f0 in Hz with a `base` fingerprint
+content changes. `TextBlockProps.post` (`PostEdit`) stores the edited f0
+frames as sparse `f0` segments of absolute Hz, the `time` anchors, and a
+`base` fingerprint
 (`postEditBase` in `src/utils.ts`: the query with the preset applied, plus
 its style). A text-store effect clears the edit whenever a block's current
 fingerprint differs; it reads the query and preset through the store
@@ -434,8 +443,48 @@ caches it per fingerprint.
 The editor draws with the pencil or line tool (left button), restores the
 analyzed f0 with a right-button drag, and only voices frames WORLD found
 unvoiced while "Draw on unvoiced frames" is on. Strokes update a local draft
-and commit one `setPostEdit` on release. The tab's reset clears `post_f0`.
+and commit one `commitPostEdit` on release. The tab's reset clears `post`.
+Every committed edit, the reset included, is an undoable step: the text store
+keeps per-block undo and redo stacks of whole `PostEdit`s (in memory only,
+copies rather than store objects, at most 100 undo steps) that the post tab's
+undo and redo buttons and the `undo`/`redo` shortcuts (outside text fields)
+step through. A new edit clears the redo stack, and both stacks are dropped
+whenever the block's fingerprint changes, so any change on an earlier tab
+clears them, as do a core revision and loading a project.
+
+On the post tab the accent-phrase playback timeline is replaced by the
+post panel's own unmarked timeline above the canvas (shown while
+`playback_timeline` is on), a Kobalte slider over the output duration that
+sets the playback start anywhere; a right click clears it. The start is
+stored as `UIStore.postPlaybackStart` in seconds of the synthesized waveform
+with its block and fingerprint, so it follows its sound when the timing
+changes and is ignored on another block or after earlier tabs change. The
+other tabs keep using the accent-phrase start.
 WORLD's modified BSD license must be reproduced with binary distributions.
+
+Time anchors (`PostTimeAnchor { source, target }`, seconds) form a
+piecewise-linear map from the synthesized waveform to the output, starting
+at (0, 0): time before each anchor stretches or squeezes linearly, and after
+the last one it keeps that anchor's offset, like warp markers. Each span's
+rate stays within `MIN_TIME_RATE`–`MAX_TIME_RATE` (0.25–4), enforced by the
+editor (`moveAnchor`) and by Rust validation. f0 edits stay on the
+synthesized waveform's frames, so they follow their sounds when the timing
+changes; time edits never clear them. Rendering applies f0 edits first, then
+the time map with `src-tauri/src/audio/stretch.rs`: WSOLA (20 ms pieces,
+±5 ms search) only over spans whose rate is not 1, plus the same margin and
+crossfade, and the original samples shifted by whole samples elsewhere.
+`TimeMap` there and `timeMap` in `postEdit.ts` must stay identical. The
+timing tool adds an anchor on click (leaving the timing unchanged), drags an
+anchor's output position, and removes it on right click. Dragging an anchor
+changes only the span before it: later anchors move by the same amount, so
+every other span keeps its duration; the editor draws
+the spectrogram, contours and a phoneme strip (each mora split into its
+consonant and vowel, pauses as `pau`) above the plot and the mora katakana
+below it, all on the output timeline. Exported
+`.lab` files map phoneme times through each block's time map
+(`lab_from_audio_query_mapped`), and the playback start position of the
+first played block is mapped too. WORLD could also render time edits; a
+setting to choose between WSOLA and WORLD may come later.
 
 ## Build, Test, and Development Commands
 

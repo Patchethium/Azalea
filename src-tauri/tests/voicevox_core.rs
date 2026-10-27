@@ -902,7 +902,7 @@ fn voiced_median(values: &[f64]) -> f64 {
 fn real_core_post_processing_raises_only_the_edited_frames() {
   use azalea_lib::{
     config::range::style_range,
-    post::{f0_range, PostAnalysisData, PostF0Edit, PostF0Segment},
+    post::{f0_range, PostAnalysisData, PostEdit, PostF0Segment, PostTimeAnchor},
   };
 
   let core = test_core();
@@ -926,9 +926,10 @@ fn real_core_post_processing_raises_only_the_edited_frames() {
     // Raise the middle third of the frames by three semitones.
     let (start, end) = (f0.len() / 3, 2 * f0.len() / 3);
     let raise = 2f64.powf(3.0 / 12.0);
-    let edit = PostF0Edit {
+    let edit = PostEdit {
       base: "real-core".into(),
-      segments: vec![PostF0Segment {
+      time: vec![],
+      f0: vec![PostF0Segment {
         start: start as u32,
         f0: f0[start..end].iter().map(|v| (v * raise) as f32).collect(),
       }],
@@ -955,6 +956,48 @@ fn real_core_post_processing_raises_only_the_edited_frames() {
     assert!(
       (ratio / raise - 1.0).abs() < 0.04,
       "edited frames moved by {ratio}, expected {raise}"
+    );
+
+    // Stretch the middle of the utterance to twice its length with WSOLA.
+    let duration = f0.len() as f64 * 0.005;
+    let (from, to) = (duration * 0.4, duration * 0.5);
+    let timed = PostEdit {
+      time: vec![
+        PostTimeAnchor {
+          source: from,
+          target: from,
+        },
+        PostTimeAnchor {
+          source: to,
+          target: to + (to - from),
+        },
+      ],
+      ..edit
+    };
+    let stretched = analysis.render(&wav, &timed).expect("time render failed");
+    let (spec, samples) = decode_wav(&stretched);
+    let channels = spec.channels as usize;
+    let rate = sampling_rate as f64;
+    let added = ((to - from) * rate).round() as usize;
+    assert_eq!(samples.len(), original.len() + added * channels);
+    // Before the stretch and the pitch edit, VOICEVOX's samples are kept.
+    let head = ((start as f64 * 0.005 - 0.1).min(from - 0.1) * rate) as usize * channels;
+    assert_eq!(samples[..head], original[..head]);
+    // The pitch inside the stretched span is still the edited one.
+    let restretched = PostAnalysisData::compute(&stretched, range).expect("reanalysis failed");
+    let warped: Vec<f64> = restretched
+      .summary()
+      .f0
+      .iter()
+      .map(|v| f64::from(*v))
+      .collect();
+    let first = (from / 0.005) as usize + 10;
+    let last = ((to + (to - from)) / 0.005) as usize - 10;
+    let stretched_ratio = voiced_median(&warped[first..last])
+      / voiced_median(&f0[(from / 0.005) as usize..(to / 0.005) as usize]);
+    assert!(
+      (stretched_ratio / raise - 1.0).abs() < 0.06,
+      "stretched frames moved by {stretched_ratio}, expected {raise}"
     );
   }
 }

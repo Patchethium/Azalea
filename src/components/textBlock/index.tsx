@@ -64,7 +64,7 @@ function TextBlock(props: { index: number; sortable?: Sortable }) {
   const { isApplicationShortcutAllowed, matchesShortcut } =
     useShortcutsStore()!;
   const { setUIStore } = useUIStore()!;
-  const { config, setConfig } = useConfigStore()!;
+  const { config, setConfig, postProcessingEnabled } = useConfigStore()!;
   const { t1, t2 } = usei18n()!;
   const toasts = useToasts();
   const currentText = createMemo(() => textStore[props.index]);
@@ -284,7 +284,9 @@ function TextBlock(props: { index: number; sortable?: Sortable }) {
         path,
         audioQuery,
         preset.style_id,
-        activePostEdit(currentText(), audioQuery, preset.style_id),
+        postProcessingEnabled()
+          ? activePostEdit(currentText(), audioQuery, preset.style_id)
+          : null,
         preventOverwriteOnSave,
         createAudioSidecars(config.ui, currentText().text),
       );

@@ -1,9 +1,11 @@
-//! Post-processing: frame-level f0 edits applied to a synthesized waveform with WORLD.
+//! Post-processing: frame-level f0 edits and time edits applied to a synthesized waveform.
 //!
-//! The base waveform is analyzed once (Harvest, CheapTrick, D4C). An edit replaces the f0 of
-//! some frames; WORLD resynthesizes the block with the edited contour, and only the edited
-//! frames, plus a short margin, are crossfaded into the original waveform, so untouched audio
-//! keeps VOICEVOX's own rendering.
+//! The base waveform is analyzed once with WORLD (Harvest, CheapTrick, D4C). An edit replaces
+//! the f0 of some frames; WORLD resynthesizes the block with the edited contour, and only the
+//! edited frames, plus a short margin, are crossfaded into the original waveform. Time anchors
+//! then warp the result with WSOLA ([`crate::audio::stretch`]). Both stages keep untouched
+//! audio bit-exact. f0 edits are defined on the base waveform's timeline, so they follow the
+//! sounds they were drawn on when the timing changes.
 
 use std::num::NonZeroUsize;
 use std::sync::{Arc, Mutex};
@@ -13,6 +15,7 @@ use rustfft::{num_complex::Complex, FftPlanner};
 use tokio::sync::OnceCell;
 use voicevox_core::StyleId;
 
+use crate::audio::stretch::{smooth_mask, time_warp, TimeMap};
 use crate::audio::world::{self, F0Range, WorldFeatures, FRAME_PERIOD_MS};
 use crate::config::range::PitchRange;
 
@@ -26,6 +29,10 @@ const F0_FLOOR_LIMITS: (f64, f64) = (40.0, 400.0);
 const F0_CEIL_LIMIT: f64 = 1600.0;
 /// Upper bound on edited frames, about 80 minutes at 5 ms.
 const MAX_EDIT_FRAMES: usize = 1_000_000;
+const MAX_TIME_ANCHORS: usize = 100_000;
+/// How far a span between time anchors may be squeezed or stretched.
+pub const MIN_TIME_RATE: f64 = 0.25;
+pub const MAX_TIME_RATE: f64 = 4.0;
 
 /// Log-frequency spectrogram shown behind the f0 editor.
 const DISPLAY_ROWS: usize = 160;
@@ -44,22 +51,60 @@ pub struct PostF0Segment {
   pub f0: Vec<f32>,
 }
 
-/// Frame-level f0 edits for one block. `base` fingerprints the synthesized content the edits
-/// were made on; the frontend drops edits whose base no longer matches.
+/// A time anchor: the point at `source` seconds of the synthesized waveform plays at `target`
+/// seconds of the output. Time between anchors (and from the start to the first one) is
+/// stretched or squeezed linearly; after the last anchor it keeps that anchor's offset.
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize, specta::Type)]
-pub struct PostF0Edit {
-  pub base: String,
-  pub segments: Vec<PostF0Segment>,
+pub struct PostTimeAnchor {
+  pub source: f64,
+  pub target: f64,
 }
 
-impl PostF0Edit {
+/// Post-processing edits for one block. `base` fingerprints the synthesized content the edits
+/// were made on; the frontend drops edits whose base no longer matches.
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize, specta::Type)]
+pub struct PostEdit {
+  pub base: String,
+  /// Edited f0 runs, on the frames of the synthesized waveform.
+  pub f0: Vec<PostF0Segment>,
+  /// Time anchors, ordered by both `source` and `target`.
+  pub time: Vec<PostTimeAnchor>,
+}
+
+impl PostEdit {
+  pub fn is_empty(&self) -> bool {
+    self.f0.is_empty() && self.time.is_empty()
+  }
+
   pub fn validate(&self) -> Result<(), String> {
     if self.base.trim().is_empty() {
       return Err("Post edit has an empty base fingerprint".into());
     }
+    if self.time.len() > MAX_TIME_ANCHORS {
+      return Err("Post edit has too many time anchors".into());
+    }
+    let mut previous = (0.0, 0.0);
+    for (index, anchor) in self.time.iter().enumerate() {
+      if !anchor.source.is_finite() || !anchor.target.is_finite() {
+        return Err(format!("Post time anchor {index} is not finite"));
+      }
+      let source_span = anchor.source - previous.0;
+      let target_span = anchor.target - previous.1;
+      if source_span <= 0.0 || target_span <= 0.0 {
+        return Err(format!("Post time anchor {index} is out of order"));
+      }
+      let rate = target_span / source_span;
+      // A little slack for rounding in the frontend's clamping.
+      if !(MIN_TIME_RATE * 0.999..=MAX_TIME_RATE * 1.001).contains(&rate) {
+        return Err(format!(
+          "Post time anchor {index} stretches time by {rate:.3}×"
+        ));
+      }
+      previous = (anchor.source, anchor.target);
+    }
     let mut next_free = 0usize;
     let mut frames = 0usize;
-    for (index, segment) in self.segments.iter().enumerate() {
+    for (index, segment) in self.f0.iter().enumerate() {
       let start = segment.start as usize;
       if segment.f0.is_empty() {
         return Err(format!("Post edit segment {index} is empty"));
@@ -90,7 +135,7 @@ impl PostF0Edit {
     self.validate()?;
     let mut f0 = analyzed.to_vec();
     let mut edited = vec![false; analyzed.len()];
-    for segment in &self.segments {
+    for segment in &self.f0 {
       let start = segment.start as usize;
       let end = start + segment.f0.len();
       if end > analyzed.len() {
@@ -102,6 +147,16 @@ impl PostF0Edit {
       }
     }
     Ok((f0, edited))
+  }
+
+  /// The edit's time anchors as a map from the synthesized waveform to the output.
+  pub fn time_map(&self) -> TimeMap {
+    TimeMap::new(
+      self
+        .time
+        .iter()
+        .map(|anchor| (anchor.source, anchor.target)),
+    )
   }
 }
 
@@ -231,33 +286,7 @@ fn splice_mask(edited: &[bool], sample_rate: u32, length: usize) -> Vec<f64> {
     let end = (((frame as f64 - 0.5) * hop) as usize).min(length);
     hard[start.saturating_sub(margin)..(end + margin).min(length)].fill(1.0);
   }
-  // Smooth the edges with a raised-cosine kernel so the crossfade has no clicks.
-  let kernel: Vec<f64> = (0..=2 * fade)
-    .map(|i| 0.5 - 0.5 * (2.0 * std::f64::consts::PI * i as f64 / (2 * fade) as f64).cos())
-    .collect();
-  let total: f64 = kernel.iter().sum();
-  // Prefix sums let samples away from an edge skip the convolution.
-  let mut prefix = vec![0.0; length + 1];
-  for i in 0..length {
-    prefix[i + 1] = prefix[i] + hard[i];
-  }
-  (0..length)
-    .map(|i| {
-      let lo = i.saturating_sub(fade);
-      let hi = (i + fade + 1).min(length);
-      let sum = prefix[hi] - prefix[lo];
-      if sum == 0.0 {
-        0.0
-      } else if sum == (hi - lo) as f64 {
-        1.0
-      } else {
-        let weighted: f64 = (lo..hi)
-          .map(|j| hard[j] * kernel[j + fade - i])
-          .sum::<f64>();
-        (weighted / total).clamp(0.0, 1.0)
-      }
-    })
-    .collect()
+  smooth_mask(&hard, fade)
 }
 
 /// Analysis of a base waveform: WORLD features plus the editor's display spectrogram.
@@ -296,8 +325,9 @@ impl PostAnalysisData {
     }
   }
 
-  /// Applies `edit` to `wav`, the waveform this analysis was made from.
-  pub fn render(&self, wav: &[u8], edit: &PostF0Edit) -> Result<Vec<u8>, String> {
+  /// Applies `edit` to `wav`, the waveform this analysis was made from: f0 edits with WORLD,
+  /// then time anchors with WSOLA.
+  pub fn render(&self, wav: &[u8], edit: &PostEdit) -> Result<Vec<u8>, String> {
     let parsed = Wav::parse(wav)?;
     if parsed.sample_rate != self.features.sample_rate
       || parsed.channel_samples[0].len() != self.features.sample_count
@@ -305,23 +335,30 @@ impl PostAnalysisData {
       return Err("The waveform does not match its analysis".into());
     }
     let (f0, edited) = edit.contour(&self.features.f0)?;
-    if !edited.contains(&true) {
+    let map = edit.time_map();
+    let duration = self.features.sample_count as f64 / f64::from(parsed.sample_rate);
+    if edit
+      .time
+      .last()
+      .is_some_and(|anchor| anchor.source > duration)
+    {
+      return Err("Post time anchors extend beyond the waveform".into());
+    }
+    let pitch_edited = edited.contains(&true);
+    if !pitch_edited && map.is_identity() {
       return Ok(wav.to_vec());
     }
-    let resynthesized = world::synthesize(&self.features, &f0)?;
-    let mask = splice_mask(&edited, parsed.sample_rate, resynthesized.len());
-    let channels: Vec<Vec<f64>> = parsed
-      .channel_samples
-      .iter()
-      .map(|samples| {
-        samples
-          .iter()
-          .zip(&resynthesized)
-          .zip(&mask)
-          .map(|((original, world), weight)| original * (1.0 - weight) + world * weight)
-          .collect()
-      })
-      .collect();
+    let mut channels = parsed.channel_samples.clone();
+    if pitch_edited {
+      let resynthesized = world::synthesize(&self.features, &f0)?;
+      let mask = splice_mask(&edited, parsed.sample_rate, resynthesized.len());
+      for samples in &mut channels {
+        for ((sample, world), weight) in samples.iter_mut().zip(&resynthesized).zip(&mask) {
+          *sample = *sample * (1.0 - weight) + world * weight;
+        }
+      }
+    }
+    let channels = time_warp(&channels, parsed.sample_rate, &map);
     Ok(parsed.encode(&channels))
   }
 }
@@ -426,7 +463,7 @@ impl PostCache {
     &self,
     key: &PostKey,
     wav: Vec<u8>,
-    edit: &PostF0Edit,
+    edit: &PostEdit,
     range: F0Range,
   ) -> Result<Vec<u8>, String> {
     let edit_key = serde_json::to_string(edit).map_err(|e| e.to_string())?;
@@ -493,10 +530,21 @@ mod tests {
       .collect()
   }
 
-  fn edit(segments: Vec<PostF0Segment>) -> PostF0Edit {
-    PostF0Edit {
+  fn edit(segments: Vec<PostF0Segment>) -> PostEdit {
+    PostEdit {
       base: "base".into(),
-      segments,
+      f0: segments,
+      time: vec![],
+    }
+  }
+
+  fn timed(anchors: &[(f64, f64)]) -> PostEdit {
+    PostEdit {
+      time: anchors
+        .iter()
+        .map(|&(source, target)| PostTimeAnchor { source, target })
+        .collect(),
+      ..edit(vec![])
     }
   }
 
@@ -509,12 +557,14 @@ mod tests {
     assert!(edit(vec![segment(0, vec![200.0]), segment(5, vec![210.0])])
       .validate()
       .is_ok());
-    assert!(PostF0Edit {
+    assert!(PostEdit {
       base: " ".into(),
-      segments: vec![]
+      ..edit(vec![])
     }
     .validate()
     .is_err());
+    assert!(edit(vec![]).is_empty());
+    assert!(!timed(&[(0.1, 0.1)]).is_empty());
     assert!(edit(vec![segment(0, vec![])]).validate().is_err());
     assert!(edit(vec![segment(0, vec![f32::NAN])]).validate().is_err());
     assert!(edit(vec![segment(0, vec![-1.0])]).validate().is_err());
@@ -625,6 +675,50 @@ mod tests {
       .render(&other, &edit(vec![segment(0, vec![200.0])]))
       .is_err());
     assert!(Wav::parse(b"not a wav").is_err());
+  }
+
+  #[test]
+  fn validation_checks_time_anchor_order_and_rates() {
+    assert!(timed(&[(0.1, 0.2), (0.3, 0.3)]).validate().is_ok());
+    assert!(timed(&[(0.1, 0.4)]).validate().is_ok());
+    assert!(timed(&[(0.1, 0.025)]).validate().is_ok());
+    // Out of order on either axis, or starting at zero.
+    assert!(timed(&[(0.2, 0.2), (0.1, 0.3)]).validate().is_err());
+    assert!(timed(&[(0.1, 0.2), (0.2, 0.2)]).validate().is_err());
+    assert!(timed(&[(0.0, 0.1)]).validate().is_err());
+    // Beyond the rate limits, or not finite.
+    assert!(timed(&[(0.1, 0.5)]).validate().is_err());
+    assert!(timed(&[(0.1, 0.02)]).validate().is_err());
+    assert!(timed(&[(f64::NAN, 0.1)]).validate().is_err());
+    assert_eq!(timed(&[(0.1, 0.2)]).time_map().to_target(0.3), 0.4);
+  }
+
+  #[test]
+  fn render_warps_time_after_editing_pitch() {
+    let wav = wav_from(&[tone(0.6, 200.0)]);
+    let analysis = PostAnalysisData::compute(&wav, F0Range::default()).unwrap();
+    // Identity anchors change nothing.
+    assert_eq!(analysis.render(&wav, &timed(&[(0.3, 0.3)])).unwrap(), wav);
+
+    let mut both = timed(&[(0.2, 0.2), (0.3, 0.4)]);
+    both.f0 = vec![segment(
+      60,
+      (60..80)
+        .map(|i| analysis.features.f0[i] as f32 * 1.5)
+        .collect(),
+    )];
+    let rendered = analysis.render(&wav, &both).unwrap();
+    // 0.1 s longer, the WAV header updated to match.
+    assert_eq!(rendered.len(), wav.len() + 2 * 2400);
+    let parsed = Wav::parse(&rendered).unwrap();
+    assert_eq!(parsed.channel_samples[0].len(), 14_400 + 2400);
+    // The audio before the stretch and the pitch edit is untouched.
+    assert_eq!(rendered[44..44 + 2 * 3000], wav[44..44 + 2 * 3000]);
+
+    assert!(analysis
+      .render(&wav, &timed(&[(0.7, 0.7)]))
+      .unwrap_err()
+      .contains("beyond the waveform"));
   }
 
   #[test]

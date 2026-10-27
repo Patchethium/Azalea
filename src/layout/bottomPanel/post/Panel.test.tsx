@@ -41,9 +41,13 @@ const analysis = (overrides: Partial<PostF0Analysis> = {}): PostF0Analysis => ({
 const yOf = (hz: number) => {
   const low = 100 / 2 ** (2 / 12);
   const high = 400 * 2 ** (2 / 12);
-  return 18 + (1 - Math.log(hz / low) / Math.log(high / low)) * (HEIGHT - 18);
+  return 18 + (1 - Math.log(hz / low) / Math.log(high / low)) * (HEIGHT - 36);
 };
 const xOf = (frame: number) => frame * FRAME_WIDTH;
+
+/** A readout cell of the post panel footer. */
+const readout = (field: string) =>
+  document.querySelector<HTMLElement>(`[data-post-readout-field="${field}"]`)!;
 
 const lastSegment = <T,>(items: readonly T[]) => items[items.length - 1];
 
@@ -55,7 +59,12 @@ const openPostTab = async (
   withWaveformSynthesis = false,
 ) => {
   const rendered = renderPanel(
-    { bottom_scale: SCALE, playback_timeline: false, ...overrides },
+    {
+      bottom_scale: SCALE,
+      playback_timeline: false,
+      post_processing: true,
+      ...overrides,
+    },
     false,
     withWaveformSynthesis,
   );
@@ -65,7 +74,7 @@ const openPostTab = async (
 
 const findCanvas = async () =>
   (await screen.findByRole("img", {
-    name: /Frame-level pitch editor/,
+    name: /Frame-level pitch and timing editor/,
   })) as HTMLCanvasElement;
 
 const drag = (
@@ -194,28 +203,35 @@ describe("Post panel", () => {
     });
     expect(reset).toBeDisabled();
 
-    // Hovering reports the cursor, analyzed and edited values.
+    // Hovering reports each value in its own fixed-width cell, with dashes
+    // while the pointer is off the canvas.
+    expect(readout("time")).toHaveTextContent("–");
+    expect(readout("time").style.width).toBe("9ch");
+    expect(readout("note").style.width).toBe("10ch");
+    expect(readout("note").parentElement).toHaveClass("whitespace-nowrap");
     fireEvent.pointerMove(canvas, { clientX: xOf(30), clientY: yOf(300) });
-    expect(screen.getByText(/^0\.150 s/)).toHaveTextContent(
-      "analyzed 200.0 Hz · edited 200.0 Hz",
-    );
+    expect(readout("time")).toHaveTextContent("0.150 s");
+    expect(readout("cursor")).toHaveTextContent(/^\d+\.\d Hz$/);
+    expect(readout("note")).toHaveTextContent(/^D4 /);
+    expect(readout("analyzed")).toHaveTextContent("200.0 Hz");
+    expect(readout("edited")).toHaveTextContent("200.0 Hz");
     fireEvent.pointerLeave(canvas);
+    expect(readout("edited")).toHaveTextContent("–");
     fireEvent.pointerMove(canvas, { clientX: xOf(5), clientY: yOf(300) });
-    expect(screen.getByText(/^0\.025 s/)).toHaveTextContent(
-      "analyzed unvoiced",
-    );
+    expect(readout("time")).toHaveTextContent("0.025 s");
+    expect(readout("analyzed")).toHaveTextContent("unvoiced");
 
     drag(canvas, 0, [
       [xOf(30), yOf(300)],
       [xOf(35), yOf(300)],
       [xOf(40), yOf(300)],
     ]);
-    const edit = getTextStore().textStore[0].post_f0!;
+    const edit = getTextStore().textStore[0].post!;
     expect(edit.base).toBe(firstBase());
-    expect(edit.segments).toHaveLength(1);
-    expect(edit.segments[0].start).toBe(30);
-    expect(edit.segments[0].f0).toHaveLength(11);
-    for (const value of edit.segments[0].f0) expect(value).toBeCloseTo(300, 0);
+    expect(edit.f0).toHaveLength(1);
+    expect(edit.f0[0].start).toBe(30);
+    expect(edit.f0[0].f0).toHaveLength(11);
+    for (const value of edit.f0[0].f0) expect(value).toBeCloseTo(300, 0);
     expect(reset).toBeEnabled();
 
     // Playback sends the edit with the query it was made on.
@@ -229,10 +245,10 @@ describe("Post panel", () => {
       [xOf(30), yOf(150)],
       [xOf(33), yOf(150)],
     ]);
-    expect(getTextStore().textStore[0].post_f0!.segments[0].start).toBe(36);
+    expect(getTextStore().textStore[0].post!.f0[0].start).toBe(36);
 
     fireEvent.click(reset);
-    expect(getTextStore().textStore[0].post_f0).toBeNull();
+    expect(getTextStore().textStore[0].post).toBeNull();
     expect(reset).toBeDisabled();
   });
 
@@ -254,7 +270,7 @@ describe("Post panel", () => {
       [xOf(30), yOf(400)],
     ]);
     // The line ends where the pointer was released, through unvoiced frames.
-    const segments = getTextStore().textStore[0].post_f0!.segments;
+    const segments = getTextStore().textStore[0].post!.f0;
     expect(segments[0].start).toBe(20);
     expect(
       lastSegment(segments).start + lastSegment(segments).f0.length - 1,
@@ -270,9 +286,78 @@ describe("Post panel", () => {
       [xOf(85), yOf(200)],
       [xOf(90), yOf(200)],
     ]);
-    const voiced = lastSegment(getTextStore().textStore[0].post_f0!.segments);
+    const voiced = lastSegment(getTextStore().textStore[0].post!.f0);
     expect(voiced.start).toBe(85);
     expect(voiced.f0[0]).toBeCloseTo(200, 0);
+  });
+
+  it("adds, drags, and removes time anchors with the timing tool", async () => {
+    vi.spyOn(commands, "analyzePostF0").mockResolvedValue({
+      status: "ok",
+      data: analysis(),
+    });
+    const play = vi
+      .spyOn(commands, "playAudio")
+      .mockResolvedValue({ status: "ok", data: null });
+    const { getTextStore, getUiStore } = await openPostTab();
+    const canvas = await findCanvas();
+    // Draw a pitch edit first; time edits must carry it along.
+    drag(canvas, 0, [
+      [xOf(30), yOf(300)],
+      [xOf(40), yOf(300)],
+    ]);
+    const pitch = getTextStore().textStore[0].post!.f0;
+
+    const timing = screen.getByRole("button", { name: "Timing" });
+    fireEvent.click(timing);
+    expect(timing).toHaveAttribute("aria-pressed", "true");
+    expect(getUiStore().uiStore.postTool).toBe("time");
+    expect(canvas).toHaveClass("cursor-ew-resize");
+
+    // A click adds an anchor without changing the timing.
+    drag(canvas, 0, [[xOf(20), yOf(200)]]);
+    expect(getTextStore().textStore[0].post!.time).toEqual([
+      { source: 0.1, target: 0.1 },
+    ]);
+    // Clicking too close to it adds nothing; secondary clicks elsewhere do nothing.
+    drag(canvas, 0, [[xOf(20) + 0.5, yOf(200)]]);
+    drag(canvas, 2, [[xOf(60), yOf(200)]]);
+    expect(getTextStore().textStore[0].post!.time).toHaveLength(1);
+
+    // A second anchor dragged right stretches the span between them.
+    drag(canvas, 0, [
+      [xOf(60), yOf(200)],
+      [xOf(70), yOf(200)],
+      [xOf(80), yOf(200)],
+    ]);
+    const time = getTextStore().textStore[0].post!.time;
+    expect(time).toHaveLength(2);
+    expect(time[1].source).toBeCloseTo(0.3);
+    expect(time[1].target).toBeCloseTo(0.4);
+    expect(getTextStore().textStore[0].post!.f0).toEqual(pitch);
+
+    // Hovering reports output time, and pitch strokes land on the source frames.
+    fireEvent.pointerMove(canvas, { clientX: xOf(90), clientY: yOf(300) });
+    expect(readout("time")).toHaveTextContent("0.450 s");
+
+    fireEvent.click(screen.getByRole("button", { name: "Play selected cell" }));
+    await waitFor(() => expect(play).toHaveBeenCalledOnce());
+    expect(play.mock.calls[0][2]!.time).toEqual(time);
+
+    // Dragging an existing anchor moves it; a secondary click removes it.
+    drag(canvas, 0, [
+      [xOf(80), yOf(200)],
+      [xOf(70), yOf(200)],
+    ]);
+    expect(getTextStore().textStore[0].post!.time[1].target).toBeCloseTo(0.35);
+    drag(canvas, 2, [[xOf(70), yOf(200)]]);
+    expect(getTextStore().textStore[0].post!.time).toEqual([
+      { source: 0.1, target: 0.1 },
+    ]);
+
+    // With the timing tool, a secondary drag off the anchors restores pitch.
+    fireEvent.click(screen.getByRole("button", { name: "Pencil" }));
+    expect(canvas).toHaveClass("cursor-crosshair");
   });
 
   it("clears post edits once the content before them changes", async () => {
@@ -286,7 +371,7 @@ describe("Post panel", () => {
       [xOf(30), yOf(300)],
       [xOf(40), yOf(300)],
     ]);
-    expect(getTextStore().textStore[0].post_f0).not.toBeNull();
+    expect(getTextStore().textStore[0].post).not.toBeNull();
 
     getTextStore().setTextStore(
       0,
@@ -298,7 +383,158 @@ describe("Post panel", () => {
       "pitch",
       5.6,
     );
-    await waitFor(() => expect(getTextStore().textStore[0].post_f0).toBeNull());
+    await waitFor(() => expect(getTextStore().textStore[0].post).toBeNull());
+  });
+
+  it("undoes and redoes whole post edits until the content before them changes", async () => {
+    vi.spyOn(commands, "analyzePostF0").mockResolvedValue({
+      status: "ok",
+      data: analysis(),
+    });
+    const { getTextStore } = await openPostTab();
+    const canvas = await findCanvas();
+    const undo = screen.getByRole("button", {
+      name: "Undo post-processing edit",
+    });
+    const redo = screen.getByRole("button", {
+      name: "Redo post-processing edit",
+    });
+    expect(undo).toBeDisabled();
+    expect(redo).toBeDisabled();
+    const post = () => getTextStore().textStore[0].post;
+    const snapshot = () => JSON.parse(JSON.stringify(post()));
+
+    drag(canvas, 0, [
+      [xOf(30), yOf(300)],
+      [xOf(40), yOf(300)],
+    ]);
+    const first = snapshot();
+    fireEvent.click(screen.getByRole("button", { name: "Timing" }));
+    drag(canvas, 0, [
+      [xOf(60), yOf(200)],
+      [xOf(70), yOf(200)],
+    ]);
+    const second = snapshot();
+    expect(second!.time).toHaveLength(1);
+    // A click on an anchor that leaves it in place records nothing.
+    drag(canvas, 0, [[xOf(70), yOf(200)]]);
+
+    fireEvent.click(undo);
+    expect(snapshot()).toEqual(first);
+    expect(redo).toBeEnabled();
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+    expect(post()).toBeNull();
+    expect(undo).toBeDisabled();
+    fireEvent.click(redo);
+    expect(snapshot()).toEqual(first);
+    fireEvent.keyDown(window, { key: "Z", ctrlKey: true, shiftKey: true });
+    expect(snapshot()).toEqual(second);
+    expect(redo).toBeDisabled();
+
+    // Resetting is undoable, and a new edit clears the redo stack.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Reset post-processing edits" }),
+    );
+    expect(post()).toBeNull();
+    fireEvent.click(undo);
+    expect(snapshot()).toEqual(second);
+    fireEvent.click(undo);
+    expect(redo).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Pencil" }));
+    drag(canvas, 0, [
+      [xOf(50), yOf(250)],
+      [xOf(55), yOf(250)],
+    ]);
+    expect(redo).toBeDisabled();
+    expect(undo).toBeEnabled();
+
+    // Undo shortcuts typed in a text field are left to it.
+    const field = document.createElement("input");
+    document.body.append(field);
+    const edited = snapshot();
+    fireEvent.keyDown(field, { key: "z", ctrlKey: true });
+    expect(snapshot()).toEqual(edited);
+    field.remove();
+
+    // Editing the content before the post tab clears both stacks.
+    getTextStore().setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      0,
+      "moras",
+      0,
+      "pitch",
+      5.6,
+    );
+    await waitFor(() => expect(post()).toBeNull());
+    expect(undo).toBeDisabled();
+    expect(redo).toBeDisabled();
+  });
+
+  it("sets the playback start freely on its own timeline", async () => {
+    vi.spyOn(commands, "analyzePostF0").mockResolvedValue({
+      status: "ok",
+      data: analysis(),
+    });
+    const play = vi
+      .spyOn(commands, "playAudio")
+      .mockResolvedValue({ status: "ok", data: null });
+    vi.spyOn(commands, "stopAudio").mockResolvedValue({
+      status: "ok",
+      data: null,
+    });
+    const { getTextStore, getUiStore } = await openPostTab({
+      playback_timeline: true,
+    });
+    const canvas = await findCanvas();
+    // The accent phrase timeline is replaced on the post tab.
+    expect(
+      screen.queryByRole("group", { name: "Playback starting phrase" }),
+    ).not.toBeInTheDocument();
+    const start = screen.getByRole("slider", { name: "Playback start" });
+    expect(start).toHaveAttribute("aria-valuenow", "0");
+    fireEvent.click(screen.getByRole("button", { name: "Play selected cell" }));
+    await waitFor(() => expect(play).toHaveBeenCalledOnce());
+    expect(play.mock.calls[0][3]).toBeNull();
+
+    start.focus();
+    fireEvent.keyDown(start, { key: "End" });
+    fireEvent.keyDown(start, { key: "ArrowLeft" });
+    expect(getUiStore().uiStore.postPlaybackStart).toMatchObject({
+      blockId: getTextStore().textStore[0].id,
+      base: firstBase(),
+    });
+    expect(getUiStore().uiStore.postPlaybackStart!.seconds).toBeCloseTo(0.499);
+
+    // A time anchor before the start moves it with its sound.
+    fireEvent.click(screen.getByRole("button", { name: "Timing" }));
+    drag(canvas, 0, [
+      [xOf(20), yOf(200)],
+      [xOf(40), yOf(200)],
+    ]);
+    expect(Number(start.getAttribute("aria-valuenow"))).toBeCloseTo(0.599);
+    expect(getUiStore().uiStore.postPlaybackStart!.seconds).toBeCloseTo(0.499);
+
+    // Playing again while playing restarts from the start point.
+    fireEvent.keyDown(window, { key: "Enter", ctrlKey: true });
+    await waitFor(() => expect(play).toHaveBeenCalledTimes(2));
+    // Playback takes the start on the synthesized waveform.
+    expect(play.mock.calls[1][3]).toBeCloseTo(0.499);
+
+    // A start set on another block is ignored.
+    getUiStore().setUIStore("selectedTextBlockIndex", 1);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("slider", { name: "Playback start" }),
+      ).toHaveAttribute("aria-valuenow", "0"),
+    );
+    getUiStore().setUIStore("selectedTextBlockIndex", 0);
+    await findCanvas();
+
+    // A right click on the timeline clears the start.
+    fireEvent.contextMenu(document.querySelector("[data-post-timeline]")!);
+    expect(getUiStore().uiStore.postPlaybackStart).toBeNull();
   });
 
   it("zooms with Ctrl+wheel and ignores strokes without an analysis", async () => {
@@ -363,6 +599,52 @@ describe("Post panel", () => {
     expect(last.hash).not.toBe(first.hash);
   });
 
+  it("hides the tab while disabled, ignoring edits until earlier tabs change", async () => {
+    vi.spyOn(commands, "analyzePostF0").mockResolvedValue({
+      status: "ok",
+      data: analysis(),
+    });
+    const play = vi
+      .spyOn(commands, "playAudio")
+      .mockResolvedValue({ status: "ok", data: null });
+    const { getConfigStore, getTextStore, getUiStore } = await openPostTab();
+    const canvas = await findCanvas();
+    drag(canvas, 0, [
+      [xOf(30), yOf(300)],
+      [xOf(40), yOf(300)],
+    ]);
+    const edit = JSON.parse(JSON.stringify(getTextStore().textStore[0].post));
+
+    getConfigStore().setConfig("ui", "post_processing", false);
+    await waitFor(() =>
+      expect(screen.queryByRole("tab", { name: "Post" })).toBeNull(),
+    );
+    expect(getUiStore().uiStore.bottomPanel).toBe("tuning");
+    // The edit is kept but not applied.
+    expect(getTextStore().textStore[0].post).toEqual(edit);
+    fireEvent.click(screen.getByRole("button", { name: "Play selected cell" }));
+    await waitFor(() => expect(play).toHaveBeenCalledOnce());
+    expect(play.mock.calls[0][2]).toBeNull();
+
+    // Changing an earlier tab still clears it.
+    getTextStore().setTextStore(
+      0,
+      "query",
+      "accent_phrases",
+      0,
+      "moras",
+      0,
+      "pitch",
+      5.6,
+    );
+    await waitFor(() => expect(getTextStore().textStore[0].post).toBeNull());
+
+    getConfigStore().setConfig("ui", "post_processing", true);
+    expect(
+      await screen.findByRole("tab", { name: "Post" }),
+    ).toBeInTheDocument();
+  });
+
   it("drops post edits when the voice setup changes", async () => {
     vi.spyOn(commands, "analyzePostF0").mockResolvedValue({
       status: "ok",
@@ -395,14 +677,14 @@ describe("Post panel", () => {
       [xOf(40), yOf(300)],
     ]);
     getTextStore().setTextStore(0, "pitch_is_modified", true);
-    expect(getTextStore().textStore[0].post_f0).not.toBeNull();
+    expect(getTextStore().textStore[0].post).not.toBeNull();
     getConfigStore().setConfig("core", {
       ort_path: "/core",
       ojt_dir: "/dict",
       vvm_dir: "/models",
     });
     await expect(getConfigStore().reinitializeCore()).resolves.toBe(true);
-    expect(getTextStore().textStore[0].post_f0).toBeNull();
+    expect(getTextStore().textStore[0].post).toBeNull();
   });
 });
 

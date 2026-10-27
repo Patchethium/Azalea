@@ -30,6 +30,7 @@ import {
   DEFAULT_PLAYBACK_TIMELINE,
   DEFAULT_SPECTROGRAM_PREVIEW,
   DEFAULT_STREAMING_SYNTHESIS,
+  DEFAULT_POST_PROCESSING,
   DEFAULT_THEME_MODE,
 } from "$constants";
 import { createExtras } from "@contexts/extras";
@@ -112,6 +113,12 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     config.ui.streaming_synthesis ?? DEFAULT_STREAMING_SYNTHESIS;
   const setStreamingSynthesisEnabled = (enabled: boolean) => {
     setConfig("ui", "streaming_synthesis", enabled);
+  };
+  /** Whether the experimental post tab is shown and its edits are applied. */
+  const postProcessingEnabled = () =>
+    config.ui.post_processing ?? DEFAULT_POST_PROCESSING;
+  const setPostProcessingEnabled = (enabled: boolean) => {
+    setConfig("ui", "post_processing", enabled);
   };
   const englishTransformEnabled = () =>
     config.ui.english_transform ?? DEFAULT_ENGLISH_TRANSFORM;
@@ -361,6 +368,8 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     setSpectrogramPreviewEnabled,
     streamingSynthesisEnabled,
     setStreamingSynthesisEnabled,
+    postProcessingEnabled,
+    setPostProcessingEnabled,
     playbackTimelineEnabled,
     setPlaybackTimelineEnabled,
     titlebarStyle,

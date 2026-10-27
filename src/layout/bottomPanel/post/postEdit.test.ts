@@ -3,13 +3,19 @@ import { describe, expect, it } from "vitest";
 import { audioQuery, mora } from "../../../test/fixtures";
 import {
   activePostEdit,
+  addAnchor,
+  buildPostEdit,
   contourFromEdit,
   decodeSpectrogram,
   drawLine,
-  editFromContour,
+  f0Segments,
+  phonemeSpans,
   moraSpans,
+  moveAnchor,
   noteName,
+  removeAnchor,
   restoreFrames,
+  timeMap,
 } from "./postEdit";
 
 describe("post edit helpers", () => {
@@ -26,38 +32,96 @@ describe("post edit helpers", () => {
     const query = audioQuery();
     const edit = {
       base: postEditBase(query, 1),
-      segments: [{ start: 0, f0: [200] }],
+      f0: [{ start: 0, f0: [200] }],
+      time: [],
     };
-    expect(activePostEdit({ post_f0: edit }, query, 1)).toBe(edit);
-    expect(activePostEdit({ post_f0: edit }, query, 2)).toBeNull();
-    expect(activePostEdit({ post_f0: null }, query, 1)).toBeNull();
+    expect(activePostEdit({ post: edit }, query, 1)).toBe(edit);
+    expect(activePostEdit({ post: edit }, query, 2)).toBeNull();
+    expect(activePostEdit({ post: null }, query, 1)).toBeNull();
     expect(activePostEdit({}, query, 1)).toBeNull();
-    expect(
-      activePostEdit({ post_f0: { ...edit, segments: [] } }, query, 1),
-    ).toBeNull();
+    expect(activePostEdit({ post: { ...edit, f0: [] } }, query, 1)).toBeNull();
+    const timed = { ...edit, f0: [], time: [{ source: 0.1, target: 0.2 }] };
+    expect(activePostEdit({ post: timed }, query, 1)).toBe(timed);
   });
 
   it("converts between contours and sparse segments", () => {
     const analyzed = [100, 0, 100, 100, 100, 100];
     const contour = [100, 150, 160, 100, 120, 100];
-    const edit = editFromContour("base", analyzed, contour);
-    expect(edit).toEqual({
-      base: "base",
-      segments: [
-        { start: 1, f0: [150, 160] },
-        { start: 4, f0: [120] },
-      ],
-    });
+    const segments = f0Segments(analyzed, contour);
+    expect(segments).toEqual([
+      { start: 1, f0: [150, 160] },
+      { start: 4, f0: [120] },
+    ]);
+    const edit = buildPostEdit("base", segments, []);
+    expect(edit).toEqual({ base: "base", f0: segments, time: [] });
     expect(contourFromEdit(analyzed, edit)).toEqual(contour);
     expect(contourFromEdit(analyzed, null)).toEqual(analyzed);
-    expect(editFromContour("base", analyzed, [...analyzed])).toBeNull();
+    expect(f0Segments(analyzed, [...analyzed])).toEqual([]);
+    expect(buildPostEdit("base", [], [])).toBeNull();
     // Frames beyond the analysis are ignored.
     expect(
       contourFromEdit([1, 2], {
         base: "b",
-        segments: [{ start: 1, f0: [5, 6] }],
+        f0: [{ start: 1, f0: [5, 6] }],
+        time: [],
       }),
     ).toEqual([1, 5]);
+  });
+
+  it("maps time both ways and keeps the last anchor's offset", () => {
+    const map = timeMap([
+      { source: 1, target: 2 },
+      { source: 2, target: 2.5 },
+    ]);
+    expect(map.points).toEqual([
+      [0, 0],
+      [1, 2],
+      [2, 2.5],
+    ]);
+    expect(map.toTarget(0.5)).toBe(1);
+    expect(map.toTarget(1.5)).toBe(2.25);
+    expect(map.toTarget(3)).toBe(3.5);
+    expect(map.toSource(1)).toBe(0.5);
+    expect(map.toSource(2.25)).toBe(1.5);
+    expect(map.toSource(3.5)).toBe(3);
+    expect(timeMap([]).toTarget(1.25)).toBe(1.25);
+  });
+
+  it("adds, moves, and removes time anchors within the rate limits", () => {
+    const first = addAnchor([], 0.5)!;
+    expect(first).toEqual({
+      anchors: [{ source: 0.5, target: 0.5 }],
+      index: 0,
+    });
+    // Adding on a stretched map keeps the timing unchanged.
+    const stretched = [{ source: 0.5, target: 1 }];
+    const added = addAnchor(stretched, 0.25)!;
+    expect(added.index).toBe(0);
+    expect(added.anchors[0]).toEqual({ source: 0.25, target: 0.5 });
+    expect(addAnchor(stretched, 0.502)).toBeNull();
+    expect(addAnchor(stretched, 0)).toBeNull();
+
+    const anchors = [
+      { source: 1, target: 1 },
+      { source: 2, target: 2 },
+    ];
+    // Later anchors move with the dragged one, keeping their spans.
+    expect(moveAnchor(anchors, 0, 1.5)).toEqual([
+      { source: 1, target: 1.5 },
+      { source: 2, target: 2.5 },
+    ]);
+    // Only the span before the anchor limits it: at most 4× and at least ¼.
+    expect(moveAnchor(anchors, 0, 9)[0].target).toBe(4);
+    expect(moveAnchor(anchors, 0, 0)).toEqual([
+      { source: 1, target: 0.25 },
+      { source: 2, target: 1.25 },
+    ]);
+    expect(moveAnchor(anchors, 1, 9)).toEqual([
+      { source: 1, target: 1 },
+      { source: 2, target: 5 },
+    ]);
+    expect(moveAnchor(anchors, 5, 9)).toEqual(anchors);
+    expect(removeAnchor(anchors, 0)).toEqual([{ source: 2, target: 2 }]);
   });
 
   it("draws log-frequency lines over voiced frames", () => {
@@ -102,7 +166,7 @@ describe("post edit helpers", () => {
     ]);
   });
 
-  it("places moras on the synthesized timeline", () => {
+  it("splits moras into phonemes on the synthesized timeline", () => {
     const query = audioQuery({
       speedScale: 2,
       prePhonemeLength: 0.2,
@@ -115,6 +179,7 @@ describe("post edit helpers", () => {
               text: "ン",
               consonant: null,
               consonant_length: null,
+              vowel: "N",
               vowel_length: 0.2,
             },
           ],
@@ -124,18 +189,26 @@ describe("post edit helpers", () => {
             text: "、",
             consonant: null,
             consonant_length: null,
+            vowel: "pau",
             vowel_length: 0.4,
           },
           is_interrogative: false,
         },
       ],
     });
-    const spans = moraSpans(query);
-    expect(spans.map((span) => span.text)).toEqual(["コ", "ン", "、"]);
+    const spans = phonemeSpans(query);
+    expect(spans.map((span) => span.text)).toEqual(["k", "o", "N", "pau"]);
     expect(spans[0].start).toBeCloseTo(0.1);
-    expect(spans[0].end).toBeCloseTo(0.2);
-    expect(spans[1].end).toBeCloseTo(0.3);
-    expect(spans[2].end).toBeCloseTo(0.5);
+    expect(spans[0].end).toBeCloseTo(0.15);
+    expect(spans[1].end).toBeCloseTo(0.2);
+    expect(spans[2].end).toBeCloseTo(0.3);
+    expect(spans[3].end).toBeCloseTo(0.5);
+    expect(phonemeSpans({ ...query, speedScale: 0 })[0].start).toBeCloseTo(0.2);
+    // Moras keep their katakana and span their consonant and vowel.
+    const moras = moraSpans(query);
+    expect(moras.map((span) => span.text)).toEqual(["コ", "ン", "、"]);
+    expect(moras[0].end).toBeCloseTo(0.2);
+    expect(moras[2].end).toBeCloseTo(0.5);
     expect(moraSpans({ ...query, speedScale: 0 })[0].start).toBeCloseTo(0.2);
   });
 

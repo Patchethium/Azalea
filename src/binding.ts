@@ -408,7 +408,7 @@ async analyzePostF0(audioQuery: AudioQuery, speakerId: StyleId) : Promise<Result
 /**
  * Plays one audio query. With streaming synthesis, playback starts after the first chunk.
  */
-async playAudio(audioQuery: AudioQuery, speakerId: StyleId, post: PostF0Edit | null, startTimeSeconds: number | null) : Promise<Result<null, string>> {
+async playAudio(audioQuery: AudioQuery, speakerId: StyleId, post: PostEdit | null, startTimeSeconds: number | null) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("play_audio", { audioQuery, speakerId, post, startTimeSeconds }) };
 } catch (e) {
@@ -450,7 +450,7 @@ async resolveAudioSavePath(path: string) : Promise<Result<string, string>> {
 /**
  * Save the audio waveform to a file, plus any requested sidecar files.
  */
-async saveAudio(path: string, audioQuery: AudioQuery, speakerId: StyleId, post: PostF0Edit | null, preventOverwrite: boolean, sidecars: AudioSidecars) : Promise<Result<string, string>> {
+async saveAudio(path: string, audioQuery: AudioQuery, speakerId: StyleId, post: PostEdit | null, preventOverwrite: boolean, sidecars: AudioSidecars) : Promise<Result<string, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("save_audio", { path, audioQuery, speakerId, post, preventOverwrite, sidecars }) };
 } catch (e) {
@@ -718,7 +718,7 @@ export type AudioSequenceItem = { audio_query: AudioQuery; speaker_id: StyleId;
 /**
  * Post-processing f0 edits applied after synthesis.
  */
-post?: PostF0Edit | null }
+post?: PostEdit | null }
 /**
  * Extra files written beside an exported WAV, sharing its file stem.
  */
@@ -856,6 +856,19 @@ export type PitchScale = "Linear" | "Optimal" | "DensityAware"
  */
 export type PitchTuningMode = "Absolute" | "Relative"
 /**
+ * Post-processing edits for one block. `base` fingerprints the synthesized content the edits
+ * were made on; the frontend drops edits whose base no longer matches.
+ */
+export type PostEdit = { base: string; 
+/**
+ * Edited f0 runs, on the frames of the synthesized waveform.
+ */
+f0: PostF0Segment[]; 
+/**
+ * Time anchors, ordered by both `source` and `target`.
+ */
+time: PostTimeAnchor[] }
+/**
  * The f0 analysis shown in the post-processing tab.
  */
 export type PostF0Analysis = { frame_period_ms: number; 
@@ -867,11 +880,6 @@ f0: number[]; f0_floor: number; f0_ceil: number;
  * Waveform length in seconds.
  */
 duration: number; spectrogram: PostSpectrogram }
-/**
- * Frame-level f0 edits for one block. `base` fingerprints the synthesized content the edits
- * were made on; the frontend drops edits whose base no longer matches.
- */
-export type PostF0Edit = { base: string; segments: PostF0Segment[] }
 /**
  * A run of consecutive edited frames, starting at frame `start`.
  */
@@ -889,6 +897,12 @@ export type PostSpectrogram = { rows: number; min_hz: number; max_hz: number;
  * value and 0 is 80 dB below it.
  */
 data: string }
+/**
+ * A time anchor: the point at `source` seconds of the synthesized waveform plays at `target`
+ * seconds of the output. Time between anchors (and from the start to the first one) is
+ * stretched or squeezed linearly; after the last anchor it keeps that anchor's offset.
+ */
+export type PostTimeAnchor = { source: number; target: number }
 export type Preset = { id?: string; name: string; style_id: StyleId; 
 /**
  * in percentage, 50-200
@@ -1043,13 +1057,13 @@ export type SynthesisJobRequest = { blockId: string; generationId: number; audio
 /**
  * Post-processing f0 edits applied after synthesis.
  */
-post?: PostF0Edit | null }
+post?: PostEdit | null }
 export type SynthesisJobState = "Queued" | "Running" | "Completed" | "Failed" | "Cancelled" | "Evicted"
 export type TextBlockProps = { id: string; text: string; query: AudioQuery | null; accent_is_modified?: boolean; duration_is_modified?: boolean; pitch_is_modified?: boolean; pitch_noise_seed: number; preset_id: string | null; 
 /**
- * Frame-level f0 edits from the post-processing tab, applied after synthesis.
+ * Post-processing edits (frame-level f0 and time), applied after synthesis.
  */
-post_f0?: PostF0Edit | null }
+post?: PostEdit | null }
 export type ThemeMode = "System" | "Light" | "Dark"
 export type TitlebarStyle = "Native" | "Custom" | "Hidden"
 export type UIConfig = { locale?: Locale; theme_mode?: ThemeMode; embedded_font?: boolean; titlebar_style?: TitlebarStyle; primary_color?: string; bottom_scale?: number; auto_save?: boolean; bottom_ratio?: number; bottom_duration_height?: number; side_width?: number; 
@@ -1062,6 +1076,11 @@ portrait_ratio?: number; buffer_render?: boolean; nonblocking_synthesis?: boolea
  * starts after the first chunk instead of the whole utterance.
  */
 streaming_synthesis?: boolean; 
+/**
+ * Shows the experimental post-processing tab. While it is off, blocks keep their post
+ * edits but playback, buffering and export ignore them.
+ */
+post_processing?: boolean; 
 /**
  * Reads English words OpenJTalk cannot pronounce through e2k instead of spelling them out.
  */

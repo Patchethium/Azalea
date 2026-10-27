@@ -20,7 +20,7 @@ import { useMetaStore } from "@contexts/meta";
 import { useShortcutsStore } from "@contexts/shortcuts";
 import { findPresetById, findPresetStyle, useTextStore } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
-import { getModifiedQuery } from "$utils";
+import { getModifiedQuery, postEditBase } from "$utils";
 import { activePostEdit } from "@layout/bottomPanel/post/postEdit";
 
 export function usePlaybackControls(
@@ -35,8 +35,8 @@ export function usePlaybackControls(
     insertTextBlockBelow,
   } = useTextStore()!;
   const { metas } = useMetaStore()!;
-  const { setUIStore } = useUIStore()!;
-  const { playbackTimelineEnabled } = useConfigStore()!;
+  const { uiStore, setUIStore } = useUIStore()!;
+  const { playbackTimelineEnabled, postProcessingEnabled } = useConfigStore()!;
   const { t1 } = usei18n()!;
   const toasts = useToasts();
   const {
@@ -155,6 +155,19 @@ export function usePlaybackControls(
   const playbackStartTime = () => {
     if (!playbackTimelineEnabled()) return null;
     const query = currentModifiedQuery();
+    // The post tab sets a free start point instead of an accent phrase; it
+    // applies only to the content it was set on.
+    if (uiStore.bottomPanel === "post") {
+      const start = uiStore.postPlaybackStart;
+      const preset = currentPreset();
+      return start !== null &&
+        query !== null &&
+        preset !== null &&
+        start.blockId === selectedTextBlock()?.id &&
+        start.base === postEditBase(query, preset.style_id)
+        ? start.seconds
+        : null;
+    }
     const anchor = playbackPhrases()[playbackAnchorIndex() ?? -1];
     return query === null || anchor === undefined
       ? null
@@ -226,7 +239,9 @@ export function usePlaybackControls(
       const result = await commands.playAudio(
         audioQuery,
         preset.style_id,
-        activePostEdit(block, audioQuery, preset.style_id),
+        postProcessingEnabled()
+          ? activePostEdit(block, audioQuery, preset.style_id)
+          : null,
         playbackStartTime(),
       );
       if (result.status === "ok") {
@@ -345,7 +360,9 @@ export function usePlaybackControls(
           blockId: block.id,
           audioQuery,
           speakerId: preset.style_id,
-          post: activePostEdit(block, audioQuery, preset.style_id),
+          post: postProcessingEnabled()
+            ? activePostEdit(block, audioQuery, preset.style_id)
+            : null,
         },
       ];
     }),

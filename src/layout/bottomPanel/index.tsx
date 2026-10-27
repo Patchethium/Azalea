@@ -4,7 +4,8 @@ import { PhonemePanel } from "@layout/bottomPanel/PhonemePanel";
 import { PostPanel } from "@layout/bottomPanel/post/Panel";
 import { TuningPanel } from "@layout/bottomPanel/tuning/Panel";
 import type { WaveformSynthesisNotice } from "@layout/bottomPanel/types";
-import { createSignal, Show } from "solid-js";
+import { createEffect, createSignal, Show } from "solid-js";
+import { useConfigStore } from "@contexts/config";
 import { usei18n } from "@contexts/i18n";
 import { useTextStore } from "@contexts/text";
 import { type BottomPanelType, useUIStore } from "@contexts/ui";
@@ -15,6 +16,13 @@ function BottomPanel(props: { disabled?: boolean }) {
   const [waveformSynthesisNotice, setWaveformSynthesisNotice] =
     createSignal<WaveformSynthesisNotice | null>(null);
   const { uiStore, setUIStore } = useUIStore()!;
+  const { postProcessingEnabled } = useConfigStore()!;
+  // The post tab is experimental and hidden unless enabled in the config.
+  createEffect(() => {
+    if (!postProcessingEnabled() && uiStore.bottomPanel === "post") {
+      setUIStore("bottomPanel", "tuning");
+    }
+  });
 
   return (
     <fieldset
@@ -23,7 +31,7 @@ function BottomPanel(props: { disabled?: boolean }) {
       aria-label={[
         t1("bottom.accent"),
         t1("bottom.tuning"),
-        t1("bottom.post"),
+        ...(postProcessingEnabled() ? [t1("bottom.post")] : []),
       ].join(" / ")}
       class="m0 min-w-0 size-full border-0 p0"
     >
@@ -65,13 +73,15 @@ function BottomPanel(props: { disabled?: boolean }) {
               >
                 {t1("bottom.tuning")}
               </Tabs.Trigger>
-              <Tabs.Trigger
-                disabled={props.disabled}
-                class="bg-transparent enabled:hover:bg-slate-1 dark:enabled:hover:bg-slate-7 disabled:cursor-not-allowed px-2 rounded-md outline-none select-none"
-                value="post"
-              >
-                {t1("bottom.post")}
-              </Tabs.Trigger>
+              <Show when={postProcessingEnabled()}>
+                <Tabs.Trigger
+                  disabled={props.disabled}
+                  class="bg-transparent enabled:hover:bg-slate-1 dark:enabled:hover:bg-slate-7 disabled:cursor-not-allowed px-2 rounded-md outline-none select-none"
+                  value="post"
+                >
+                  {t1("bottom.post")}
+                </Tabs.Trigger>
+              </Show>
               <Tabs.Indicator class="bg-primary-5 h-1px absolute transition-all bottom-0 left-0" />
             </Tabs.List>
           </div>
@@ -109,22 +119,24 @@ function BottomPanel(props: { disabled?: boolean }) {
               />
             </Show>
           </Tabs.Content>
-          <Tabs.Content
-            class="flex-1 size-full min-h-0"
-            value="post"
-            inert={props.disabled}
-          >
-            <Show
-              when={!props.disabled}
-              fallback={
-                <div class="size-full flex items-center justify-center text-slate-4">
-                  {t1("bottom.no_query")}
-                </div>
-              }
+          <Show when={postProcessingEnabled()}>
+            <Tabs.Content
+              class="flex-1 size-full min-h-0"
+              value="post"
+              inert={props.disabled}
             >
-              <PostPanel />
-            </Show>
-          </Tabs.Content>
+              <Show
+                when={!props.disabled}
+                fallback={
+                  <div class="size-full flex items-center justify-center text-slate-4">
+                    {t1("bottom.no_query")}
+                  </div>
+                }
+              >
+                <PostPanel />
+              </Show>
+            </Tabs.Content>
+          </Show>
         </Tabs>
       </Show>
     </fieldset>

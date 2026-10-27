@@ -3,7 +3,7 @@ use crate::async_job::run_cancellable;
 use crate::config::manager::user_dictionary_path;
 use crate::config::range::style_range;
 use crate::config::CoreConfig;
-use crate::post::{self, PostF0Analysis, PostF0Edit};
+use crate::post::{self, PostEdit, PostF0Analysis};
 use crate::spectrogram::{
   create_spectrogram_preview, validate_spectrogram_request, SlidingSpectrogram, SpectrogramJob,
   SpectrogramJobEvent, SpectrogramJobIdentity, SpectrogramJobRequest, SLIDING_TICK,
@@ -18,7 +18,8 @@ use crate::synthesis::{
 use crate::AppState;
 use crate::{
   audio::combine::concatenate_wavs,
-  audio::lab::{lab_from_audio_query, lab_from_audio_query_at},
+  audio::lab::lab_from_audio_query_mapped,
+  audio::stretch::TimeMap,
   audio::{AudioPlayer, PlaybackFeed},
   core::Core,
 };
@@ -1189,12 +1190,12 @@ async fn synthesize_post_processed(
   state: &AppState,
   audio_query: AudioQuery,
   speaker_id: StyleId,
-  post: Option<&PostF0Edit>,
+  post: Option<&PostEdit>,
   owner: Option<WaveformCacheOwner>,
   backend: SynthesisBackend,
   tap: Option<&PlaybackTap<'_>>,
 ) -> Result<Vec<u8>, String> {
-  let Some(edit) = post.filter(|edit| !edit.segments.is_empty()) else {
+  let Some(edit) = post.filter(|edit| !edit.is_empty()) else {
     return synthesize_cached(
       app,
       state,
@@ -1284,7 +1285,7 @@ pub async fn play_audio(
   state: State<'_, AppState>,
   audio_query: AudioQuery,
   speaker_id: StyleId,
-  post: Option<PostF0Edit>,
+  post: Option<PostEdit>,
   start_time_seconds: Option<f64>,
 ) -> std::result::Result<(), String> {
   let start_at = playback_start_duration(start_time_seconds)?;
@@ -1302,7 +1303,7 @@ pub struct AudioSequenceItem {
   pub speaker_id: StyleId,
   /// Post-processing f0 edits applied after synthesis.
   #[serde(default)]
-  pub post: Option<PostF0Edit>,
+  pub post: Option<PostEdit>,
 }
 
 #[tauri::command]
@@ -1393,7 +1394,15 @@ async fn feed_playback(
   let streaming = streaming_synthesis_enabled(state);
   let mut wavs = Vec::new();
   for (index, item) in items.into_iter().enumerate() {
-    let item_start = if index == 0 { start_at } else { Duration::ZERO };
+    // The start position is on the synthesized timeline; time edits move it.
+    let item_start = match (index, item.post.as_ref()) {
+      (0, Some(post)) if !post.time.is_empty() => {
+        post.validate()?;
+        Duration::from_secs_f64(post.time_map().to_target(start_at.as_secs_f64()).max(0.0))
+      }
+      (0, _) => start_at,
+      _ => Duration::ZERO,
+    };
     if streaming {
       feed.begin_item(index);
     }
@@ -1533,9 +1542,17 @@ pub struct AudioSidecars {
 fn write_audio_sidecars(
   audio_path: &Path,
   audio_query: &AudioQuery,
+  post: Option<&PostEdit>,
   sidecars: &AudioSidecars,
 ) -> Result<(), String> {
-  write_sidecar_files(audio_path, sidecars, || lab_from_audio_query(audio_query))
+  write_sidecar_files(audio_path, sidecars, || {
+    lab_from_audio_query_mapped(audio_query, 0.0, &post_time_map(post))
+  })
+}
+
+/// Where each point of a synthesized waveform ends up after its post-processing time edits.
+fn post_time_map(post: Option<&PostEdit>) -> TimeMap {
+  post.map_or_else(TimeMap::identity, PostEdit::time_map)
 }
 
 /// Writes the `.txt` and `.lab` sidecars beside `audio_path`, generating the
@@ -1560,11 +1577,18 @@ fn write_sidecar_files(
 
 /// Lab text for blocks placed one after another in a combined file, with each
 /// block's timestamps shifted to where its waveform begins.
-fn combined_lab(queries: &[AudioQuery], offsets_seconds: &[f64]) -> String {
+fn combined_lab(
+  queries: &[AudioQuery],
+  posts: &[Option<PostEdit>],
+  offsets_seconds: &[f64],
+) -> String {
   queries
     .iter()
+    .zip(posts)
     .zip(offsets_seconds)
-    .map(|(query, offset)| lab_from_audio_query_at(query, *offset))
+    .map(|((query, post), offset)| {
+      lab_from_audio_query_mapped(query, *offset, &post_time_map(post.as_ref()))
+    })
     .collect()
 }
 
@@ -1573,6 +1597,7 @@ fn combined_lab(queries: &[AudioQuery], offsets_seconds: &[f64]) -> String {
 fn write_combined_audio(
   path: &Path,
   queries: &[AudioQuery],
+  posts: &[Option<PostEdit>],
   wavs: &[Vec<u8>],
   prevent_overwrite: bool,
   sidecars: &AudioSidecars,
@@ -1580,7 +1605,7 @@ fn write_combined_audio(
   let combined = concatenate_wavs(wavs)?;
   let saved_path = write_audio_file(path, &combined.wav, prevent_overwrite)?;
   write_sidecar_files(&saved_path, sidecars, || {
-    combined_lab(queries, &combined.offsets_seconds)
+    combined_lab(queries, posts, &combined.offsets_seconds)
   })?;
   Ok(saved_path)
 }
@@ -1594,7 +1619,7 @@ pub async fn save_audio(
   path: String,
   audio_query: AudioQuery,
   speaker_id: StyleId,
-  post: Option<PostF0Edit>,
+  post: Option<PostEdit>,
   prevent_overwrite: bool,
   sidecars: AudioSidecars,
 ) -> std::result::Result<String, String> {
@@ -1610,7 +1635,7 @@ pub async fn save_audio(
   )
   .await?;
   let saved_path = write_audio_file(Path::new(&path), &waveform, prevent_overwrite)?;
-  write_audio_sidecars(&saved_path, &audio_query, &sidecars)?;
+  write_audio_sidecars(&saved_path, &audio_query, post.as_ref(), &sidecars)?;
   Ok(saved_path.to_string_lossy().into_owned())
 }
 
@@ -1633,6 +1658,7 @@ pub async fn save_combined_audio(
     return Err("There is no audio to combine".into());
   }
   let mut queries = Vec::with_capacity(items.len());
+  let mut posts = Vec::with_capacity(items.len());
   let mut wavs = Vec::with_capacity(items.len());
   for item in items {
     wavs.push(
@@ -1649,10 +1675,11 @@ pub async fn save_combined_audio(
       .await?,
     );
     queries.push(item.audio_query);
+    posts.push(item.post);
   }
   let path = PathBuf::from(path);
   let saved_path = tauri::async_runtime::spawn_blocking(move || {
-    write_combined_audio(&path, &queries, &wavs, prevent_overwrite, &sidecars)
+    write_combined_audio(&path, &queries, &posts, &wavs, prevent_overwrite, &sidecars)
   })
   .await
   .map_err(|e| e.to_string())??;
@@ -1900,14 +1927,14 @@ mod tests {
     }))
     .unwrap();
 
-    write_audio_sidecars(&audio, &query, &AudioSidecars::default()).unwrap();
+    write_audio_sidecars(&audio, &query, None, &AudioSidecars::default()).unwrap();
     assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
 
     let sidecars = AudioSidecars {
       text: Some("こんにちは".into()),
       lab: true,
     };
-    write_audio_sidecars(&audio, &query, &sidecars).unwrap();
+    write_audio_sidecars(&audio, &query, None, &sidecars).unwrap();
     assert_eq!(
       std::fs::read_to_string(directory.path().join("voice.sample(2).txt")).unwrap(),
       "こんにちは"
@@ -1919,7 +1946,7 @@ mod tests {
 
     let blocked = directory.path().join("blocked.wav");
     std::fs::create_dir(blocked.with_extension("txt")).unwrap();
-    let error = write_audio_sidecars(&blocked, &query, &sidecars).unwrap_err();
+    let error = write_audio_sidecars(&blocked, &query, None, &sidecars).unwrap_err();
     assert!(error.contains("blocked.txt"), "{error}");
   }
 
@@ -1943,7 +1970,7 @@ mod tests {
   fn combined_lab_offsets_each_block_by_its_waveform_start() {
     let queries = [silent_query(0.1, 0.1), silent_query(0.2, 0.3)];
     assert_eq!(
-      combined_lab(&queries, &[0.0, 0.25]),
+      combined_lab(&queries, &[None, None], &[0.0, 0.25]),
       "0 1000000 pau\n1000000 2000000 pau\n\
        2500000 4500000 pau\n4500000 7500000 pau\n"
     );
@@ -1960,7 +1987,8 @@ mod tests {
       lab: true,
     };
 
-    let saved = write_combined_audio(&path, &queries, &wavs, true, &sidecars).unwrap();
+    let saved =
+      write_combined_audio(&path, &queries, &[None, None], &wavs, true, &sidecars).unwrap();
     assert_eq!(saved, path);
     let reader = hound::WavReader::open(&saved).unwrap();
     assert_eq!(reader.spec().sample_rate, 24_000);
@@ -1975,6 +2003,7 @@ mod tests {
     let error = write_combined_audio(
       &directory.path().join("mismatch.wav"),
       &queries,
+      &[None, None],
       &[wav(1, 24_000, 10), wav(1, 48_000, 10)],
       true,
       &AudioSidecars::default(),
@@ -1996,15 +2025,16 @@ mod tests {
       lab: false,
     };
 
-    let second = write_combined_audio(&path, &queries, &wavs, true, &sidecars).unwrap();
-    let third = write_combined_audio(&path, &queries, &wavs, true, &sidecars).unwrap();
+    let second = write_combined_audio(&path, &queries, &[None], &wavs, true, &sidecars).unwrap();
+    let third = write_combined_audio(&path, &queries, &[None], &wavs, true, &sidecars).unwrap();
     assert_eq!(second, directory.path().join("project(2).wav"));
     assert_eq!(third, directory.path().join("project(3).wav"));
     assert_eq!(std::fs::read(&path).unwrap(), b"existing");
     assert!(directory.path().join("project(2).txt").exists());
     assert!(!directory.path().join("project(2).lab").exists());
 
-    let overwritten = write_combined_audio(&path, &queries, &wavs, false, &sidecars).unwrap();
+    let overwritten =
+      write_combined_audio(&path, &queries, &[None], &wavs, false, &sidecars).unwrap();
     assert_eq!(overwritten, path);
     assert_ne!(std::fs::read(&path).unwrap(), b"existing");
   }

@@ -178,6 +178,10 @@ pub struct UIConfig {
   /// starts after the first chunk instead of the whole utterance.
   #[serde(default = "streaming_synthesis_default")]
   pub streaming_synthesis: bool,
+  /// Shows the experimental post-processing tab. While it is off, blocks keep their post
+  /// edits but playback, buffering and export ignore them.
+  #[serde(default)]
+  pub post_processing: bool,
   /// Reads English words OpenJTalk cannot pronounce through e2k instead of spelling them out.
   #[serde(default = "english_transform_default")]
   pub english_transform: bool,
@@ -252,6 +256,7 @@ impl Default for UIConfig {
       synthesis_delay_ms: synthesis_delay_ms_default(),
       spectrogram_preview: spectrogram_preview_default(),
       streaming_synthesis: streaming_synthesis_default(),
+      post_processing: false,
       english_transform: english_transform_default(),
       english_accent_prediction: english_transform_default(),
       english_ngram_filter: english_transform_default(),
@@ -385,7 +390,7 @@ fn synthesis_delay_ms_default() -> u32 {
 }
 
 fn spectrogram_preview_default() -> bool {
-  true
+  false
 }
 
 fn streaming_synthesis_default() -> bool {
@@ -565,9 +570,9 @@ pub struct TextBlockProps {
   pub pitch_is_modified: bool,
   pub pitch_noise_seed: u32,
   pub preset_id: Option<String>,
-  /// Frame-level f0 edits from the post-processing tab, applied after synthesis.
+  /// Post-processing edits (frame-level f0 and time), applied after synthesis.
   #[serde(default)]
-  pub post_f0: Option<crate::post::PostF0Edit>,
+  pub post: Option<crate::post::PostEdit>,
 }
 
 impl TextBlockProps {
@@ -810,8 +815,9 @@ mod tests {
 
     assert_eq!(config.system_presets.len(), 1);
     assert_eq!(config.system_presets[0].name, "Default");
-    assert!(config.ui.spectrogram_preview);
+    assert!(!config.ui.spectrogram_preview);
     assert!(config.ui.streaming_synthesis);
+    assert!(!config.ui.post_processing);
     assert!(config.ui.playback_timeline);
     assert!(matches!(config.ui.pitch_scale, PitchScale::Optimal));
     assert!(config.ui.pitch_ruler);

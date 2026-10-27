@@ -26,8 +26,12 @@ export function ControlBar(props: {
     pitchCompletionActive,
     togglePitchCompletionLock,
   } = useConfigStore()!;
-  const { matchesShortcut, formatShortcut, isApplicationShortcutAllowed } =
-    useShortcutsStore()!;
+  const {
+    matchesShortcut,
+    formatShortcut,
+    isApplicationShortcutAllowed,
+    isPlaybackToggleAllowed,
+  } = useShortcutsStore()!;
   const {
     selectedTextBlock,
     selectedTextBlockIndex,
@@ -35,6 +39,8 @@ export function ControlBar(props: {
     commitPitchNoiseSeed,
     canStepSeedHistory,
     stepSeedHistory,
+    canStepPostHistory,
+    stepPostHistory,
   } = useTextStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
   const controls = usePlaybackControls(
@@ -42,6 +48,29 @@ export function ControlBar(props: {
     () => props.disabled ?? false,
   );
   const { canReset, resetEdits, resetLabel } = useQueryReset();
+  // Undo and redo step through the post edits while the post tab is shown,
+  // leaving text fields their own undo.
+  onMount(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        props.disabled ||
+        uiStore.page !== null ||
+        uiStore.bottomPanel !== "post" ||
+        !isPlaybackToggleAllowed(event)
+      )
+        return;
+      const direction = matchesShortcut(event, "undo")
+        ? "undo"
+        : matchesShortcut(event, "redo")
+          ? "redo"
+          : null;
+      if (direction === null) return;
+      event.preventDefault();
+      stepPostHistory(selectedTextBlockIndex(), direction);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    onCleanup(() => window.removeEventListener("keydown", handleKeyDown));
+  });
   onMount(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
@@ -199,21 +228,49 @@ export function ControlBar(props: {
           </Show>
           <Show when={uiStore.bottomPanel === "post"}>
             <ToolbarButton
+              icon="i-lucide:undo-2"
+              label={t1("bottom.post_undo")}
+              tooltip={`${t1("bottom.post_undo")} (${formatShortcut("undo").join("+")})`}
+              disabled={!canStepPostHistory(selectedTextBlockIndex(), "undo")}
+              onClick={() => stepPostHistory(selectedTextBlockIndex(), "undo")}
+            />
+            <ToolbarButton
+              icon="i-lucide:redo-2"
+              label={t1("bottom.post_redo")}
+              tooltip={`${t1("bottom.post_redo")} (${formatShortcut("redo").join("+")})`}
+              disabled={!canStepPostHistory(selectedTextBlockIndex(), "redo")}
+              onClick={() => stepPostHistory(selectedTextBlockIndex(), "redo")}
+            />
+            <Separator
+              orientation="vertical"
+              class="mx1 h-4 b-0 b-l b-slate-3 dark:b-slate-5"
+            />
+            <ToolbarButton
               icon="i-lucide:pencil"
               label={t1("bottom.post_pencil")}
               ariaPressed={uiStore.postTool === "pencil"}
+              highlightPressed
               onClick={() => setUIStore("postTool", "pencil")}
             />
             <ToolbarButton
               icon="i-lucide:slash"
               label={t1("bottom.post_line")}
               ariaPressed={uiStore.postTool === "line"}
+              highlightPressed
               onClick={() => setUIStore("postTool", "line")}
+            />
+            <ToolbarButton
+              icon="i-lucide:move-horizontal"
+              label={t1("bottom.post_time")}
+              ariaPressed={uiStore.postTool === "time"}
+              highlightPressed
+              onClick={() => setUIStore("postTool", "time")}
             />
             <ToolbarButton
               icon="i-lucide:audio-waveform"
               label={t1("bottom.post_draw_unvoiced")}
               ariaPressed={uiStore.postDrawUnvoiced}
+              highlightPressed
               tooltip={
                 <>
                   <div>{t1("bottom.post_draw_unvoiced")}</div>
@@ -248,7 +305,8 @@ export function ControlBar(props: {
           </Show>
         </div>
       </div>
-      <Show when={playbackTimelineEnabled()}>
+      {/* The post tab has its own free playback-start timeline. */}
+      <Show when={playbackTimelineEnabled() && uiStore.bottomPanel !== "post"}>
         <PlaybackTimeline
           phrases={controls.playbackPhrases()}
           anchorIndex={controls.playbackAnchorIndex()}

@@ -4,26 +4,37 @@
 use std::fmt::Write;
 use voicevox_core::AudioQuery;
 
+use super::stretch::TimeMap;
+
 /// Lab timestamps are in 100-nanosecond units.
 const UNITS_PER_SECOND: f64 = 10_000_000.0;
 
-struct LabWriter {
+struct LabWriter<'a> {
   text: String,
-  timestamp: f64,
+  /// Seconds into the synthesized waveform.
+  seconds: f64,
+  offset_seconds: f64,
   speed_scale: f64,
+  /// Where each point of the synthesized waveform ends up in the output.
+  map: &'a TimeMap,
 }
 
-impl LabWriter {
+impl LabWriter<'_> {
+  fn timestamp(&self, seconds: f64) -> f64 {
+    (self.map.to_target(seconds) + self.offset_seconds) * UNITS_PER_SECOND
+  }
+
   /// Appends one `start end phoneme` line lasting `seconds` at speed 1.
   fn push(&mut self, seconds: f32, phoneme: &str) {
-    let start = self.timestamp;
-    self.timestamp += f64::from(seconds) * UNITS_PER_SECOND / self.speed_scale;
+    let start = self.timestamp(self.seconds);
+    self.seconds += f64::from(seconds) / self.speed_scale;
+    let end = self.timestamp(self.seconds);
     // `write!` into a `String` cannot fail.
     let _ = writeln!(
       self.text,
       "{:.0} {:.0} {phoneme}",
       start.round(),
-      self.timestamp.round()
+      end.round()
     );
   }
 }
@@ -38,10 +49,22 @@ pub fn lab_from_audio_query(query: &AudioQuery) -> String {
 /// Like [`lab_from_audio_query`], but with every timestamp shifted by
 /// `offset_seconds`, for labels of a query placed later in a combined file.
 pub fn lab_from_audio_query_at(query: &AudioQuery, offset_seconds: f64) -> String {
+  lab_from_audio_query_mapped(query, offset_seconds, &TimeMap::identity())
+}
+
+/// Like [`lab_from_audio_query_at`], with every time passed through `map` first, for audio
+/// whose timing was edited in post-processing.
+pub fn lab_from_audio_query_mapped(
+  query: &AudioQuery,
+  offset_seconds: f64,
+  map: &TimeMap,
+) -> String {
   let mut lab = LabWriter {
     text: String::new(),
-    timestamp: offset_seconds * UNITS_PER_SECOND,
+    seconds: 0.0,
+    offset_seconds,
     speed_scale: f64::from(f32::from(query.speed_scale)),
+    map,
   };
   lab.push(query.pre_phoneme_length.into(), "pau");
   for phrase in &query.accent_phrases {
@@ -66,7 +89,8 @@ pub fn lab_from_audio_query_at(query: &AudioQuery, offset_seconds: f64) -> Strin
 
 #[cfg(test)]
 mod tests {
-  use super::{lab_from_audio_query, lab_from_audio_query_at};
+  use super::{lab_from_audio_query, lab_from_audio_query_at, lab_from_audio_query_mapped};
+  use crate::audio::stretch::TimeMap;
   use voicevox_core::AudioQuery;
 
   fn query(speed_scale: f32) -> AudioQuery {
@@ -133,5 +157,27 @@ mod tests {
     assert!(lab.starts_with("15000000 16000000 pau\n16000000 16500000 k\n"));
     assert!(lab.ends_with("21300000 22800000 pau\n"));
     assert_eq!(lab.lines().count(), 8);
+  }
+
+  #[test]
+  fn lab_timestamps_follow_post_processing_time_edits() {
+    // The vowel of コ (0.15..0.25 s) is stretched to 0.15..0.35 s; later phonemes shift.
+    let map = TimeMap::new([(0.15, 0.15), (0.25, 0.35)]);
+    let lab = lab_from_audio_query_mapped(&query(1.0), 0.0, &map);
+    assert!(lab.starts_with(
+      "0 1000000 pau
+1000000 1500000 k
+1500000 3500000 o
+"
+    ));
+    assert!(lab.ends_with(
+      "7300000 8800000 pau
+"
+    ));
+    let offset = lab_from_audio_query_mapped(&query(1.0), 1.0, &map);
+    assert!(offset.starts_with(
+      "10000000 11000000 pau
+"
+    ));
   }
 }
