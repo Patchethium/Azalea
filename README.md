@@ -145,8 +145,21 @@ Rust版VOICEVOX Coreを直接利用します。
 
 - [Rust](https://rustup.rs)
 - [pnpm](https://pnpm.io)
+- Node.js 22 or later (also required for Rust builds to collect frontend licenses)
+- [cargo-about](https://github.com/EmbarkStudios/cargo-about) 0.9.2:
+  `cargo install cargo-about --locked --version 0.9.2 --features cli`
 - [mold](https://github.com/rui314/mold) and clang, if you're on Linux
 - [tauri prerequisites](https://tauri.app/start/prerequisites/)
+
+Run `pnpm install --frozen-lockfile` before building Rust. `build.rs` collects
+Rust and production frontend license texts, plus WORLD's license, into Cargo's
+`OUT_DIR` and embeds them for the **Licenses** dialog above **About** in the app
+menu. Reports are reused until their inputs change; generated files are not
+committed. The first collection may need network access for Cargo metadata and
+license retrieval. `CARGO_NET_OFFLINE=true` restricts cargo-about to local files;
+`CARGO_ABOUT` can point to a standalone cargo-about executable. Missing tools or
+unresolved licenses fail the build with diagnostics. Run `pnpm test:licenses`
+to test the collector without network access or cargo-about.
 
 ### Setting up the core
 

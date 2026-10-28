@@ -1,4 +1,5 @@
 import { AboutDialog } from "@dialogs/About";
+import { LicensesDialog } from "@dialogs/Licenses";
 import { DictionaryDialog } from "@dialogs/Dictionary";
 import { ExportAllDialog } from "@dialogs/ExportAll";
 import { UnsavedChangesDialog } from "@dialogs/UnsavedChanges";
@@ -19,6 +20,7 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
   const { t1 } = usei18n()!;
   const controls = props.controls;
   const { voicesReady } = useConfigStore()!;
+  let menuTrigger: HTMLButtonElement | undefined;
   return (
     <>
       <div class="flex flex-row items-center gap-1">
@@ -27,6 +29,9 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
           onOpenChange={controls.setActionMenuOpen}
         >
           <DropdownMenu.Trigger
+            ref={(element) => {
+              menuTrigger = element;
+            }}
             disabled={!voicesReady()}
             aria-label={t1("menu.project_actions")}
             class="group p1 size-8 rounded-lg bg-white dark:bg-slate-8 shadow-md enabled:hover:bg-primary-5 disabled:(cursor-not-allowed grayscale) data-[expanded]:bg-primary-5 transition-transform outline-none"
@@ -133,6 +138,15 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
               <DropdownMenu.Separator class="mx-2 my-1" />
               <DropdownMenu.Item
                 class={style.menu_item}
+                onClick={() => {
+                  controls.setActionMenuOpen(false);
+                  controls.setLicensesOpen(true);
+                }}
+              >
+                {t1("menu.licenses")}
+              </DropdownMenu.Item>
+              <DropdownMenu.Item
+                class={style.menu_item}
                 onClick={() => controls.setAboutOpen(true)}
               >
                 {t1("menu.about")}
@@ -171,6 +185,13 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
       <AboutDialog
         open={controls.aboutOpen()}
         onOpenChange={controls.setAboutOpen}
+      />
+      <LicensesDialog
+        open={controls.licensesOpen()}
+        onOpenChange={(open) => {
+          controls.setLicensesOpen(open);
+          if (!open) menuTrigger?.focus();
+        }}
       />
       <DictionaryDialog
         open={controls.uiStore.page === "dictionary"}

@@ -66,6 +66,9 @@ jobs:
       - name: install frontend dependencies
         run: pnpm i
 
+      - name: install cargo-about
+        run: cargo install cargo-about --locked --version 0.9.2 --features cli
+
       - uses: tauri-apps/tauri-action@v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

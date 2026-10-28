@@ -37,6 +37,35 @@ vi.mock("@components/tooltip", () => ({
 }));
 
 describe("Sidebar project lifecycle", () => {
+  it("places Licenses immediately above About and opens the dialog", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const getLicenses = vi
+      .spyOn(commands, "getDependencyLicenses")
+      .mockResolvedValue([]);
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null));
+    renderSidebar(({ config: appConfig, meta }) => {
+      appConfig.setConfig(config());
+      meta.setMetas(metas);
+    });
+    const trigger = await screen.findByRole("button", {
+      name: "Project actions",
+    });
+    await user.click(trigger);
+    const items = await screen.findAllByRole("menuitem");
+    const index = items.findIndex((item) => item.textContent === "Licenses");
+    expect(index).toBeGreaterThanOrEqual(0);
+    expect(items[index + 1]).toHaveTextContent("About");
+    await user.click(items[index]);
+    const dialog = await screen.findByRole("dialog", {
+      name: "Dependency licenses",
+    });
+    expect(dialog).toBeVisible();
+    expect(getLicenses).toHaveBeenCalledOnce();
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(dialog).toHaveAttribute("data-closed"));
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
   it("saves the live project, loads replacement data, and autosaves edits", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     const invocations: Array<{ cmd: string; args: Record<string, unknown> }> =

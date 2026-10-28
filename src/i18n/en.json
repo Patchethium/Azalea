@@ -108,6 +108,18 @@
     "fixed_navigate_down": "Move to the next text block",
     "fixed_focus_block": "Focus the selected text block"
   },
+  "licenses": {
+    "search": "Search libraries",
+    "clear_search": "Clear search",
+    "search_placeholder": "Search…",
+    "no_matches": "No libraries found.",
+    "libraries": "Libraries",
+    "title": "Dependency licenses",
+    "close": "Close licenses dialog",
+    "loading": "Loading licenses…",
+    "error": "Could not load dependency licenses.",
+    "retry": "Retry"
+  },
   "about": {
     "title": "About Azalea",
     "close": "Close about dialog",
@@ -294,6 +306,7 @@
     "export_all": "Export all",
     "export_all_combined": "Export all as one file…",
     "quit": "Quit",
+    "licenses": "Licenses",
     "about": "About"
   },
   "export_all": {

@@ -1,6 +1,22 @@
 fn main() {
+  collect_licenses();
   build_world();
   tauri_build::build()
+}
+
+/// Keep generated notices out of the source tree and embed them in every build.
+fn collect_licenses() {
+  println!("cargo:rerun-if-env-changed=CARGO_ABOUT");
+  println!("cargo:rerun-if-env-changed=CARGO_NET_OFFLINE");
+  let status = std::process::Command::new("node")
+    .arg("../scripts/licenses.mjs")
+    .arg(std::env::var_os("OUT_DIR").expect("Cargo must set OUT_DIR"))
+    .status()
+    .expect("License collection requires Node.js and pnpm; install the frontend prerequisites");
+  assert!(
+    status.success(),
+    "Dependency license collection failed; see the diagnostics above"
+  );
 }
 
 /// Compiles the WORLD vocoder (the `third_party/world` submodule) used by the post-processing

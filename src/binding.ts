@@ -5,6 +5,12 @@
 
 
 export const commands = {
+/**
+ * The complete notices travel with the binary, including in offline installations.
+ */
+async getDependencyLicenses() : Promise<DependencyLicense[]> {
+    return await TAURI_INVOKE("get_dependency_licenses");
+},
 async clearCaches() : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("clear_caches") };
@@ -771,6 +777,7 @@ export type CoreConfig = {
  * the path should be `/home/user/VOICEVOX/vv-engine`.
  */
 ort_path: string; ojt_dir: string; vvm_dir: string; cache_size?: number; cpu_num_threads?: number; setup_source?: SetupSource }
+export type DependencyLicense = { id: string; name: string; text: string; packages: LicensePackage[] }
 export type DictionaryEntry = { id: string; surface: string; pronunciation: string; accent_type: number; word_type: DictionaryWordType; priority: number }
 export type DictionaryEntryInput = { surface: string; pronunciation: string; accent_type: number; word_type: DictionaryWordType; priority: number }
 export type DictionaryWordType = "PROPER_NOUN" | "COMMON_NOUN" | "VERB" | "ADJECTIVE" | "SUFFIX"
@@ -796,6 +803,7 @@ export type InitializationEvent = { config: AzaleaConfig | null; core_initialize
 unsupported_system_locale?: string | null }
 export type KeyboardShortcut = { key: string; primary?: boolean; secondary?: boolean; shift?: boolean; alt?: boolean }
 export type KeyboardShortcuts = { undo?: KeyboardShortcut; redo?: KeyboardShortcut; save_project?: KeyboardShortcut; save_project_as?: KeyboardShortcut; export_audio?: KeyboardShortcut; toggle_playback?: KeyboardShortcut; play_current?: KeyboardShortcut; play_next?: KeyboardShortcut; toggle_pitch_completion?: KeyboardShortcut }
+export type LicensePackage = { name: string; version: string }
 export type Locale = "Ja" | "En" | "ZhCn"
 /**
  * モーラ（子音＋母音）ごとの情報。

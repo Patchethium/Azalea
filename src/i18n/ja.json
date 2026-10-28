@@ -108,6 +108,18 @@
     "fixed_navigate_down": "次のテキストセルへ移動",
     "fixed_focus_block": "選択中のテキストセルにフォーカス"
   },
+  "licenses": {
+    "search": "ライブラリを検索",
+    "clear_search": "検索をクリア",
+    "search_placeholder": "検索…",
+    "no_matches": "一致するライブラリがありません。",
+    "libraries": "ライブラリ",
+    "title": "依存ライブラリのライセンス",
+    "close": "ライセンスダイアログを閉じる",
+    "loading": "ライセンスを読み込み中…",
+    "error": "依存ライブラリのライセンスを読み込めませんでした。",
+    "retry": "再試行"
+  },
   "about": {
     "title": "Azaleaについて",
     "close": "Azaleaについてを閉じる",
@@ -188,6 +200,7 @@
     "export_all": "すべて書き出し",
     "export_all_combined": "すべてを1つのファイルに書き出し…",
     "quit": "終了",
+    "licenses": "ライセンス",
     "about": "このアプリについて"
   },
   "export_all": {

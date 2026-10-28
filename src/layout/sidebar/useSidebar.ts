@@ -94,6 +94,7 @@ export function useSidebar() {
 
   const [presetManagerOpen, setPresetManagerOpen] = createSignal(false);
   const [aboutOpen, setAboutOpen] = createSignal(false);
+  const [licensesOpen, setLicensesOpen] = createSignal(false);
 
   const currentPreset = createMemo(() =>
     findPresetById(projectPresetStore, currentText()?.preset_id),
@@ -844,6 +845,8 @@ export function useSidebar() {
     setPresetManagerOpen,
     aboutOpen,
     setAboutOpen,
+    licensesOpen,
+    setLicensesOpen,
     actionMenuOpen,
     setActionMenuOpen,
     newProject,

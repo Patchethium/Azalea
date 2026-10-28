@@ -49,6 +49,7 @@ pub struct AppState {
 fn specta_builder() -> Builder<tauri::Wry> {
   Builder::<tauri::Wry>::new()
     .commands(collect_commands![
+      get_dependency_licenses,
       clear_caches,
       get_cached_speaker_icons,
       download_speaker_icons,

@@ -16,7 +16,8 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:coverage:rust": "cargo llvm-cov --branch --locked --manifest-path src-tauri/Cargo.toml -- --test-threads=1",
-    "test:all": "pnpm check && pnpm build && pnpm test:coverage && cargo test --locked --manifest-path src-tauri/Cargo.toml -- --test-threads=1",
+    "test:licenses": "node --test scripts/licenses.test.mjs",
+    "test:all": "pnpm test:licenses && pnpm check && pnpm build && pnpm test:coverage && cargo test --locked --manifest-path src-tauri/Cargo.toml -- --test-threads=1",
     "e2e:build": "tauri build --debug --no-bundle",
     "e2e": "tsx e2e/driver.ts"
   },
