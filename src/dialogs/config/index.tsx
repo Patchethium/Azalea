@@ -153,6 +153,9 @@ export function ConfigPage() {
             <ConfigItem label={t1("config.font")}>
               <FontSelect />
             </ConfigItem>
+            <ConfigItem label={t1("config.primary_color")}>
+              <PrimaryColorPicker />
+            </ConfigItem>
             <ConfigItem label={t1("config.theme")}>
               <ThemeSelect />
             </ConfigItem>
@@ -231,9 +234,6 @@ export function ConfigPage() {
                 </div>
               </ConfigItem>
             </Show>
-            <ConfigItem label={t1("config.primary_color")}>
-              <PrimaryColorPicker />
-            </ConfigItem>
           </Tabs.Content>
           <Tabs.Content value="project" class={contentClass}>
             <ConfigSectionTitle label={t1("config.project")} />
