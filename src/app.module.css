@@ -1,7 +1,6 @@
 .canvas {
-  /* biome-ignore lint: */
-  background-color: theme("colors.slate.1");
-  background-image: radial-gradient(#ccc, 1px, transparent 0);
+  background-color: var(--az-canvas);
+  background-image: radial-gradient(var(--az-canvas-dot), 1px, transparent 0);
   background-size: 20px 20px; /* size of grid spacing */
 }
 
@@ -22,18 +21,100 @@
   font-family: "Azalea Noto Sans JP", sans-serif;
 }
 
-:global(.dark) .canvas {
-  background-color: #0f172a;
-  background-image: radial-gradient(#334155, 1px, transparent 0);
-}
-
+/* Semantic color tokens from the Azalea design system. UnoCSS maps them to
+   theme colors (`bg-surface`, `text-ink-muted`, `b-border`, ...) so a class
+   follows the theme without a `dark:` pair. */
 html {
   --primary-color: #3b82f6;
+  --az-canvas: #f1f5f9;
+  --az-canvas-dot: #cccccc;
+  --az-surface: #ffffff;
+  --az-surface-raised: #ffffff;
+  --az-surface-menu: #f1f5f9;
+  --az-surface-titlebar: #e2e8f0;
+  --az-hover: #f1f5f9;
+  --az-hover-titlebar: #cbd5e1;
+  --az-border: #e2e8f0;
+  --az-border-menu: #cbd5e1;
+  --az-border-titlebar: #cbd5e1;
+  --az-ink: #0f172a;
+  --az-ink-secondary: #1e293b;
+  --az-ink-muted: #475569;
+  --az-ink-subtle: #64748b;
+  --az-ink-faint: #94a3b8;
+  --az-ink-disabled: #cbd5e1;
+  --az-track: #e2e8f0;
+  --az-control-off: #cbd5e1;
+  --az-tooltip: #1e293b;
+  --az-on-tooltip: #ffffff;
+  --az-accent-soft: color-mix(in srgb, var(--primary-color) 35%, white);
+  --az-danger-ink: #dc2626;
+  --az-danger-border: #fca5a5;
+  --az-danger-soft: #fecaca;
+  --az-warning-border: #fcd34d;
+  --az-warning-soft: #fde68a;
+  --az-synth-idle-bg: rgba(241, 245, 249, 0.8);
+  --az-synth-idle-border: #e2e8f0;
+  --az-synth-idle-ink: #64748b;
+  --az-synth-queued-bg: rgba(254, 243, 199, 0.7);
+  --az-synth-queued-border: #fde68a;
+  --az-synth-queued-ink: #b45309;
+  --az-synth-running-bg: rgba(224, 242, 254, 0.7);
+  --az-synth-running-border: #bae6fd;
+  --az-synth-running-ink: #0369a1;
+  --az-synth-completed-bg: rgba(209, 250, 229, 0.7);
+  --az-synth-completed-border: #a7f3d0;
+  --az-synth-completed-ink: #047857;
+  --az-synth-failed-bg: rgba(255, 228, 230, 0.7);
+  --az-synth-failed-border: #fecdd3;
+  --az-synth-failed-ink: #be123c;
   overscroll-behavior: none;
 }
 
 :global(html.dark) {
   color-scheme: dark;
+  --az-canvas: #0f172a;
+  --az-canvas-dot: #334155;
+  --az-surface: #1e293b;
+  --az-surface-raised: #334155;
+  --az-surface-menu: #334155;
+  --az-surface-titlebar: #1e293b;
+  --az-hover: #334155;
+  --az-hover-titlebar: #334155;
+  --az-border: #475569;
+  --az-border-menu: #64748b;
+  --az-border-titlebar: #334155;
+  --az-ink: #f1f5f9;
+  --az-ink-secondary: #e2e8f0;
+  --az-ink-muted: #cbd5e1;
+  --az-ink-subtle: #94a3b8;
+  --az-ink-faint: #64748b;
+  --az-ink-disabled: #64748b;
+  --az-track: #475569;
+  --az-control-off: #475569;
+  --az-tooltip: #f1f5f9;
+  --az-on-tooltip: #0f172a;
+  --az-accent-soft: color-mix(in srgb, var(--primary-color) 40%, black);
+  --az-danger-ink: #f87171;
+  --az-danger-border: #b91c1c;
+  --az-danger-soft: #7f1d1d;
+  --az-warning-border: #b45309;
+  --az-warning-soft: #78350f;
+  --az-synth-idle-bg: rgba(30, 41, 59, 0.8);
+  --az-synth-idle-border: #475569;
+  --az-synth-idle-ink: #94a3b8;
+  --az-synth-queued-bg: rgba(120, 53, 15, 0.2);
+  --az-synth-queued-border: rgba(146, 64, 14, 0.6);
+  --az-synth-queued-ink: #fbbf24;
+  --az-synth-running-bg: rgba(12, 74, 110, 0.2);
+  --az-synth-running-border: rgba(7, 89, 133, 0.6);
+  --az-synth-running-ink: #38bdf8;
+  --az-synth-completed-bg: rgba(6, 78, 59, 0.2);
+  --az-synth-completed-border: rgba(6, 95, 70, 0.6);
+  --az-synth-completed-ink: #34d399;
+  --az-synth-failed-bg: rgba(136, 19, 55, 0.2);
+  --az-synth-failed-border: rgba(159, 18, 57, 0.6);
+  --az-synth-failed-ink: #fb7185;
 }
 
 :global([data-playback-shortcut-focus]) {
