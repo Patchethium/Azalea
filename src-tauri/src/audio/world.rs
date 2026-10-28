@@ -6,8 +6,10 @@
 
 use std::os::raw::{c_double, c_int};
 
-/// Analysis frame period. Edits are stored per frame, so changing it invalidates them.
-pub const FRAME_PERIOD_MS: f64 = 5.0;
+/// WORLD's analysis and synthesis frame period. A fine period lets resynthesis follow the
+/// envelope and pitch closely; post edits keep their own coarser frames
+/// (`post::EDIT_FRAME_PERIOD_MS`) and are interpolated onto these.
+pub const FRAME_PERIOD_MS: f64 = 1.0;
 /// CheapTrick's default lowest f0; analyses with a lower floor use a larger FFT.
 const CHEAPTRICK_F0_FLOOR: f64 = 71.0;
 /// Harvest needs a few periods of the lowest f0 to analyze anything.

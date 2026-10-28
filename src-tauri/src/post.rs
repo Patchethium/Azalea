@@ -1,11 +1,13 @@
 //! Post-processing: frame-level f0 edits and time edits applied to a synthesized waveform.
 //!
-//! The base waveform is analyzed once with WORLD (Harvest, CheapTrick, D4C). An edit replaces
-//! the f0 of some frames; WORLD resynthesizes the block with the edited contour, and only the
-//! edited frames, plus a short margin, are crossfaded into the original waveform. Time anchors
-//! then warp the result with WSOLA ([`crate::audio::stretch`]). Both stages keep untouched
-//! audio bit-exact. f0 edits are defined on the base waveform's timeline, so they follow the
-//! sounds they were drawn on when the timing changes.
+//! The base waveform is analyzed once with WORLD (Harvest, CheapTrick, D4C) at 1 ms frames.
+//! Edits and the editor's view use 5 ms frames, every fifth analysis frame; an edit replaces
+//! the f0 of some of them, is interpolated onto the analysis frames, and WORLD resynthesizes the
+//! block with the edited contour. Only the edited frames, plus a short margin, are crossfaded
+//! into the original waveform. Time anchors then warp the result with WSOLA
+//! ([`crate::audio::stretch`]). Both stages keep untouched audio bit-exact. f0 edits are
+//! defined on the base waveform's timeline, so they follow the sounds they were drawn on when
+//! the timing changes.
 
 use std::num::NonZeroUsize;
 use std::sync::{Arc, Mutex};
@@ -18,6 +20,13 @@ use voicevox_core::StyleId;
 use crate::audio::stretch::{smooth_mask, time_warp, TimeMap};
 use crate::audio::world::{self, F0Range, WorldFeatures, FRAME_PERIOD_MS};
 use crate::config::range::PitchRange;
+
+/// Frame period of post edits and of the analysis shown in the editor. Edits are stored per
+/// frame, so changing it invalidates them.
+pub const EDIT_FRAME_PERIOD_MS: f64 = 5.0;
+/// Analysis frames per edit frame; edit frame `k` is analysis frame `k * EDIT_STRIDE`.
+const EDIT_STRIDE: usize = (EDIT_FRAME_PERIOD_MS / FRAME_PERIOD_MS) as usize;
+const _: () = assert!(EDIT_STRIDE as f64 * FRAME_PERIOD_MS == EDIT_FRAME_PERIOD_MS);
 
 /// Audio around edited frames that is also taken from WORLD, before crossfading.
 const SPLICE_MARGIN_SECONDS: f64 = 0.02;
@@ -130,7 +139,8 @@ impl PostEdit {
     Ok(())
   }
 
-  /// The analyzed contour with the edits applied, and which frames were edited.
+  /// The analyzed contour with the edits applied, and which frames were edited, both on edit
+  /// frames.
   fn contour(&self, analyzed: &[f64]) -> Result<(Vec<f64>, Vec<bool>), String> {
     self.validate()?;
     let mut f0 = analyzed.to_vec();
@@ -265,6 +275,43 @@ impl<'a> Wav<'a> {
   }
 }
 
+/// Carries an edit contour on edit frames onto the analysis frames.
+///
+/// Analysis frames nearest an edited edit frame are edited. Between two voiced edit frames
+/// their f0 is interpolated linearly in log frequency; next to an unvoiced one it holds the
+/// nearest edit frame's value, so voicing switches halfway instead of gliding toward 0 Hz.
+/// Unedited analysis frames keep the analyzed 1 ms contour.
+fn upsample_contour(
+  analyzed: &[f64],
+  edit_f0: &[f64],
+  edit_edited: &[bool],
+) -> (Vec<f64>, Vec<bool>) {
+  let mut f0 = analyzed.to_vec();
+  let mut edited = vec![false; analyzed.len()];
+  if edit_f0.is_empty() {
+    return (f0, edited);
+  }
+  let last = edit_f0.len() - 1;
+  for (frame, (value, edited)) in f0.iter_mut().zip(&mut edited).enumerate() {
+    let low = (frame / EDIT_STRIDE).min(last);
+    let offset = frame - low * EDIT_STRIDE;
+    let high = (low + 1).min(last);
+    let nearest = if offset * 2 < EDIT_STRIDE { low } else { high };
+    if !edit_edited[nearest] {
+      continue;
+    }
+    *edited = true;
+    let (a, b) = (edit_f0[low], edit_f0[high]);
+    *value = if offset == 0 || a <= 0.0 || b <= 0.0 {
+      edit_f0[nearest]
+    } else {
+      let t = offset as f64 / EDIT_STRIDE as f64;
+      (a.ln() * (1.0 - t) + b.ln() * t).exp()
+    };
+  }
+  (f0, edited)
+}
+
 /// Weight of the WORLD waveform per sample: 1 around edited frames, fading to 0 elsewhere.
 fn splice_mask(edited: &[bool], sample_rate: u32, length: usize) -> Vec<f64> {
   let hop = f64::from(sample_rate) * FRAME_PERIOD_MS / 1000.0;
@@ -292,6 +339,8 @@ fn splice_mask(edited: &[bool], sample_rate: u32, length: usize) -> Vec<f64> {
 /// Analysis of a base waveform: WORLD features plus the editor's display spectrogram.
 pub struct PostAnalysisData {
   pub features: WorldFeatures,
+  /// The analyzed f0 on edit frames: every `EDIT_STRIDE`th analysis frame.
+  pub edit_f0: Vec<f64>,
   pub range: F0Range,
   pub spectrogram: Vec<u8>,
 }
@@ -301,9 +350,11 @@ impl PostAnalysisData {
     let parsed = Wav::parse(wav)?;
     let mono = parsed.mono();
     let features = world::analyze(&mono, parsed.sample_rate, range)?;
-    let spectrogram = display_spectrogram(&mono, parsed.sample_rate, features.f0.len());
+    let edit_f0: Vec<f64> = features.f0.iter().step_by(EDIT_STRIDE).copied().collect();
+    let spectrogram = display_spectrogram(&mono, parsed.sample_rate, edit_f0.len());
     Ok(Self {
       features,
+      edit_f0,
       range,
       spectrogram,
     })
@@ -311,8 +362,8 @@ impl PostAnalysisData {
 
   pub fn summary(&self) -> PostF0Analysis {
     PostF0Analysis {
-      frame_period_ms: FRAME_PERIOD_MS as f32,
-      f0: self.features.f0.iter().map(|value| *value as f32).collect(),
+      frame_period_ms: EDIT_FRAME_PERIOD_MS as f32,
+      f0: self.edit_f0.iter().map(|value| *value as f32).collect(),
       f0_floor: self.range.floor as f32,
       f0_ceil: self.range.ceil as f32,
       duration: self.features.sample_count as f64 / f64::from(self.features.sample_rate),
@@ -334,7 +385,8 @@ impl PostAnalysisData {
     {
       return Err("The waveform does not match its analysis".into());
     }
-    let (f0, edited) = edit.contour(&self.features.f0)?;
+    let (edit_f0, edit_edited) = edit.contour(&self.edit_f0)?;
+    let (f0, edited) = upsample_contour(&self.features.f0, &edit_f0, &edit_edited);
     let map = edit.time_map();
     let duration = self.features.sample_count as f64 / f64::from(parsed.sample_rate);
     if edit
@@ -363,13 +415,13 @@ impl PostAnalysisData {
   }
 }
 
-/// `frames × DISPLAY_ROWS` bytes of log-frequency power, aligned with the analysis frames.
+/// `frames × DISPLAY_ROWS` bytes of log-frequency power, aligned with the edit frames.
 fn display_spectrogram(mono: &[f64], sample_rate: u32, frames: usize) -> Vec<u8> {
   // About 6 Hz bins, enough to separate low harmonics.
   let fft_size = (4096 * sample_rate as usize / 24_000)
     .next_power_of_two()
     .max(1024);
-  let hop = f64::from(sample_rate) * FRAME_PERIOD_MS / 1000.0;
+  let hop = f64::from(sample_rate) * EDIT_FRAME_PERIOD_MS / 1000.0;
   let fft = FftPlanner::<f64>::new().plan_fft_forward(fft_size);
   let window: Vec<f64> = (0..fft_size)
     .map(|i| 0.5 - 0.5 * (2.0 * std::f64::consts::PI * i as f64 / fft_size as f64).cos())
@@ -617,18 +669,46 @@ mod tests {
 
   #[test]
   fn splice_mask_covers_edited_frames_and_fades_out() {
-    let mut edited = vec![false; 100];
-    edited[40..50].fill(true);
-    let length = 100 * 120;
+    // 24 samples per 1 ms analysis frame at 24 kHz.
+    let mut edited = vec![false; 500];
+    edited[200..250].fill(true);
+    let length = 500 * 24;
     let mask = splice_mask(&edited, FS, length);
     assert_eq!(mask.len(), length);
-    assert_eq!(mask[45 * 120], 1.0);
+    assert_eq!(mask[225 * 24], 1.0);
     assert_eq!(mask[0], 0.0);
     assert_eq!(mask[length - 1], 0.0);
     assert!(mask.windows(2).all(|w| (w[0] - w[1]).abs() < 0.01));
-    assert!(splice_mask(&vec![false; 100], FS, length)
+    assert!(splice_mask(&vec![false; 500], FS, length)
       .iter()
       .all(|v| *v == 0.0));
+  }
+
+  #[test]
+  fn upsample_contour_interpolates_edits_and_keeps_the_analysis_elsewhere() {
+    // Five analysis frames per edit frame: edit frames 0..=3 cover analysis frames 0..=19.
+    let analyzed: Vec<f64> = (0..18).map(|i| 100.0 + i as f64).collect();
+    let edit_f0 = vec![100.0, 200.0, 400.0, 0.0];
+    let edit_edited = vec![false, true, true, true];
+    let (f0, edited) = upsample_contour(&analyzed, &edit_f0, &edit_edited);
+    assert_eq!(f0.len(), analyzed.len());
+    // Frames nearest unedited edit frame 0 keep the 1 ms analysis.
+    assert_eq!(&f0[..3], &analyzed[..3]);
+    assert_eq!(&edited[..3], &[false; 3]);
+    // From the halfway point toward edit frame 1, the edit ramps from the analysis on edit
+    // frames in log frequency; it lands exactly on edit frames.
+    assert!(edited[3..].iter().all(|edited| *edited));
+    assert!((f0[3] - 100.0 * 2f64.powf(0.6)).abs() < 1e-9);
+    assert_eq!(f0[5], 200.0);
+    assert!((f0[7] - 200.0 * 2f64.powf(0.4)).abs() < 1e-9);
+    assert_eq!(f0[10], 400.0);
+    // Next to the unvoiced edit frame, voicing switches at the midpoint.
+    assert_eq!(&f0[11..13], &[400.0, 400.0]);
+    assert_eq!(&f0[13..], &[0.0; 5]);
+
+    let (unchanged, none) = upsample_contour(&analyzed, &edit_f0, &[false; 4]);
+    assert_eq!(unchanged, analyzed);
+    assert!(none.iter().all(|edited| !edited));
   }
 
   #[test]
@@ -637,7 +717,12 @@ mod tests {
     let wav = wav_from(&[samples.clone(), samples]);
     let analysis = PostAnalysisData::compute(&wav, F0Range::default()).unwrap();
     let summary = analysis.summary();
-    assert_eq!(summary.f0.len(), analysis.features.f0.len());
+    assert_eq!(summary.frame_period_ms, 5.0);
+    assert_eq!(summary.f0.len(), analysis.edit_f0.len());
+    // Edit frames are every fifth 1 ms analysis frame, covering the whole waveform.
+    assert_eq!(analysis.features.f0.len(), 601);
+    assert_eq!(analysis.edit_f0.len(), 121);
+    assert_eq!(analysis.edit_f0[7], analysis.features.f0[35]);
     assert_eq!(
       base64::engine::general_purpose::STANDARD
         .decode(&summary.spectrogram.data)
@@ -649,9 +734,7 @@ mod tests {
 
     assert_eq!(analysis.render(&wav, &edit(vec![])).unwrap(), wav);
 
-    let frames: Vec<f32> = (60..80)
-      .map(|i| analysis.features.f0[i] as f32 * 1.5)
-      .collect();
+    let frames: Vec<f32> = (60..80).map(|i| analysis.edit_f0[i] as f32 * 1.5).collect();
     let rendered = analysis
       .render(&wav, &edit(vec![segment(60, frames)]))
       .unwrap();
@@ -703,9 +786,7 @@ mod tests {
     let mut both = timed(&[(0.2, 0.2), (0.3, 0.4)]);
     both.f0 = vec![segment(
       60,
-      (60..80)
-        .map(|i| analysis.features.f0[i] as f32 * 1.5)
-        .collect(),
+      (60..80).map(|i| analysis.edit_f0[i] as f32 * 1.5).collect(),
     )];
     let rendered = analysis.render(&wav, &both).unwrap();
     // 0.1 s longer, the WAV header updated to match.
