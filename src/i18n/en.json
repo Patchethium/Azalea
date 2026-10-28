@@ -63,7 +63,7 @@
     "post": "Post",
     "post_canvas": "Frame-level pitch and timing editor. Drag to draw; right-drag to restore the analyzed pitch.",
     "post_analyzing": "Analyzing pitch…",
-    "post_failed": "Pitch analysis failed",
+    "post_failed": "Couldn't analyze the pitch",
     "post_retry": "Retry",
     "post_pencil": "Pencil",
     "post_line": "Line",
@@ -117,7 +117,7 @@
     "title": "Dependency licenses",
     "close": "Close licenses dialog",
     "loading": "Loading licenses…",
-    "error": "Could not load dependency licenses.",
+    "error": "Couldn't load the dependency licenses.",
     "retry": "Retry"
   },
   "about": {
@@ -156,8 +156,8 @@
     "priority": "Priority",
     "priority_hint": "Higher values take precedence (0–10).",
     "delete": "Delete word",
-    "load_error": "The user dictionary could not be loaded.",
-    "operation_error": "The dictionary entry could not be saved. Check the word, katakana pronunciation, and accent position."
+    "load_error": "Couldn't load the user dictionary.",
+    "operation_error": "Couldn't save the dictionary entry. Check the word, katakana pronunciation, and accent position."
   },
   "text_block": {
     "input_label": "Text to synthesize",
@@ -207,7 +207,7 @@
     "extra_download": "Download ({{ size }})",
     "extra_downloading": "Downloading…",
     "extra_cancel": "Cancel download",
-    "extra_download_failed": "The download failed.",
+    "extra_download_failed": "Couldn't download the files.",
     "theme": "Theme",
     "theme_system": "System",
     "theme_light": "Light",
@@ -237,7 +237,7 @@
     "assets_cache_loading": "Calculating…",
     "clear_assets_cache": "Clear cache",
     "clearing_assets_cache": "Clearing…",
-    "assets_cache_error": "Could not read or clear the asset cache.",
+    "assets_cache_error": "Couldn't read or clear the asset cache.",
     "english_transform": "Transform English words",
     "english_transform_description": "Reads English words the dictionary doesn't know as katakana instead of spelling them out letter by letter.",
     "english_accent_prediction": "Accent prediction",
@@ -270,7 +270,7 @@
     "export_lab": "Export lip-sync label file (.lab)",
     "no_default_export_dir": "Not set",
     "pick_export_dir": "Choose export directory",
-    "pick_export_dir_short": "Choose...",
+    "pick_export_dir_short": "Choose…",
     "enable_export_dir": "Enable default export directory",
     "truncation_len": "File name truncation length",
     "no_truncation": "No truncation",
@@ -358,7 +358,7 @@
     "download_icons": "Download speaker icons",
     "downloading_icons": "Downloading speaker icons…",
     "retry_download_icons": "Retry downloading speaker icons",
-    "icon_download_failed": "Some speaker icons could not be downloaded."
+    "icon_download_failed": "Couldn't download some speaker icons."
   },
   "preset_manager": {
     "empty": "No presets",
@@ -380,7 +380,7 @@
     "path_models": "Models",
     "not_set": "Not set",
     "pick_installation": "Choose VOICEVOX folder",
-    "pick_installation_short": "Choose...",
+    "pick_installation_short": "Choose…",
     "title": "Voice setup",
     "description": "Choose voice packages. Missing CPU runtime and system dictionary are included automatically. Your custom dictionary is shared between setups.",
     "model_terms": "Model terms",
@@ -418,7 +418,7 @@
     "alt": "Portrait of {{ name }} ({{ style }})",
     "download": "Download portraits",
     "downloading": "Downloading portraits…",
-    "download_failed": "Some portraits could not be downloaded.",
+    "download_failed": "Couldn't download some portraits.",
     "resize": "Resize portrait panel"
   }
 }

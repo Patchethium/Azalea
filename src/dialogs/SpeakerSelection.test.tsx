@@ -270,7 +270,7 @@ describe("SpeakerSelectionDialog persistent icons", () => {
       await screen.findByRole("button", { name: "Download speaker icons" }),
     );
     expect(
-      await screen.findByText("Some speaker icons could not be downloaded."),
+      await screen.findByText("Couldn't download some speaker icons."),
     ).toHaveAttribute("role", "alert");
     expect(
       screen.getByRole("button", { name: "Engine Alias" }).querySelector("img"),
@@ -365,7 +365,7 @@ describe("SpeakerSelectionDialog persistent icons", () => {
     });
     const first = renderDialog();
     expect(
-      await screen.findByText("Some speaker icons could not be downloaded."),
+      await screen.findByText("Couldn't download some speaker icons."),
     ).toHaveAttribute("role", "alert");
     first.unmount();
 
@@ -412,7 +412,7 @@ describe("SpeakerSelectionDialog persistent icons", () => {
     });
     fireEvent.error(image);
     expect(
-      await screen.findByText("Some speaker icons could not be downloaded."),
+      await screen.findByText("Couldn't download some speaker icons."),
     ).toHaveAttribute("role", "alert");
 
     const retry = screen.getByRole("button", {

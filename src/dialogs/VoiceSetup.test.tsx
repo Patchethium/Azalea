@@ -910,7 +910,7 @@ describe("VoiceSetup", () => {
     });
     mount();
     await start();
-    await screen.findByText("Some speaker icons could not be downloaded.");
+    await screen.findByText("Couldn't download some speaker icons.");
     expect(screen.getByRole("button", { name: "Apply models" })).toBeEnabled();
   });
 

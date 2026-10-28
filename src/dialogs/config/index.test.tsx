@@ -951,7 +951,7 @@ describe("ConfigPage", () => {
     const chooseDir = screen.getByRole("button", {
       name: "Choose export directory",
     });
-    expect(chooseDir).toHaveTextContent("Choose...");
+    expect(chooseDir).toHaveTextContent("Choose…");
     fireEvent.click(chooseDir);
     await waitFor(() =>
       expect(appConfig.config.ui.default_export_dir).toBe("/exports"),
@@ -1213,7 +1213,7 @@ describe("ConfigPage", () => {
 
     expect(
       await screen.findByRole("alert", {
-        name: "Could not read or clear the asset cache.",
+        name: "Couldn't read or clear the asset cache.",
       }),
     ).toBeInTheDocument();
     const clear = screen.getByRole("button", { name: "Clear cache" });
@@ -1224,7 +1224,7 @@ describe("ConfigPage", () => {
     );
     expect(
       screen.getByRole("alert", {
-        name: "Could not read or clear the asset cache.",
+        name: "Couldn't read or clear the asset cache.",
       }),
     ).toBeInTheDocument();
   });
@@ -1316,19 +1316,19 @@ describe("ConfigPage", () => {
     ));
 
     await screen.findByRole("alert", {
-      name: "Could not read or clear the asset cache.",
+      name: "Couldn't read or clear the asset cache.",
     });
     const clear = screen.getByRole("button", { name: "Clear cache" });
     fireEvent.click(clear);
     await waitFor(() => expect(commands.clearAssets).toHaveBeenCalledOnce());
     await screen.findByRole("alert", {
-      name: "Could not read or clear the asset cache.",
+      name: "Couldn't read or clear the asset cache.",
     });
     fireEvent.click(clear);
     await waitFor(() => expect(commands.clearAssets).toHaveBeenCalledTimes(2));
     expect(
       await screen.findByRole("alert", {
-        name: "Could not read or clear the asset cache.",
+        name: "Couldn't read or clear the asset cache.",
       }),
     ).toBeInTheDocument();
   });

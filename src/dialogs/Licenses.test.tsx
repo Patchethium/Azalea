@@ -310,7 +310,7 @@ describe("LicensesDialog", () => {
       .mockResolvedValueOnce(report);
     renderDialog();
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Could not load dependency licenses.",
+      "Couldn't load the dependency licenses.",
     );
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(await screen.findByText("WORLD vendored")).toBeVisible();

@@ -479,7 +479,7 @@ describe("DictionaryDialog", () => {
     const rejected = renderDictionary();
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "The user dictionary could not be loaded.",
+      "Couldn't load the user dictionary.",
     );
     expect(
       screen.queryByRole("button", { name: "Save" }),
@@ -492,7 +492,7 @@ describe("DictionaryDialog", () => {
     });
     renderDictionary();
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "The user dictionary could not be loaded.",
+      "Couldn't load the user dictionary.",
     );
   });
 
@@ -537,7 +537,7 @@ describe("DictionaryDialog", () => {
       target: { value: "Changed" },
     });
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "The dictionary entry could not be saved.",
+      "Couldn't save the dictionary entry.",
     );
     fireEvent.input(screen.getByRole("textbox", { name: "Word" }), {
       target: { value: "Changed again" },

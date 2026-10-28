@@ -157,7 +157,7 @@ describe("Post panel", () => {
     await openPostTab();
 
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Pitch analysis failed");
+    expect(alert).toHaveTextContent("Couldn't analyze the pitch");
     expect(alert).toHaveTextContent("too short");
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     await waitFor(() =>

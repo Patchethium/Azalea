@@ -143,7 +143,7 @@ describe("SpeakerPortraitPanel", () => {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       fireEvent.click(await downloadButton());
       expect(
-        await screen.findByText("Some portraits could not be downloaded."),
+        await screen.findByText("Couldn't download some portraits."),
       ).toBeInTheDocument();
     }
     expect(commands.downloadSpeakerPortraits).toHaveBeenCalledTimes(3);
