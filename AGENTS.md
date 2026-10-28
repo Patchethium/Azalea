@@ -420,13 +420,8 @@ checkouts fetch submodules. Update WORLD by checking out a newer commit in
 the submodule and committing the new pointer; do not copy its sources into
 the repository.
 `src-tauri/src/audio/world.rs` binds it by hand and validates every input
-before crossing the FFI boundary, because WORLD itself does not. WORLD
-analyzes and resynthesizes at a 1 ms frame period, but edits, the editor's
-contour and its spectrogram stay on 5 ms frames (`EDIT_FRAME_PERIOD_MS`, every
-fifth analysis frame), so the frontend and `.azp` files are unaffected.
-Rendering interpolates edited 5 ms frames onto the 1 ms contour in log
-frequency, switching voicing at the midpoint between frames, and leaves
-unedited 1 ms frames as analyzed. Harvest searches the style's built-in pitch range
+before crossing the FFI boundary, because WORLD itself does not. The frame
+period is fixed at 5 ms. Harvest searches the style's built-in pitch range
 (`config::range::style_range`) widened by half an octave, with WORLD's
 71–800 Hz default for styles without one.
 
