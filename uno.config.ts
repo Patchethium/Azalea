@@ -98,6 +98,19 @@ export default defineConfig({
       },
     },
   },
+  shortcuts: {
+    // Dropdown and context menus (design system: Menu).
+    "menu-panel":
+      "rounded-md bg-surface-menu p1 shadow-xl outline-none ring-1 ring-border-menu",
+    "menu-item-base":
+      "w-full min-w-44 cursor-pointer rounded-md outline-none hover:(bg-accent text-on-accent) ui-highlighted:(bg-accent text-on-accent) ui-disabled:(cursor-not-allowed opacity-50)",
+    "menu-item":
+      "menu-item-base flex h-8 flex-row items-center justify-between gap2 p2",
+    // An item with a title line over a caption line, such as a recent file.
+    "menu-item-stacked": "menu-item-base flex flex-col px2 py1",
+    "menu-separator": "mx2 my1 b-t b-border-menu",
+    "menu-group-label": "px2 py1 text-xs text-ink-subtle",
+  },
   presets: [
     presetWind3(),
     presetIcons(),

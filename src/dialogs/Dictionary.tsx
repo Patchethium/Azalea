@@ -10,7 +10,7 @@ import { AppDialogContent } from "@dialogs/AppContent";
 import { IconButton } from "@components/iconButton";
 import { NumberInput } from "@components/numberField";
 import { Dialog } from "@kobalte/core/dialog";
-import { TextField } from "@kobalte/core/text-field";
+import { AppTextField } from "@components/textField";
 import { AccentPhraseItem } from "@layout/bottomPanel/AccentPhraseItem";
 import { OptionSelector } from "@layout/sidebar/preset/Fields";
 import { ListToolbar } from "@layout/sidebar/preset/Toolbar";
@@ -428,35 +428,19 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
               class="flex flex-col gap3"
               disabled={loading() || actionPending()}
             >
-              <TextField
+              <AppTextField
+                label={t1("dictionary.surface")}
                 value={draft.surface}
                 onChange={(value) => editDraft({ surface: value })}
-                class="flex flex-col gap1"
-              >
-                <TextField.Label class="text-sm font-medium">
-                  {t1("dictionary.surface")}
-                </TextField.Label>
-                <TextField.Input
-                  class="h-9 rounded-md b b-slate-2 bg-transparent px2 outline-none focus:b-primary-4 dark:b-slate-6"
-                  placeholder={t1("dictionary.surface_placeholder")}
-                />
-              </TextField>
-              <TextField
+                placeholder={t1("dictionary.surface_placeholder")}
+              />
+              <AppTextField
+                label={t1("dictionary.pronunciation")}
                 value={draft.pronunciation}
                 onChange={(value) => editDraft({ pronunciation: value })}
-                class="flex flex-col gap1"
-              >
-                <TextField.Label class="text-sm font-medium">
-                  {t1("dictionary.pronunciation")}
-                </TextField.Label>
-                <TextField.Input
-                  class="h-9 rounded-md b b-slate-2 bg-transparent px2 outline-none focus:b-primary-4 dark:b-slate-6"
-                  placeholder={t1("dictionary.pronunciation_placeholder")}
-                />
-                <TextField.Description class="text-xs text-slate-5 dark:text-slate-4">
-                  {t1("dictionary.pronunciation_hint")}
-                </TextField.Description>
-              </TextField>
+                placeholder={t1("dictionary.pronunciation_placeholder")}
+                description={t1("dictionary.pronunciation_hint")}
+              />
               <div class="grid grid-cols-2 gap3">
                 <OptionSelector
                   name={t1("dictionary.word_type")}

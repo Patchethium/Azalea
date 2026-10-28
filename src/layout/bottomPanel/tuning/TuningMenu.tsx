@@ -7,7 +7,6 @@ import { usei18n } from "@contexts/i18n";
 import { DropdownMenu } from "@kobalte/core/dropdown-menu";
 import { For, Show } from "solid-js";
 import type { Dict } from "../../../i18n";
-import styles from "./TuningMenu.module.css";
 
 const pitchTuningOptions = [
   ["Absolute", "config.pitch_tuning_absolute"],
@@ -19,8 +18,6 @@ const pitchScaleOptions = [
   ["DensityAware", "config.pitch_scale_density"],
 ] as const;
 
-const separatorClass = "my-1 b-t b-slate-3 dark:b-slate-5";
-
 function RadioOptions(props: {
   options: readonly (readonly [string, keyof Dict & `config.${string}`])[];
 }) {
@@ -28,11 +25,7 @@ function RadioOptions(props: {
   return (
     <For each={props.options}>
       {([value, label]) => (
-        <DropdownMenu.RadioItem
-          class={styles.menu_item}
-          value={value}
-          closeOnSelect
-        >
+        <DropdownMenu.RadioItem class="menu-item" value={value} closeOnSelect>
           <DropdownMenu.ItemLabel class="flex-1">
             {t1(label)}
           </DropdownMenu.ItemLabel>
@@ -62,15 +55,15 @@ export function TuningMenu() {
       <Tooltip content={t1("bottom.tuning_options")}>
         <DropdownMenu.Trigger
           aria-label={t1("bottom.tuning_options")}
-          class={`${TOOLBAR_BUTTON_CLASS} data-[expanded]:bg-slate-1 dark:data-[expanded]:bg-slate-7`}
+          class={`${TOOLBAR_BUTTON_CLASS} data-[expanded]:bg-hover`}
         >
           <div aria-hidden="true" class="i-lucide:ellipsis-vertical size-4" />
         </DropdownMenu.Trigger>
       </Tooltip>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content class="z-50 bg-slate-1 dark:bg-slate-7 p-1 outline-none rounded-md ring-1 ring-slate-3 dark:ring-slate-5 shadow-xl">
+        <DropdownMenu.Content class="menu-panel z-overlay">
           <DropdownMenu.Group>
-            <DropdownMenu.GroupLabel class="px-2 py-1 text-xs text-slate-5 dark:text-slate-4">
+            <DropdownMenu.GroupLabel class="menu-group-label">
               {t1("config.pitch_tuning_mode")}
             </DropdownMenu.GroupLabel>
             <DropdownMenu.RadioGroup
@@ -84,9 +77,9 @@ export function TuningMenu() {
           </DropdownMenu.Group>
           {/* The pitch scale only maps absolute values. */}
           <Show when={tuningMode() === "Absolute"}>
-            <DropdownMenu.Separator class={separatorClass} />
+            <DropdownMenu.Separator class="menu-separator" />
             <DropdownMenu.Group>
-              <DropdownMenu.GroupLabel class="px-2 py-1 text-xs text-slate-5 dark:text-slate-4">
+              <DropdownMenu.GroupLabel class="menu-group-label">
                 {t1("config.pitch_scale")}
               </DropdownMenu.GroupLabel>
               <DropdownMenu.RadioGroup
@@ -99,9 +92,9 @@ export function TuningMenu() {
               </DropdownMenu.RadioGroup>
             </DropdownMenu.Group>
           </Show>
-          <DropdownMenu.Separator class={separatorClass} />
+          <DropdownMenu.Separator class="menu-separator" />
           <DropdownMenu.CheckboxItem
-            class={styles.menu_item}
+            class="menu-item"
             checked={pitchRulerEnabled()}
             closeOnSelect
             onChange={setPitchRulerEnabled}

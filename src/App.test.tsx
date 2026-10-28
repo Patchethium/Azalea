@@ -179,7 +179,7 @@ describe("App initialization", () => {
       });
       expect(previousButton).toBeDisabled();
       expect(previousButton.className).toContain(
-        "disabled:(cursor-not-allowed text-slate-3)",
+        "disabled:(cursor-not-allowed text-ink-disabled)",
       );
       expect(
         screen.getAllByRole("separator", { name: "Resize Handle" }),

@@ -142,10 +142,10 @@ export function LicensesDialog(props: LicensesDialogProps) {
                     onChange={setSearch}
                     class="min-w-0 flex-1"
                   >
-                    <div class="flex items-center gap1.5 rounded-md b b-slate-3 px2 focus-within:b-primary-5 dark:b-slate-6 dark:focus-within:b-primary-5">
+                    <div class="flex items-center gap1.5 rounded-lg b b-border bg-surface px2 focus-within:b-focus-ring dark:bg-surface-raised">
                       <div
                         aria-hidden="true"
-                        class="i-lucide:search pointer-events-none size-3.5 shrink-0 text-slate-5"
+                        class="i-lucide:search pointer-events-none size-3.5 shrink-0 text-ink-subtle"
                       />
                       <TextField.Input
                         ref={(element) => {

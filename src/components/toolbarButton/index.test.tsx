@@ -15,7 +15,7 @@ describe("ToolbarButton", () => {
     ));
 
     const button = screen.getByRole("button", { name: "Choose folder" });
-    expect(button).toHaveClass("size-8", "enabled:hover:bg-slate-1");
+    expect(button).toHaveClass("size-8", "enabled:hover:bg-hover");
     expect(button.className).not.toContain("aria-pressed:");
     expect(button).toHaveAttribute("aria-pressed", "true");
     expect(button.firstElementChild).toHaveAttribute("aria-hidden", "true");

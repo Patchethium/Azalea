@@ -4,7 +4,15 @@ import type { JSX } from "solid-js";
 
 /** Classes shared by toolbar icon buttons and toolbar menu triggers. */
 export const TOOLBAR_BUTTON_CLASS =
-  "size-8 flex shrink-0 items-center justify-center rounded-md bg-transparent outline-none enabled:hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) disabled:(cursor-not-allowed text-slate-3) dark:enabled:hover:bg-slate-7 dark:disabled:text-slate-5";
+  "size-8 flex shrink-0 items-center justify-center rounded-md bg-transparent outline-none enabled:hover:bg-hover focus-visible:(ring-2 ring-focus-ring-soft) disabled:(cursor-not-allowed text-ink-disabled)";
+
+/**
+ * Classes for a 32px icon button that sits directly on the canvas, such as
+ * the sidebar footer's project menu, dictionary and config buttons. Callers
+ * add their pressed or expanded state with `bg-accent text-on-accent`.
+ */
+export const SURFACE_BUTTON_CLASS =
+  "size-8 flex shrink-0 items-center justify-center rounded-md bg-surface p1 text-ink shadow-md outline-none enabled:hover:(bg-accent text-on-accent) focus-visible:(ring-2 ring-focus-ring) disabled:(cursor-not-allowed opacity-50)";
 
 /** Highlights a pressed toggle button with the primary color. */
 const PRESSED_CLASS =

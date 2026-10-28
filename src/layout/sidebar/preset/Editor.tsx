@@ -1,3 +1,4 @@
+import { INPUT_CLASS } from "@components/textField";
 import type { Preset } from "$binding";
 import { IconButton } from "@components/iconButton";
 import { NumberInput } from "@components/numberField";
@@ -37,7 +38,7 @@ export function PresetEditor(props: {
       >
         <TextField.Input
           placeholder={t1("preset.placeholder_name")}
-          class="p1 px2 w-full b b-slate-2 dark:(b-slate-6 bg-slate-7) rounded-md outline-none focus:b-primary-5"
+          class={`h-8 text-sm ${INPUT_CLASS}`}
         />
       </TextField>
       <OptionSelector

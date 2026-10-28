@@ -1,3 +1,4 @@
+import { INPUT_CLASS } from "@components/textField";
 import { Separator } from "@kobalte/core/separator";
 import { Tooltip } from "@components/tooltip";
 import { NumberField } from "@components/numberField";
@@ -201,7 +202,7 @@ export function ControlBar(props: {
               <Tooltip content={t1("config.pitch_noise_seed")}>
                 <NumberField.Input
                   aria-label={t1("config.pitch_noise_seed")}
-                  class="h-6 w-24 rounded b b-slate-2 px1 outline-none focus:b-primary-3 dark:(b-slate-6 bg-slate-8)"
+                  class={`h-6 !w-24 !px1 ${INPUT_CLASS}`}
                   // Typed seeds apply live but join the history only once
                   // committed, not once per keystroke.
                   onBlur={() => commitPitchNoiseSeed(selectedTextBlockIndex())}

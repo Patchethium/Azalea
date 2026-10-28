@@ -10,21 +10,21 @@ interface AppContentProps extends ParentProps {
 export function AppDialogContent(props: AppContentProps) {
   return (
     <Dialog.Portal>
-      <Dialog.Overlay class="fixed inset-0 z-50 bg-black/50" />
-      <div class="fixed inset-0 z-50 flex items-center justify-center p2">
+      <Dialog.Overlay class="fixed inset-0 z-overlay bg-overlay" />
+      <div class="fixed inset-0 z-overlay flex items-center justify-center p2">
         <Dialog.Content
-          class={`flex flex-col max-h-[80vh] bg-white dark:bg-slate-8 rounded-lg shadow-lg b b-slate-2 dark:b-slate-6 overflow-hidden outline-none ${props.class ?? ""}`}
+          class={`flex flex-col max-h-[80vh] bg-surface rounded-lg shadow-lg b b-border overflow-hidden outline-none ${props.class ?? ""}`}
         >
-          <div class="flex items-center px4 py3 b-b b-slate-2 dark:b-slate-6">
+          <div class="flex items-center px4 py3 b-b b-border">
             <Dialog.Title class="text-lg font-bold select-none cursor-default">
               {props.title}
             </Dialog.Title>
             <div class="flex-1" />
             <Dialog.CloseButton
-              class="p1 rounded bg-transparent hover:bg-slate-1 dark:hover:bg-slate-7"
+              class="p1 rounded-md bg-transparent outline-none hover:bg-hover focus-visible:(ring-2 ring-focus-ring)"
               aria-label={props.closeLabel}
             >
-              <div class="i-lucide:x size-5" />
+              <div aria-hidden="true" class="i-lucide:x size-5" />
             </Dialog.CloseButton>
           </div>
           {props.children}

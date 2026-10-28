@@ -171,7 +171,7 @@ describe("DictionaryDialog", () => {
     wordType.focus();
     await user.keyboard("{ArrowDown}");
     const wordTypeList = await screen.findByRole("listbox", { hidden: true });
-    expect(wordTypeList.parentElement).toHaveClass("z-60");
+    expect(wordTypeList.parentElement).toHaveClass("z-popover");
     await user.keyboard("{ArrowDown}{ArrowDown}{Enter}");
     expect(
       screen.getByRole("button", { name: "Word type Verb" }),

@@ -1,7 +1,7 @@
 import { ExtraDownloadButton } from "@components/extraDownload";
+import { AppSelect } from "@components/select";
 import { Tooltip } from "@components/tooltip";
 import {
-  type Locale,
   type PitchScale,
   type PitchTuningMode,
   type ThemeMode,
@@ -11,7 +11,6 @@ import { ColorArea } from "@kobalte/core/color-area";
 import { ColorSwatch } from "@kobalte/core/color-swatch";
 import { parseColor } from "@kobalte/core/colors";
 import { Popover } from "@kobalte/core/popover";
-import { Select } from "@kobalte/core/select";
 import { ToggleGroup } from "@kobalte/core/toggle-group";
 import { createMemo, Show } from "solid-js";
 import {
@@ -43,44 +42,14 @@ export function ThemeSelect() {
   };
 
   return (
-    <Select
+    <AppSelect
+      label={t1("config.theme")}
       options={options}
       value={themeMode()}
-      onChange={(value) => {
-        if (value !== null) setThemeMode(value);
-      }}
-      class="h-8 w-48"
-      itemComponent={(props) => (
-        <Select.Item
-          item={props.item}
-          class="flex cursor-pointer items-center justify-between rounded-md p1 outline-none ui-highlighted:(bg-primary-5 text-white)"
-        >
-          <Select.ItemLabel class="px1">
-            {themeName(props.item.rawValue)}
-          </Select.ItemLabel>
-          <Select.ItemIndicator class="flex size-6 items-center justify-center">
-            <div class="i-lucide:check" />
-          </Select.ItemIndicator>
-        </Select.Item>
-      )}
-    >
-      <Select.Trigger
-        class="flex h-8 w-full items-center justify-between rounded-md border border-slate-2 bg-transparent px3 outline-none hover:(bg-slate-1 dark:bg-slate-7) dark:border-slate-6"
-        aria-label={t1("config.theme")}
-      >
-        <Select.Value<ThemeMode>>
-          {(state) => themeName(state.selectedOption())}
-        </Select.Value>
-        <Select.Icon>
-          <div class="i-lucide:chevrons-up-down" />
-        </Select.Icon>
-      </Select.Trigger>
-      <Select.Portal>
-        <Select.Content class="z-60 w-full rounded-lg border border-slate-2 bg-white outline-none dark:(border-slate-6 bg-slate-8)">
-          <Select.Listbox class="flex flex-col p2 outline-none" />
-        </Select.Content>
-      </Select.Portal>
-    </Select>
+      onChange={setThemeMode}
+      getOptionLabel={themeName}
+      class="w-48"
+    />
   );
 }
 
@@ -315,47 +284,20 @@ export function I18NSelect() {
   const { config, setConfig } = useConfigStore()!;
   const { t1 } = usei18n()!;
   return (
-    <Select
+    <AppSelect
+      label={t1("config.lang")}
       options={possibleLocales}
-      class="w-48 h-8"
       value={config.ui?.locale}
-      onChange={(value) => {
-        if (value !== null) setConfig("ui", "locale", value as Locale);
-      }}
-      itemComponent={(props) => (
-        <Select.Item
-          item={props.item}
-          class="p1 flex flex-row items-center justify-between rounded-md outline-none ui-highlighted:(bg-primary-5 text-white) cursor-pointer"
-        >
-          <Select.ItemLabel class="w-36 flex flex-row px1 outline-none">
-            {localeNames[props.item.rawValue as Locale]}
-            <div class="flex-1" />
-            {coverages[props.item.rawValue as Locale] * 100}%
-          </Select.ItemLabel>
-          <Select.ItemIndicator class="size-6 flex items-center justify-center outline-none">
-            <div class="i-lucide:check" />
-          </Select.ItemIndicator>
-        </Select.Item>
+      onChange={(value) => setConfig("ui", "locale", value)}
+      getOptionLabel={(locale) => localeNames[locale]}
+      renderOption={(locale) => (
+        <span class="flex w-36 flex-row">
+          {localeNames[locale]}
+          <span class="flex-1" />
+          {coverages[locale] * 100}%
+        </span>
       )}
-    >
-      <Select.Trigger
-        class="flex flex-row items-center justify-between p3 w-full outline-none
-              h-8 bg-transparent border border-slate-2 rounded-md
-              hover:(bg-slate-1 dark:bg-slate-7) dark:border-slate-6"
-        aria-label={t1("config.lang")}
-      >
-        <Select.Value<string>>
-          {(state) => localeNames[state.selectedOption() as Locale]}
-        </Select.Value>
-        <Select.Icon>
-          <div class="i-lucide:chevrons-up-down" />
-        </Select.Icon>
-      </Select.Trigger>
-      <Select.Portal>
-        <Select.Content class="bg-white dark:bg-slate-8 w-full rounded-lg border outline-none border-slate-2 dark:border-slate-6 z-60">
-          <Select.Listbox class="flex flex-col p2 outline-none" />
-        </Select.Content>
-      </Select.Portal>
-    </Select>
+      class="w-48"
+    />
   );
 }

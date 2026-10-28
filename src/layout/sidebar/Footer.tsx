@@ -4,9 +4,9 @@ import { DictionaryDialog } from "@dialogs/Dictionary";
 import { ExportAllDialog } from "@dialogs/ExportAll";
 import { UnsavedChangesDialog } from "@dialogs/UnsavedChanges";
 import { Tooltip } from "@components/tooltip";
+import { SURFACE_BUTTON_CLASS } from "@components/toolbarButton";
 import { DropdownMenu } from "@kobalte/core/dropdown-menu";
 import { ToggleGroup } from "@kobalte/core/toggle-group";
-import style from "@layout/sidebar/sidebar.module.css";
 import type { SidebarControls } from "@layout/sidebar/useSidebar";
 import { usei18n } from "@contexts/i18n";
 import type { PageType } from "@contexts/ui";
@@ -34,27 +34,27 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
             }}
             disabled={!voicesReady()}
             aria-label={t1("menu.project_actions")}
-            class="group p1 size-8 rounded-lg bg-white dark:bg-slate-8 shadow-md enabled:hover:bg-primary-5 disabled:(cursor-not-allowed grayscale) data-[expanded]:bg-primary-5 transition-transform outline-none"
+            class={`${SURFACE_BUTTON_CLASS} data-[expanded]:(bg-accent text-on-accent)`}
           >
-            <div class="i-lucide:kanban bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white group-data-[expanded]:!bg-white" />
+            <div aria-hidden="true" class="i-lucide:kanban size-full" />
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Arrow size={8} />
-            <DropdownMenu.Content class="bg-slate-1 dark:bg-slate-7 p-1 outline-none rounded-md ring-1 ring-slate-3 dark:ring-slate-5 shadow-xl">
+            <DropdownMenu.Content class="menu-panel">
               <DropdownMenu.Item
-                class={style.menu_item}
+                class="menu-item"
                 onClick={() => controls.requestProjectAction("new")}
               >
                 {t1("menu.new_project")}
               </DropdownMenu.Item>
               <DropdownMenu.Item
-                class={style.menu_item}
+                class="menu-item"
                 onClick={() => controls.requestProjectAction("open")}
               >
                 {t1("menu.load_project")}
               </DropdownMenu.Item>
               <DropdownMenu.Item
-                class={style.menu_item}
+                class="menu-item"
                 disabled={controls.previousProject() === null}
                 onClick={controls.openPreviousProject}
               >
@@ -62,18 +62,18 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
               </DropdownMenu.Item>
               <DropdownMenu.Sub overlap gutter={4}>
                 <DropdownMenu.SubTrigger
-                  class={style.menu_item}
+                  class="menu-item"
                   disabled={controls.recentProjects().length === 0}
                 >
                   {t1("menu.open_recent")}
                   <div class="i-lucide:chevron-right size-4 shrink-0" />
                 </DropdownMenu.SubTrigger>
                 <DropdownMenu.Portal>
-                  <DropdownMenu.SubContent class="max-w-[min(90vw,28rem)] bg-slate-1 dark:bg-slate-7 p-1 outline-none rounded-md ring-1 ring-slate-3 dark:ring-slate-5 shadow-xl">
+                  <DropdownMenu.SubContent class="menu-panel max-w-[min(90vw,28rem)]">
                     <For each={controls.recentProjects()}>
                       {(path) => (
                         <DropdownMenu.Item
-                          class={style.recent_item}
+                          class="menu-item-stacked"
                           textValue={projectFileName(path)}
                           onClick={() => controls.openRecentProject(path)}
                         >
@@ -86,9 +86,9 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
                         </DropdownMenu.Item>
                       )}
                     </For>
-                    <DropdownMenu.Separator class="mx-2 my-1" />
+                    <DropdownMenu.Separator class="menu-separator" />
                     <DropdownMenu.Item
-                      class={style.menu_item}
+                      class="menu-item"
                       onClick={controls.clearRecentProjects}
                     >
                       {t1("menu.clear_recent")}
@@ -97,47 +97,44 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
                 </DropdownMenu.Portal>
               </DropdownMenu.Sub>
               <DropdownMenu.Item
-                class={style.menu_item}
+                class="menu-item"
                 onClick={controls.saveProject}
               >
                 {t1("menu.save_project")}
               </DropdownMenu.Item>
               <DropdownMenu.Item
-                class={style.menu_item}
+                class="menu-item"
                 onClick={controls.saveProjectAs}
               >
                 {t1("menu.save_project_as")}
               </DropdownMenu.Item>
-              <DropdownMenu.Separator class="mx-2 my-1" />
-              <DropdownMenu.Item
-                class={style.menu_item}
-                onClick={controls.importSrt}
-              >
+              <DropdownMenu.Separator class="menu-separator" />
+              <DropdownMenu.Item class="menu-item" onClick={controls.importSrt}>
                 {t1("menu.import_srt")}
               </DropdownMenu.Item>
               <DropdownMenu.Item
-                class={style.menu_item}
+                class="menu-item"
                 onClick={controls.importText}
               >
                 {t1("menu.import_text")}
               </DropdownMenu.Item>
               <DropdownMenu.Item
-                class={style.menu_item}
+                class="menu-item"
                 disabled={controls.exportAllRunning()}
                 onClick={() => void controls.exportAll()}
               >
                 {t1("menu.export_all")}
               </DropdownMenu.Item>
               <DropdownMenu.Item
-                class={style.menu_item}
+                class="menu-item"
                 disabled={controls.exportCombinedRunning()}
                 onClick={() => void controls.exportCombined()}
               >
                 {t1("menu.export_all_combined")}
               </DropdownMenu.Item>
-              <DropdownMenu.Separator class="mx-2 my-1" />
+              <DropdownMenu.Separator class="menu-separator" />
               <DropdownMenu.Item
-                class={style.menu_item}
+                class="menu-item"
                 onClick={() => {
                   controls.setActionMenuOpen(false);
                   controls.setLicensesOpen(true);
@@ -146,7 +143,7 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
                 {t1("menu.licenses")}
               </DropdownMenu.Item>
               <DropdownMenu.Item
-                class={style.menu_item}
+                class="menu-item"
                 onClick={() => controls.setAboutOpen(true)}
               >
                 {t1("menu.about")}
@@ -165,18 +162,21 @@ export function SidebarFooter(props: { controls: SidebarControls }) {
                 value="dictionary"
                 disabled={!voicesReady()}
                 aria-label={t1("dictionary.open")}
-                class="group size-8 p1 rounded-lg bg-white dark:bg-slate-8 shadow-md enabled:hover:bg-primary-5 disabled:(cursor-not-allowed grayscale) ui-pressed:bg-primary-5 transition-transform outline-none"
+                class={`${SURFACE_BUTTON_CLASS} ui-pressed:(bg-accent text-on-accent)`}
               >
-                <div class="i-lucide:notebook-tabs bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white ui-pressed:!bg-white" />
+                <div
+                  aria-hidden="true"
+                  class="i-lucide:notebook-tabs size-full"
+                />
               </ToggleGroup.Item>
             </Tooltip>
             <Tooltip content={t1("config.open")}>
               <ToggleGroup.Item
                 value="config"
                 aria-label={t1("config.open")}
-                class="group size-8 p1 rounded-lg bg-white dark:bg-slate-8 shadow-md hover:bg-primary-5 ui-pressed:bg-primary-5 transition-transform outline-none"
+                class={`${SURFACE_BUTTON_CLASS} ui-pressed:(bg-accent text-on-accent)`}
               >
-                <div class="i-lucide:cog bg-slate-8 dark:bg-slate-1 size-full group-hover:bg-white ui-pressed:!bg-white" />
+                <div aria-hidden="true" class="i-lucide:cog size-full" />
               </ToggleGroup.Item>
             </Tooltip>
           </ToggleGroup>

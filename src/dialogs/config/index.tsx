@@ -21,7 +21,7 @@ import { ExtraDownloadButton } from "@components/extraDownload";
 import { Tooltip } from "@components/tooltip";
 import { Button } from "@kobalte/core/button";
 import { Dialog } from "@kobalte/core/dialog";
-import { Switch } from "@kobalte/core/switch";
+import { AppSwitch } from "@components/switch";
 import { Tabs } from "@kobalte/core/tabs";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import _ from "lodash";
@@ -160,34 +160,18 @@ export function ConfigPage() {
               <TitlebarStyleSelect />
             </ConfigItem>
             <ConfigItem label={t1("config.playback_timeline")}>
-              <Switch
+              <AppSwitch
+                label={t1("config.playback_timeline")}
                 checked={playbackTimelineEnabled()}
                 onChange={setPlaybackTimelineEnabled}
-                class="inline-flex items-center select-none cursor-pointer justify-center"
-              >
-                <Switch.Input
-                  aria-label={t1("config.playback_timeline")}
-                  class="outline-2px"
-                />
-                <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
-                  <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
-                </Switch.Control>
-              </Switch>
+              />
             </ConfigItem>
             <ConfigItem label={t1("config.pitch_ruler")}>
-              <Switch
+              <AppSwitch
+                label={t1("config.pitch_ruler")}
                 checked={pitchRulerEnabled()}
                 onChange={setPitchRulerEnabled}
-                class="inline-flex items-center select-none cursor-pointer justify-center"
-              >
-                <Switch.Input
-                  aria-label={t1("config.pitch_ruler")}
-                  class="outline-2px"
-                />
-                <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
-                  <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
-                </Switch.Control>
-              </Switch>
+              />
             </ConfigItem>
             <ConfigItem label={t1("config.pitch_scale")}>
               <PitchScaleSelect />
@@ -254,105 +238,57 @@ export function ConfigPage() {
           <Tabs.Content value="project" class={contentClass}>
             <ConfigSectionTitle label={t1("config.project")} />
             <ConfigItem label={t1("config.auto_save")}>
-              <Switch
+              <AppSwitch
+                label={t1("config.auto_save")}
                 checked={config.ui.auto_save ?? false}
                 onChange={(value) => setConfig("ui", "auto_save", value)}
-                class="inline-flex items-center select-none cursor-pointer justify-center"
-              >
-                <Switch.Input
-                  aria-label={t1("config.auto_save")}
-                  class="outline-2px"
-                />
-                <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
-                  <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
-                </Switch.Control>
-              </Switch>
+              />
             </ConfigItem>
             <ConfigSectionTitle label={t1("config.audio_export")} />
             <ConfigItem label={t1("config.default_export_dir")}>
-              <Switch
+              <AppSwitch
+                label={t1("config.enable_export_dir")}
                 checked={config.ui.default_export_dir_enabled ?? false}
                 onChange={(v) =>
                   setConfig("ui", "default_export_dir_enabled", v)
                 }
-                class="inline-flex items-center select-none cursor-pointer justify-center"
-              >
-                <Switch.Input
-                  aria-label={t1("config.enable_export_dir")}
-                  class="outline-2px"
-                />
-                <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
-                  <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
-                </Switch.Control>
-              </Switch>
+              />
             </ConfigItem>
             <Show when={config.ui.default_export_dir_enabled}>
               <ConfigItem label={t1("config.export_dir_path")} nested>
                 <DefaultExportDirSetting />
               </ConfigItem>
               <ConfigItem label={t1("config.silent_save")} nested>
-                <Switch
+                <AppSwitch
+                  label={t1("config.silent_save")}
                   checked={config.ui.silent_save ?? false}
                   disabled={config.ui.default_export_dir == null}
                   onChange={(value) => setConfig("ui", "silent_save", value)}
-                  class="inline-flex cursor-pointer select-none items-center justify-center ui-disabled:(cursor-not-allowed opacity-50)"
-                >
-                  <Switch.Input
-                    aria-label={t1("config.silent_save")}
-                    class="outline-2px"
-                  />
-                  <Switch.Control class="h-6 w-12 rounded-full bg-slate-3 p1 ui-checked:bg-primary-5 dark:bg-slate-6 dark:ui-checked:bg-primary-5">
-                    <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:translate-x-6" />
-                  </Switch.Control>
-                </Switch>
+                />
               </ConfigItem>
             </Show>
             <ConfigItem label={t1("config.prevent_overwrite")}>
-              <Switch
+              <AppSwitch
+                label={t1("config.prevent_overwrite")}
                 checked={config.ui.prevent_overwrite ?? false}
                 onChange={(value) =>
                   setConfig("ui", "prevent_overwrite", value)
                 }
-                class="inline-flex cursor-pointer select-none items-center justify-center"
-              >
-                <Switch.Input
-                  aria-label={t1("config.prevent_overwrite")}
-                  class="outline-2px"
-                />
-                <Switch.Control class="h-6 w-12 rounded-full bg-slate-3 p1 ui-checked:bg-primary-5 dark:bg-slate-6 dark:ui-checked:bg-primary-5">
-                  <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:translate-x-6" />
-                </Switch.Control>
-              </Switch>
+              />
             </ConfigItem>
             <ConfigItem label={t1("config.export_text")}>
-              <Switch
+              <AppSwitch
+                label={t1("config.export_text")}
                 checked={config.ui.export_text ?? true}
                 onChange={(value) => setConfig("ui", "export_text", value)}
-                class="inline-flex cursor-pointer select-none items-center justify-center"
-              >
-                <Switch.Input
-                  aria-label={t1("config.export_text")}
-                  class="outline-2px"
-                />
-                <Switch.Control class="h-6 w-12 rounded-full bg-slate-3 p1 ui-checked:bg-primary-5 dark:bg-slate-6 dark:ui-checked:bg-primary-5">
-                  <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:translate-x-6" />
-                </Switch.Control>
-              </Switch>
+              />
             </ConfigItem>
             <ConfigItem label={t1("config.export_lab")}>
-              <Switch
+              <AppSwitch
+                label={t1("config.export_lab")}
                 checked={config.ui.export_lab ?? false}
                 onChange={(value) => setConfig("ui", "export_lab", value)}
-                class="inline-flex cursor-pointer select-none items-center justify-center"
-              >
-                <Switch.Input
-                  aria-label={t1("config.export_lab")}
-                  class="outline-2px"
-                />
-                <Switch.Control class="h-6 w-12 rounded-full bg-slate-3 p1 ui-checked:bg-primary-5 dark:bg-slate-6 dark:ui-checked:bg-primary-5">
-                  <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:translate-x-6" />
-                </Switch.Control>
-              </Switch>
+              />
             </ConfigItem>
             <ConfigItem label={t1("config.truncation_len")}>
               <NumberField
@@ -428,21 +364,13 @@ export function ConfigPage() {
                   />
                 }
               >
-                <Switch
+                <AppSwitch
+                  label={t1("config.english_transform")}
                   checked={englishTransformEnabled()}
                   onChange={(value) =>
                     setConfig("ui", "english_transform", value)
                   }
-                  class="inline-flex items-center select-none cursor-pointer justify-center"
-                >
-                  <Switch.Input
-                    aria-label={t1("config.english_transform")}
-                    class="outline-2px"
-                  />
-                  <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
-                    <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
-                  </Switch.Control>
-                </Switch>
+                />
               </Show>
             </ConfigItem>
             <Show when={englishTransformEnabled() && englishModelsInstalled()}>
@@ -451,63 +379,39 @@ export function ConfigPage() {
                 description={t1("config.english_accent_prediction_description")}
                 nested
               >
-                <Switch
+                <AppSwitch
+                  label={t1("config.english_accent_prediction")}
                   checked={englishAccentPredictionEnabled()}
                   onChange={(value) =>
                     setConfig("ui", "english_accent_prediction", value)
                   }
-                  class="inline-flex items-center select-none cursor-pointer justify-center"
-                >
-                  <Switch.Input
-                    aria-label={t1("config.english_accent_prediction")}
-                    class="outline-2px"
-                  />
-                  <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
-                    <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
-                  </Switch.Control>
-                </Switch>
+                />
               </ConfigItem>
               <ConfigItem
                 label={t1("config.english_ngram_filter")}
                 description={t1("config.english_ngram_filter_description")}
                 nested
               >
-                <Switch
+                <AppSwitch
+                  label={t1("config.english_ngram_filter")}
                   checked={englishNgramFilterEnabled()}
                   onChange={(value) =>
                     setConfig("ui", "english_ngram_filter", value)
                   }
-                  class="inline-flex items-center select-none cursor-pointer justify-center"
-                >
-                  <Switch.Input
-                    aria-label={t1("config.english_ngram_filter")}
-                    class="outline-2px"
-                  />
-                  <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
-                    <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
-                  </Switch.Control>
-                </Switch>
+                />
               </ConfigItem>
               <ConfigItem
                 label={t1("config.english_turbo_model")}
                 description={t1("config.english_turbo_model_description")}
                 nested
               >
-                <Switch
+                <AppSwitch
+                  label={t1("config.english_turbo_model")}
                   checked={englishTurboModelEnabled()}
                   onChange={(value) =>
                     setConfig("ui", "english_turbo_model", value)
                   }
-                  class="inline-flex items-center select-none cursor-pointer justify-center"
-                >
-                  <Switch.Input
-                    aria-label={t1("config.english_turbo_model")}
-                    class="outline-2px"
-                  />
-                  <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
-                    <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
-                  </Switch.Control>
-                </Switch>
+                />
               </ConfigItem>
             </Show>
             <ConfigItem
@@ -516,22 +420,14 @@ export function ConfigPage() {
               experimental
             >
               <PitchControlTooltip>
-                <Switch
+                <AppSwitch
+                  label={t1("config.pitch_noise_enabled")}
                   checked={pitchNoiseActive()}
                   disabled={!pitchControlSupported()}
                   onChange={(value) =>
                     setConfig("ui", "pitch_noise_enabled", value)
                   }
-                  class="inline-flex items-center select-none cursor-pointer justify-center ui-disabled:(cursor-not-allowed opacity-50)"
-                >
-                  <Switch.Input
-                    aria-label={t1("config.pitch_noise_enabled")}
-                    class="outline-2px"
-                  />
-                  <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
-                    <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
-                  </Switch.Control>
-                </Switch>
+                />
               </PitchControlTooltip>
             </ConfigItem>
             <Show when={pitchNoiseActive()}>
@@ -585,38 +481,22 @@ export function ConfigPage() {
               experimental
             >
               <PitchControlTooltip>
-                <Switch
+                <AppSwitch
+                  label={t1("config.pitch_completion_enabled")}
                   checked={pitchCompletionAvailable()}
                   disabled={!pitchControlSupported()}
                   onChange={(value) =>
                     setConfig("ui", "pitch_completion_enabled", value)
                   }
-                  class="inline-flex items-center select-none cursor-pointer justify-center ui-disabled:(cursor-not-allowed opacity-50)"
-                >
-                  <Switch.Input
-                    aria-label={t1("config.pitch_completion_enabled")}
-                    class="outline-2px"
-                  />
-                  <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:bg-primary-5 dark:ui-checked:bg-primary-5">
-                    <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:translate-x-6" />
-                  </Switch.Control>
-                </Switch>
+                />
               </PitchControlTooltip>
             </ConfigItem>
             <ConfigItem label={t1("config.background_buffering")} experimental>
-              <Switch
+              <AppSwitch
+                label={t1("config.background_buffering")}
                 checked={config.ui.buffer_render}
                 onChange={(v) => setConfig("ui", "buffer_render", v)}
-                class="inline-flex items-center select-none cursor-pointer justify-center"
-              >
-                <Switch.Input
-                  aria-label={t1("config.background_buffering")}
-                  class="outline-2px"
-                />
-                <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
-                  <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
-                </Switch.Control>
-              </Switch>
+              />
             </ConfigItem>
             <Show when={config.ui.buffer_render}>
               <ConfigItem label={t1("config.synthesis_delay")} nested>
@@ -627,65 +507,33 @@ export function ConfigPage() {
                 experimental
                 nested
               >
-                <Switch
+                <AppSwitch
+                  label={t1("config.nonblocking_synthesis")}
                   checked={config.ui.nonblocking_synthesis}
                   onChange={(v) => setConfig("ui", "nonblocking_synthesis", v)}
-                  class="inline-flex items-center select-none cursor-pointer justify-center"
-                >
-                  <Switch.Input
-                    aria-label={t1("config.nonblocking_synthesis")}
-                    class="outline-2px"
-                  />
-                  <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
-                    <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
-                  </Switch.Control>
-                </Switch>
+                />
               </ConfigItem>
             </Show>
             <ConfigItem label={t1("config.streaming_synthesis")} experimental>
-              <Switch
+              <AppSwitch
+                label={t1("config.streaming_synthesis")}
                 checked={streamingSynthesisEnabled()}
                 onChange={setStreamingSynthesisEnabled}
-                class="inline-flex items-center select-none cursor-pointer justify-center"
-              >
-                <Switch.Input
-                  aria-label={t1("config.streaming_synthesis")}
-                  class="outline-2px"
-                />
-                <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
-                  <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
-                </Switch.Control>
-              </Switch>
+              />
             </ConfigItem>
             <ConfigItem label={t1("config.post_processing")} experimental>
-              <Switch
+              <AppSwitch
+                label={t1("config.post_processing")}
                 checked={postProcessingEnabled()}
                 onChange={setPostProcessingEnabled}
-                class="inline-flex items-center select-none cursor-pointer justify-center"
-              >
-                <Switch.Input
-                  aria-label={t1("config.post_processing")}
-                  class="outline-2px"
-                />
-                <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
-                  <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
-                </Switch.Control>
-              </Switch>
+              />
             </ConfigItem>
             <ConfigItem label={t1("config.spectrogram_preview")} experimental>
-              <Switch
+              <AppSwitch
+                label={t1("config.spectrogram_preview")}
                 checked={spectrogramPreviewEnabled()}
                 onChange={setSpectrogramPreviewEnabled}
-                class="inline-flex items-center select-none cursor-pointer justify-center"
-              >
-                <Switch.Input
-                  aria-label={t1("config.spectrogram_preview")}
-                  class="outline-2px"
-                />
-                <Switch.Control class="bg-slate-3 dark:bg-slate-6 rounded-full w-12 h-6 p1 ui-checked:(bg-primary-5) dark:ui-checked:bg-primary-5">
-                  <Switch.Thumb class="size-4 rounded-full bg-white transition-transform transition-duration-200 ui-checked:(translate-x-6)" />
-                </Switch.Control>
-              </Switch>
+              />
             </ConfigItem>
           </Tabs.Content>
           <Tabs.Content value="shortcuts" class={contentClass}>

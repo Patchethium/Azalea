@@ -1,6 +1,5 @@
-import { Tooltip } from "@components/tooltip";
+import { AppSelect } from "@components/select";
 import { Checkbox } from "@kobalte/core/checkbox";
-import { Select } from "@kobalte/core/select";
 import { Slider } from "@kobalte/core/slider";
 import { type JSX, Show } from "solid-js";
 
@@ -13,64 +12,16 @@ export function OptionSelector(props: {
   optionLang?: string;
   action?: JSX.Element;
 }) {
-  const optionLabel = (value: string) => props.getOptionLabel?.(value) ?? value;
-
   return (
-    <Select
+    <AppSelect
+      name={props.name}
       options={props.options}
       value={props.value}
-      onChange={(value) => {
-        if (value !== null) props.onChange(value);
-      }}
-      itemComponent={(itemProps) => (
-        <Select.Item
-          item={itemProps.item}
-          class="p1 flex flex-row items-center justify-between rounded-md ui-highlighted:(bg-primary-5 text-white) cursor-pointer"
-        >
-          <Select.ItemLabel lang={props.optionLang}>
-            {optionLabel(itemProps.item.rawValue)}
-          </Select.ItemLabel>
-          <Select.ItemIndicator class="size-6 flex items-center justify-center">
-            <div class="i-lucide:check" />
-          </Select.ItemIndicator>
-        </Select.Item>
-      )}
-    >
-      <Select.Label class="text-sm select-none cursor-default">
-        {props.name}
-      </Select.Label>
-      <div class="flex w-full items-center gap1">
-        <Tooltip
-          content={
-            <span lang={props.optionLang}>{optionLabel(props.value)}</span>
-          }
-          class="min-w-0 flex-1"
-          onlyWhenOverflowing
-        >
-          <Select.Trigger
-            class="flex w-full min-w-0 flex-row items-center justify-between px2 bg-white dark:bg-slate-8
-                          h-8 bg-transparent border border-slate-2 rounded-md
-                          hover:(bg-slate-1 dark:bg-slate-7) dark:border-slate-6"
-          >
-            <Select.Value<string>
-              lang={props.optionLang}
-              class="min-w-0 truncate"
-            >
-              {(state) => optionLabel(state.selectedOption())}
-            </Select.Value>
-            <Select.Icon class="shrink-0">
-              <div class="size-4 i-lucide:chevrons-up-down" />
-            </Select.Icon>
-          </Select.Trigger>
-        </Tooltip>
-        {props.action}
-      </div>
-      <Select.Portal>
-        <Select.Content class="z-60 bg-white dark:bg-slate-8 w-full rounded-lg border border-slate-2 dark:border-slate-6 overflow-y-auto max-h-[50vh] outline-none">
-          <Select.Listbox class="bg-white dark:bg-slate-8 flex flex-col p1 overflow-y-hidden" />
-        </Select.Content>
-      </Select.Portal>
-    </Select>
+      onChange={props.onChange}
+      getOptionLabel={props.getOptionLabel}
+      optionLang={props.optionLang}
+      action={props.action}
+    />
   );
 }
 
