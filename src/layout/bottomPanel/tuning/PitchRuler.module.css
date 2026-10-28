@@ -5,17 +5,12 @@
   z-index: 3;
   pointer-events: auto;
   user-select: none;
-  color: #475569;
+  color: var(--az-ink-muted);
   background: linear-gradient(
     to left,
-    rgb(255 255 255 / 95%),
-    rgb(255 255 255 / 0%)
+    color-mix(in srgb, var(--az-surface) 95%, transparent),
+    transparent
   );
-}
-
-:global(.dark) .ruler {
-  color: #cbd5e1;
-  background: linear-gradient(to left, rgb(30 41 59 / 95%), rgb(30 41 59 / 0%));
 }
 
 .tick {
@@ -38,7 +33,12 @@
   font-size: 11px;
   line-height: 14px;
   font-variant-numeric: tabular-nums;
-  transition: opacity 150ms ease-in-out;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .label {
+    transition: opacity 150ms ease-in-out;
+  }
 }
 
 .ruler:hover .label {

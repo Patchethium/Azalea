@@ -52,7 +52,7 @@ export const Tooltip: ParentComponent<TooltipProps> = (props) => {
         {props.children}
       </TooltipPrimitive.Trigger>
       <TooltipPrimitive.Portal>
-        <TooltipPrimitive.Content class="z-50 select-none rounded-md bg-slate-8 px2 py1 text-xs text-white shadow-md dark:(bg-slate-1 text-slate-9)">
+        <TooltipPrimitive.Content class="z-overlay select-none rounded-md bg-tooltip px2 py1 text-xs text-on-tooltip shadow-md">
           {props.content}
         </TooltipPrimitive.Content>
       </TooltipPrimitive.Portal>

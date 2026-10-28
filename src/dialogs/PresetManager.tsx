@@ -103,9 +103,9 @@ export function PresetManagerDialog(props: PresetManagerDialogProps) {
       {(preset) => (
         <section
           aria-label={t1("preset_manager.editor")}
-          class="min-w-0 flex flex-1 flex-col overflow-hidden rounded-md b b-slate-2 dark:b-slate-6"
+          class="min-w-0 flex flex-1 flex-col overflow-hidden rounded-md b b-border"
         >
-          <h3 class="m0 flex items-center gap2 b-b b-slate-2 bg-slate-1 px3 py1 text-sm font-semibold dark:(b-slate-6 bg-slate-7)">
+          <h3 class="m0 flex items-center gap2 b-b b-border bg-surface-menu px3 py1 text-sm font-semibold">
             <span class="min-w-0 flex-1 truncate">
               {t1("preset_manager.editor")}
             </span>
@@ -187,18 +187,18 @@ function PresetColumn(props: PresetColumnProps) {
   return (
     <section
       aria-label={props.title}
-      class="min-w-0 flex flex-1 flex-col overflow-hidden rounded-md b b-slate-2 dark:b-slate-6"
+      class="min-w-0 flex flex-1 flex-col overflow-hidden rounded-md b b-border"
     >
-      <h3 class="m0 flex items-center gap2 b-b b-slate-2 bg-slate-1 px3 py1.5 text-sm font-semibold dark:(b-slate-6 bg-slate-7)">
+      <h3 class="m0 flex items-center gap2 b-b b-border bg-surface-menu px3 py1.5 text-sm font-semibold">
         <span class="flex-1">{props.title}</span>
-        <span class="text-xs font-normal text-slate-5 dark:text-slate-4">
+        <span class="text-xs font-normal text-ink-subtle">
           {props.presets.length}
         </span>
       </h3>
       <Show
         when={props.presets.length}
         fallback={
-          <p class="m0 flex flex-1 items-center justify-center p3 text-sm text-slate-5 dark:text-slate-4">
+          <p class="m0 flex flex-1 items-center justify-center p3 text-sm text-ink-subtle">
             {t1("preset_manager.empty")}
           </p>
         }
@@ -256,13 +256,13 @@ function PresetItem(props: PresetItemProps) {
   ];
 
   return (
-    <li class="[&+li]:(b-t b-slate-2 dark:b-slate-6)">
+    <li class="[&+li]:b-t [&+li]:b-border">
       <Collapsible>
-        <div class="flex items-center gap2 px2 py1.5 hover:bg-slate-50 dark:hover:bg-slate-7/50">
-          <Collapsible.Trigger class="group min-w-0 flex flex-1 cursor-pointer items-center gap2 rounded bg-transparent p0 text-left outline-none focus-visible:(ring-2 ring-primary-3)">
+        <div class="flex items-center gap2 px2 py1.5 hover:bg-hover">
+          <Collapsible.Trigger class="group min-w-0 flex flex-1 cursor-pointer items-center gap2 rounded bg-transparent p0 text-left outline-none focus-visible:(ring-2 ring-focus-ring)">
             <div
               aria-hidden="true"
-              class="i-lucide:chevron-right size-4 shrink-0 text-slate-5 transition-transform group-data-[expanded]:rotate-90"
+              class="i-lucide:chevron-right size-4 shrink-0 text-ink-subtle motion-safe:transition-transform group-data-[expanded]:rotate-90"
             />
             <span class="min-w-0 flex flex-1 flex-col">
               <span class="truncate text-sm font-medium">
@@ -270,10 +270,7 @@ function PresetItem(props: PresetItemProps) {
               </span>
               <Show when={identity()}>
                 {(found) => (
-                  <span
-                    lang="ja"
-                    class="truncate text-xs text-slate-5 dark:text-slate-4"
-                  >
+                  <span lang="ja" class="truncate text-xs text-ink-subtle">
                     {found().speaker.name} › {found().style.name}
                   </span>
                 )}
@@ -316,7 +313,7 @@ function PresetItem(props: PresetItemProps) {
             <For each={details()}>
               {([label, value]) => (
                 <>
-                  <dt class="text-slate-5 dark:text-slate-4">{label}</dt>
+                  <dt class="text-ink-subtle">{label}</dt>
                   <dd class="m0 tabular-nums">{value}</dd>
                 </>
               )}

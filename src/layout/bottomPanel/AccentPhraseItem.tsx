@@ -106,9 +106,9 @@ export function AccentPhraseItem(props: AccentPhraseItemProps) {
             <Slider.Label class="sr-only">{props.label}</Slider.Label>
           </Show>
           <div class="w-full flex p1">
-            <Slider.Track class="w-full h-2 bg-slate-2 dark:bg-slate-6 rounded-full relative ui-disabled:cursor-not-allowed">
-              <Slider.Fill class="absolute bg-primary-5 rounded-full h-full ui-disabled:bg-primary-2" />
-              <Slider.Thumb class="block w-2 h-4 bg-primary-5 ui-disabled:bg-primary-2 rounded-sm -top-1 outline-none">
+            <Slider.Track class="w-full h-2 bg-track rounded-full relative ui-disabled:cursor-not-allowed">
+              <Slider.Fill class="absolute bg-accent rounded-full h-full ui-disabled:bg-primary-2" />
+              <Slider.Thumb class="block w-2 h-4 bg-accent ui-disabled:bg-primary-2 rounded-sm -top-1 outline-none">
                 <Slider.Input />
               </Slider.Thumb>
             </Slider.Track>
@@ -134,8 +134,7 @@ export function AccentPhraseItem(props: AccentPhraseItemProps) {
                   classList={{
                     "mt-10": props.phrase.moras.length > 1 && !high(),
                     "mb-10": props.phrase.moras.length > 1 && high(),
-                    "text-slate-5 dark:text-slate-4":
-                      props.mutedMoraIndex === index(),
+                    "text-ink-subtle": props.mutedMoraIndex === index(),
                     "b b-primary-3":
                       props.mode !== "accent" && phonemeHovered(),
                     "cursor-pointer": props.mode !== "accent",
@@ -175,8 +174,7 @@ export function AccentPhraseItem(props: AccentPhraseItemProps) {
                               props.phrase.pause_mora == null,
                             "bg-primary-1 dark:bg-primary-9 hover:(b b-primary-3)":
                               props.phrase.pause_mora != null,
-                            "text-black dark:text-white b b-primary-3":
-                              pauseMoraHovered(),
+                            "text-ink b b-primary-3": pauseMoraHovered(),
                           }}
                           onMouseEnter={() => setPauseMoraHovered(true)}
                           onMouseLeave={() => setPauseMoraHovered(false)}

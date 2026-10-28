@@ -10,13 +10,11 @@ function InitPage() {
     <div class="size-full flex flex-col items-center justify-center gap-3 px-6 text-center">
       <div
         aria-hidden="true"
-        class="i-lucide:audio-lines size-10 text-slate-4 dark:text-slate-5"
+        class="i-lucide:audio-lines size-10 text-ink-faint"
       />
       <div>
         <h2 class="font-semibold">{t1("init_dialog.intro")}</h2>
-        <p class="mt-1 text-sm text-slate-5 dark:text-slate-4">
-          {t1("init_dialog.before")}
-        </p>
+        <p class="mt-1 text-sm text-ink-subtle">{t1("init_dialog.before")}</p>
       </div>
       <AppButton
         onClick={() => setUIStore({ page: "config", configSection: "voice" })}

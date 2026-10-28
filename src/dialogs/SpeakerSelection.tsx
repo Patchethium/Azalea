@@ -169,15 +169,15 @@ export function SpeakerSelectionDialog(props: SpeakerSelectionDialogProps) {
             missingIconCount() > 0
           }
         >
-          <div class="flex items-center gap2 b-b b-slate-2 px4 py2 dark:b-slate-6">
+          <div class="flex items-center gap2 b-b b-border px4 py2">
             <Show when={iconStatus() === "loading-cache"}>
-              <div class="flex items-center gap2 text-sm text-slate-5 dark:text-slate-4">
+              <div class="flex items-center gap2 text-sm text-ink-subtle">
                 <div class="i-lucide:loader-circle size-4 animate-spin" />
                 {t1("speaker_selection.loading_icons")}
               </div>
             </Show>
             <Show when={iconStatus() === "error"}>
-              <span role="alert" class="text-sm text-red-6 dark:text-red-4">
+              <span role="alert" class="text-sm text-danger-ink">
                 {t1("speaker_selection.icon_download_failed")}
               </span>
             </Show>
@@ -190,7 +190,7 @@ export function SpeakerSelectionDialog(props: SpeakerSelectionDialogProps) {
                 disabled={iconStatus() === "downloading"}
                 aria-busy={iconStatus() === "downloading"}
                 onClick={() => void downloadMissingIcons()}
-                class="shrink-0 flex items-center gap2 rounded-md b b-slate-2 bg-transparent px3 py1.5 text-sm outline-none hover:(b-primary-5 bg-primary-1) focus-visible:(ring-2 ring-primary-3) disabled:(cursor-wait opacity-60) dark:(b-slate-6 hover:bg-slate-7)"
+                class="shrink-0 flex items-center gap2 rounded-md b b-border bg-transparent px3 py1.5 text-sm outline-none hover:(b-accent bg-primary-1) focus-visible:(ring-2 ring-focus-ring) disabled:(cursor-wait opacity-60) dark:hover:bg-hover"
               >
                 <div
                   class={
@@ -235,9 +235,9 @@ export function SpeakerSelectionDialog(props: SpeakerSelectionDialogProps) {
                     disabled={style === undefined}
                     aria-pressed={selected()}
                     onClick={() => props.onSelect(speaker)}
-                    class="relative min-h-24 min-w-0 w-full flex flex-col items-center justify-center gap2 rounded-xl b b-slate-2 bg-slate-1/70 p3 text-center outline-none transition-colors hover:(b-primary-5 bg-primary-1) focus-visible:(ring-2 ring-primary-3) dark:(b-slate-6 bg-slate-7/50) dark:hover:(b-primary-5 bg-slate-7)"
+                    class="relative min-h-24 min-w-0 w-full flex flex-col items-center justify-center gap2 rounded-lg b b-border bg-surface-menu p3 text-center outline-none motion-safe:transition-colors hover:b-accent hover:bg-primary-1 focus-visible:(ring-2 ring-focus-ring) dark:hover:b-accent dark:hover:bg-hover"
                     classList={{
-                      "!b-primary-5 bg-primary-1 dark:bg-slate-7": selected(),
+                      "!b-accent bg-primary-1 dark:bg-hover": selected(),
                     }}
                   >
                     <div class="size-16 flex items-center justify-center">
@@ -248,7 +248,7 @@ export function SpeakerSelectionDialog(props: SpeakerSelectionDialogProps) {
                             : speakerIconUrl(iconRequest)
                         }
                         fallback={
-                          <div class="i-lucide:mic-2 size-7 text-primary-5" />
+                          <div class="i-lucide:mic-2 size-7 text-accent" />
                         }
                       >
                         {(iconUrl) => (
@@ -268,7 +268,7 @@ export function SpeakerSelectionDialog(props: SpeakerSelectionDialogProps) {
                       {speaker.name}
                     </span>
                     <Show when={selected()}>
-                      <div class="absolute right2 top2 i-lucide:check size-4 text-primary-5" />
+                      <div class="absolute right2 top2 i-lucide:check size-4 text-accent" />
                     </Show>
                   </Button>
                 </Tooltip>

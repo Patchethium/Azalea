@@ -38,14 +38,14 @@ function BottomPanel(props: { disabled?: boolean }) {
       <Show
         when={selectedTextBlock()}
         fallback={
-          <div class="size-full flex items-center justify-center rounded-lg border border-slate-2 bg-white text-sm text-slate-5 dark:(border-slate-6 bg-slate-8 text-slate-4)">
+          <div class="size-full flex items-center justify-center rounded-lg border border-border bg-surface text-sm text-ink-subtle">
             {t1("bottom.no_block")}
           </div>
         }
       >
         <Tabs
           aria-label="Bottom Panel Tabs"
-          class="size-full relative flex flex-col bg-white dark:bg-slate-8 border border-slate-2 dark:border-slate-6 rounded-lg overflow-hidden outline-none select-none"
+          class="size-full relative flex flex-col bg-surface border border-border rounded-lg overflow-hidden outline-none select-none"
           orientation="horizontal"
           value={uiStore.bottomPanel}
           onChange={(panel) =>
@@ -61,14 +61,14 @@ function BottomPanel(props: { disabled?: boolean }) {
             <Tabs.List class="w-full flex flex-row items-center relative p-1 outline-none select-none">
               <Tabs.Trigger
                 disabled={props.disabled}
-                class="bg-transparent enabled:hover:bg-slate-1 dark:enabled:hover:bg-slate-7 disabled:cursor-not-allowed px-2 rounded-md outline-none select-none"
+                class="bg-transparent enabled:hover:bg-hover disabled:cursor-not-allowed px-2 rounded-md outline-none select-none"
                 value="accent"
               >
                 {t1("bottom.accent")}
               </Tabs.Trigger>
               <Tabs.Trigger
                 disabled={props.disabled}
-                class="bg-transparent enabled:hover:bg-slate-1 dark:enabled:hover:bg-slate-7 disabled:cursor-not-allowed px-2 rounded-md outline-none select-none"
+                class="bg-transparent enabled:hover:bg-hover disabled:cursor-not-allowed px-2 rounded-md outline-none select-none"
                 value="tuning"
               >
                 {t1("bottom.tuning")}
@@ -76,13 +76,13 @@ function BottomPanel(props: { disabled?: boolean }) {
               <Show when={postProcessingEnabled()}>
                 <Tabs.Trigger
                   disabled={props.disabled}
-                  class="bg-transparent enabled:hover:bg-slate-1 dark:enabled:hover:bg-slate-7 disabled:cursor-not-allowed px-2 rounded-md outline-none select-none"
+                  class="bg-transparent enabled:hover:bg-hover disabled:cursor-not-allowed px-2 rounded-md outline-none select-none"
                   value="post"
                 >
                   {t1("bottom.post")}
                 </Tabs.Trigger>
               </Show>
-              <Tabs.Indicator class="bg-primary-5 h-1px absolute transition-all bottom-0 left-0" />
+              <Tabs.Indicator class="bg-accent h-1px absolute motion-safe:transition-all bottom-0 left-0" />
             </Tabs.List>
           </div>
           <Tabs.Content
@@ -93,7 +93,7 @@ function BottomPanel(props: { disabled?: boolean }) {
             <Show
               when={!props.disabled}
               fallback={
-                <div class="size-full flex items-center justify-center text-slate-4">
+                <div class="size-full flex items-center justify-center text-ink-subtle">
                   {t1("bottom.no_query")}
                 </div>
               }
@@ -109,7 +109,7 @@ function BottomPanel(props: { disabled?: boolean }) {
             <Show
               when={!props.disabled}
               fallback={
-                <div class="size-full flex items-center justify-center text-slate-4">
+                <div class="size-full flex items-center justify-center text-ink-subtle">
                   {t1("bottom.no_query")}
                 </div>
               }
@@ -128,7 +128,7 @@ function BottomPanel(props: { disabled?: boolean }) {
               <Show
                 when={!props.disabled}
                 fallback={
-                  <div class="size-full flex items-center justify-center text-slate-4">
+                  <div class="size-full flex items-center justify-center text-ink-subtle">
                     {t1("bottom.no_query")}
                   </div>
                 }

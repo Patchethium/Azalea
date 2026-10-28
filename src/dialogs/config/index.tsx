@@ -129,13 +129,13 @@ export function ConfigPage() {
         >
           <Tabs.List
             aria-label={t1("config.sections")}
-            class="flex w-44 shrink-0 flex-col gap1 overflow-y-auto b-r b-slate-2 p2 outline-none select-none dark:b-slate-6"
+            class="flex w-44 shrink-0 flex-col gap1 overflow-y-auto b-r b-border p2 outline-none select-none"
           >
             <For each={configSections}>
               {(section) => (
                 <Tabs.Trigger
                   value={section.value}
-                  class="flex items-center gap2 rounded-md bg-transparent px2 py1.5 text-left text-sm outline-none hover:bg-primary-1 dark:hover:bg-primary-9 focus-visible:(ring-2 ring-primary-2) ui-selected:(bg-primary-5 text-white hover:bg-primary-6) dark:ui-selected:(bg-primary-5 hover:bg-primary-6)"
+                  class="flex items-center gap2 rounded-md bg-transparent px2 py1.5 text-left text-sm outline-none hover:bg-primary-1 dark:hover:bg-primary-9 focus-visible:(ring-2 ring-focus-ring-soft) ui-selected:(bg-accent text-on-accent hover:bg-accent-hover) dark:ui-selected:(bg-accent hover:bg-accent-hover)"
                 >
                   <div
                     aria-hidden="true"
@@ -207,7 +207,7 @@ export function ConfigPage() {
                             DEFAULT_PITCH_DRIFT_RANGE,
                           )
                         }
-                        class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) dark:hover:bg-slate-7"
+                        class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-hover focus-visible:(ring-2 ring-focus-ring-soft)"
                       >
                         <div class="i-lucide:rotate-ccw size-4" />
                       </button>
@@ -303,24 +303,24 @@ export function ConfigPage() {
                 class="flex flex-row items-center justify-center gap-1"
               >
                 <Show when={config.ui.name_truncation_len === 0}>
-                  <NumberField.Label class="text-slate-6">
+                  <NumberField.Label class="text-ink-muted">
                     {_.capitalize(t1("config.no_truncation"))}
                   </NumberField.Label>
                 </Show>
                 <div class="flex flex-row gap-1 items-center w-16">
-                  <NumberField.Input class="h-8 w-full outline-none rounded-lg b b-slate-2 dark:(b-slate-6 bg-slate-8) focus:b-primary-3 px-1" />
+                  <NumberField.Input class="h-8 w-full outline-none rounded-lg b b-border bg-surface dark:bg-surface-raised focus:b-focus-ring px-1" />
                   <div class="flex flex-col">
                     <NumberField.IncrementTrigger
                       aria-label="Increment"
                       class="size-4 bg-transparent group"
                     >
-                      <div class="i-lucide:chevron-up size-full group-hover:bg-primary-5 group-active:bg-primary-7" />
+                      <div class="i-lucide:chevron-up size-full group-hover:bg-accent group-active:bg-primary-7" />
                     </NumberField.IncrementTrigger>
                     <NumberField.DecrementTrigger
                       aria-label="Decrement"
                       class="size-4 bg-transparent group"
                     >
-                      <div class="i-lucide:chevron-down size-full group-hover:bg-primary-5 group-active:bg-primary-7" />
+                      <div class="i-lucide:chevron-down size-full group-hover:bg-accent group-active:bg-primary-7" />
                     </NumberField.DecrementTrigger>
                   </div>
                 </div>
@@ -450,7 +450,7 @@ export function ConfigPage() {
                             DEFAULT_PITCH_NOISE_SIGMA,
                           )
                         }
-                        class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) dark:hover:bg-slate-7"
+                        class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-hover focus-visible:(ring-2 ring-focus-ring-soft)"
                       >
                         <div class="i-lucide:rotate-ccw size-4" />
                       </button>
@@ -540,11 +540,11 @@ export function ConfigPage() {
             <ShortcutSettings />
           </Tabs.Content>
         </Tabs>
-        <div class="flex justify-end b-t b-slate-2 px3 py2 dark:b-slate-6">
+        <div class="flex justify-end b-t b-border px3 py2">
           <Button
             type="button"
             onClick={() => void commands.openConfigDir()}
-            class="flex items-center gap1 rounded-md bg-transparent px2 py1 text-sm outline-none hover:bg-slate-2 focus-visible:(ring-2 ring-primary-2) dark:hover:bg-slate-7"
+            class="flex items-center gap1 rounded-md bg-transparent px2 py1 text-sm outline-none hover:bg-hover focus-visible:(ring-2 ring-focus-ring-soft)"
           >
             <div class="i-lucide:folder-open size-4" />
             {t1("config.open_config_dir")}
@@ -592,7 +592,7 @@ function DefaultExportDirSetting() {
       <Show
         when={dir()}
         fallback={
-          <span class="text-sm text-slate-5 dark:text-slate-4">
+          <span class="text-sm text-ink-subtle">
             {t1("config.no_default_export_dir")}
           </span>
         }
@@ -658,26 +658,24 @@ function SynthesisDelayField() {
       <div class="flex w-24 items-center gap-1">
         <NumberField.Input
           aria-label={t1("config.synthesis_delay")}
-          class="h-8 w-full rounded-lg b b-slate-2 px-1 outline-none focus:b-primary-3 dark:(b-slate-6 bg-slate-8)"
+          class="h-8 w-full rounded-lg b b-border px-1 outline-none focus:b-focus-ring bg-surface dark:bg-surface-raised"
         />
         <div class="flex flex-col">
           <NumberField.IncrementTrigger
             aria-label="Increment"
             class="size-4 bg-transparent group"
           >
-            <div class="i-lucide:chevron-up size-full group-hover:bg-primary-5 group-active:bg-primary-7" />
+            <div class="i-lucide:chevron-up size-full group-hover:bg-accent group-active:bg-primary-7" />
           </NumberField.IncrementTrigger>
           <NumberField.DecrementTrigger
             aria-label="Decrement"
             class="size-4 bg-transparent group"
           >
-            <div class="i-lucide:chevron-down size-full group-hover:bg-primary-5 group-active:bg-primary-7" />
+            <div class="i-lucide:chevron-down size-full group-hover:bg-accent group-active:bg-primary-7" />
           </NumberField.DecrementTrigger>
         </div>
       </div>
-      <span class="text-sm text-slate-5 dark:text-slate-4">
-        {t1("config.milliseconds")}
-      </span>
+      <span class="text-sm text-ink-subtle">{t1("config.milliseconds")}</span>
     </NumberField>
   );
 }
@@ -723,14 +721,14 @@ function CPUThreadSetting() {
               status() === "loading" || coreSwitching() || setupChangePending()
             }
             onClick={() => void reinit()}
-            class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) dark:hover:bg-slate-7"
+            class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-hover focus-visible:(ring-2 ring-focus-ring-soft)"
           >
             <div
               class={
                 status() === "loading"
                   ? "i-lucide:loader-circle size-4 animate-spin"
                   : status() === "error"
-                    ? "i-lucide:triangle-alert size-4 text-red-6 dark:text-red-4"
+                    ? "i-lucide:triangle-alert size-4 text-danger-ink"
                     : "i-lucide:refresh-cw size-4"
               }
             />
@@ -750,27 +748,25 @@ function CPUThreadSetting() {
         <div class="flex w-24 items-center gap-1">
           <NumberField.Input
             aria-label={t1("config.cpu_num_threads")}
-            class="h-8 w-full rounded-lg b b-slate-2 px-1 outline-none focus:b-primary-3 dark:(b-slate-6 bg-slate-8)"
+            class="h-8 w-full rounded-lg b b-border px-1 outline-none focus:b-focus-ring bg-surface dark:bg-surface-raised"
           />
           <div class="flex flex-col">
             <NumberField.IncrementTrigger
               aria-label="Increment"
               class="size-4 bg-transparent group"
             >
-              <div class="i-lucide:chevron-up size-full group-hover:bg-primary-5 group-active:bg-primary-7" />
+              <div class="i-lucide:chevron-up size-full group-hover:bg-accent group-active:bg-primary-7" />
             </NumberField.IncrementTrigger>
             <NumberField.DecrementTrigger
               aria-label="Decrement"
               class="size-4 bg-transparent group"
             >
-              <div class="i-lucide:chevron-down size-full group-hover:bg-primary-5 group-active:bg-primary-7" />
+              <div class="i-lucide:chevron-down size-full group-hover:bg-accent group-active:bg-primary-7" />
             </NumberField.DecrementTrigger>
           </div>
         </div>
         <Show when={threads() === 0}>
-          <span class="text-sm text-slate-5 dark:text-slate-4">
-            {t1("config.auto")}
-          </span>
+          <span class="text-sm text-ink-subtle">{t1("config.auto")}</span>
         </Show>
       </NumberField>
     </div>

@@ -24,7 +24,7 @@ import { usei18n } from "@contexts/i18n";
 import { coverages, localeNames, possibleLocales } from "../../i18n";
 
 const toggleItemClass =
-  "h-full px3 bg-transparent outline-none hover:bg-slate-1 active:bg-slate-1 focus-visible:(ring-2 ring-inset ring-primary-2) ui-pressed:(!bg-primary-5 !text-white) dark:hover:bg-slate-7 dark:active:bg-slate-7";
+  "h-full px3 bg-transparent outline-none hover:bg-hover active:bg-hover focus-visible:(ring-2 ring-inset ring-focus-ring-soft) ui-pressed:!bg-accent ui-pressed:!text-on-accent";
 
 export function ThemeSelect() {
   const { themeMode, setThemeMode } = useConfigStore()!;
@@ -64,14 +64,14 @@ export function TitlebarStyleSelect() {
         if (value !== null) setTitlebarStyle(value as TitlebarStyle);
       }}
       aria-label={t1("config.titlebar_style")}
-      class="flex h-8 overflow-hidden rounded-md border border-slate-2 dark:border-slate-6"
+      class="flex h-8 overflow-hidden rounded-md border border-border"
     >
       <ToggleGroup.Item value="Native" class={toggleItemClass}>
         {t1("config.titlebar_native")}
       </ToggleGroup.Item>
       <ToggleGroup.Item
         value="Custom"
-        class={`${toggleItemClass} border-x border-slate-2 dark:border-slate-6`}
+        class={`${toggleItemClass} border-x border-border`}
       >
         {t1("config.titlebar_custom")}
       </ToggleGroup.Item>
@@ -99,14 +99,14 @@ export function FontSelect() {
           }
         }}
         aria-label={t1("config.font")}
-        class="flex h-8 overflow-hidden rounded-md border border-slate-2 dark:border-slate-6"
+        class="flex h-8 overflow-hidden rounded-md border border-border"
       >
         <ToggleGroup.Item value="native" class={toggleItemClass}>
           {t1("config.font_native")}
         </ToggleGroup.Item>
         <ToggleGroup.Item
           value="embedded"
-          class={`${toggleItemClass} border-l border-slate-2 dark:border-slate-6`}
+          class={`${toggleItemClass} border-l border-border`}
         >
           {t1("config.font_embedded")}
         </ToggleGroup.Item>
@@ -126,20 +126,20 @@ export function PitchScaleSelect() {
         if (value !== null) setConfig("ui", "pitch_scale", value as PitchScale);
       }}
       aria-label={t1("config.pitch_scale")}
-      class="flex h-8 overflow-hidden rounded-md border border-slate-2 dark:border-slate-6"
+      class="flex h-8 overflow-hidden rounded-md border border-border"
     >
       <ToggleGroup.Item value="Linear" class={toggleItemClass}>
         {t1("config.pitch_scale_linear")}
       </ToggleGroup.Item>
       <ToggleGroup.Item
         value="Optimal"
-        class={`${toggleItemClass} border-l border-slate-2 dark:border-slate-6`}
+        class={`${toggleItemClass} border-l border-border`}
       >
         {t1("config.pitch_scale_optimal")}
       </ToggleGroup.Item>
       <ToggleGroup.Item
         value="DensityAware"
-        class={`${toggleItemClass} border-l border-slate-2 dark:border-slate-6`}
+        class={`${toggleItemClass} border-l border-border`}
       >
         {t1("config.pitch_scale_density")}
       </ToggleGroup.Item>
@@ -159,14 +159,14 @@ export function PitchTuningModeSelect() {
           setConfig("ui", "pitch_tuning_mode", value as PitchTuningMode);
       }}
       aria-label={t1("config.pitch_tuning_mode")}
-      class="flex h-8 overflow-hidden rounded-md border border-slate-2 dark:border-slate-6"
+      class="flex h-8 overflow-hidden rounded-md border border-border"
     >
       <ToggleGroup.Item value="Absolute" class={toggleItemClass}>
         {t1("config.pitch_tuning_absolute")}
       </ToggleGroup.Item>
       <ToggleGroup.Item
         value="Relative"
-        class={`${toggleItemClass} border-l border-slate-2 dark:border-slate-6`}
+        class={`${toggleItemClass} border-l border-border`}
       >
         {t1("config.pitch_tuning_relative")}
       </ToggleGroup.Item>
@@ -211,7 +211,7 @@ export function PrimaryColorPicker() {
             type="button"
             aria-label={t1("config.reset_primary_color")}
             onClick={resetPrimaryColor}
-            class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) dark:hover:bg-slate-7"
+            class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-hover focus-visible:(ring-2 ring-focus-ring-soft)"
           >
             <div class="i-lucide:rotate-ccw size-4" />
           </button>
@@ -221,7 +221,7 @@ export function PrimaryColorPicker() {
         <Tooltip content={t1("config.primary_color")}>
           <Popover.Trigger
             aria-label={t1("config.primary_color")}
-            class="size-8 cursor-pointer rounded-md b b-slate-2 dark:b-slate-6 bg-transparent p1 outline-none focus-visible:(b-primary-5 ring-2 ring-primary-2)"
+            class="size-8 cursor-pointer rounded-md b b-border bg-transparent p1 outline-none focus-visible:(b-accent ring-2 ring-focus-ring-soft)"
           >
             <ColorSwatch
               value={color()}
@@ -231,7 +231,7 @@ export function PrimaryColorPicker() {
           </Popover.Trigger>
         </Tooltip>
         <Popover.Portal>
-          <Popover.Content class="z-60 w-56 rounded-lg b b-slate-2 dark:b-slate-6 bg-white dark:bg-slate-8 p3 shadow-lg outline-none">
+          <Popover.Content class="z-popover w-56 rounded-lg b b-border bg-surface p3 shadow-lg outline-none">
             <Popover.Arrow class="fill-white dark:fill-slate-8" />
             <div class="mb3 flex items-center gap2">
               <ColorSwatch
@@ -243,7 +243,7 @@ export function PrimaryColorPicker() {
                 <Popover.Title class="text-sm font-semibold">
                   {t1("config.primary_color")}
                 </Popover.Title>
-                <div class="font-mono text-xs uppercase text-slate-6 dark:text-slate-3">
+                <div class="font-mono text-xs uppercase text-ink-muted">
                   {colorHex()}
                 </div>
               </div>
@@ -260,13 +260,13 @@ export function PrimaryColorPicker() {
                 <button
                   type="button"
                   onClick={normalizeColor}
-                  class="flex items-center gap1 rounded-md bg-transparent px2 py1 text-xs hover:bg-slate-1 dark:hover:bg-slate-7"
+                  class="flex items-center gap1 rounded-md bg-transparent px2 py1 text-xs hover:bg-hover"
                 >
                   <div class="i-lucide:wand-sparkles size-4" />
                   {t1("config.normalize")}
                 </button>
               </div>
-              <ColorArea.Background class="relative h-28 w-full rounded-md b b-slate-2 dark:b-slate-6">
+              <ColorArea.Background class="relative h-28 w-full rounded-md b b-border">
                 <ColorArea.Thumb class="block size-5 rounded-full b-2 b-white bg-[var(--kb-color-current)] shadow-md outline-none ring-black/20 focus-visible:ring-2">
                   <ColorArea.HiddenInputX />
                   <ColorArea.HiddenInputY />

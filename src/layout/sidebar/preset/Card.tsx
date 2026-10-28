@@ -36,10 +36,9 @@ export function PresetCard(props: PresetCardProps) {
       {...divProps}
     >
       <div
-        class="flex rounded-r-md p1 pl2 group-hover/card:bg-slate-2 dark:group-hover/card:bg-slate-7 overflow-hidden bg-white dark:bg-slate-8 border-l-2 border-slate-1 dark:border-slate-7
-        cursor-default select-none w-full min-h-[fit-content] group-active/card:bg-white dark:group-active/card:bg-slate-8"
+        class="flex rounded-r-md p1 pl2 group-hover/card:bg-hover overflow-hidden bg-surface border-l-2 border-border cursor-default select-none w-full min-h-[fit-content] group-active/card:bg-surface"
         classList={{
-          "shadow-md group-hover/card:bg-white dark:group-hover/card:bg-slate-8 !border-primary-5":
+          "shadow-md group-hover/card:bg-surface !border-accent":
             local.selected,
         }}
       >
@@ -53,10 +52,10 @@ export function PresetCard(props: PresetCardProps) {
               index={local.presetIndex}
               label={t1("preset.controls.reorder")}
               visible={hovered()}
-              class="text-slate-4"
+              class="text-ink-faint"
             />
           </div>
-          <div class="text-xs text-slate-5 flex flex-row items-center">
+          <div class="text-xs text-ink-subtle flex flex-row items-center">
             {identity()?.speaker.name}
             <span class="mx-1">{">"}</span>
             {identity()?.style.name}

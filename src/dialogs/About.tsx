@@ -42,8 +42,8 @@ export function AboutDialog(props: AboutDialogProps) {
         </div>
         <div class="flex flex-col gap4 px5 py5">
           <div class="grid grid-cols-2 gap3">
-            <div class="rounded-xl b b-slate-2 dark:b-slate-6 bg-slate-1/70 dark:bg-slate-7/50 p3">
-              <div class="mb2 flex items-center gap2 text-slate-6 dark:text-slate-3">
+            <div class="rounded-lg b b-border bg-surface-menu p3">
+              <div class="mb2 flex items-center gap2 text-ink-muted">
                 <div class="i-lucide:tag size-4" />
                 <span class="text-xs uppercase tracking-wider">
                   {t1("about.version")}
@@ -53,8 +53,8 @@ export function AboutDialog(props: AboutDialogProps) {
                 {version() ?? "—"}
               </div>
             </div>
-            <div class="rounded-xl b b-slate-2 dark:b-slate-6 bg-slate-1/70 dark:bg-slate-7/50 p3">
-              <div class="mb2 flex items-center gap2 text-slate-6 dark:text-slate-3">
+            <div class="rounded-lg b b-border bg-surface-menu p3">
+              <div class="mb2 flex items-center gap2 text-ink-muted">
                 <div class="i-lucide:code-2 size-4" />
                 <span class="text-xs uppercase tracking-wider">
                   {t1("about.license")}
@@ -67,16 +67,16 @@ export function AboutDialog(props: AboutDialogProps) {
             onClick={() =>
               openExternal("https://github.com/Patchethium/Azalea")
             }
-            class="group flex items-center gap3 rounded-xl bg-slate-1 px4 py3 text-slate-8 b b-slate-2 transition-colors hover:(bg-primary-5 text-white b-primary-5) dark:bg-slate-7 dark:text-slate-1 dark:b-slate-6"
+            class="group flex items-center gap3 rounded-lg bg-surface-menu px4 py3 text-ink b b-border outline-none motion-safe:transition-colors hover:(bg-accent text-on-accent b-accent) focus-visible:(ring-2 ring-focus-ring)"
           >
-            <div class="flex size-9 items-center justify-center rounded-lg bg-white text-slate-8 shadow-sm group-hover:bg-white/20 group-hover:text-white dark:bg-slate-8 dark:text-white">
+            <div class="flex size-9 items-center justify-center rounded-lg bg-surface text-ink shadow-sm group-hover:(bg-white/20 text-on-accent)">
               <div class="i-lucide:github size-5" />
             </div>
             <div class="flex-1">
               <div class="font-semibold">{t1("about.github")}</div>
               <div class="text-xs opacity-70">Patchethium/Azalea</div>
             </div>
-            <div class="i-lucide:arrow-up-right size-5 opacity-70 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            <div class="i-lucide:arrow-up-right size-5 opacity-70 motion-safe:transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
           </Link>
         </div>
       </AppDialogContent>

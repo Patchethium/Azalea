@@ -56,7 +56,7 @@ export function PresetEditor(props: {
             iconSize="sm"
             label={t1("speaker_selection.open")}
             size="lg"
-            class="b b-slate-2 dark:b-slate-6"
+            class="b b-border"
             onClick={() => setSpeakerSelectionOpen(true)}
           />
         }

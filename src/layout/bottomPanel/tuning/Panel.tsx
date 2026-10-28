@@ -320,12 +320,12 @@ export function TuningPanel(props: {
                 );
               }}
             >
-              <span class="block h-px w-full bg-transparent transition-colors group-hover:bg-primary-5 group-active:bg-primary-5 group-focus-visible:bg-primary-5" />
+              <span class="block h-px w-full bg-transparent motion-safe:transition-colors group-hover:bg-accent group-active:bg-accent group-focus-visible:bg-accent" />
             </button>
           </div>
         </Show>
       </div>
-      <div class="h-6 w-full b-dashed b-slate-3 dark:b-slate-6 flex items-center px-2 justify-between">
+      <div class="h-6 w-full b-dashed b-border flex items-center px-2 justify-between">
         <Show when={panel.queryExists()}>
           <Slider
             class="relative flex flex-col w-20% select-none items-center group"
@@ -334,8 +334,8 @@ export function TuningPanel(props: {
             value={[panel.scale()]}
             onChange={(value) => panel.setScale(value[0])}
           >
-            <Slider.Track class="w-full h-2 bg-slate-2 dark:bg-slate-6 rounded-full relative">
-              <Slider.Fill class="absolute bg-slate-3 dark:bg-slate-5 rounded-full h-full group-hover:bg-primary-5" />
+            <Slider.Track class="w-full h-2 bg-track rounded-full relative">
+              <Slider.Fill class="absolute bg-slate-3 dark:bg-slate-5 rounded-full h-full group-hover:bg-accent" />
               <Slider.Thumb class="block size-4 bg-transparent rounded-full -top-1 outline-none">
                 <Slider.Input />
               </Slider.Thumb>

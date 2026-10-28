@@ -400,7 +400,7 @@ export function PostPanel() {
           scrollElement = element;
         }}
         data-bottom-panel-scroll="post"
-        class="flex-1 min-h-0 relative overflow-x-auto overflow-y-hidden text-slate-5 dark:text-slate-4"
+        class="flex-1 min-h-0 relative overflow-x-auto overflow-y-hidden text-ink-subtle"
         onScroll={(event) => setScrollLeft(event.currentTarget.scrollLeft)}
         onWheel={panel.handleWheel}
       >
@@ -418,7 +418,7 @@ export function PostPanel() {
             >
               <Show when={playbackTimelineEnabled()}>
                 <div
-                  class="w-full shrink-0 b-b b-slate-3 bg-slate-50 dark:(b-slate-6 bg-slate-9)"
+                  class="w-full shrink-0 b-b b-border bg-canvas"
                   style={{ height: `${TIMELINE_HEIGHT}px` }}
                 >
                   <Slider
@@ -448,12 +448,12 @@ export function PostPanel() {
                         class="group top-0 block h-full w-3 outline-none"
                       >
                         <span
-                          class="pointer-events-none absolute inset-y-0 left-1/2 w-1px bg-primary-5 group-focus-visible:w-2px"
+                          class="pointer-events-none absolute inset-y-0 left-1/2 w-1px bg-accent group-focus-visible:w-2px"
                           classList={{
                             "opacity-40": panel.playbackStart() <= 0,
                           }}
                         >
-                          <span class="absolute left-0 top-0 size-0 border-l-5 border-y-4 border-l-primary-5 border-y-transparent" />
+                          <span class="absolute left-0 top-0 size-0 border-l-5 border-y-4 border-l-accent border-y-transparent" />
                         </span>
                         <Slider.Input />
                       </Slider.Thumb>
@@ -523,7 +523,7 @@ export function PostPanel() {
               <span>{t1("bottom.post_failed")}</span>
               <span class="max-w-80% truncate text-xs">{panel.error()}</span>
               <Button
-                class="rounded-md b b-slate-3 px-2 py-0.5 outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) dark:(b-slate-5 hover:bg-slate-7)"
+                class="rounded-md b b-border-menu px-2 py-0.5 outline-none hover:bg-hover focus-visible:(ring-2 ring-focus-ring-soft)"
                 onClick={panel.retry}
               >
                 {t1("bottom.post_retry")}
@@ -544,7 +544,7 @@ export function PostPanel() {
           </Match>
         </Switch>
       </div>
-      <div class="h-6 w-full shrink-0 flex items-center gap-3 overflow-hidden px-2 text-xs text-slate-5 dark:text-slate-4">
+      <div class="h-6 w-full shrink-0 flex items-center gap-3 overflow-hidden px-2 text-xs text-ink-subtle">
         <Show when={panel.queryExists()}>
           <span class="min-w-0 flex-1 truncate">{t1("bottom.post_hint")}</span>
           <dl
@@ -556,7 +556,7 @@ export function PostPanel() {
                 <div class="flex gap-1 whitespace-nowrap">
                   <dt class="opacity-70">{t1(field.label)}</dt>
                   <dd
-                    class="m0 shrink-0 overflow-hidden text-right tabular-nums text-slate-7 dark:text-slate-2"
+                    class="m0 shrink-0 overflow-hidden text-right tabular-nums text-ink-secondary"
                     style={{ width: field.width }}
                     data-post-readout-field={field.key}
                   >

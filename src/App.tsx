@@ -256,7 +256,7 @@ function App() {
 
   return (
     <main
-      class="absolute h-full w-full left-0 top-0 flex flex-col bg-slate-1 text-slate-9 dark:(bg-slate-9 text-slate-1)"
+      class="absolute h-full w-full left-0 top-0 flex flex-col bg-canvas text-ink"
       classList={{
         [style.macOSCustomTitlebar]:
           appliedTitlebarStyle() === "Custom" && systemStore.os === "MacOS",
@@ -296,7 +296,7 @@ function App() {
               aria-label="Resize Handle"
               class="group basis-2 bg-transparent py-3 flex items-center justify-center px-2px"
             >
-              <div class="rounded transition-colors bg-transparent group-hover:bg-primary-5 group-active:bg-primary-5 h-full w-[1px]" />
+              <div class="rounded motion-safe:transition-colors bg-transparent group-hover:bg-accent group-active:bg-accent h-full w-[1px]" />
             </Resizable.Handle>
             <Resizable.Panel class="w-full overflow-hidden" minSize="400px">
               <MainPage />

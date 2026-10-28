@@ -113,14 +113,14 @@ export function PlaybackTimeline(props: {
   });
 
   return (
-    <div class="relative h-6 w-full b-t b-slate-3 dark:b-slate-6">
+    <div class="relative h-6 w-full b-t b-border">
       <div
         ref={(element) => {
           scrollAreaRef = element;
         }}
         role="group"
         aria-label={t1("bottom.playback_timeline")}
-        class="size-full overflow-x-auto overflow-y-hidden bg-slate-50 text-slate-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden dark:(bg-slate-9 text-slate-4)"
+        class="size-full overflow-x-auto overflow-y-hidden bg-canvas text-ink-subtle [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         data-bottom-panel-scroll="timeline"
         data-playback-anchor={props.anchorIndex ?? "unset"}
         onScroll={(event) => {
@@ -141,7 +141,7 @@ export function PlaybackTimeline(props: {
               return (
                 <button
                   type="button"
-                  class="group relative h-full flex-none overflow-hidden b-r b-slate-3 px-1 text-left outline-none hover:bg-primary-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-5 dark:(b-slate-6 hover:bg-primary-9)"
+                  class="group relative h-full flex-none overflow-hidden b-r b-border px-1 text-left outline-none hover:bg-primary-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-5 dark:hover:bg-primary-9"
                   classList={{
                     "bg-primary-1 dark:bg-primary-9": selected(),
                     "bg-transparent": !selected(),
@@ -159,8 +159,8 @@ export function PlaybackTimeline(props: {
                   }}
                 >
                   <Show when={selected()}>
-                    <span class="pointer-events-none absolute inset-y-0 left-0 w-1px bg-primary-5">
-                      <span class="absolute left-0 top-0 size-0 border-l-5 border-y-4 border-l-primary-5 border-y-transparent" />
+                    <span class="pointer-events-none absolute inset-y-0 left-0 w-1px bg-accent">
+                      <span class="absolute left-0 top-0 size-0 border-l-5 border-y-4 border-l-accent border-y-transparent" />
                     </span>
                   </Show>
                   <span class="pointer-events-none flex h-full items-end justify-between pb-0.5 text-9px tabular-nums">
@@ -186,7 +186,7 @@ export function PlaybackTimeline(props: {
               type="button"
               aria-label={t1("bottom.jump_to_playback_anchor")}
               tabIndex={-1}
-              class="group flex size-full items-center bg-slate-50 dark:bg-slate-9 hover:bg-primary-2 dark:hover:bg-primary-5 justify-center outline-none"
+              class="group flex size-full items-center bg-canvas hover:bg-primary-2 dark:hover:bg-accent justify-center outline-none"
               data-playback-anchor-overflow={direction()}
               onClick={(event) => {
                 jumpToAnchor();
@@ -194,7 +194,7 @@ export function PlaybackTimeline(props: {
               }}
             >
               <span
-                class="pointer-events-none size-4 bg-slate-5 transition-colors group-hover:bg-primary-5 group-active:bg-primary-5 dark:bg-slate-4 dark:group-hover:bg-primary-3"
+                class="pointer-events-none size-4 bg-ink-subtle motion-safe:transition-colors group-hover:bg-accent group-active:bg-accent dark:group-hover:bg-primary-3"
                 classList={{
                   "i-lucide:chevron-left": direction() === "left",
                   "i-lucide:chevron-right": direction() === "right",

@@ -27,7 +27,7 @@ interface ListToolbarProps {
 export function ListToolbar(props: ListToolbarProps) {
   return (
     <div
-      class={`w-auto flex items-center rounded-md bg-white dark:bg-slate-8 p1 shadow-md z-10 ${props.class ?? "mt-2 mx-1"}`}
+      class={`w-auto flex items-center rounded-md bg-surface p1 shadow-md z-10 ${props.class ?? "mt-2 mx-1"}`}
     >
       <IconButton
         icon="i-lucide:plus"

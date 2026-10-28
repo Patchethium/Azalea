@@ -134,11 +134,11 @@ describe("DictionaryDialog", () => {
     expect(await screen.findByDisplayValue("既存")).toBeInTheDocument();
     expect(
       screen.getByLabelText("Dictionary entries").parentElement,
-    ).toHaveClass("bg-slate-1", "dark:bg-slate-9");
+    ).toHaveClass("bg-canvas");
     expect(
       screen.getByLabelText("Dictionary entries").parentElement
         ?.firstElementChild,
-    ).toHaveClass("!shadow-none", "b", "b-slate-2", "dark:b-slate-6");
+    ).toHaveClass("!shadow-none", "b", "b-border");
     expect(screen.queryByText("Dictionary entries")).not.toBeInTheDocument();
     expect(screen.queryByText("Edit word")).not.toBeInTheDocument();
     expect(
@@ -146,15 +146,14 @@ describe("DictionaryDialog", () => {
     ).not.toBeInTheDocument();
     const existingCard = screen.getByText("既存").parentElement;
     expect(existingCard).toHaveClass(
-      "dark:bg-slate-8",
-      "dark:group-hover:bg-slate-8",
+      "bg-surface",
+      "group-hover:bg-surface",
       "!border-t-transparent",
       "!border-r-transparent",
       "!border-b-transparent",
-      "!border-l-primary-5",
+      "!border-l-accent",
       "b",
-      "b-slate-2",
-      "dark:b-slate-6",
+      "b-border",
       "pl3",
       "shadow-md",
     );
@@ -348,7 +347,7 @@ describe("DictionaryDialog", () => {
     expect(accentContainer.firstElementChild).toHaveClass("mx-auto");
     const firstMoraAtFlatAccent = screen.getAllByText("ア")[0];
     const appendedMora = screen.getByText("ガ");
-    expect(appendedMora).toHaveClass("text-slate-5", "dark:text-slate-4");
+    expect(appendedMora).toHaveClass("text-ink-subtle");
     expect(firstMoraAtFlatAccent).toHaveClass("mt-10");
     expect(appendedMora).toHaveClass("mb-10");
 

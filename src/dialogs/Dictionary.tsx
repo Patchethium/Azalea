@@ -358,9 +358,9 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
         class="h-[min(80vh,36rem)] w-[min(94vw,50rem)]"
       >
         <div class="flex min-h-0 flex-1">
-          <aside class="flex w-2/5 min-w-48 flex-col b-r b-slate-2 bg-slate-1 p3 dark:b-slate-6 dark:bg-slate-9">
+          <aside class="flex w-2/5 min-w-48 flex-col b-r b-border bg-canvas p3">
             <ListToolbar
-              class="mb2 !shadow-none b b-slate-2 dark:b-slate-6"
+              class="mb2 !shadow-none b b-border"
               createLabel={t1("dictionary.add")}
               onCreate={startNewEntry}
               createDisabled={controlsBusy()}
@@ -386,7 +386,7 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
               <Show
                 when={!loading()}
                 fallback={
-                  <div class="flex flex-1 items-center justify-center text-sm text-slate-5">
+                  <div class="flex flex-1 items-center justify-center text-sm text-ink-subtle">
                     {t1("dictionary.loading")}
                   </div>
                 }
@@ -394,7 +394,7 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
                 <Show
                   when={entries().length > 0}
                   fallback={
-                    <div class="flex flex-1 items-center justify-center px2 text-center text-sm text-slate-5 dark:text-slate-4">
+                    <div class="flex flex-1 items-center justify-center px2 text-center text-sm text-ink-subtle">
                       {t1("dictionary.empty")}
                     </div>
                   }
@@ -403,15 +403,14 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
                     {(entry) => (
                       <div class="p1 group" onClick={() => selectEntry(entry)}>
                         <div
-                          class="items-start rounded-r-md b b-slate-2 dark:b-slate-6 border-l-2 p1 pl3 group-hover:bg-slate-2 dark:group-hover:bg-slate-7 overflow-hidden bg-white dark:bg-slate-8
-                          cursor-default select-none w-full min-h-[fit-content] group-active:bg-white dark:group-active:bg-slate-8 flex flex-col"
+                          class="items-start rounded-r-md b b-border border-l-2 p1 pl3 group-hover:bg-hover overflow-hidden bg-surface cursor-default select-none w-full min-h-[fit-content] group-active:bg-surface flex flex-col"
                           classList={{
-                            "shadow-md group-hover:bg-white dark:group-hover:bg-slate-8 !border-t-transparent !border-r-transparent !border-b-transparent !border-l-primary-5":
+                            "shadow-md group-hover:bg-surface !border-t-transparent !border-r-transparent !border-b-transparent !border-l-accent":
                               selectedId() === entry.id,
                           }}
                         >
                           <div>{toHalfWidthAscii(entry.surface)}</div>
-                          <div class="text-xs text-slate-5 flex flex-row items-center">
+                          <div class="text-xs text-ink-subtle flex flex-row items-center">
                             {entry.pronunciation}
                           </div>
                         </div>
@@ -501,10 +500,7 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
 
             <Show when={error()}>
               {(message) => (
-                <div
-                  role="alert"
-                  class="mt3 text-sm text-red-6 dark:text-red-4"
-                >
+                <div role="alert" class="mt3 text-sm text-danger-ink">
                   {message()}
                 </div>
               )}

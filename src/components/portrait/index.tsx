@@ -83,7 +83,7 @@ export function SpeakerPortraitPanel(props: SpeakerPortraitPanelProps) {
           >
             <div class="flex flex-col items-center gap2 text-center">
               <Show when={status() === "error"}>
-                <p role="alert" class="m0 text-sm text-red-6 dark:text-red-4">
+                <p role="alert" class="m0 text-sm text-danger-ink">
                   {t1("portrait.download_failed")}
                 </p>
               </Show>

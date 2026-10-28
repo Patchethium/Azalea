@@ -295,7 +295,7 @@ export function AutogrowInput(props: AutogrowInputProps) {
       <Show when={local.text === ""}>
         <span
           aria-hidden="true"
-          class="pointer-events-none absolute inset-0 text-slate-4 dark:text-slate-5"
+          class="pointer-events-none absolute inset-0 text-ink-faint"
         >
           {local.placeholder}
         </span>

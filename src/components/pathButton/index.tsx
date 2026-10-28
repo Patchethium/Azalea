@@ -23,10 +23,10 @@ export function PathButton(props: {
       <Button
         type="button"
         onClick={() => props.onClick()}
-        class={`w-full min-w-0 cursor-pointer items-baseline rounded-sm bg-transparent px1 py0.5 text-left text-xs outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-3) dark:hover:bg-slate-7 ${props.label === undefined ? "flex" : "grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-3"}`}
+        class={`w-full min-w-0 cursor-pointer items-baseline rounded-sm bg-transparent px1 py0.5 text-left text-xs outline-none hover:bg-hover focus-visible:(ring-2 ring-focus-ring) ${props.label === undefined ? "flex" : "grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-3"}`}
       >
         <Show when={props.label}>
-          <span class="text-slate-6 dark:text-slate-3">{props.label}</span>
+          <span class="text-ink-muted">{props.label}</span>
         </Show>
         <span class="min-w-0 truncate font-mono">
           <span aria-hidden="true">{props.display ?? props.path}</span>

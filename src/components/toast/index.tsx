@@ -10,7 +10,7 @@ export function AppToastRegion() {
     <Toast.Region
       aria-label={t1("toast.notifications")}
       duration={5000}
-      class="fixed bottom-4 right-4 z-70 w-80 max-w-[calc(100vw-2rem)] outline-none"
+      class="fixed bottom-4 right-4 z-toast w-80 max-w-[calc(100vw-2rem)] outline-none"
     >
       <Toast.List class="m0 flex list-none flex-col gap2 p0 outline-none" />
     </Toast.Region>
@@ -26,26 +26,26 @@ const toneStyles: Record<
   success: {
     border: "",
     icon: null,
-    track: "bg-primary-2 dark:bg-primary-9",
-    fill: "bg-primary-5",
+    track: "bg-accent-soft",
+    fill: "bg-accent",
   },
   warning: {
-    border: "border border-amber-3 dark:border-amber-7",
-    icon: "i-lucide:triangle-alert text-amber-5",
-    track: "bg-amber-2 dark:bg-amber-9",
-    fill: "bg-amber-5",
+    border: "border border-warning-border",
+    icon: "i-lucide:triangle-alert text-warning",
+    track: "bg-warning-soft",
+    fill: "bg-warning",
   },
   error: {
-    border: "border border-red-3 dark:border-red-7",
-    icon: "i-lucide:circle-x text-red-5",
-    track: "bg-red-2 dark:bg-red-9",
-    fill: "bg-red-5",
+    border: "border border-danger-border",
+    icon: "i-lucide:circle-x text-danger",
+    track: "bg-danger-soft",
+    fill: "bg-danger",
   },
   progress: {
     border: "",
-    icon: "i-lucide:loader-circle animate-spin text-primary-5",
-    track: "bg-primary-2 dark:bg-primary-9",
-    fill: "bg-primary-5",
+    icon: "i-lucide:loader-circle animate-spin text-accent",
+    track: "bg-accent-soft",
+    fill: "bg-accent",
   },
 };
 
@@ -84,7 +84,7 @@ function showToast(
       toastId={props.toastId}
       priority={tone === "progress" ? "low" : "high"}
       persistent={tone === "progress"}
-      class={`relative flex items-center gap3 overflow-hidden rounded-lg bg-white p3 pr2 shadow-lg outline-none dark:bg-slate-8 ${styles.border}`}
+      class={`relative flex items-center gap3 overflow-hidden rounded-lg bg-surface p3 pr2 shadow-lg outline-none ${styles.border}`}
     >
       {styles.icon && (
         <div
@@ -95,7 +95,7 @@ function showToast(
       <div class="min-w-0 flex flex-1 flex-col gap1">
         <Toast.Title class="text-sm font-medium">{message}</Toast.Title>
         <Show when={detail}>
-          <Toast.Description class="line-clamp-3 select-text break-words text-xs text-slate-6 dark:text-slate-3">
+          <Toast.Description class="line-clamp-3 select-text break-words text-xs text-ink-muted">
             {detail}
           </Toast.Description>
         </Show>
@@ -116,7 +116,7 @@ function showToast(
       </div>
       <Toast.CloseButton
         aria-label={closeLabel}
-        class="size-8 flex shrink-0 items-center justify-center self-start rounded-md bg-transparent outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) dark:hover:bg-slate-7"
+        class="size-8 flex shrink-0 items-center justify-center self-start rounded-md bg-transparent outline-none hover:bg-hover focus-visible:(ring-2 ring-focus-ring-soft)"
       >
         <div aria-hidden="true" class="i-lucide:x size-4" />
       </Toast.CloseButton>

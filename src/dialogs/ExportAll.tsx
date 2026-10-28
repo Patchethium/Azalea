@@ -1,5 +1,5 @@
 import { AppDialogContent } from "@dialogs/AppContent";
-import { Button } from "@kobalte/core/button";
+import { AppButton } from "@components/button";
 import { Dialog } from "@kobalte/core/dialog";
 import { For, Show } from "solid-js";
 import { usei18n } from "@contexts/i18n";
@@ -24,9 +24,6 @@ interface ExportAllDialogProps {
   onClose: () => void;
 }
 
-const secondaryButtonClass =
-  "rounded-lg bg-slate-2 px3 py2 text-sm font-medium outline-none hover:bg-slate-3 focus-visible:(ring-2 ring-primary-2) disabled:opacity-60 dark:bg-slate-7 dark:hover:bg-slate-6";
-
 export function ExportAllDialog(props: ExportAllDialogProps) {
   const { t1, t2 } = usei18n()!;
   const exportedCount = () => props.finished - props.failures.length;
@@ -49,7 +46,7 @@ export function ExportAllDialog(props: ExportAllDialogProps) {
       >
         <div class="flex flex-col gap4 px5 py5">
           <Show when={props.running}>
-            <p class="text-sm text-slate-7 dark:text-slate-3" role="status">
+            <p class="text-sm text-ink-muted" role="status">
               {props.cancelling
                 ? t1("export_all.cancelling")
                 : t2("export_all.progress", {
@@ -63,30 +60,24 @@ export function ExportAllDialog(props: ExportAllDialogProps) {
               aria-valuemin={0}
               aria-valuemax={props.total}
               aria-valuenow={props.finished}
-              class="h-2 w-full overflow-hidden rounded-full bg-slate-2 dark:bg-slate-7"
+              class="h-2 w-full overflow-hidden rounded-full bg-track"
             >
               <div
-                class="h-full bg-primary-5 transition-all"
+                class="h-full bg-accent motion-safe:transition-all"
                 style={{ width: `${progressPercent()}%` }}
               />
             </div>
             <div class="flex justify-end">
-              <Button
-                class={secondaryButtonClass}
-                disabled={props.cancelling}
-                onClick={props.onCancel}
-              >
+              <AppButton disabled={props.cancelling} onClick={props.onCancel}>
                 {t1("export_all.cancel")}
-              </Button>
+              </AppButton>
             </div>
           </Show>
           <Show when={!props.running}>
             <Show
               when={props.total > 0}
               fallback={
-                <p class="text-sm text-slate-7 dark:text-slate-3">
-                  {t1("export_all.empty")}
-                </p>
+                <p class="text-sm text-ink-muted">{t1("export_all.empty")}</p>
               }
             >
               <p class="text-sm font-medium" role="status">
@@ -96,13 +87,13 @@ export function ExportAllDialog(props: ExportAllDialogProps) {
                 })}
               </p>
               <Show when={props.cancelled}>
-                <p class="text-sm text-slate-7 dark:text-slate-3">
+                <p class="text-sm text-ink-muted">
                   {t1("export_all.cancelled")}
                 </p>
               </Show>
               <Show when={props.outputDir !== null}>
                 <div class="flex flex-col gap-1">
-                  <div class="text-xs font-medium text-slate-5 dark:text-slate-4">
+                  <div class="text-xs font-medium text-ink-subtle">
                     {t1("export_all.output_dir")}
                   </div>
                   <div class="break-all text-sm">{props.outputDir}</div>
@@ -110,20 +101,20 @@ export function ExportAllDialog(props: ExportAllDialogProps) {
               </Show>
               <Show when={props.failures.length > 0}>
                 <div class="flex min-h-0 flex-col gap-1">
-                  <div class="text-xs font-medium text-slate-5 dark:text-slate-4">
+                  <div class="text-xs font-medium text-ink-subtle">
                     {t1("export_all.failures")}
                   </div>
                   <ul class="m0 flex max-h-48 list-none flex-col gap-2 overflow-y-auto p0">
                     <For each={props.failures}>
                       {(failure) => (
-                        <li class="rounded-md bg-slate-1 p2 dark:bg-slate-7">
+                        <li class="rounded-md bg-surface-menu p2">
                           <div class="flex items-baseline gap-2 text-sm">
                             <span class="shrink-0 font-medium">
                               #{failure.index + 1}
                             </span>
                             <span class="truncate">{failure.text}</span>
                           </div>
-                          <div class="mt-1 break-all text-xs text-red-6 dark:text-red-4">
+                          <div class="mt-1 break-all text-xs text-danger-ink">
                             {failure.error}
                           </div>
                         </li>
@@ -134,9 +125,9 @@ export function ExportAllDialog(props: ExportAllDialogProps) {
               </Show>
             </Show>
             <div class="flex justify-end">
-              <Button class={secondaryButtonClass} onClick={props.onClose}>
+              <AppButton onClick={props.onClose}>
                 {t1("export_all.close")}
-              </Button>
+              </AppButton>
             </div>
           </Show>
         </div>

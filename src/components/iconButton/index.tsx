@@ -38,12 +38,12 @@ export function IconButton(props: IconButtonProps) {
   const iconSize = () => (local.iconSize === "sm" ? "size-4" : "size-full");
   const iconInteraction = () =>
     local.tone === "danger"
-      ? "group-hover:bg-red-5 group-active:bg-red-6 group-focus-visible:bg-red-5"
-      : "group-hover:bg-primary-5 group-active:bg-primary-6 group-focus-visible:bg-primary-5";
+      ? "group-hover:bg-danger group-active:bg-danger-strong group-focus-visible:bg-danger"
+      : "group-hover:bg-accent group-active:bg-accent-hover group-focus-visible:bg-accent";
   const focusRing = () =>
     local.tone === "danger"
-      ? "focus-visible:ring-red-3"
-      : "focus-visible:ring-primary-3";
+      ? "focus-visible:ring-danger-ring"
+      : "focus-visible:ring-focus-ring";
 
   return (
     <Tooltip content={local.label}>
@@ -54,7 +54,7 @@ export function IconButton(props: IconButtonProps) {
       >
         <div
           aria-hidden="true"
-          class={`${local.icon} ${iconSize()} ${iconInteraction()} group-disabled:!bg-slate-3 dark:group-disabled:!bg-slate-5`}
+          class={`${local.icon} ${iconSize()} ${iconInteraction()} group-disabled:!bg-ink-disabled`}
         />
       </Button>
     </Tooltip>

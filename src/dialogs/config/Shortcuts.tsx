@@ -62,7 +62,7 @@ export function ShortcutSettings() {
   };
 
   const triggerClass =
-    "bg-transparent hover:bg-slate-1 dark:hover:bg-slate-7 px-2 rounded-md outline-none select-none";
+    "bg-transparent hover:bg-hover px-2 rounded-md outline-none select-none";
 
   return (
     <Tabs defaultValue="configurable" class="flex flex-col">
@@ -74,12 +74,12 @@ export function ShortcutSettings() {
           <Tabs.Trigger value="fixed" class={triggerClass}>
             {t1("shortcuts.tab_fixed")}
           </Tabs.Trigger>
-          <Tabs.Indicator class="bg-primary-5 h-1px absolute transition-all bottom-0 left-0" />
+          <Tabs.Indicator class="bg-accent h-1px absolute motion-safe:transition-all bottom-0 left-0" />
         </Tabs.List>
         <Button
           type="button"
           onClick={resetAll}
-          class="shrink-0 flex items-center gap1 rounded-md b b-slate-2 bg-transparent px2 py1 text-sm outline-none hover:(b-primary-5 bg-primary-5 text-white) focus-visible:(ring-2 ring-primary-3) dark:b-slate-6"
+          class="shrink-0 flex items-center gap1 rounded-md b b-border bg-transparent px2 py1 text-sm outline-none hover:b-accent hover:bg-accent hover:text-on-accent focus-visible:(ring-2 ring-focus-ring)"
         >
           <div aria-hidden="true" class="i-lucide:rotate-ccw size-4" />
           {t1("shortcuts.reset_all")}
@@ -88,7 +88,7 @@ export function ShortcutSettings() {
       <div>
         <Tabs.Content value="configurable" class="outline-none">
           <div>
-            <p class="m0 px1 pt3 text-sm text-slate-5 dark:text-slate-4">
+            <p class="m0 px1 pt3 text-sm text-ink-subtle">
               {t1("shortcuts.instructions")}
             </p>
             <div class="px1 pt2">
@@ -96,7 +96,7 @@ export function ShortcutSettings() {
                 {(action) => {
                   const keys = () => formatShortcut(action);
                   return (
-                    <div class="grid grid-cols-[minmax(12rem,3fr)_minmax(0,2fr)_2rem] items-center gap3 py3 b-b b-slate-2 dark:b-slate-6 last:b-b-0">
+                    <div class="grid grid-cols-[minmax(12rem,3fr)_minmax(0,2fr)_2rem] items-center gap3 py3 b-b b-border last:b-b-0">
                       <button
                         type="button"
                         aria-label={`${t1(`shortcuts.${action}`)}: ${keys().join(
@@ -110,9 +110,9 @@ export function ShortcutSettings() {
                         onBlur={() => {
                           if (recording() === action) setRecording(null);
                         }}
-                        class="group h-9 w-full min-w-0 grid grid-cols-[repeat(9,max-content)] items-center justify-center gap1 overflow-x-auto rounded-md bg-transparent px2 outline-none focus-visible:ring-2 focus-visible:ring-primary-2"
+                        class="group h-9 w-full min-w-0 grid grid-cols-[repeat(9,max-content)] items-center justify-center gap1 overflow-x-auto rounded-md bg-transparent px2 outline-none focus-visible:ring-2 focus-visible:ring-focus-ring-soft"
                         classList={{
-                          "ring-2 ring-primary-2": recording() === action,
+                          "ring-2 ring-focus-ring-soft": recording() === action,
                         }}
                       >
                         <Show
@@ -126,13 +126,13 @@ export function ShortcutSettings() {
                           <For each={keys()}>
                             {(key, index) => (
                               <>
-                                <kbd class="min-w-7 rounded-md bg-slate-1 px2 py1 text-center text-sm font-mono group-hover:text-primary-5 transition-colors dark:bg-slate-9">
+                                <kbd class="min-w-7 rounded-md bg-canvas px2 py1 text-center text-sm font-mono group-hover:text-accent motion-safe:transition-colors">
                                   {key}
                                 </kbd>
                                 <Show when={index() < keys().length - 1}>
                                   <div
                                     aria-hidden="true"
-                                    class="i-lucide:plus size-4 text-slate-5"
+                                    class="i-lucide:plus size-4 text-ink-subtle"
                                   />
                                 </Show>
                               </>
@@ -149,7 +149,7 @@ export function ShortcutSettings() {
                             type="button"
                             aria-label={t1("shortcuts.reset")}
                             onClick={() => setConflict(!resetShortcut(action))}
-                            class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-primary-2) dark:hover:bg-slate-7"
+                            class="size-8 flex items-center justify-center rounded-md bg-transparent outline-none hover:bg-hover focus-visible:(ring-2 ring-focus-ring-soft)"
                           >
                             <div class="i-lucide:rotate-ccw size-4" />
                           </button>
@@ -161,10 +161,7 @@ export function ShortcutSettings() {
               </For>
             </div>
             <Show when={conflict()}>
-              <p
-                class="m0 px1 pt2 text-sm text-red-6 dark:text-red-4"
-                role="alert"
-              >
+              <p class="m0 px1 pt2 text-sm text-danger-ink" role="alert">
                 {t1("shortcuts.conflict")}
               </p>
             </Show>
@@ -172,17 +169,17 @@ export function ShortcutSettings() {
         </Tabs.Content>
         <Tabs.Content value="fixed" class="outline-none">
           <div>
-            <p class="m0 px1 pt3 text-sm text-slate-5 dark:text-slate-4">
+            <p class="m0 px1 pt3 text-sm text-ink-subtle">
               {t1("shortcuts.fixed_hint")}
             </p>
             <div class="px1 pt2 select-none">
               <For each={fixedShortcuts}>
                 {(shortcut) => (
-                  <div class="grid grid-cols-[minmax(12rem,3fr)_minmax(0,2fr)_2rem] items-center gap3 py3 b-b b-slate-2 dark:b-slate-6 last:b-b-0">
+                  <div class="grid grid-cols-[minmax(12rem,3fr)_minmax(0,2fr)_2rem] items-center gap3 py3 b-b b-border last:b-b-0">
                     <div class="h-9 flex items-center justify-center gap1">
                       <For each={shortcut.keys}>
                         {(key) => (
-                          <kbd class="min-w-7 cursor-not-allowed rounded-md bg-slate-1 px2 py1 text-center text-sm font-mono opacity-60 dark:bg-slate-9">
+                          <kbd class="min-w-7 cursor-not-allowed rounded-md bg-canvas px2 py1 text-center text-sm font-mono opacity-60">
                             {key}
                           </kbd>
                         )}

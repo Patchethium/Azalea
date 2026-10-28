@@ -63,8 +63,8 @@ export function TextBlockView(props: {
   return (
     <div class="py-1.5">
       <div
-        class="flex flex-col relative px3 pb1 b-l-2 b-slate-2 dark:b-slate-6 bg-white dark:bg-slate-8"
-        classList={{ " !border-primary-5 shadow-md": props.selected }}
+        class="flex flex-col relative px3 pb1 b-l-2 b-border bg-surface"
+        classList={{ " !border-accent shadow-md": props.selected }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
@@ -75,7 +75,7 @@ export function TextBlockView(props: {
         >
           <Show when={props.selected || hovered() || toolbarHovered()}>
             <div
-              class="absolute right-0 flex p1 pl-0.5 rounded-lg bg-white dark:bg-slate-7 shadow-md -top-5 pointer-events-auto z-10 gap-1"
+              class="absolute right-0 flex p1 pl-0.5 rounded-lg bg-surface-raised shadow-md -top-5 pointer-events-auto z-10 gap-1"
               classList={{
                 "opacity-50": hovered() && !props.selected && !toolbarHovered(),
               }}
@@ -133,7 +133,7 @@ export function TextBlockView(props: {
           onClick={props.setSelected}
         >
           <div class="flex-1 pointer-events-none" />
-          <div class="text-sm text-slate-8 dark:text-slate-2 select-none pointer-events-none">
+          <div class="text-sm text-ink-secondary select-none pointer-events-none">
             <Show
               when={props.presetAvailable && props.currentPreset}
               fallback={
@@ -153,7 +153,7 @@ export function TextBlockView(props: {
                 label={t1("text_block.controls.reorder")}
                 visible={hovered() || toolbarHovered()}
                 // Sit flush with the block's right edge when nothing follows.
-                class={`ml-1 text-slate-4 ${config.ui.buffer_render ? "" : "-mr-3"}`}
+                class={`ml-1 text-ink-faint ${config.ui.buffer_render ? "" : "-mr-3"}`}
               />
             )}
           </Show>
@@ -161,7 +161,7 @@ export function TextBlockView(props: {
             <Tooltip content={props.synthStateText()}>
               <output
                 aria-label={props.synthStateText()}
-                class="ml-2 flex size-5 items-center justify-center rounded-full border border-slate-2 bg-slate-1/80 text-slate-5 shadow-sm dark:(border-slate-6 bg-slate-8/80 text-slate-4)"
+                class="ml-2 flex size-5 items-center justify-center rounded-full border border-border bg-synth-idle-bg text-ink-subtle shadow-sm"
                 classList={{
                   "opacity-60": !props.selected,
                   "!border-amber-2 !bg-amber-1/70 !text-amber-7 dark:(!border-amber-8/60 !bg-amber-9/20 !text-amber-4)":

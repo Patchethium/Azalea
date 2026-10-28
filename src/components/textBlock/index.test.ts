@@ -1704,7 +1704,7 @@ describe("TextBlock", () => {
       name: "Couldn't export audio to /custom/rendered.wav",
     });
     expect(exportError).toHaveAccessibleDescription("export failed");
-    expect(exportError).toHaveClass("border-red-3");
+    expect(exportError).toHaveClass("border-danger-border");
     expect(screen.queryByRole("button", { name: "Audio saved" })).toBeNull();
   });
 

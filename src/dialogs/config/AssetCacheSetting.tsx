@@ -103,15 +103,12 @@ export function AssetCacheSetting(props: { open: boolean }) {
               <span
                 role="alert"
                 aria-label={t1("config.assets_cache_error")}
-                class="i-lucide:triangle-alert size-4 text-red-6 dark:text-red-4"
+                class="i-lucide:triangle-alert size-4 text-danger-ink"
               />
             </Tooltip>
           }
         >
-          <output
-            aria-live="polite"
-            class="text-sm text-slate-6 dark:text-slate-3"
-          >
+          <output aria-live="polite" class="text-sm text-ink-muted">
             {status() === "loading"
               ? t1("config.assets_cache_loading")
               : size() === null
@@ -128,7 +125,7 @@ export function AssetCacheSetting(props: { open: boolean }) {
           }
           aria-busy={status() === "clearing"}
           onClick={() => void clearCache()}
-          class="shrink-0 flex items-center gap1 rounded-md b b-slate-2 bg-transparent px2 py1 text-sm outline-none hover:(b-red-5 bg-red-5 text-white) focus-visible:(ring-2 ring-primary-3) disabled:(cursor-not-allowed opacity-60) dark:b-slate-6 dark:hover:(b-red-5 bg-red-6 text-white)"
+          class="shrink-0 flex items-center gap1 rounded-md b b-border bg-transparent px2 py1 text-sm outline-none hover:b-danger hover:bg-danger hover:text-on-accent focus-visible:(ring-2 ring-focus-ring) disabled:(cursor-not-allowed opacity-60) dark:hover:b-danger dark:hover:bg-danger-strong dark:hover:text-on-accent"
         >
           <div
             class={

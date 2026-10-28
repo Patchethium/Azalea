@@ -14,13 +14,13 @@ export function ConfigItem(props: ConfigItemProps) {
   const { t1 } = usei18n()!;
   return (
     <div
-      class="wfull items-center justify-center flex flex-row p2 b-b b-slate-2 dark:b-slate-7 cursor-default"
+      class="wfull items-center justify-center flex flex-row p2 b-b b-border cursor-default"
       classList={{ "pl-6": props.nested }}
     >
       {props.nested && (
         <div
           aria-hidden="true"
-          class="i-lucide:corner-down-right mr-1 size-4 shrink-0 text-slate-4 dark:text-slate-5"
+          class="i-lucide:corner-down-right mr-1 size-4 shrink-0 text-ink-faint"
         />
       )}
       {props.description ? (
@@ -53,7 +53,7 @@ export function ConfigItem(props: ConfigItemProps) {
 /** Small uppercase heading that groups Config items. */
 export function ConfigSectionTitle(props: { label: string }) {
   return (
-    <h2 class="px2 pb1 pt4 first:pt1 text-xs font-semibold uppercase tracking-wide text-slate-5 dark:text-slate-4">
+    <h2 class="px2 pb1 pt4 first:pt1 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
       {props.label}
     </h2>
   );

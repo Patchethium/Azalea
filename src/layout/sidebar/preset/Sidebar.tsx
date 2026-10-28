@@ -137,7 +137,7 @@ export function PresetSidebar(props: { controls: SidebarControls }) {
           data-preset-editor-resize-handle
           class="group basis-2 px-[2px] bg-transparent flex items-center justify-center"
         >
-          <div class="w-full h-[1px] rounded transition-colors bg-transparent group-hover:bg-primary-5 group-active:bg-primary-5" />
+          <div class="w-full h-[1px] rounded motion-safe:transition-colors bg-transparent group-hover:bg-accent group-active:bg-accent" />
         </Resizable.Handle>
         <Resizable.Panel
           class="min-h-0 overflow-hidden"
@@ -146,7 +146,7 @@ export function PresetSidebar(props: { controls: SidebarControls }) {
           collapsible
           collapseThreshold={0.05}
         >
-          <section class="size-full min-h-0 flex flex-col rounded-md bg-white dark:bg-slate-8 border border-slate-2 dark:border-slate-6 bg-transparent shadow-sm">
+          <section class="size-full min-h-0 flex flex-col rounded-md bg-surface border border-border bg-transparent shadow-sm">
             <h2
               ref={(element) => {
                 presetPanelHeader = element;
@@ -157,7 +157,7 @@ export function PresetSidebar(props: { controls: SidebarControls }) {
             >
               {t1("preset.title")}
             </h2>
-            <div class="min-h-0 flex-1 overflow-y-auto b-t b-slate-2 dark:b-slate-6 py0 px2 flex flex-col">
+            <div class="min-h-0 flex-1 overflow-y-auto b-t b-border py0 px2 flex flex-col">
               <div
                 ref={(element) => {
                   presetPanelContent = element;
@@ -169,7 +169,7 @@ export function PresetSidebar(props: { controls: SidebarControls }) {
                 <Show
                   when={controls.currentPreset()}
                   fallback={
-                    <div class="text-sm text-slate-5 p1 select-none cursor-default">
+                    <div class="text-sm text-ink-subtle p1 select-none cursor-default">
                       {controls.projectPresetStore.length
                         ? t1("preset.no_preset_selected")
                         : t1("preset.get_started")}

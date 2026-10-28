@@ -99,7 +99,7 @@ export function ControlBar(props: {
   };
 
   return (
-    <div class="w-full flex flex-col b-b b-slate-3 dark:b-slate-6 select-none">
+    <div class="w-full flex flex-col b-b b-border select-none">
       <div class="h-8 w-full flex m-l-auto flex-row items-center justify-center">
         <div class="flex-1" />
         <ToolbarButton
@@ -224,7 +224,7 @@ export function ControlBar(props: {
             />
             <Separator
               orientation="vertical"
-              class="mx1 h-4 b-0 b-l b-slate-3 dark:b-slate-5"
+              class="mx1 h-4 b-0 b-l b-border-menu"
             />
           </Show>
           <Show when={uiStore.bottomPanel === "post"}>
@@ -244,7 +244,7 @@ export function ControlBar(props: {
             />
             <Separator
               orientation="vertical"
-              class="mx1 h-4 b-0 b-l b-slate-3 dark:b-slate-5"
+              class="mx1 h-4 b-0 b-l b-border-menu"
             />
             <ToolbarButton
               icon="i-lucide:pencil"
@@ -286,7 +286,7 @@ export function ControlBar(props: {
             />
             <Separator
               orientation="vertical"
-              class="mx1 h-4 b-0 b-l b-slate-3 dark:b-slate-5"
+              class="mx1 h-4 b-0 b-l b-border-menu"
             />
           </Show>
           <ToolbarButton

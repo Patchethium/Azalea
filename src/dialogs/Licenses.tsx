@@ -132,7 +132,7 @@ export function LicensesDialog(props: LicensesDialogProps) {
           </Show>
           <Show when={!licenses.error && libraries().length > 0}>
             <div class="h-[65vh] min-h-0 flex">
-              <div class="w-1/3 max-w-64 min-h-0 shrink-0 flex flex-col b-r b-slate-2 dark:b-slate-6">
+              <div class="w-1/3 max-w-64 min-h-0 shrink-0 flex flex-col b-r b-border">
                 <div class="shrink-0 flex items-center gap2 px3 py3">
                   <h3 class="shrink-0 text-sm font-semibold">
                     {t1("licenses.libraries")}
@@ -173,7 +173,7 @@ export function LicensesDialog(props: LicensesDialogProps) {
                 <Show
                   when={filteredLibraries().length > 0}
                   fallback={
-                    <p role="status" class="px3 py2 text-sm text-slate-5">
+                    <p role="status" class="px3 py2 text-sm text-ink-subtle">
                       {t1("licenses.no_matches")}
                     </p>
                   }
@@ -189,7 +189,7 @@ export function LicensesDialog(props: LicensesDialogProps) {
               <Show when={selectedLibrary()} keyed>
                 {(library) => (
                   <section
-                    class="min-w-0 flex-1 overflow-y-auto px5 py4 select-text outline-none focus-visible:ring-2 ring-inset ring-primary-3"
+                    class="min-w-0 flex-1 overflow-y-auto px5 py4 select-text outline-none focus-visible:ring-2 ring-inset ring-focus-ring"
                     tabindex="0"
                     aria-label={`${library.name} ${library.versions.join(", ")}`}
                   >
@@ -301,7 +301,7 @@ function LibraryList(props: {
                       width: "100%",
                       transform: `translateY(${row.start}px)`,
                     }}
-                    class="cursor-pointer select-none rounded-md px3 py2 outline-none hover:bg-slate-1 dark:hover:bg-slate-7 data-[selected]:(!bg-primary-5 text-white) data-[highlighted]:ring-2 ring-inset ring-primary-3"
+                    class="cursor-pointer select-none rounded-md px3 py2 outline-none hover:bg-hover data-[selected]:!bg-accent data-[selected]:text-on-accent data-[highlighted]:ring-2 ring-inset ring-focus-ring"
                   >
                     <Listbox.ItemLabel class="break-words text-sm">
                       {item.rawValue.name}

@@ -115,7 +115,7 @@ export function NumberInput(props: {
         </Show>
       </div>
       <div class="flex flex-row gap-1 items-center">
-        <NumberField.Input class="h-8 w-full outline-none rounded-lg b b-slate-2 dark:(b-slate-6 bg-slate-7) focus:b-primary-3 px-1 disabled:(cursor-not-allowed opacity-50)" />
+        <NumberField.Input class="h-8 w-full outline-none rounded-lg b b-border bg-surface dark:bg-surface-raised focus:b-focus-ring px-1 disabled:(cursor-not-allowed opacity-50)" />
         <div class="flex flex-col">
           <NumberField.IncrementTrigger
             as={IconButton}

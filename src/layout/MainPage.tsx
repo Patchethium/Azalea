@@ -78,19 +78,19 @@ function MainPage() {
                     <div class="size-full flex flex-col items-center justify-center gap-3 px-6 text-center">
                       <div
                         aria-hidden="true"
-                        class="i-lucide:file-plus-2 size-10 text-slate-4 dark:text-slate-5"
+                        class="i-lucide:file-plus-2 size-10 text-ink-faint"
                       />
                       <div>
                         <h2 class="font-semibold">
                           {t1("text_block.empty_project.title")}
                         </h2>
-                        <p class="mt-1 text-sm text-slate-5 dark:text-slate-4">
+                        <p class="mt-1 text-sm text-ink-subtle">
                           {t1("text_block.empty_project.description")}
                         </p>
                       </div>
                       <Button
                         type="button"
-                        class="flex items-center gap-2 rounded-md bg-primary-5 px-3 py-2 text-white hover:bg-primary-6 active:bg-primary-7 focus-visible:(outline-solid outline-3 outline-primary-2)"
+                        class="flex items-center gap-2 rounded-md bg-accent px-3 py-2 text-on-accent outline-none hover:bg-accent-hover active:bg-primary-7 focus-visible:(ring-2 ring-focus-ring)"
                         aria-label={t1("text_block.empty_project.create")}
                         onClick={createFirstTextBlock}
                       >
@@ -112,7 +112,7 @@ function MainPage() {
                     aria-label={t1("portrait.resize")}
                     class="group basis-2 bg-transparent py-3 flex items-center justify-center px-2px"
                   >
-                    <div class="rounded transition-colors bg-transparent group-hover:bg-primary-5 group-active:bg-primary-5 h-full w-[1px]" />
+                    <div class="rounded motion-safe:transition-colors bg-transparent group-hover:bg-accent group-active:bg-accent h-full w-[1px]" />
                   </Resizable.Handle>
                   <Resizable.Panel
                     class="min-w-0 overflow-hidden"
@@ -141,7 +141,7 @@ function MainPage() {
           aria-label="Resize Handle"
           class="group basis-2 px-[2px] bg-transparent pr-3 flex items-center justify-center"
         >
-          <div class="size-full rounded transition-colors bg-transparent group-hover:bg-primary-5 group-active:bg-primary-5 h-[1px]" />
+          <div class="size-full rounded motion-safe:transition-colors bg-transparent group-hover:bg-accent group-active:bg-accent h-[1px]" />
         </Resizable.Handle>
         <Resizable.Panel
           class="min-h-0 overflow-hidden"

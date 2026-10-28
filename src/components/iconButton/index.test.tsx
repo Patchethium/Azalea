@@ -31,14 +31,11 @@ describe("IconButton", () => {
     const icon = button.firstElementChild;
     expect(button).toBeDisabled();
     expect(button).toHaveClass("items-center", "justify-center");
-    expect(button).toHaveClass("focus-visible:ring-red-3");
+    expect(button).toHaveClass("focus-visible:ring-danger-ring");
     expect(icon).toHaveAttribute("aria-hidden", "true");
-    expect(icon).toHaveClass("group-hover:bg-red-5");
-    expect(icon).toHaveClass("group-active:bg-red-6");
-    expect(icon).toHaveClass(
-      "group-disabled:!bg-slate-3",
-      "dark:group-disabled:!bg-slate-5",
-    );
+    expect(icon).toHaveClass("group-hover:bg-danger");
+    expect(icon).toHaveClass("group-active:bg-danger-strong");
+    expect(icon).toHaveClass("group-disabled:!bg-ink-disabled");
 
     fireEvent.pointerEnter(button.parentElement!, { pointerType: "mouse" });
     expect(await screen.findByRole("tooltip")).toHaveTextContent("Delete item");

@@ -48,14 +48,14 @@ export function PresetSlider(props: {
       <div class="flex w-full text-sm items-center">
         <Show when={props.checkable}>
           <Checkbox
-            class="size-4 rounded-sm b b-slate-3 mr-1 ui-checked:(!b-primary-5 bg-primary-5)"
+            class="size-4 rounded-sm b b-border-menu mr-1 ui-checked:(!b-accent bg-accent)"
             checked={props.checkable!.checked}
             onChange={(value) => props.checkable!.setChecked(value)}
           >
             <Checkbox.Input />
             <Checkbox.Control class="size-full rounded-md bg-transparent">
               <Checkbox.Indicator class="flex justify-center items-center size-full">
-                <div class="i-lucide:check bg-white size-full" />
+                <div class="i-lucide:check bg-on-accent size-full" />
               </Checkbox.Indicator>
             </Checkbox.Control>
           </Checkbox>
@@ -66,9 +66,9 @@ export function PresetSlider(props: {
         {props.appendix ?? ""}
       </div>
       <div class="w-full flex p1">
-        <Slider.Track class="w-full h-2 bg-slate-2 dark:bg-slate-6 rounded-full relative ui-disabled:cursor-not-allowed">
-          <Slider.Fill class="absolute bg-primary-5 rounded-full h-full ui-disabled:bg-primary-2" />
-          <Slider.Thumb class="block w-2 h-4 bg-primary-5 ui-disabled:bg-primary-2 rounded-sm -top-1 outline-none">
+        <Slider.Track class="w-full h-2 bg-track rounded-full relative ui-disabled:cursor-not-allowed">
+          <Slider.Fill class="absolute bg-accent rounded-full h-full ui-disabled:bg-primary-2" />
+          <Slider.Thumb class="block w-2 h-4 bg-accent ui-disabled:bg-primary-2 rounded-sm -top-1 outline-none">
             <Slider.Input />
           </Slider.Thumb>
         </Slider.Track>

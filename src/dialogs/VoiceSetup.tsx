@@ -194,13 +194,13 @@ export function VoiceSetup() {
           setupSwitchPending() ||
           coreInitializeResource.loading
         }
-        class="flex overflow-hidden rounded-md b b-slate-2 dark:b-slate-6"
+        class="flex overflow-hidden rounded-md b b-border"
       >
         <For each={["Downloaded", "ExistingInstallation"]}>
           {(source) => (
             <ToggleGroup.Item
               value={source}
-              class="flex-1 bg-transparent px3 py2 text-sm outline-none hover:bg-slate-1 focus-visible:(ring-2 ring-inset ring-primary-3) ui-pressed:(!bg-primary-5 !text-white) dark:hover:bg-slate-7 [&+button]:b-l [&+button]:b-slate-2 dark:[&+button]:b-slate-6"
+              class="flex-1 bg-transparent px3 py2 text-sm outline-none hover:bg-hover focus-visible:(ring-2 ring-inset ring-focus-ring) ui-pressed:!bg-accent ui-pressed:!text-on-accent [&+button]:b-l [&+button]:b-border"
             >
               {source === "Downloaded" ? t1("voice_setup.managed") : "VOICEVOX"}
             </ToggleGroup.Item>
@@ -213,12 +213,12 @@ export function VoiceSetup() {
         </p>
       </Show>
       <Show when={coreError()}>
-        <p role="alert" class="m0 text-sm text-red-6 dark:text-red-4">
+        <p role="alert" class="m0 text-sm text-danger-ink">
           {coreError()}
         </p>
       </Show>
       <Show when={setupSource() === "ExistingInstallation"}>
-        <div class="flex flex-col gap1 rounded-md b b-slate-2 p2 dark:b-slate-6">
+        <div class="flex flex-col gap1 rounded-md b b-border p2">
           <div class="flex items-center gap2">
             <div class="flex-1 text-sm font-semibold">
               {t1("voice_setup.core_paths")}
@@ -247,7 +247,7 @@ export function VoiceSetup() {
           <Show
             when={config.core}
             fallback={
-              <span class="text-sm text-slate-5 dark:text-slate-4">
+              <span class="text-sm text-ink-subtle">
                 {t1("voice_setup.not_set")}
               </span>
             }
@@ -279,7 +279,7 @@ export function VoiceSetup() {
             }}
           </Show>
           <Show when={pathError()}>
-            <p role="alert" class="m0 text-xs text-red-6 dark:text-red-4">
+            <p role="alert" class="m0 text-xs text-danger-ink">
               {pathError()}
             </p>
           </Show>
@@ -545,14 +545,14 @@ export function ModelManager(props: { active: boolean }) {
   return (
     <section
       aria-labelledby={titleId}
-      class="flex flex-col gap3 b-t b-slate-2 pt3 dark:b-slate-6"
+      class="flex flex-col gap3 b-t b-border pt3"
     >
       <h3 id={titleId} class="m0 font-semibold">
         {t1("voice_setup.manage")}
       </h3>
       <div class="flex flex-col gap4">
         <div class="flex items-start gap2">
-          <p class="m0 flex-1 text-sm text-slate-6 dark:text-slate-3">
+          <p class="m0 flex-1 text-sm text-ink-muted">
             {t1("voice_setup.description")}
           </p>
           <Show when={setup()}>
@@ -574,7 +574,7 @@ export function ModelManager(props: { active: boolean }) {
           </p>
         </Show>
         <Show when={error()}>
-          <p role="alert" class="m0 text-sm text-red-6 dark:text-red-4">
+          <p role="alert" class="m0 text-sm text-danger-ink">
             {error()}
           </p>
         </Show>
@@ -588,10 +588,10 @@ export function ModelManager(props: { active: boolean }) {
             <h3 class="m0 text-sm font-semibold">
               {t1("voice_setup.required_components")}
             </h3>
-            <ul class="m0 flex flex-col list-none overflow-hidden rounded-md b b-slate-2 p0 dark:b-slate-6">
+            <ul class="m0 flex flex-col list-none overflow-hidden rounded-md b b-border p0">
               <For each={required()}>
                 {(component) => (
-                  <li class="flex items-center gap2 px3 py2 text-sm [&+li]:(b-t b-slate-2 dark:b-slate-6)">
+                  <li class="flex items-center gap2 px3 py2 text-sm [&+li]:b-t [&+li]:b-border">
                     <span class="flex-1">{requiredLabel(component.id)}</span>
                     <PackageStatus
                       installed={component.installed}
@@ -632,21 +632,21 @@ export function ModelManager(props: { active: boolean }) {
                           : "voice_setup.available_models",
                       )}
                     </h3>
-                    <span class="text-xs text-slate-5">
+                    <span class="text-xs text-ink-subtle">
                       {
                         packages().filter((c) => c.installed === installed)
                           .length
                       }
                     </span>
                   </div>
-                  <ul class="m0 flex flex-col list-none overflow-hidden rounded-md b b-slate-2 p0 dark:b-slate-6">
+                  <ul class="m0 flex flex-col list-none overflow-hidden rounded-md b b-border p0">
                     <For
                       each={packages().filter((c) => c.installed === installed)}
                     >
                       {(component) => (
-                        <li class="[&+li]:(b-t b-slate-2 dark:b-slate-6)">
+                        <li class="[&+li]:b-t [&+li]:b-border">
                           <Collapsible disabled={!component.entries.length}>
-                            <div class="flex items-center gap3 px3 py2 hover:bg-slate-50 dark:hover:bg-slate-7/50">
+                            <div class="flex items-center gap3 px3 py2 hover:bg-hover">
                               <Checkbox
                                 checked={selected().includes(component.id)}
                                 disabled={actionDisabled()}
@@ -658,14 +658,14 @@ export function ModelManager(props: { active: boolean }) {
                                 <Checkbox.Input aria-label={component.id} />
                                 <SelectionControl />
                               </Checkbox>
-                              <Collapsible.Trigger class="group min-w-0 flex flex-1 items-center gap2 rounded bg-transparent p0 text-left outline-none enabled:cursor-pointer focus-visible:(ring-2 ring-primary-3)">
+                              <Collapsible.Trigger class="group min-w-0 flex flex-1 items-center gap2 rounded bg-transparent p0 text-left outline-none enabled:cursor-pointer focus-visible:(ring-2 ring-focus-ring)">
                                 <span class="min-w-0 flex flex-1 flex-col gap0.5 text-sm">
                                   <span class="font-semibold">
                                     {component.id}
                                   </span>
                                   <span
                                     lang="ja"
-                                    class="truncate text-xs text-slate-6 dark:text-slate-3"
+                                    class="truncate text-xs text-ink-muted"
                                   >
                                     {groupStyles(component.entries)
                                       .map(([character]) => character)
@@ -675,7 +675,7 @@ export function ModelManager(props: { active: boolean }) {
                                 <Show when={component.entries.length}>
                                   <div
                                     aria-hidden="true"
-                                    class="i-lucide:chevron-down size-4 shrink-0 text-slate-5 transition-transform group-data-[expanded]:rotate-180"
+                                    class="i-lucide:chevron-down size-4 shrink-0 text-ink-subtle motion-safe:transition-transform group-data-[expanded]:rotate-180"
                                   />
                                 </Show>
                               </Collapsible.Trigger>
@@ -712,7 +712,7 @@ export function ModelManager(props: { active: boolean }) {
                                   {([character, styles]) => (
                                     <>
                                       <dt class="font-semibold">{character}</dt>
-                                      <dd class="m0 text-slate-6 dark:text-slate-3">
+                                      <dd class="m0 text-ink-muted">
                                         {styles.join("、")}
                                       </dd>
                                     </>
@@ -729,7 +729,7 @@ export function ModelManager(props: { active: boolean }) {
               </Show>
             )}
           </For>
-          <div class="flex flex-col gap1 text-xs text-slate-5">
+          <div class="flex flex-col gap1 text-xs text-ink-subtle">
             <div class="flex flex-wrap gap3">
               <For each={terms}>
                 {(item) => (
@@ -741,7 +741,7 @@ export function ModelManager(props: { active: boolean }) {
                         if (!disposed) setError(String(cause));
                       });
                     }}
-                    class="text-primary-6 underline outline-none focus-visible:ring-2 focus-visible:ring-primary-3"
+                    class="text-primary-6 underline outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
                   >
                     {t1(item.label)}
                   </Link>
@@ -755,9 +755,9 @@ export function ModelManager(props: { active: boolean }) {
         </Show>
       </div>
       {/* Keep the actions in view while the surrounding page scrolls. */}
-      <div class="sticky bottom-0 flex flex-col gap2 b-t b-slate-2 bg-white py2 dark:(b-slate-6 bg-slate-8)">
+      <div class="sticky bottom-0 flex flex-col gap2 b-t b-border bg-surface py2">
         <Show when={setup() && selected().length}>
-          <div class="flex flex-wrap items-center gap1 rounded-md bg-slate-1 py1 pl3 pr1 text-sm dark:bg-slate-7">
+          <div class="flex flex-wrap items-center gap1 rounded-md bg-surface-menu py1 pl3 pr1 text-sm">
             <span class="flex-1">
               {t2("voice_setup.selected_count", {
                 count: selected().length,
@@ -780,7 +780,7 @@ export function ModelManager(props: { active: boolean }) {
             </AppButton>
             <AppButton
               size="sm"
-              class="hover:(!b-red-5 !bg-red-5)"
+              class="hover:(!b-danger !bg-danger)"
               disabled={actionDisabled() || !selectedDeletes().length}
               onClick={() => void deleteModels(selectedDeletes())}
             >
@@ -807,8 +807,8 @@ export function ModelManager(props: { active: boolean }) {
                   ? t1("speaker_selection.downloading_icons")
                   : `${p().component_id} — ${p().extracting ? t1("voice_setup.extracting") : formatDownloadSize(p().completed_bytes)}`}
               </Progress.Label>
-              <Progress.Track class="h2 overflow-hidden rounded bg-slate-2 dark:bg-slate-6">
-                <Progress.Fill class="h-full w-[var(--kb-progress-fill-width)] bg-primary-5" />
+              <Progress.Track class="h2 overflow-hidden rounded bg-track">
+                <Progress.Fill class="h-full w-[var(--kb-progress-fill-width)] bg-accent" />
               </Progress.Track>
             </Progress>
           )}
@@ -859,7 +859,7 @@ function groupStyles(entries: DownloadSetup["components"][number]["entries"]) {
 function SelectionControl(props: { class?: string; indeterminate?: boolean }) {
   return (
     <Checkbox.Control
-      class={`flex size-5 shrink-0 items-center justify-center rounded b b-slate-4 ui-checked:(b-primary-5 bg-primary-5 text-white) ui-indeterminate:(b-primary-5 bg-primary-5 text-white) ui-focus-visible:ring-2 ui-focus-visible:ring-primary-3 ui-disabled:opacity-50 ${props.class ?? ""}`}
+      class={`flex size-5 shrink-0 items-center justify-center rounded b b-border-menu ui-checked:(b-accent bg-accent text-on-accent) ui-indeterminate:(b-accent bg-accent text-on-accent) ui-focus-visible:ring-2 ui-focus-visible:ring-focus-ring ui-disabled:opacity-50 ${props.class ?? ""}`}
     >
       <Checkbox.Indicator>
         <div
@@ -873,13 +873,13 @@ function SelectionControl(props: { class?: string; indeterminate?: boolean }) {
 function PackageStatus(props: { installed: boolean; bytes: number }) {
   const { t1 } = usei18n()!;
   return (
-    <span class="flex shrink-0 items-center gap1 whitespace-nowrap text-sm tabular-nums text-slate-6 dark:text-slate-3">
+    <span class="flex shrink-0 items-center gap1 whitespace-nowrap text-sm tabular-nums text-ink-muted">
       {formatDownloadSize(props.bytes)}
       <Show when={props.installed}>
         <span
           role="img"
           aria-label={t1("voice_setup.installed")}
-          class="i-lucide:circle-check size-4 text-green-7 dark:text-green-4"
+          class="i-lucide:circle-check size-4 text-accent"
         />
       </Show>
     </span>

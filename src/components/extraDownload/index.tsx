@@ -52,9 +52,9 @@ export function ExtraDownloadButton(props: { pack: ExtraPack; label: string }) {
             aria-label={`${props.label}: ${t1("config.extra_downloading")}`}
             class="flex w-32 flex-col gap1"
           >
-            <Progress.ValueLabel class="text-xs text-slate-6 dark:text-slate-3" />
-            <Progress.Track class="h2 overflow-hidden rounded bg-slate-2 dark:bg-slate-6">
-              <Progress.Fill class="h-full w-[var(--kb-progress-fill-width)] bg-primary-5" />
+            <Progress.ValueLabel class="text-xs text-ink-muted" />
+            <Progress.Track class="h2 overflow-hidden rounded bg-track">
+              <Progress.Fill class="h-full w-[var(--kb-progress-fill-width)] bg-accent" />
             </Progress.Track>
           </Progress>
           <IconButton

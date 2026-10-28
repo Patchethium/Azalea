@@ -36,12 +36,12 @@ describe("toasts", () => {
     const toast = await screen.findByRole("status", {
       name: "Couldn't save the project",
     });
-    expect(toast).toHaveClass("border-red-3");
+    expect(toast).toHaveClass("border-danger-border");
     expect(toast).toHaveAccessibleDescription("disk full");
     expect(toast.querySelector(".i-lucide\\:circle-x")).not.toBeNull();
     const progressTrack = toast.querySelector('[role="presentation"]');
-    expect(progressTrack).toHaveClass("bg-red-2");
-    expect(progressTrack?.firstElementChild).toHaveClass("bg-red-5");
+    expect(progressTrack).toHaveClass("bg-danger-soft");
+    expect(progressTrack?.firstElementChild).toHaveClass("bg-danger");
 
     toasts.error("Couldn't save the project", new Error("read-only"));
     await waitFor(() => expect(toast).not.toBeInTheDocument());
@@ -62,7 +62,7 @@ describe("toasts", () => {
     const warning = await screen.findByRole("status", {
       name: "Check the file name",
     });
-    expect(warning).toHaveClass("border-amber-3");
+    expect(warning).toHaveClass("border-warning-border");
     expect(warning).toHaveAccessibleDescription("permission denied");
     const success = await screen.findByRole("status", { name: "Saved" });
     expect(success).not.toHaveClass("border");

@@ -184,18 +184,16 @@ export function TuningItem(props: {
 
   return (
     <div
-      class="flex flex-none flex-col b-dashed b-r b-slate-3 dark:b-slate-6 h-100% select-none relative z-1"
+      class="flex flex-none flex-col b-dashed b-r b-border h-100% select-none relative z-1"
       style={{ width: `${totalPixels()}px` }}
     >
       <Show when={!whisper()}>
         <Show
           when={!unvoiced()}
-          fallback={
-            <div class="flex-1 content-empty b-dashed b-b b-slate-3 dark:b-slate-6" />
-          }
+          fallback={<div class="flex-1 content-empty b-dashed b-b b-border" />}
         >
           <Slider
-            class={`${styles.pitchSlider} flex-1 b-b b-slate-3 dark:b-slate-6 b-dashed overflow-hidden`}
+            class={`${styles.pitchSlider} flex-1 b-b b-border b-dashed overflow-hidden`}
             classList={{ [styles.instantPitch]: instantPitch() }}
             minValue={0}
             maxValue={1}
@@ -220,7 +218,7 @@ export function TuningItem(props: {
                 {(marker) => (
                   <div
                     aria-hidden="true"
-                    class="pointer-events-none absolute inset-x-0 b-t b-dashed b-slate-3 dark:b-slate-6"
+                    class="pointer-events-none absolute inset-x-0 b-t b-dashed b-border"
                     style={{ bottom: `${marker().position * 100}%` }}
                     data-pitch-baseline
                   />
@@ -238,7 +236,7 @@ export function TuningItem(props: {
                     <Show when={ghost().outOfRange !== null}>
                       <div
                         aria-hidden="true"
-                        class="pointer-events-none absolute left-1/2 size-3 -translate-x-1/2 text-slate-4 dark:text-slate-5"
+                        class="pointer-events-none absolute left-1/2 size-3 -translate-x-1/2 text-ink-faint"
                         classList={{
                           "top-0 i-lucide:chevron-up":
                             ghost().outOfRange === "above",
@@ -254,8 +252,8 @@ export function TuningItem(props: {
               <Slider.Thumb
                 aria-label={props.mora.text}
                 aria-valuetext={valueText()}
-                class={`${styles.pitchThumb} block h-1px w-full bg-slate-4 outline-none group-hover:!bg-primary-5`}
-                classList={{ "!bg-primary-5": pitchMoving() }}
+                class={`${styles.pitchThumb} block h-1px w-full bg-ink-faint outline-none group-hover:!bg-accent`}
+                classList={{ "!bg-accent": pitchMoving() }}
                 onTransitionRun={handlePitchTransition}
                 onTransitionEnd={handlePitchTransition}
                 onTransitionCancel={handlePitchTransition}
@@ -263,7 +261,7 @@ export function TuningItem(props: {
                 <Show when={totalPixels() >= PITCH_BADGE_WIDTH}>
                   <span
                     aria-hidden="true"
-                    class="pointer-events-none invisible absolute left-1/2 top-1/2 w-8 -translate-x-1/2 -translate-y-1/2 rounded-md bg-white px-1 text-center text-11px leading-4 tabular-nums group-hover:visible dark:bg-slate-8"
+                    class="pointer-events-none invisible absolute left-1/2 top-1/2 w-8 -translate-x-1/2 -translate-y-1/2 rounded-md bg-surface px-1 text-center text-11px leading-4 tabular-nums group-hover:visible"
                   >
                     {badgeText()}
                   </span>
@@ -275,7 +273,7 @@ export function TuningItem(props: {
         </Show>
       </Show>
       <div
-        class="group relative shrink-0 flex flex-row bg-white dark:bg-slate-8"
+        class="group relative shrink-0 flex flex-row bg-surface"
         classList={{ "h-full": whisper() }}
         style={{ height: whisper() ? undefined : `${props.durationHeight}px` }}
       >
@@ -284,7 +282,7 @@ export function TuningItem(props: {
         </div>
         <Show when={consonantPixels() != null}>
           <div
-            class="invisible flex items-center justify-center b-dashed b-r b-slate3 group-hover:visible dark:b-slate-6 hover:!bg-primary-50 dark:hover:!bg-primary-9"
+            class="invisible flex items-center justify-center b-dashed b-r b-border group-hover:visible hover:!bg-primary-50 dark:hover:!bg-primary-9"
             onMouseDown={() =>
               props.startDraggingDur(props.mora.consonant_length!, "consonant")
             }

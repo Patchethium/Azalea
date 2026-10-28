@@ -543,13 +543,12 @@ describe("BottomPanel playback", () => {
       );
       return indicator;
     });
-    expect(rightIndicator).toHaveClass("bg-slate-50", "dark:bg-slate-9");
+    expect(rightIndicator).toHaveClass("bg-canvas");
     const rightChevron = rightIndicator.querySelector("span");
     expect(rightChevron).toHaveClass(
-      "bg-slate-5",
-      "group-hover:bg-primary-5",
-      "group-active:bg-primary-5",
-      "dark:bg-slate-4",
+      "bg-ink-subtle",
+      "group-hover:bg-accent",
+      "group-active:bg-accent",
     );
     rightIndicator.focus();
     expect(rightIndicator).toHaveFocus();
@@ -2812,12 +2811,7 @@ describe("BottomPanel playback", () => {
     const slider = await screen.findByRole("slider", { name: "コ" });
     const badge = within(slider).getByText("5.40");
     expect(badge).toHaveAttribute("aria-hidden", "true");
-    expect(badge).toHaveClass(
-      "invisible",
-      "group-hover:visible",
-      "bg-white",
-      "dark:bg-slate-8",
-    );
+    expect(badge).toHaveClass("invisible", "group-hover:visible", "bg-surface");
     expect(badge).not.toHaveClass("bg-slate-4", "text-white", "border");
 
     getTextStore().setTextStore(
@@ -3550,18 +3544,18 @@ describe("Pitch completion", () => {
         Object.assign(new Event(type, { bubbles: true }), { propertyName }),
       );
     transition("transitionrun", "top");
-    expect(changed).not.toHaveClass("!bg-primary-5");
+    expect(changed).not.toHaveClass("!bg-accent");
     transition("transitionrun");
-    expect(changed).toHaveClass("!bg-primary-5");
-    expect(edited).not.toHaveClass("!bg-primary-5");
-    expect(unchanged).not.toHaveClass("!bg-primary-5");
+    expect(changed).toHaveClass("!bg-accent");
+    expect(edited).not.toHaveClass("!bg-accent");
+    expect(unchanged).not.toHaveClass("!bg-accent");
     transition("transitionend", "top");
-    expect(changed).toHaveClass("!bg-primary-5");
+    expect(changed).toHaveClass("!bg-accent");
     transition("transitionend");
-    expect(changed).not.toHaveClass("!bg-primary-5");
+    expect(changed).not.toHaveClass("!bg-accent");
     transition("transitionrun");
     transition("transitioncancel");
-    expect(changed).not.toHaveClass("!bg-primary-5");
+    expect(changed).not.toHaveClass("!bg-accent");
     getConfigStore().setConfig("ui", "pitch_completion_enabled", false);
     expect(sliderRoot).toHaveClass(tuningStyles.pitchSlider);
   });

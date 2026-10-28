@@ -843,10 +843,10 @@ describe("App initialization", () => {
       "Your system language (fr-FR) is not supported, so Azalea is using English.";
     const warningToast = await screen.findByRole("status", { name: message });
     expect(screen.getAllByRole("status", { name: message })).toHaveLength(1);
-    expect(warningToast).toHaveClass("border-amber-3");
+    expect(warningToast).toHaveClass("border-warning-border");
     const progressTrack = warningToast.querySelector('[role="presentation"]');
-    expect(progressTrack).toHaveClass("bg-amber-2");
-    expect(progressTrack?.firstElementChild).toHaveClass("bg-amber-5");
+    expect(progressTrack).toHaveClass("bg-warning-soft");
+    expect(progressTrack?.firstElementChild).toHaveClass("bg-warning");
     fireEvent.click(screen.getByRole("button", { name: "Close notification" }));
     expect(warningToast).toHaveAttribute("data-closed");
   });

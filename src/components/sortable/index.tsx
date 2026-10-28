@@ -212,7 +212,7 @@ export function SortableDropIndicator(props: {
         <div
           aria-hidden="true"
           data-drop-indicator={side()}
-          class="pointer-events-none absolute inset-x-0 z-20 h-0.5 rounded-full bg-primary-5"
+          class="pointer-events-none absolute inset-x-0 z-20 h-0.5 rounded-full bg-accent"
           classList={{
             "top-0 -translate-y-1/2": side() === "before",
             "bottom-0 translate-y-1/2": side() === "after",
