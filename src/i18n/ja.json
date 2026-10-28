@@ -157,7 +157,12 @@
     "priority_hint": "数値が大きいほど優先されます（0～10）。",
     "delete": "単語を削除",
     "load_error": "ユーザー辞書を読み込めませんでした。",
-    "operation_error": "辞書を保存できませんでした。単語、カタカナの読み、アクセント位置を確認してください。"
+    "operation_error": "辞書を保存できませんでした。単語、カタカナの読み、アクセント位置を確認してください。",
+    "preview_speaker": "試聴する話者",
+    "preview_style": "試聴するスタイル",
+    "preview_play": "読みを再生",
+    "preview_stop": "再生を停止",
+    "preview_error": "読みを再生できませんでした。カタカナの読みとアクセント位置を確認してください。"
   },
   "text_block": {
     "input_label": "読み上げるテキスト",

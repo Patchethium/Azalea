@@ -76,6 +76,66 @@ fn build_word(input: DictionaryEntryInput) -> Result<UserDictWord, String> {
     .map_err(|error| error.to_string())
 }
 
+/// The vowel kana a long-vowel mark repeats after a mora ending in `last`.
+fn long_vowel_kana(last: char) -> Option<char> {
+  const VOWELS: [(&str, char); 7] = [
+    ("アカサタナハマヤラワャァガザダバパヮ", 'ア'),
+    ("イキシチニヒミリィギジヂビピ", 'イ'),
+    ("ウクスツヌフムユルュゥヴグズヅブプ", 'ウ'),
+    ("エケセテネヘメレェゲゼデベペ", 'エ'),
+    ("オコソトノホモヨロヲョォゴゾドボポ", 'オ'),
+    ("ン", 'ン'),
+    ("ッ", 'ッ'),
+  ];
+  VOWELS
+    .iter()
+    .find(|(kanas, _)| kanas.contains(last))
+    .map(|&(_, vowel)| vowel)
+}
+
+/// AquesTalk-style kana reading a dictionary entry as the dialog previews it:
+/// the pronunciation followed by the particle ガ, accented by `accent_type`
+/// (0 keeps the pitch up through the particle).
+pub fn dictionary_preview_kana(pronunciation: &str, accent_type: u32) -> Result<String, String> {
+  let mut moras: Vec<String> = Vec::new();
+  for letter in pronunciation.chars() {
+    if !('ァ'..='ヴ').contains(&letter) && letter != 'ー' {
+      return Err(format!("Pronunciation must be katakana: {pronunciation}"));
+    }
+    if "ァィゥェォャュョヮ".contains(letter) {
+      if let Some(mora) = moras.last_mut() {
+        mora.push(letter);
+        continue;
+      }
+    }
+    let letter = if letter == 'ー' {
+      // The kana notation has no long-vowel mark, so repeat the vowel instead.
+      moras
+        .last()
+        .and_then(|mora| mora.chars().last())
+        .and_then(long_vowel_kana)
+        .ok_or_else(|| format!("Pronunciation cannot start a long vowel here: {pronunciation}"))?
+    } else {
+      letter
+    };
+    moras.push(letter.to_string());
+  }
+  if moras.is_empty() {
+    return Err("Pronunciation must not be empty".into());
+  }
+  let accent = match usize::try_from(accent_type) {
+    Ok(0) => moras.len() + 1,
+    Ok(accent) if accent <= moras.len() => accent,
+    _ => return Err("Dictionary accent type exceeds the mora count".into()),
+  };
+  moras.push("ガ".into());
+  Ok(format!(
+    "{}'{}",
+    moras[..accent].concat(),
+    moras[accent..].concat()
+  ))
+}
+
 fn entry_from_word(id: Uuid, word: &UserDictWord) -> Result<DictionaryEntry, String> {
   Ok(DictionaryEntry {
     id: id.to_string(),
@@ -334,6 +394,30 @@ mod tests {
       word_type: DictionaryWordType::ProperNoun,
       priority: 7,
     }
+  }
+
+  #[test]
+  fn dictionary_preview_kana_places_the_accent_and_expands_long_vowels() {
+    assert_eq!(dictionary_preview_kana("テスト", 1).unwrap(), "テ'ストガ");
+    assert_eq!(dictionary_preview_kana("テスト", 3).unwrap(), "テスト'ガ");
+    assert_eq!(dictionary_preview_kana("テスト", 0).unwrap(), "テストガ'");
+    assert_eq!(
+      dictionary_preview_kana("キャット", 1).unwrap(),
+      "キャ'ットガ"
+    );
+    assert_eq!(
+      dictionary_preview_kana("コーヒー", 3).unwrap(),
+      "コオヒ'イガ"
+    );
+    assert_eq!(dictionary_preview_kana("ンー", 0).unwrap(), "ンンガ'");
+  }
+
+  #[test]
+  fn dictionary_preview_kana_rejects_invalid_pronunciations() {
+    assert!(dictionary_preview_kana("", 0).is_err());
+    assert!(dictionary_preview_kana("ひらがな", 0).is_err());
+    assert!(dictionary_preview_kana("ーア", 0).is_err());
+    assert!(dictionary_preview_kana("テスト", 4).is_err());
   }
 
   #[test]

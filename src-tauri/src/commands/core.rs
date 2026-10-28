@@ -347,6 +347,24 @@ pub async fn audio_query(
   Ok(query)
 }
 
+/// Creates the query the dictionary dialog plays for an entry's pronunciation and accent
+#[tauri::command]
+#[specta::specta]
+pub async fn dictionary_preview_query(
+  state: State<'_, AppState>,
+  pronunciation: String,
+  accent_type: u32,
+  speaker_id: StyleId,
+) -> std::result::Result<AudioQuery, String> {
+  let kana = super::dictionary_preview_kana(&pronunciation, accent_type)?;
+  run_core_task(&state, move |core| {
+    core
+      .audio_query_from_kana(&kana, speaker_id)
+      .map_err(|e| e.to_string())
+  })
+  .await
+}
+
 /// Encodes text into accent phrases
 #[tauri::command]
 #[specta::specta]

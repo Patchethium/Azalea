@@ -8,6 +8,7 @@ use std::{
 
 use azalea_lib::{
   audio::spectal::MelSpec,
+  commands::dictionary_preview_kana,
   core::{is_talk_style, Core},
   english::EnglishOptions,
   streaming::{start_frame, StreamPlan, DEFAULT_CHUNK_SCHEDULE},
@@ -321,6 +322,33 @@ fn real_core_normalizes_mixed_kana_pronunciations() {
       .map(|mora| mora.text.as_str())
       .collect::<String>();
     assert_eq!(pronunciation, expected, "unexpected reading for {input}");
+  }
+}
+
+#[test]
+fn real_core_previews_dictionary_pronunciations_with_their_accent() {
+  let core = test_core();
+  let style_id = first_talk_style_id(&core);
+
+  for (pronunciation, accent_type, expected_accent) in
+    [("キャット", 1, 1), ("コーヒー", 3, 3), ("テスト", 0, 4)]
+  {
+    let kana = dictionary_preview_kana(pronunciation, accent_type).unwrap();
+    let query = core
+      .audio_query_from_kana(&kana, style_id)
+      .expect("kana query creation failed");
+    assert_eq!(query.accent_phrases.len(), 1, "{kana} split into phrases");
+    let phrase = &query.accent_phrases[0];
+    assert_eq!(
+      phrase.accent.get(),
+      expected_accent,
+      "unexpected accent for {kana}"
+    );
+    assert_eq!(phrase.moras.last().unwrap().text, "ガ");
+    assert!(
+      phrase.moras.iter().any(|mora| mora.pitch > 0.0),
+      "{kana} has no predicted pitch"
+    );
   }
 }
 

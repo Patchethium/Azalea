@@ -157,7 +157,12 @@
     "priority_hint": "Higher values take precedence (0–10).",
     "delete": "Delete word",
     "load_error": "Couldn't load the user dictionary.",
-    "operation_error": "Couldn't save the dictionary entry. Check the word, katakana pronunciation, and accent position."
+    "operation_error": "Couldn't save the dictionary entry. Check the word, katakana pronunciation, and accent position.",
+    "preview_speaker": "Preview speaker",
+    "preview_style": "Preview style",
+    "preview_play": "Play pronunciation",
+    "preview_stop": "Stop playback",
+    "preview_error": "Couldn't play the pronunciation. Check the katakana pronunciation and accent position."
   },
   "text_block": {
     "input_label": "Text to synthesize",

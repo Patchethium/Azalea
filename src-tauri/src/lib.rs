@@ -81,6 +81,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
       move_dictionary_entry,
       delete_dictionary_entry,
       audio_query,
+      dictionary_preview_query,
       accent_phrases,
       replace_mora,
       replace_mora_pitch,

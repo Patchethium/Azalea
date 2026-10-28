@@ -157,7 +157,12 @@
     "priority_hint": "数值越大优先级越高（0–10）。",
     "delete": "删除词语",
     "load_error": "无法加载用户词典。",
-    "operation_error": "无法保存词典条目。请检查词语、片假名读音和重音位置。"
+    "operation_error": "无法保存词典条目。请检查词语、片假名读音和重音位置。",
+    "preview_speaker": "试听角色",
+    "preview_style": "试听风格",
+    "preview_play": "播放读音",
+    "preview_stop": "停止播放",
+    "preview_error": "无法播放读音。请检查片假名读音和重音位置。"
   },
   "text_block": {
     "input_label": "待合成文本",

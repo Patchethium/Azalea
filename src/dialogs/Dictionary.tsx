@@ -7,6 +7,7 @@ import {
   type Mora,
 } from "$binding";
 import { AppDialogContent } from "@dialogs/AppContent";
+import { SpeakerSelectionDialog } from "@dialogs/SpeakerSelection";
 import { IconButton } from "@components/iconButton";
 import { NumberInput } from "@components/numberField";
 import { Dialog } from "@kobalte/core/dialog";
@@ -15,6 +16,7 @@ import { AccentPhraseItem } from "@layout/bottomPanel/AccentPhraseItem";
 import { OptionSelector } from "@layout/sidebar/preset/Fields";
 import { ListToolbar } from "@layout/sidebar/preset/Toolbar";
 import { debounce } from "@solid-primitives/scheduled";
+import { listen } from "@tauri-apps/api/event";
 import { splitJapaneseMoras, toHalfWidthAscii } from "$utils";
 import {
   createEffect,
@@ -23,11 +25,13 @@ import {
   For,
   on,
   onCleanup,
+  onMount,
   Show,
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import { usei18n } from "@contexts/i18n";
-import { useTextStore } from "@contexts/text";
+import { useMetaStore } from "@contexts/meta";
+import { findPresetById, findPresetStyle, useTextStore } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
 
 interface DictionaryDialogProps {
@@ -61,14 +65,19 @@ interface PendingAutosave {
 
 export function DictionaryDialog(props: DictionaryDialogProps) {
   const { t1, t2 } = usei18n()!;
-  const { refreshGeneratedQueries } = useTextStore()!;
+  const { refreshGeneratedQueries, projectPresetStore, selectedTextBlock } =
+    useTextStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
+  const { metas } = useMetaStore()!;
   const [entries, setEntries] = createSignal<DictionaryEntry[]>([]);
   const [draft, setDraft] = createStore<DictionaryEntryInput>(emptyEntry());
   const [loading, setLoading] = createSignal(false);
   const [saving, setSaving] = createSignal(false);
   const [actionPending, setActionPending] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
+  const [previewPending, setPreviewPending] = createSignal(false);
+  const [previewPlaying, setPreviewPlaying] = createSignal(false);
+  const [speakerSelectionOpen, setSpeakerSelectionOpen] = createSignal(false);
   let requestRevision = 0;
   let editorRevision = 0;
   let pendingAutosave: PendingAutosave | null = null;
@@ -112,6 +121,94 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
     pause_mora: null,
     is_interrogative: false,
   }));
+
+  // The preview speaks with the style picked here, defaulting to the selected
+  // block's preset and then to the first available style.
+  const previewIdentity = createMemo(() => {
+    const chosen = uiStore.dictionaryPreviewStyleId;
+    for (const speaker of chosen === null ? [] : metas) {
+      const style = speaker.styles.find((style) => style.id === chosen);
+      if (style) return { speaker, style };
+    }
+    const preset = findPresetById(
+      projectPresetStore,
+      selectedTextBlock()?.preset_id,
+    );
+    const presetIdentity =
+      preset === null ? null : findPresetStyle(preset, metas);
+    if (presetIdentity !== null) return presetIdentity;
+    const speaker = metas.find((meta) => meta.styles.length > 0);
+    return speaker ? { speaker, style: speaker.styles[0] } : null;
+  });
+  const setPreviewStyleId = (styleId: number) =>
+    setUIStore("dictionaryPreviewStyleId", styleId);
+  const pronunciationIsKatakana = () =>
+    moraCount() > 0 &&
+    splitJapaneseMoras(draft.pronunciation).join("") === draft.pronunciation;
+  const canPreview = () =>
+    pronunciationIsKatakana() && previewIdentity() !== null;
+
+  const stopPreview = async () => {
+    setPreviewPlaying(false);
+    try {
+      const result = await commands.stopAudio();
+      if (result.status === "error") console.error(result.error);
+    } catch (stopError) {
+      console.error(stopError);
+    }
+  };
+
+  const speakPreview = async () => {
+    const identity = previewIdentity();
+    if (identity === null || !canPreview() || previewPending()) return;
+    const styleId = identity.style.id;
+    setPreviewPending(true);
+    setError(null);
+    try {
+      const query = await commands.dictionaryPreviewQuery(
+        draft.pronunciation,
+        draft.accent_type,
+        styleId,
+      );
+      if (query.status === "error") {
+        console.error(query.error);
+        setError(t1("dictionary.preview_error"));
+        return;
+      }
+      const result = await commands.playAudio(query.data, styleId, null, null);
+      if (result.status === "error") {
+        console.error(result.error);
+        setError(t1("dictionary.preview_error"));
+        return;
+      }
+      setPreviewPlaying(true);
+    } catch (previewError) {
+      console.error(previewError);
+      setError(t1("dictionary.preview_error"));
+    } finally {
+      setPreviewPending(false);
+    }
+  };
+
+  onMount(() => {
+    let disposed = false;
+    const unlisteners: Array<() => void> = [];
+    const follow = (event: string, failed: boolean) =>
+      void listen<string>(event, () => {
+        setPreviewPlaying(false);
+        if (failed) setError(t1("dictionary.preview_error"));
+      }).then((unlisten) => {
+        if (disposed) unlisten();
+        else unlisteners.push(unlisten);
+      });
+    follow("audio-playback-finished", false);
+    // Streaming playback starts before synthesis finishes, so rendering can still fail.
+    follow("audio-playback-failed", true);
+    onCleanup(() => {
+      disposed = true;
+      for (const unlisten of unlisteners) unlisten();
+    });
+  });
 
   const validEntry = (entry: DictionaryEntryInput) =>
     entry.surface.trim().length > 0 && entry.pronunciation.trim().length > 0;
@@ -290,11 +387,13 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
         else {
           flushAutosave();
           requestRevision += 1;
+          if (previewPlaying()) void stopPreview();
         }
       },
     ),
   );
   onCleanup(() => {
+    if (previewPlaying()) void stopPreview();
     scheduledAutosave.clear();
     pendingAutosave = null;
     requestRevision += 1;
@@ -495,6 +594,71 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
                     </div>
                   </div>
                 </Show>
+                <div class="grid grid-cols-2 gap3">
+                  <OptionSelector
+                    name={t1("dictionary.preview_speaker")}
+                    options={metas.map((meta) => meta.name)}
+                    value={previewIdentity()?.speaker.name ?? ""}
+                    onChange={(name) => {
+                      const speaker = metas.find((meta) => meta.name === name);
+                      if (speaker?.styles[0])
+                        setPreviewStyleId(speaker.styles[0].id);
+                    }}
+                    optionLang="ja"
+                    action={
+                      <IconButton
+                        type="button"
+                        icon="i-lucide:layout-grid"
+                        iconSize="sm"
+                        label={t1("speaker_selection.open")}
+                        size="lg"
+                        class="b b-border"
+                        onClick={() => setSpeakerSelectionOpen(true)}
+                      />
+                    }
+                  />
+                  <OptionSelector
+                    name={t1("dictionary.preview_style")}
+                    options={
+                      previewIdentity()?.speaker.styles.map(
+                        (style) => style.name,
+                      ) ?? []
+                    }
+                    value={previewIdentity()?.style.name ?? ""}
+                    onChange={(name) => {
+                      const style = previewIdentity()?.speaker.styles.find(
+                        (candidate) => candidate.name === name,
+                      );
+                      if (style) setPreviewStyleId(style.id);
+                    }}
+                    optionLang="ja"
+                    action={
+                      <IconButton
+                        type="button"
+                        icon={
+                          previewPlaying() ? "i-lucide:square" : "i-lucide:play"
+                        }
+                        iconSize="sm"
+                        label={
+                          previewPlaying()
+                            ? t1("dictionary.preview_stop")
+                            : t1("dictionary.preview_play")
+                        }
+                        size="lg"
+                        class="b b-border"
+                        disabled={
+                          !previewPlaying() &&
+                          (!canPreview() || previewPending())
+                        }
+                        onClick={() =>
+                          void (previewPlaying()
+                            ? stopPreview()
+                            : speakPreview())
+                        }
+                      />
+                    }
+                  />
+                </div>
               </div>
             </fieldset>
 
@@ -507,6 +671,16 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
             </Show>
           </div>
         </div>
+        <SpeakerSelectionDialog
+          open={speakerSelectionOpen()}
+          onOpenChange={setSpeakerSelectionOpen}
+          speakers={metas}
+          selectedSpeakerUuid={previewIdentity()?.speaker.speaker_uuid ?? null}
+          onSelect={(speaker) => {
+            setPreviewStyleId(speaker.styles[0].id);
+            setSpeakerSelectionOpen(false);
+          }}
+        />
       </AppDialogContent>
     </Dialog>
   );

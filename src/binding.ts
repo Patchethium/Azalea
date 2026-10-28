@@ -278,6 +278,17 @@ async audioQuery(text: string, speakerId: StyleId, seed: number) : Promise<Resul
 }
 },
 /**
+ * Creates the query the dictionary dialog plays for an entry's pronunciation and accent
+ */
+async dictionaryPreviewQuery(pronunciation: string, accentType: number, speakerId: StyleId) : Promise<Result<AudioQuery, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("dictionary_preview_query", { pronunciation, accentType, speakerId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Encodes text into accent phrases
  */
 async accentPhrases(text: string, speakerId: StyleId, seed: number) : Promise<Result<AccentPhrase[], string>> {

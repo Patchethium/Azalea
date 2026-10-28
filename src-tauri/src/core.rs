@@ -257,6 +257,16 @@ impl Core {
     ))
   }
 
+  /// Creates a query from AquesTalk-style kana, bypassing text analysis.
+  pub fn audio_query_from_kana(&self, kana: &str, speaker_id: StyleId) -> Result<AudioQuery> {
+    self.ensure_speaker_loaded(speaker_id)?;
+    Ok(
+      self
+        .synthesizer
+        .create_audio_query_from_kana(kana, speaker_id)?,
+    )
+  }
+
   pub fn accent_phrases(&self, text: &str, speaker_id: StyleId) -> Result<Vec<AccentPhrase>> {
     self.accent_phrases_with_english(text, speaker_id, None)
   }

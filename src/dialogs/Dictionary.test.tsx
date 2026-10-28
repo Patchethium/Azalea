@@ -2,16 +2,17 @@ import type { DictionaryEntry } from "$binding";
 import { DictionaryDialog } from "@dialogs/Dictionary";
 import { MultiProvider } from "@solid-primitives/context";
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
+import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import userEvent from "@testing-library/user-event";
 import { batch, type Component, createSignal, onMount } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
 import { ConfigProvider } from "@contexts/config";
 import { i18nProvider } from "@contexts/i18n";
-import { MetaProvider } from "@contexts/meta";
+import { MetaProvider, useMetaStore } from "@contexts/meta";
 import { TextProvider, useTextStore } from "@contexts/text";
 import { UIProvider } from "@contexts/ui";
-import { audioQuery, config } from "../test/fixtures";
+import { audioQuery, config, metas } from "../test/fixtures";
 
 const existingEntry: DictionaryEntry = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -32,12 +33,15 @@ const deferred = <T,>() => {
 
 function renderDictionary(
   setup?: (text: NonNullable<ReturnType<typeof useTextStore>>) => void,
+  speakers: typeof metas = [],
 ) {
   let text!: NonNullable<ReturnType<typeof useTextStore>>;
   const Harness: Component = () => {
     text = useTextStore()!;
+    const meta = useMetaStore()!;
     onMount(() => {
       batch(() => {
+        if (speakers.length > 0) meta.setMetas(speakers);
         text.replaceTextBlocks([
           {
             id: "generated",
@@ -678,5 +682,121 @@ describe("DictionaryDialog", () => {
     await Promise.resolve();
     expect(screen.getByDisplayValue("最新")).toBeInTheDocument();
     expect(screen.queryByDisplayValue("既存")).not.toBeInTheDocument();
+  });
+
+  it("speaks the draft with the chosen preview style and stops it", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const previews: Array<Record<string, unknown>> = [];
+    const plays: Array<Record<string, unknown>> = [];
+    let stops = 0;
+    mockIPC(
+      (cmd, args) => {
+        if (cmd === "get_dictionary_entries") return [existingEntry];
+        if (cmd === "dictionary_preview_query") {
+          previews.push(args as Record<string, unknown>);
+          return audioQuery();
+        }
+        if (cmd === "play_audio") {
+          plays.push(args as Record<string, unknown>);
+          return null;
+        }
+        if (cmd === "stop_audio") stops += 1;
+        return null;
+      },
+      { shouldMockEvents: true },
+    );
+    renderDictionary(undefined, metas);
+    expect(await screen.findByDisplayValue("既存")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^Preview style / }));
+    await user.click(
+      await screen.findByRole("option", { name: "Normal", hidden: true }),
+    );
+    expect(
+      screen.getByRole("button", { name: "Preview style Normal" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Preview speaker Speaker" }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Play pronunciation" }),
+    );
+    await waitFor(() => expect(plays).toHaveLength(1));
+    expect(previews).toEqual([
+      { pronunciation: "キソン", accentType: 0, speakerId: 1 },
+    ]);
+    expect(plays[0]).toMatchObject({ speakerId: 1, post: null });
+
+    await user.click(
+      await screen.findByRole("button", { name: "Stop playback" }),
+    );
+    expect(stops).toBe(1);
+    expect(
+      await screen.findByRole("button", { name: "Play pronunciation" }),
+    ).toBeEnabled();
+
+    await user.click(
+      screen.getByRole("button", { name: "Play pronunciation" }),
+    );
+    await screen.findByRole("button", { name: "Stop playback" });
+    await emit("audio-playback-finished");
+    expect(
+      await screen.findByRole("button", { name: "Play pronunciation" }),
+    ).toBeEnabled();
+  });
+
+  it("disables the preview for non-katakana drafts and reports failures", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    let failPreview = true;
+    mockIPC(
+      (cmd) => {
+        if (cmd === "get_dictionary_entries") return [existingEntry];
+        if (cmd === "dictionary_preview_query") {
+          if (failPreview) throw "kana parse failed";
+          return audioQuery();
+        }
+        if (cmd === "play_audio") throw "playback failed";
+        return null;
+      },
+      { shouldMockEvents: true },
+    );
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    renderDictionary(undefined, metas);
+    expect(await screen.findByDisplayValue("既存")).toBeInTheDocument();
+    const play = screen.getByRole("button", { name: "Play pronunciation" });
+
+    await user.click(play);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Couldn't play the pronunciation.",
+    );
+
+    failPreview = false;
+    await user.click(play);
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Couldn't play the pronunciation.",
+      ),
+    );
+    expect(play).toBeEnabled();
+
+    const pronunciation = screen.getByRole("textbox", {
+      name: "Pronunciation",
+    });
+    await user.clear(pronunciation);
+    await user.type(pronunciation, "きそん");
+    expect(play).toBeDisabled();
+    vi.restoreAllMocks();
+  });
+
+  it("disables the preview when no speaker is available", async () => {
+    mockIPC((cmd) => (cmd === "get_dictionary_entries" ? [] : null), {
+      shouldMockEvents: true,
+    });
+    renderDictionary();
+    await screen.findByText("No words have been registered yet.");
+    expect(
+      screen.getByRole("button", { name: "Play pronunciation" }),
+    ).toBeDisabled();
   });
 });

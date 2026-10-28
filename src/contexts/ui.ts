@@ -26,6 +26,8 @@ type PostPlaybackStart = { blockId: string; base: string; seconds: number };
 type UIStoreType = {
   selectedTextBlockIndex: number;
   selectedDictionaryEntryId: string | null;
+  /** Style the dictionary dialog previews with; kept for the session only. */
+  dictionaryPreviewStyleId: number | null;
   coreInitialized: boolean;
   page: PageType;
   bottomPanel: BottomPanelType;
@@ -45,6 +47,7 @@ const [UIProvider, useUIStore] = createContextProvider(() => {
   const [uiStore, setUIStore] = createStore<UIStoreType>({
     selectedTextBlockIndex: 0,
     selectedDictionaryEntryId: null,
+    dictionaryPreviewStyleId: null,
     coreInitialized: false,
     page: null,
     bottomPanel: "accent",
