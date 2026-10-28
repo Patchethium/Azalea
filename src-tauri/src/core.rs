@@ -1,5 +1,5 @@
 use voicevox_core::{
-  blocking::{Onnxruntime, OpenJtalk, Synthesizer, UserDict, VoiceModelFile},
+  blocking::{Onnxruntime, OpenJtalk, Synthesizer, TextAnalyzer, UserDict, VoiceModelFile},
   nonblocking::{
     Onnxruntime as NonblockingOnnxruntime, Synthesizer as NonblockingSynthesizer,
     VoiceModelFile as NonblockingVoiceModelFile,
@@ -285,6 +285,12 @@ impl Core {
       .english
       .analyze(self.synthesizer.text_analyzer(), text, options)?;
     Ok(self.synthesizer.replace_mora_data(&phrases, speaker_id)?)
+  }
+
+  /// OpenJTalk's analysis of `text` with the current user dictionary, without
+  /// mora lengths or pitches, so no voice model is needed.
+  pub fn analyze_text(&self, text: &str) -> Result<Vec<AccentPhrase>> {
+    self.synthesizer.text_analyzer().analyze(text)
   }
 
   pub fn use_user_dictionary(&self, dictionary: &UserDict) -> Result<()> {

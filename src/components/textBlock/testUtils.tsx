@@ -2,7 +2,7 @@ import TextBlock, { TextBlockList } from "@components/textBlock";
 import { AutogrowInput } from "@components/textBlock/AutogrowInput";
 import { AppToastRegion } from "@components/toast";
 import { BottomPanel } from "@layout/bottomPanel";
-import type { AzaleaConfig, KeyboardShortcuts } from "$binding";
+import type { AudioQuery, AzaleaConfig, KeyboardShortcuts } from "$binding";
 import { MultiProvider } from "@solid-primitives/context";
 import { render } from "@solidjs/testing-library";
 import { mockIPC } from "@tauri-apps/api/mocks";
@@ -50,6 +50,8 @@ export const renderBlock = (
   renderAllBlocks = false,
   configOverrides: Partial<AzaleaConfig["ui"]> = {},
   withBottomPanel = false,
+  // A block without a query reads its text when it mounts.
+  initialQuery: AudioQuery | null = audioQuery(),
 ) => {
   let text!: NonNullable<ReturnType<typeof useTextStore>>;
   let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
@@ -75,7 +77,7 @@ export const renderBlock = (
             {
               id: "text-block",
               text: "hello",
-              query: audioQuery(),
+              query: initialQuery,
               pitch_is_modified: pitchIsModified,
               pitch_noise_seed: 0,
               preset_id: "preset-1",

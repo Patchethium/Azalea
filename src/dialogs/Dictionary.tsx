@@ -65,8 +65,7 @@ interface PendingAutosave {
 
 export function DictionaryDialog(props: DictionaryDialogProps) {
   const { t1, t2 } = usei18n()!;
-  const { refreshGeneratedQueries, projectPresetStore, selectedTextBlock } =
-    useTextStore()!;
+  const { projectPresetStore, selectedTextBlock } = useTextStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
   const { metas } = useMetaStore()!;
   const [entries, setEntries] = createSignal<DictionaryEntry[]>([]);
@@ -78,11 +77,16 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
   const [previewPending, setPreviewPending] = createSignal(false);
   const [previewPlaying, setPreviewPlaying] = createSignal(false);
   const [speakerSelectionOpen, setSpeakerSelectionOpen] = createSignal(false);
+  const [readingConflicts, setReadingConflicts] = createSignal<{
+    id: string;
+    texts: string[];
+  } | null>(null);
   let requestRevision = 0;
   let editorRevision = 0;
   let pendingAutosave: PendingAutosave | null = null;
   let autosaveReady = false;
   let autosaveRunning = false;
+  let conflictRevision = 0;
 
   const selectedId = () => uiStore.selectedDictionaryEntryId;
   const setSelectedId = (id: string | null) =>
@@ -210,6 +214,32 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
     });
   });
 
+  // OpenJTalk keeps its own reading where it costs less than the entry, so
+  // check the saved entry alone and before particles.
+  const checkReadingConflicts = async (id: string) => {
+    const revision = ++conflictRevision;
+    try {
+      const result = await commands.dictionaryEntryConflicts(id);
+      if (revision !== conflictRevision) return;
+      if (result.status === "error") {
+        console.error(result.error);
+        setReadingConflicts(null);
+        return;
+      }
+      setReadingConflicts({ id, texts: result.data });
+    } catch (checkError) {
+      if (revision !== conflictRevision) return;
+      console.error(checkError);
+      setReadingConflicts(null);
+    }
+  };
+  const conflictTexts = () => {
+    const conflicts = readingConflicts();
+    return conflicts !== null && conflicts.id === selectedId() && !saving()
+      ? conflicts.texts
+      : [];
+  };
+
   const validEntry = (entry: DictionaryEntryInput) =>
     entry.surface.trim().length > 0 && entry.pronunciation.trim().length > 0;
 
@@ -247,6 +277,7 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
             continue;
           }
           mergeEntry(result.data);
+          void checkReadingConflicts(result.data.id);
           if (request.id === null) {
             assignCreatedEntryId(request.editorRevision, result.data.id);
             if (
@@ -257,7 +288,6 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
             }
           }
           setError(null);
-          refreshGeneratedQueries();
         } catch (saveError) {
           console.error(saveError);
           setError(t1("dictionary.operation_error"));
@@ -341,11 +371,14 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
       priority: entry.priority,
     });
     setError(null);
+    void checkReadingConflicts(entry.id);
   };
 
   const startNewEntry = () => {
     flushAutosave();
     editorRevision += 1;
+    conflictRevision += 1;
+    setReadingConflicts(null);
     setSelectedId(null);
     setDraft(emptyEntry());
     setError(null);
@@ -416,7 +449,6 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
       setEntries(remaining);
       if (remaining[0]) selectEntry(remaining[0]);
       else startNewEntry();
-      refreshGeneratedQueries();
     } catch (removeError) {
       console.error(removeError);
       setError(t1("dictionary.operation_error"));
@@ -438,7 +470,6 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
         return;
       }
       setEntries(result.data);
-      refreshGeneratedQueries();
     } catch (moveError) {
       console.error(moveError);
       setError(t1("dictionary.operation_error"));
@@ -563,6 +594,18 @@ export function DictionaryDialog(props: DictionaryDialogProps) {
                   />
                 </div>
               </div>
+              <Show when={conflictTexts().length > 0}>
+                <div
+                  role="status"
+                  class="flex items-start gap2 rounded-md b b-warning-border bg-warning-soft p2 text-sm"
+                >
+                  <div
+                    aria-hidden="true"
+                    class="i-lucide:triangle-alert mt-0.5 size-4 shrink-0 text-warning-ink"
+                  />
+                  <span>{t1("dictionary.priority_warning")}</span>
+                </div>
+              </Show>
               <div class="flex flex-col gap1">
                 <div class="flex items-center gap1">
                   <span class="text-sm">{t1("dictionary.accent_type")}</span>

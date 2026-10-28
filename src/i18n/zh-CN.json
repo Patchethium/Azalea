@@ -162,7 +162,8 @@
     "preview_style": "试听风格",
     "preview_play": "播放读音",
     "preview_stop": "停止播放",
-    "preview_error": "无法播放读音。请检查片假名读音和重音位置。"
+    "preview_error": "无法播放读音。请检查片假名读音和重音位置。",
+    "priority_warning": "优先级过低可能导致词条注入不明确，建议提高优先级。"
   },
   "text_block": {
     "input_label": "待合成文本",

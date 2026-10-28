@@ -23,6 +23,14 @@ const existingEntry: DictionaryEntry = {
   priority: 5,
 };
 
+// Entries read as registered unless a test answers the reading check itself.
+const mockDictionaryIPC: typeof mockIPC = (handler, options) =>
+  mockIPC(
+    (cmd, args) =>
+      cmd === "dictionary_entry_conflicts" ? [] : handler(cmd, args),
+    options,
+  );
+
 const deferred = <T,>() => {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((resolvePromise) => {
@@ -87,12 +95,12 @@ const getAccentSlider = () =>
     .find((element) => element.tagName === "SPAN")!;
 
 describe("DictionaryDialog", () => {
-  it("adds, edits, and deletes entries while refreshing only generated queries", async () => {
+  it("adds, edits, and deletes entries without refreshing existing queries", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     const invocations: Array<{ cmd: string; args: Record<string, unknown> }> =
       [];
     let entries = [existingEntry];
-    mockIPC((cmd, args) => {
+    mockDictionaryIPC((cmd, args) => {
       invocations.push({ cmd, args: args as Record<string, unknown> });
       if (cmd === "get_dictionary_entries") return entries;
       if (cmd === "add_dictionary_entry") {
@@ -248,7 +256,8 @@ describe("DictionaryDialog", () => {
     expect(
       invocations.filter(({ cmd }) => cmd === "add_dictionary_entry"),
     ).toHaveLength(1);
-    expect(dialog.getText().textStore[0].query).toBeNull();
+    // Existing blocks keep their readings; only blocks read later use the entry.
+    expect(dialog.getText().textStore[0].query).toEqual(audioQuery());
     expect(dialog.getText().textStore[1]).toMatchObject({
       pitch_is_modified: true,
       pitch_noise_seed: 0,
@@ -329,7 +338,7 @@ describe("DictionaryDialog", () => {
   });
 
   it("clamps the accent position to the pronunciation's mora count", async () => {
-    mockIPC((cmd) => {
+    mockDictionaryIPC((cmd) => {
       if (cmd === "get_dictionary_entries") return [];
       return null;
     });
@@ -405,7 +414,7 @@ describe("DictionaryDialog", () => {
       id: string;
       entry: Omit<DictionaryEntry, "id">;
     }> = [];
-    mockIPC((cmd, args) => {
+    mockDictionaryIPC((cmd, args) => {
       if (cmd === "get_dictionary_entries") return [];
       if (cmd === "add_dictionary_entry") {
         addedInput = (args as { entry: Omit<DictionaryEntry, "id"> }).entry;
@@ -455,7 +464,7 @@ describe("DictionaryDialog", () => {
 
   it("cancels a queued autosave when the draft becomes incomplete", async () => {
     let updateCalls = 0;
-    mockIPC((cmd) => {
+    mockDictionaryIPC((cmd) => {
       if (cmd === "get_dictionary_entries") return [existingEntry];
       if (cmd === "update_dictionary_entry") updateCalls += 1;
       return null;
@@ -476,7 +485,7 @@ describe("DictionaryDialog", () => {
 
   it("reports load and validation failures without discarding the editor", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    mockIPC((cmd) => {
+    mockDictionaryIPC((cmd) => {
       if (cmd === "get_dictionary_entries") throw "load failed";
       return null;
     });
@@ -490,7 +499,7 @@ describe("DictionaryDialog", () => {
     ).not.toBeInTheDocument();
     rejected.unmount();
 
-    mockIPC((cmd) => {
+    mockDictionaryIPC((cmd) => {
       if (cmd === "get_dictionary_entries") throw new Error("transport failed");
       return null;
     });
@@ -506,7 +515,7 @@ describe("DictionaryDialog", () => {
     let updateCalls = 0;
     let moveCalls = 0;
     let deleteCalls = 0;
-    mockIPC((cmd) => {
+    mockDictionaryIPC((cmd) => {
       if (cmd === "get_dictionary_entries") {
         return [
           existingEntry,
@@ -587,7 +596,7 @@ describe("DictionaryDialog", () => {
     };
     let availableEntries = [existingEntry, rememberedEntry];
     let loadCalls = 0;
-    mockIPC((cmd) => {
+    mockDictionaryIPC((cmd) => {
       if (cmd !== "get_dictionary_entries") return null;
       loadCalls += 1;
       return availableEntries;
@@ -643,7 +652,7 @@ describe("DictionaryDialog", () => {
       pronunciation: "サイシン",
     };
     let loadCalls = 0;
-    mockIPC((cmd) => {
+    mockDictionaryIPC((cmd) => {
       if (cmd !== "get_dictionary_entries") return null;
       loadCalls += 1;
       return loadCalls === 1 ? firstLoad.promise : [freshEntry];
@@ -689,7 +698,7 @@ describe("DictionaryDialog", () => {
     const previews: Array<Record<string, unknown>> = [];
     const plays: Array<Record<string, unknown>> = [];
     let stops = 0;
-    mockIPC(
+    mockDictionaryIPC(
       (cmd, args) => {
         if (cmd === "get_dictionary_entries") return [existingEntry];
         if (cmd === "dictionary_preview_query") {
@@ -749,7 +758,7 @@ describe("DictionaryDialog", () => {
   it("disables the preview for non-katakana drafts and reports failures", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     let failPreview = true;
-    mockIPC(
+    mockDictionaryIPC(
       (cmd) => {
         if (cmd === "get_dictionary_entries") return [existingEntry];
         if (cmd === "dictionary_preview_query") {
@@ -790,7 +799,7 @@ describe("DictionaryDialog", () => {
   });
 
   it("disables the preview when no speaker is available", async () => {
-    mockIPC((cmd) => (cmd === "get_dictionary_entries" ? [] : null), {
+    mockDictionaryIPC((cmd) => (cmd === "get_dictionary_entries" ? [] : null), {
       shouldMockEvents: true,
     });
     renderDictionary();
@@ -798,5 +807,75 @@ describe("DictionaryDialog", () => {
     expect(
       screen.getByRole("button", { name: "Play pronunciation" }),
     ).toBeDisabled();
+  });
+
+  it("warns when sentences keep the built-in reading until the priority wins", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const otherEntry: DictionaryEntry = {
+      ...existingEntry,
+      id: "55555555-5555-4555-8555-555555555555",
+      surface: "Ａｚａｌｅａ",
+      pronunciation: "アザレア",
+    };
+    let entries = [existingEntry, otherEntry];
+    const staleCheck = deferred<string[]>();
+    let failCheck = false;
+    const checks: string[] = [];
+    mockIPC((cmd, args) => {
+      if (cmd === "get_dictionary_entries") return entries;
+      if (cmd === "update_dictionary_entry") {
+        const { id, entry } = args as {
+          id: string;
+          entry: Omit<DictionaryEntry, "id">;
+        };
+        const updated = { ...entry, id };
+        entries = entries.map((item) => (item.id === id ? updated : item));
+        return updated;
+      }
+      if (cmd === "dictionary_entry_conflicts") {
+        const { id } = args as { id: string };
+        checks.push(id);
+        if (failCheck) throw "analysis failed";
+        if (id === otherEntry.id) return staleCheck.promise;
+        const priority = entries.find((entry) => entry.id === id)!.priority;
+        return priority >= 8 ? [] : ["既存は", "既存を", "既存に", "既存の"];
+      }
+      return null;
+    });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    renderDictionary();
+
+    const warning =
+      "Low priority may cause ambiguous injection; you may want to raise it.";
+    expect(await screen.findByRole("status")).toHaveTextContent(warning);
+
+    // A response for an entry that is no longer selected is ignored.
+    await user.click(screen.getByText("Azalea"));
+    await user.click(screen.getByText("既存"));
+    await waitFor(() => expect(checks).toHaveLength(3));
+    expect(await screen.findByRole("status")).toHaveTextContent(warning);
+    staleCheck.resolve([]);
+    await Promise.resolve();
+    expect(screen.getByRole("status")).toHaveTextContent(warning);
+
+    const increase = screen.getByRole("button", { name: "Increase Priority" });
+    await user.click(increase);
+    // The warning hides while the edit saves and is checked again afterwards.
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(await screen.findByRole("status")).toHaveTextContent(warning);
+    await user.click(increase);
+    await user.click(increase);
+    await waitFor(() => expect(entries[0].priority).toBe(8));
+    await waitFor(() =>
+      expect(screen.queryByRole("status")).not.toBeInTheDocument(),
+    );
+
+    failCheck = true;
+    await user.click(screen.getByText("Azalea"));
+    await waitFor(() =>
+      expect(console.error).toHaveBeenCalledWith("analysis failed"),
+    );
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    vi.restoreAllMocks();
   });
 });

@@ -159,8 +159,9 @@ const hasNoFocusedElement = () => {
   );
 };
 
-// Mirrors the fields persisted by `save_project`, ignoring regenerated queries
-// so that derived `AudioQuery` refreshes do not count as user edits.
+// Mirrors the fields persisted by `save_project`. Unedited queries are saved
+// too, but regenerating them is derived work rather than a user edit, so they
+// do not make the project dirty.
 const serializeProject = (
   blocks: readonly TextBlockProps[],
   presets: readonly Preset[],

@@ -5,7 +5,8 @@ use std::sync::Arc;
 use tauri::State;
 use uuid::Uuid;
 use voicevox_core::{
-  blocking::UserDict, UserDictWord, UserDictWordPriority, UserDictWordType as CoreUserDictWordType,
+  blocking::UserDict, AccentPhrase, UserDictWord, UserDictWordPriority,
+  UserDictWordType as CoreUserDictWordType,
 };
 
 #[derive(Clone, Copy, Debug, serde::Deserialize, serde::Serialize, specta::Type, PartialEq, Eq)]
@@ -93,10 +94,10 @@ fn long_vowel_kana(last: char) -> Option<char> {
     .map(|&(_, vowel)| vowel)
 }
 
-/// AquesTalk-style kana reading a dictionary entry as the dialog previews it:
-/// the pronunciation followed by the particle ガ, accented by `accent_type`
-/// (0 keeps the pitch up through the particle).
-pub fn dictionary_preview_kana(pronunciation: &str, accent_type: u32) -> Result<String, String> {
+/// The moras of a katakana pronunciation, with each long-vowel mark spelled as
+/// the vowel it extends, as both the kana notation and OpenJTalk's mora text
+/// write it.
+fn pronunciation_moras(pronunciation: &str) -> Result<Vec<String>, String> {
   let mut moras: Vec<String> = Vec::new();
   for letter in pronunciation.chars() {
     if !('ァ'..='ヴ').contains(&letter) && letter != 'ー' {
@@ -109,7 +110,6 @@ pub fn dictionary_preview_kana(pronunciation: &str, accent_type: u32) -> Result<
       }
     }
     let letter = if letter == 'ー' {
-      // The kana notation has no long-vowel mark, so repeat the vowel instead.
       moras
         .last()
         .and_then(|mora| mora.chars().last())
@@ -120,6 +120,14 @@ pub fn dictionary_preview_kana(pronunciation: &str, accent_type: u32) -> Result<
     };
     moras.push(letter.to_string());
   }
+  Ok(moras)
+}
+
+/// AquesTalk-style kana reading a dictionary entry as the dialog previews it:
+/// the pronunciation followed by the particle ガ, accented by `accent_type`
+/// (0 keeps the pitch up through the particle).
+pub fn dictionary_preview_kana(pronunciation: &str, accent_type: u32) -> Result<String, String> {
+  let mut moras = pronunciation_moras(pronunciation)?;
   if moras.is_empty() {
     return Err("Pronunciation must not be empty".into());
   }
@@ -134,6 +142,56 @@ pub fn dictionary_preview_kana(pronunciation: &str, accent_type: u32) -> Result<
     moras[..accent].concat(),
     moras[accent..].concat()
   ))
+}
+
+/// Particles that follow a noun in the sentences the reading check analyzes.
+const READING_CHECK_PARTICLES: [&str; 6] = ["は", "が", "を", "に", "の", "も"];
+
+/// Texts that show whether an entry's reading is used. MeCab picks the path
+/// with the lowest total of word and connection costs, so an entry that wins
+/// alone can still lose next to a particle; nouns are also read before the
+/// common particles. Suffixes never stand alone and are not checked.
+fn reading_check_texts(surface: &str, word_type: DictionaryWordType) -> Vec<String> {
+  match word_type {
+    DictionaryWordType::ProperNoun | DictionaryWordType::CommonNoun => {
+      std::iter::once(surface.to_string())
+        .chain(
+          READING_CHECK_PARTICLES
+            .iter()
+            .map(|particle| format!("{surface}{particle}")),
+        )
+        .collect()
+    }
+    DictionaryWordType::Verb | DictionaryWordType::Adjective => vec![surface.to_string()],
+    DictionaryWordType::Suffix => Vec::new(),
+  }
+}
+
+/// Whether the analyzed text starts with the entry's pronunciation.
+fn reads_with_pronunciation(phrases: &[AccentPhrase], pronunciation: &[String]) -> bool {
+  phrases
+    .iter()
+    .flat_map(|phrase| &phrase.moras)
+    .map(|mora| mora.text.as_str())
+    .collect::<String>()
+    .starts_with(&pronunciation.concat())
+}
+
+/// The check texts in which `analyze` does not read the entry's pronunciation.
+fn reading_conflicts(
+  word: &UserDictWord,
+  analyze: impl Fn(&str) -> anyhow::Result<Vec<AccentPhrase>>,
+) -> Result<Vec<String>, String> {
+  let word_type = dictionary_word_type(word.word_type())?;
+  let pronunciation = pronunciation_moras(word.pronunciation())?;
+  let mut conflicts = Vec::new();
+  for text in reading_check_texts(word.surface(), word_type) {
+    let phrases = analyze(&text).map_err(|error| error.to_string())?;
+    if !reads_with_pronunciation(&phrases, &pronunciation) {
+      conflicts.push(text);
+    }
+  }
+  Ok(conflicts)
 }
 
 fn entry_from_word(id: Uuid, word: &UserDictWord) -> Result<DictionaryEntry, String> {
@@ -296,6 +354,31 @@ pub async fn get_dictionary_entries(
   .await
 }
 
+/// The check texts in which `core` does not read `word`'s pronunciation with
+/// the user dictionary it has loaded.
+pub fn entry_reading_conflicts(core: &Core, word: &UserDictWord) -> Result<Vec<String>, String> {
+  reading_conflicts(word, |text| core.analyze_text(text))
+}
+
+/// Texts in which the entry's reading loses to the system dictionary, which
+/// raising its priority can fix. Empty when every check text uses the entry.
+#[tauri::command]
+#[specta::specta]
+pub async fn dictionary_entry_conflicts(
+  state: State<'_, AppState>,
+  id: String,
+) -> Result<Vec<String>, String> {
+  let id = Uuid::parse_str(&id).map_err(|error| error.to_string())?;
+  run_dictionary_task(&state, move |core, path| {
+    let core = core.ok_or_else(|| "core is not initialized".to_string())?;
+    let word = load_dictionary(path)?
+      .with_words(|words| words.get(&id).cloned())
+      .ok_or_else(|| "Dictionary entry was not found".to_string())?;
+    entry_reading_conflicts(&core, &word)
+  })
+  .await
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn add_dictionary_entry(
@@ -394,6 +477,65 @@ mod tests {
       word_type: DictionaryWordType::ProperNoun,
       priority: 7,
     }
+  }
+
+  fn phrases(reading: &str) -> Vec<AccentPhrase> {
+    let query = serde_json::json!({
+      "moras": reading.chars().map(|text| serde_json::json!({
+        "text": text.to_string(),
+        "consonant": null,
+        "consonant_length": null,
+        "vowel": "a",
+        "vowel_length": 0.0,
+        "pitch": 0.0,
+      })).collect::<Vec<_>>(),
+      "accent": 1,
+      "pause_mora": null,
+      "is_interrogative": false,
+    });
+    vec![serde_json::from_value(query).unwrap()]
+  }
+
+  fn word(word_type: DictionaryWordType) -> UserDictWord {
+    let mut entry = input("東雲");
+    entry.pronunciation = "トウウン".into();
+    entry.word_type = word_type;
+    build_word(entry).unwrap()
+  }
+
+  #[test]
+  fn reading_conflicts_report_the_texts_that_lose_the_entry() {
+    let analyze = |text: &str| {
+      Ok(phrases(if text == "東雲" || text == "東雲が" {
+        "トウウンガ"
+      } else {
+        "シノノメワ"
+      }))
+    };
+    assert_eq!(
+      reading_conflicts(&word(DictionaryWordType::ProperNoun), analyze).unwrap(),
+      ["東雲は", "東雲を", "東雲に", "東雲の", "東雲も"]
+    );
+    assert_eq!(
+      reading_conflicts(&word(DictionaryWordType::Verb), analyze).unwrap(),
+      Vec::<String>::new()
+    );
+    assert!(reading_conflicts(
+      &word(DictionaryWordType::Suffix),
+      |_| -> anyhow::Result<_> { panic!("suffixes are not analyzed") }
+    )
+    .unwrap()
+    .is_empty());
+    // OpenJTalk spells a long vowel as the vowel it extends.
+    let ramen = pronunciation_moras("ラーメン").unwrap();
+    assert!(reads_with_pronunciation(&phrases("ラアメンワ"), &ramen));
+    assert!(!reads_with_pronunciation(&phrases("ラメンワ"), &ramen));
+    assert!(
+      reading_conflicts(&word(DictionaryWordType::CommonNoun), |_| {
+        anyhow::bail!("analysis failed")
+      })
+      .is_err()
+    );
   }
 
   #[test]

@@ -8,7 +8,7 @@ use std::{
 
 use azalea_lib::{
   audio::spectal::MelSpec,
-  commands::dictionary_preview_kana,
+  commands::{dictionary_preview_kana, entry_reading_conflicts},
   core::{is_talk_style, Core},
   english::EnglishOptions,
   streaming::{start_frame, StreamPlan, DEFAULT_CHUNK_SCHEDULE},
@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use typed_floats::{NonNaNFinite, PositiveFinite};
 use voicevox_core::{
   blocking::UserDict, AccentPhrase, AudioQuery, Mora, PitchNoiseOptions, SamplingRate, StyleId,
-  UserDictWord,
+  UserDictWord, UserDictWordPriority, UserDictWordType,
 };
 
 mod common;
@@ -350,6 +350,50 @@ fn real_core_previews_dictionary_pronunciations_with_their_accent() {
       "{kana} has no predicted pitch"
     );
   }
+}
+
+#[test]
+fn real_core_reports_dictionary_entries_that_lose_in_sentences() {
+  let core = test_core();
+  let entry = |surface: &str, pronunciation: &str, priority: u8| {
+    // The builder defaults to a common noun; the dialog defaults to a proper noun.
+    UserDictWord::builder()
+      .word_type(UserDictWordType::ProperNoun)
+      .priority(UserDictWordPriority::new(priority).unwrap())
+      .build(surface, pronunciation.into(), 0)
+      .expect("test dictionary word is invalid")
+  };
+  let conflicts = |word: UserDictWord| {
+    let dictionary = UserDict::new();
+    dictionary
+      .add_word(word.clone())
+      .expect("failed to add dictionary word");
+    core
+      .use_user_dictionary(&dictionary)
+      .expect("failed to apply user dictionary");
+    entry_reading_conflicts(&core, &word).expect("reading check failed")
+  };
+
+  // OpenJTalk's common-noun シノノメ connects to particles better than a
+  // proper noun, so priority 7 wins alone but not before は, priority 8 still
+  // loses before を, and priority 10 wins everywhere.
+  let losing = conflicts(entry("東雲", "トウウン", 7));
+  assert!(!losing.contains(&"東雲".to_string()), "{losing:?}");
+  assert!(losing.contains(&"東雲は".to_string()), "{losing:?}");
+  assert_eq!(conflicts(entry("東雲", "トウウン", 8)), ["東雲を"]);
+  assert!(conflicts(entry("東雲", "トウウン", 10)).is_empty());
+  // Long-vowel marks in the pronunciation match OpenJTalk's mora text.
+  assert!(conflicts(entry("Azalea", "アザレーア", 5)).is_empty());
+  assert_eq!(
+    conflicts(entry("東雲", "トウウン", 5))
+      .first()
+      .map(String::as_str),
+    Some("東雲")
+  );
+
+  core
+    .use_user_dictionary(&UserDict::new())
+    .expect("failed to clear user dictionary");
 }
 
 #[test]

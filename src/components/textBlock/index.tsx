@@ -152,13 +152,24 @@ function TextBlock(props: { index: number; sortable?: Sortable }) {
         queryRefreshVersion,
         () => currentText().pitch_noise_seed,
       ],
-      ([, text, styleId, , seed]) => {
+      ([id, text, styleId, , seed], previous) => {
         const sourceBlock = currentText();
         const requestRevision = ++queryRequestRevision;
+        // A block keeps the query it has (loaded, copied or generated earlier)
+        // until its own content changes, so user dictionary changes reach
+        // only blocks read after them. Refreshes clear unedited queries first.
+        const contentChanged =
+          previous !== undefined &&
+          previous[0] === id &&
+          (previous[1] !== text ||
+            previous[4] !== seed ||
+            (previous[2] !== undefined && previous[2] !== styleId));
         if (text === "") {
           fetchAudioQuery.cancel();
           setQuery(null);
         } else if (isQueryModified(sourceBlock) && sourceBlock.query !== null) {
+          fetchAudioQuery.cancel();
+        } else if (sourceBlock.query !== null && !contentChanged) {
           fetchAudioQuery.cancel();
         } else if (styleId !== undefined) {
           // Invalidate background work before the throttled query request can

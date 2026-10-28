@@ -162,7 +162,8 @@
     "preview_style": "Preview style",
     "preview_play": "Play pronunciation",
     "preview_stop": "Stop playback",
-    "preview_error": "Couldn't play the pronunciation. Check the katakana pronunciation and accent position."
+    "preview_error": "Couldn't play the pronunciation. Check the katakana pronunciation and accent position.",
+    "priority_warning": "Low priority may cause ambiguous injection; you may want to raise it."
   },
   "text_block": {
     "input_label": "Text to synthesize",

@@ -216,17 +216,44 @@ existing blocks and presets, and generate a new ID only when creating or
 copying one. Text blocks reference presets by stable ID rather than array
 position. Resolve preset fallbacks against the current metadata before using a
 numeric style ID; an unavailable stored identity must not silently select a
-different speaker that reused the same numeric ID. Omit pristine generated
-`AudioQuery` values from the disk DTO so they regenerate after loading, but
-preserve manually edited queries as `query_override`. Track manual edits per
-block with `accent_is_modified`, `duration_is_modified`, and
-`pitch_is_modified`; `query_override` is persisted whenever any of them is set.
+different speaker that reused the same numeric ID. Version `1` omits pristine
+generated `AudioQuery` values, so they regenerate after loading, and preserves
+manually edited queries as `query_override`. Track manual edits per block with
+`accent_is_modified`, `duration_is_modified`, and `pitch_is_modified`; in
+version `1`, `query_override` is persisted exactly when any of them is set.
 
 Schema version `2` adds each block's optional post-processing edit
-(`post_f0`, see Post-Processing), omitted when empty. Version `1` projects
-predate post-processing, so the migration gives every block no post edit and
-ignores any `post_f0` table such a file might contain. A migrated project is
-written as version `2` on its next save.
+(`post_f0`, see Post-Processing), omitted when empty, and saves every block's
+query as `query`, edited or not (unreleased version `2` saves named it
+`query_override`, still accepted as an alias). Version `1` projects predate
+post-processing, so the migration gives every block no post edit, ignores any
+`post_f0` table such a file might contain, and moves `query_override` to
+`query`. A migrated project is written as version `2` on its next save.
+
+A text block keeps the query it has, whether loaded, copied or generated
+earlier, and reads its text again only when its text, pitch-noise seed or
+resolved style changes, or when a refresh (`refreshGeneratedQueries`, run
+for core and English-reading changes) clears its unedited query. User
+dictionary changes do not refresh queries, so they reach only blocks read
+after the change and existing blocks keep their readings, tuning and post
+edits across saves. The dictionary dialog previews an entry through
+`dictionary_preview_query`, which reads the pronunciation and accent as
+AquesTalk-style kana followed by the particle ガ, with a session-only style
+choice (`UIStore.dictionaryPreviewStyleId`).
+
+Like VOICEVOX ENGINE, Core adds each entry to MeCab with a fixed word cost
+taken from its priority and word type, and MeCab picks the reading with the
+lowest total of word and connection costs, so an entry can win alone yet lose
+to OpenJTalk's own reading before a particle. After each save and selection
+the dialog calls `dictionary_entry_conflicts`, which analyzes the stored
+surface alone and, for nouns, before は, が, を, に, の and も with the loaded
+dictionary (verbs and adjectives alone, suffixes not at all), and shows a
+short warning suggesting a higher priority when any of them keeps another
+reading.
+OpenJTalk spells a long-vowel mark as the vowel it extends, so pronunciations
+are compared after the same expansion the preview kana uses. Core's
+`UserDictWord::builder()` defaults to a common noun, unlike the dialog and
+ENGINE (proper noun); tests that model the dialog set the word type.
 
 Released schemas are frozen: a change to the persisted format bumps
 `CURRENT_PROJECT_SCHEMA_VERSION`, keeps a DTO for every older released
@@ -263,9 +290,9 @@ edits, and a tuning reset must not enable, disable, or clear the accent reset
 Accent and phoneme edits call `markQueryAccentModified`, pitch edits call
 `markQueryPitchModified`, and duration edits call `markQueryDurationModified`;
 the flags are persisted per block and optional in the generated bindings.
-`isQueryModified` derives the aggregate modified state and gates query
-persistence and regeneration. Rust validation rejects modified flags without a
-query override.
+`isQueryModified` derives the aggregate modified state and gates
+regeneration; it does not mark a project dirty when an unedited query is
+regenerated. Rust validation rejects modified flags without a query.
 
 ## Relative Pitch Tuning
 

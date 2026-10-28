@@ -5,7 +5,8 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::Path, result::Result};
 use voicevox_core::AudioQuery;
 
-/// Version 2 added post-processing edits (`post`) to blocks.
+/// Version 2 added post-processing edits (`post`) to blocks and saves every
+/// block's query (`query`), edited or not.
 const CURRENT_PROJECT_SCHEMA_VERSION: u32 = 2;
 /// The schema of Azalea 0.3.0, before post-processing edits existed.
 const PROJECT_SCHEMA_VERSION_1: u32 = 1;
@@ -35,7 +36,7 @@ struct ProjectBlockRef<'a> {
   text: &'a str,
   pitch_noise_seed: u32,
   #[serde(skip_serializing_if = "Option::is_none")]
-  query_override: Option<&'a AudioQuery>,
+  query: Option<&'a AudioQuery>,
   accent_is_modified: bool,
   duration_is_modified: bool,
   pitch_is_modified: bool,
@@ -44,7 +45,8 @@ struct ProjectBlockRef<'a> {
   post: Option<&'a PostEdit>,
 }
 
-/// A block of schema version 1, which has no post-processing edits.
+/// A block of schema version 1, which has no post-processing edits and saves
+/// only edited queries, as `query_override`.
 #[derive(Deserialize)]
 struct ProjectBlockV1 {
   id: String,
@@ -68,7 +70,7 @@ impl From<ProjectBlockV1> for ProjectBlock {
       id: block.id,
       text: block.text,
       pitch_noise_seed: block.pitch_noise_seed,
-      query_override: block.query_override,
+      query: block.query_override,
       accent_is_modified: block.accent_is_modified,
       duration_is_modified: block.duration_is_modified,
       pitch_is_modified: block.pitch_is_modified,
@@ -83,8 +85,10 @@ struct ProjectBlock {
   id: String,
   text: String,
   pitch_noise_seed: u32,
-  #[serde(default)]
-  query_override: Option<AudioQuery>,
+  // Unreleased version 2 saves from before every query was saved named it
+  // `query_override`.
+  #[serde(default, alias = "query_override")]
+  query: Option<AudioQuery>,
   #[serde(default)]
   accent_is_modified: bool,
   #[serde(default)]
@@ -169,11 +173,9 @@ pub async fn save_project(
         id: &block.id,
         text: &block.text,
         pitch_noise_seed: block.pitch_noise_seed,
-        query_override: if block.is_query_modified() {
-          block.query.as_ref()
-        } else {
-          None
-        },
+        // Unedited queries are saved too, so loading keeps the reading they
+        // were generated with instead of re-reading the text.
+        query: block.query.as_ref(),
         accent_is_modified: block.accent_is_modified,
         duration_is_modified: block.duration_is_modified,
         pitch_is_modified: block.pitch_is_modified,
@@ -208,6 +210,15 @@ pub async fn load_project(path: String) -> Result<Project, String> {
     PROJECT_SCHEMA_VERSION_1 => {
       let file: ProjectFile<ProjectBlockV1> =
         toml::from_str(&project_toml).map_err(|e| e.to_string())?;
+      for (index, block) in file.blocks.iter().enumerate() {
+        let modified =
+          block.accent_is_modified || block.duration_is_modified || block.pitch_is_modified;
+        if modified != block.query_override.is_some() {
+          return Err(format!(
+            "Project block {index} has inconsistent query override flags"
+          ));
+        }
+      }
       ProjectFile {
         blocks: file.blocks.into_iter().map(ProjectBlock::from).collect(),
         presets: file.presets,
@@ -215,15 +226,6 @@ pub async fn load_project(path: String) -> Result<Project, String> {
     }
     other => return Err(format!("Unsupported project schema version {other}")),
   };
-  for (index, block) in project_file.blocks.iter().enumerate() {
-    let modified =
-      block.accent_is_modified || block.duration_is_modified || block.pitch_is_modified;
-    if modified != block.query_override.is_some() {
-      return Err(format!(
-        "Project block {index} has inconsistent query override flags"
-      ));
-    }
-  }
   let project = Project {
     blocks: project_file
       .blocks
@@ -232,7 +234,7 @@ pub async fn load_project(path: String) -> Result<Project, String> {
         id: block.id,
         text: block.text,
         pitch_noise_seed: block.pitch_noise_seed,
-        query: block.query_override,
+        query: block.query,
         accent_is_modified: block.accent_is_modified,
         duration_is_modified: block.duration_is_modified,
         pitch_is_modified: block.pitch_is_modified,
@@ -295,8 +297,8 @@ mod tests {
         Some("preset-1")
       );
       assert_eq!(saved_toml["presets"][0]["id"].as_str(), Some("preset-1"));
-      assert!(saved_toml["blocks"][0].get("query").is_none());
-      assert!(saved_toml["blocks"][0].get("query_override").is_some());
+      assert!(saved_toml["blocks"][0].get("query").is_some());
+      assert!(saved_toml["blocks"][0].get("query_override").is_none());
       assert_eq!(
         saved_toml["blocks"][0]["accent_is_modified"].as_bool(),
         Some(true)
@@ -547,7 +549,7 @@ mod tests {
   }
 
   #[test]
-  fn load_rejects_query_overrides_without_modified_flags() {
+  fn version_1_load_rejects_query_overrides_without_modified_flags() {
     tauri::async_runtime::block_on(async {
       let directory = tempfile::tempdir().unwrap();
       let path = directory.path().join("inconsistent.azp");
@@ -557,6 +559,10 @@ mod tests {
       let saved = path.with_extension("azp");
       let mut saved_toml: toml::Value =
         toml::from_str(&std::fs::read_to_string(&saved).unwrap()).unwrap();
+      saved_toml["schema_version"] = 1.into();
+      let block = saved_toml["blocks"][0].as_table_mut().unwrap();
+      let query = block.remove("query").unwrap();
+      block.insert("query_override".into(), query);
       saved_toml["blocks"][0]["accent_is_modified"] = false.into();
       saved_toml["blocks"][0]["duration_is_modified"] = false.into();
       std::fs::write(&saved, toml::to_string(&saved_toml).unwrap()).unwrap();
@@ -573,7 +579,7 @@ mod tests {
   }
 
   #[test]
-  fn save_omits_regenerable_queries() {
+  fn save_keeps_unedited_queries() {
     tauri::async_runtime::block_on(async {
       let directory = tempfile::tempdir().unwrap();
       let path = directory.path().join("derived.azp");
@@ -587,11 +593,11 @@ mod tests {
         .unwrap();
       let saved_toml: toml::Value =
         toml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
-      assert!(saved_toml["blocks"][0].get("query_override").is_none());
+      assert!(saved_toml["blocks"][0].get("query").is_some());
       let loaded = load_project(path.to_string_lossy().into_owned())
         .await
         .unwrap();
-      assert!(loaded.blocks[0].query.is_none());
+      assert_eq!(loaded.blocks[0].query, Some(sample_query()));
       assert!(!loaded.blocks[0].accent_is_modified);
       assert!(!loaded.blocks[0].duration_is_modified);
       assert!(!loaded.blocks[0].pitch_is_modified);
@@ -765,8 +771,10 @@ mod tests {
       let marker = format!("schema_version = {CURRENT_PROJECT_SCHEMA_VERSION}\n");
       assert!(current.starts_with(&marker), "{current}");
       // Version 1 has no post edits; a stray table is ignored rather than migrated.
+      // It saves edited queries as `query_override`.
       let v1 = current
         .replacen(&marker, "schema_version = 1\n", 1)
+        .replace("[blocks.query", "[blocks.query_override")
         .replacen(
           "[[blocks]]\n",
           "[[blocks]]\npost = { base = \"stale\", f0 = [{ start = 0, f0 = [200.0] }] }\n",

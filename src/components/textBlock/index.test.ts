@@ -525,6 +525,33 @@ describe("TextBlock", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("keeps a block's existing query until its content changes", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    const query = vi
+      .spyOn(commands, "audioQuery")
+      .mockImplementation(async (_text, _style, seed) => ({
+        status: "ok",
+        data: audioQuery({ speedScale: seed === 42 ? 1.5 : 1.2 }),
+      }));
+
+    const { getTextStore } = renderBlock(false);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(query).not.toHaveBeenCalled();
+    expect(getTextStore().textStore[0].query).toEqual(audioQuery());
+
+    getTextStore().setTextStore(0, "pitch_noise_seed", 42);
+    await waitFor(() => expect(query).toHaveBeenCalledWith("hello", 1, 42));
+    await waitFor(() =>
+      expect(getTextStore().textStore[0].query?.speedScale).toBe(1.5),
+    );
+
+    // A refresh clears unedited queries, so they are read again.
+    getTextStore().refreshGeneratedQueries();
+    await waitFor(() => expect(query).toHaveBeenCalledTimes(2), {
+      timeout: 1_500,
+    });
+  });
+
   it("refreshes queries after editing and reflects buffered synthesis state", async () => {
     mockIPC(() => null, { shouldMockEvents: true });
     const consoleError = vi
@@ -537,7 +564,14 @@ describe("TextBlock", () => {
         data: audioQuery({ speedScale: text === "changed" ? 1.2 : 1 }),
       }));
 
-    const { getTextStore, getConfigStore } = renderBlock(true);
+    const { getTextStore, getConfigStore } = renderBlock(
+      true,
+      false,
+      false,
+      {},
+      false,
+      null,
+    );
     await waitFor(() => expect(query).toHaveBeenCalledWith("hello", 1, 0));
     const status = screen.getByRole("status", { name: "Queued" });
     expect(status).toBeInTheDocument();
@@ -1810,6 +1844,7 @@ describe("TextBlock", () => {
           nonblocking_synthesis: true,
         },
         true,
+        null,
       );
       fireEvent.click(screen.getByRole("tab", { name: "Tuning" }));
       await vi.advanceTimersByTimeAsync(1);
@@ -1934,6 +1969,7 @@ describe("TextBlock", () => {
       data: replacement,
     });
     const { getTextStore } = renderBlock(false, false, false, {}, true);
+    getTextStore().setTextStore(0, "pitch_noise_seed", 7);
     await waitFor(() => expect(commands.audioQuery).toHaveBeenCalled());
     fireEvent.click(screen.getByText("コ"));
     const editor = screen.getByRole("textbox");
@@ -1972,7 +2008,14 @@ describe("TextBlock", () => {
           text === "hello" && seed === 0 ? hello : changed,
         );
 
-      const { getTextStore } = renderBlock(false);
+      const { getTextStore } = renderBlock(
+        false,
+        false,
+        false,
+        {},
+        false,
+        null,
+      );
       await waitFor(() => expect(query).toHaveBeenCalledWith("hello", 1, 0));
       if (change === "text") {
         const editor = screen.getByLabelText("Text to synthesize");

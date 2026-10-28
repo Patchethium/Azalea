@@ -265,16 +265,17 @@ In release builds, the config file is located at `{config_dir}/com.azalea.app/co
 ### Project files
 
 Azalea project files use the `.azp` extension and contain a TOML
-`schema_version`. Projects are currently saved with schema version `1`, and
-only that current format is accepted while Azalea remains unreleased.
+`schema_version`. Projects are saved with schema version `2`; version `1`
+files (Azalea 0.3.0) are migrated when they load.
 
-Schema version `1` gives every text block and preset a persistent ID, with text
-blocks referencing presets independently of their display order. It also
-records each preset's speaker UUID and style name so changed numeric style IDs
-can be remapped safely. Pristine generated `AudioQuery` data is regenerated
-after loading rather than stored in the project file; queries containing
-manual accent, phoneme, pitch, or duration edits are retained as explicit
-`query_override` data.
+Every text block and preset has a persistent ID, with text blocks referencing
+presets independently of their display order. Each preset records its speaker
+UUID and style name so changed numeric style IDs can be remapped safely.
+Version `2` stores every block's `AudioQuery`, so a reopened project keeps the
+readings it was saved with even if the user dictionary changed since; version
+`1` stored only queries with manual accent, phoneme, pitch, or duration edits
+(`query_override`) and regenerated the rest after loading. Version `2` also
+stores post-processing edits.
 
 Experimental pitch noise can be enabled in Config, with an adjustable sigma
 (default `0.05`; `0` produces deterministic pitch). Each new text block gets

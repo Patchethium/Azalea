@@ -76,6 +76,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
       open_config_dir,
       open_path_location,
       get_dictionary_entries,
+      dictionary_entry_conflicts,
       add_dictionary_entry,
       update_dictionary_entry,
       move_dictionary_entry,

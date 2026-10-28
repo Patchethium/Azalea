@@ -234,6 +234,18 @@ async getDictionaryEntries() : Promise<Result<DictionaryEntry[], string>> {
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Texts in which the entry's reading loses to the system dictionary, which
+ * raising its priority can fix. Empty when every check text uses the entry.
+ */
+async dictionaryEntryConflicts(id: string) : Promise<Result<string[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("dictionary_entry_conflicts", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async addDictionaryEntry(entry: DictionaryEntryInput) : Promise<Result<DictionaryEntry, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("add_dictionary_entry", { entry }) };
