@@ -146,7 +146,7 @@ export function PresetSidebar(props: { controls: SidebarControls }) {
           collapsible
           collapseThreshold={0.05}
         >
-          <section class="size-full min-h-0 flex flex-col rounded-md bg-surface border border-border bg-transparent shadow-sm">
+          <section class="size-full min-h-0 flex flex-col rounded-md bg-surface border border-border shadow-sm">
             <h2
               ref={(element) => {
                 presetPanelHeader = element;
