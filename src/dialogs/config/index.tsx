@@ -153,11 +153,11 @@ export function ConfigPage() {
             <ConfigItem label={t1("config.font")}>
               <FontSelect />
             </ConfigItem>
-            <ConfigItem label={t1("config.primary_color")}>
-              <PrimaryColorPicker />
-            </ConfigItem>
             <ConfigItem label={t1("config.theme")}>
               <ThemeSelect />
+            </ConfigItem>
+            <ConfigItem label={t1("config.primary_color")}>
+              <PrimaryColorPicker />
             </ConfigItem>
             <ConfigItem label={t1("config.titlebar_style")}>
               <TitlebarStyleSelect />
