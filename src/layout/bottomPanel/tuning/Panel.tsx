@@ -160,7 +160,7 @@ export function TuningPanel(props: {
         <Show
           when={panel.queryExists()}
           fallback={
-            <div class="flex size-full items-center justify-center select-none cursor-default">
+            <div class="flex size-full items-center justify-center select-none cursor-default text-ink-subtle">
               {t1("bottom.no_query")}
             </div>
           }
