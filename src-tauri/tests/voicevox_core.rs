@@ -1073,3 +1073,80 @@ fn real_core_post_processing_raises_only_the_edited_frames() {
     );
   }
 }
+
+struct RealCoreMcpEnvironment {
+  output_dir: std::path::PathBuf,
+}
+
+impl azalea_lib::mcp::McpEnvironment for RealCoreMcpEnvironment {
+  fn settings(&self) -> Result<azalea_lib::mcp::McpSettings, String> {
+    Ok(azalea_lib::mcp::McpSettings {
+      enabled: true,
+      english: None,
+    })
+  }
+
+  fn load_core(&self) -> Result<Core, String> {
+    Ok(test_core())
+  }
+
+  fn output_dir(&self) -> std::path::PathBuf {
+    self.output_dir.clone()
+  }
+}
+
+#[tokio::test]
+async fn real_core_mcp_lists_speakers_and_synthesizes_a_wav_file() {
+  use azalea_lib::mcp::{AzaleaMcp, SynthesizeRequest};
+  use rmcp::handler::server::wrapper::Parameters;
+
+  let dir = tempfile::tempdir().unwrap();
+  let server = AzaleaMcp::new(RealCoreMcpEnvironment {
+    output_dir: dir.path().join("out"),
+  });
+  let Ok(speakers) = server.list_speakers().await else {
+    panic!("list_speakers failed");
+  };
+  let speakers = speakers.0.speakers;
+  assert!(!speakers.is_empty(), "the installation has no speakers");
+  let listed = speakers
+    .iter()
+    .flat_map(|speaker| speaker.styles.iter().map(|style| StyleId(style.id)))
+    .collect::<HashSet<_>>();
+  let core = test_core();
+  assert_eq!(
+    listed,
+    talk_style_ids(&core).into_iter().collect::<HashSet<_>>()
+  );
+
+  let speaker = &speakers[0];
+  let style = &speaker.styles[0];
+  let result = match server
+    .synthesize(Parameters(SynthesizeRequest {
+      text: TEST_TEXT.into(),
+      speaker: speaker.name.clone(),
+      style: style.name.clone(),
+    }))
+    .await
+  {
+    Ok(result) => result.0,
+    Err(error) => panic!("synthesize failed: {error}"),
+  };
+  assert_eq!(result.style_id, style.id);
+  let path = Path::new(&result.path);
+  assert_eq!(path.parent().unwrap(), dir.path().join("out"));
+  let wav = std::fs::read(path).unwrap();
+  let (spec, samples) = decode_wav(&wav);
+  assert_eq!(spec.sample_rate, result.sample_rate);
+  assert!(result.duration_seconds > 0.5, "{}", result.duration_seconds);
+  assert!(samples.iter().any(|&sample| sample != 0));
+
+  let unknown = server
+    .synthesize(Parameters(SynthesizeRequest {
+      text: TEST_TEXT.into(),
+      speaker: speaker.speaker_uuid.clone(),
+      style: "no such style".into(),
+    }))
+    .await;
+  assert!(matches!(unknown, Err(error) if error.contains(&style.name)));
+}

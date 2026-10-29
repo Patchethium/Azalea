@@ -7,7 +7,7 @@ import {
   MAX_PITCH_NOISE_SIGMA,
 } from "$constants";
 import { AppToastRegion } from "@components/toast";
-import { ConfigPage } from "@dialogs/config";
+import { ConfigPage, shellWord } from "@dialogs/config";
 import { AssetCacheSetting } from "@dialogs/config/AssetCacheSetting";
 import { MultiProvider } from "@solid-primitives/context";
 import {
@@ -190,7 +190,7 @@ describe("ConfigPage", () => {
     await openSection("Synthesis");
     expect(
       screen.getAllByRole("button", { name: "Experimental Features" }),
-    ).toHaveLength(6);
+    ).toHaveLength(7);
     expect(
       screen.queryByRole("switch", { name: "Non-blocking synthesis" }),
     ).not.toBeInTheDocument();
@@ -204,7 +204,7 @@ describe("ConfigPage", () => {
     expect(appConfig.config.ui.buffer_render).toBe(true);
     expect(
       screen.getAllByRole("button", { name: "Experimental Features" }),
-    ).toHaveLength(7);
+    ).toHaveLength(8);
 
     const nonblocking = screen.getByRole("switch", {
       name: "Non-blocking synthesis",
@@ -1764,5 +1764,107 @@ describe("ConfigPage", () => {
         name: "Reinitialize the core to apply changes",
       }),
     ).not.toBeInTheDocument();
+  });
+  function renderMcpSettings(enabled: boolean) {
+    let appConfig!: NonNullable<ReturnType<typeof useConfigStore>>;
+    const Harness: Component = () => {
+      appConfig = useConfigStore()!;
+      const ui = useUIStore()!;
+      onMount(() => {
+        batch(() => {
+          appConfig.setConfig(config({ mcp_enabled: enabled }));
+          ui.setUIStore("configSection", "synthesis");
+          ui.setUIStore("page", "config");
+        });
+      });
+      return (
+        <>
+          <ConfigPage />
+          <AppToastRegion />
+        </>
+      );
+    };
+    render(() => (
+      <MultiProvider
+        values={[
+          [MetaProvider, []],
+          [UIProvider, null],
+          [ConfigProvider, null],
+          [i18nProvider, null],
+        ]}
+      >
+        <Harness />
+      </MultiProvider>
+    ));
+    return () => appConfig;
+  }
+
+  it("shows and copies the MCP launch command only while the server is enabled", async () => {
+    const launch = vi.spyOn(commands, "mcpLaunchCommand").mockResolvedValue({
+      status: "ok",
+      data: { command: "/opt/My Apps/azalea", args: ["--mcp"] },
+    });
+    const writeText = vi.fn().mockResolvedValueOnce(undefined);
+    writeText.mockRejectedValueOnce(new Error("denied"));
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    const appConfig = renderMcpSettings(false);
+
+    const toggle = await screen.findByRole("switch", { name: "MCP Server" });
+    expect(toggle).not.toBeChecked();
+    const item = toggle.closest("div.cursor-default")! as HTMLElement;
+    expect(
+      within(item).getByRole("button", { name: "Experimental Features" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Launch command")).not.toBeInTheDocument();
+    expect(launch).not.toHaveBeenCalled();
+
+    fireEvent.click(toggle);
+    expect(appConfig().config.ui.mcp_enabled).toBe(true);
+    const command = await screen.findByText('"/opt/My Apps/azalea" --mcp');
+    expect(command).toHaveAttribute("title", '"/opt/My Apps/azalea" --mcp');
+
+    const copy = screen.getByRole("button", { name: "Copy launch command" });
+    fireEvent.click(copy);
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith('"/opt/My Apps/azalea" --mcp'),
+    );
+    expect(
+      await screen.findByText("Launch command copied"),
+    ).toBeInTheDocument();
+    fireEvent.click(copy);
+    expect(
+      await screen.findByText("Couldn't copy the launch command"),
+    ).toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(appConfig().config.ui.mcp_enabled).toBe(false);
+    expect(screen.queryByText("Launch command")).not.toBeInTheDocument();
+  });
+
+  it("reports an unavailable MCP launch command", async () => {
+    vi.spyOn(commands, "mcpLaunchCommand").mockResolvedValue({
+      status: "error",
+      error: "no executable path",
+    });
+    renderMcpSettings(true);
+    expect(
+      await screen.findByText("Couldn't get the launch command"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Copy launch command" }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("shellWord", () => {
+  it("quotes only words with whitespace or quotes", () => {
+    expect(shellWord("/usr/bin/azalea")).toBe("/usr/bin/azalea");
+    expect(shellWord("C:\\Program Files\\Azalea\\azalea.exe")).toBe(
+      '"C:\\Program Files\\Azalea\\azalea.exe"',
+    );
+    expect(shellWord('say "hi"')).toBe('"say \\"hi\\""');
   });
 });

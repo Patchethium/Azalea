@@ -39,6 +39,9 @@ without running `voicevox_engine`.
 - **Keep your work.** Save `.azp` projects with presets and manual tuning, use
   Save As, and reopen recent projects. The current schema is version `1`;
   unversioned projects and other schema versions are not supported.
+- **Use the voices from LLM clients.** An experimental MCP server lets clients
+  such as Claude list the installed speakers and styles and synthesize text to
+  a WAV file. See [Using Azalea from MCP clients](#using-azalea-from-mcp-clients).
 - **Make the workspace yours.** Download character portraits, resize or
   collapse panels, customize shortcuts, and choose a light/dark theme and
   primary color. The interface supports English, Japanese, and Simplified
@@ -77,6 +80,45 @@ Portraits are optional: choose **Download portraits** in the portrait panel and
 review the linked usage terms. See [Setting up the core](#setting-up-the-core)
 for download locations, runtime limitations, and manual setup.
 
+## Using Azalea from MCP clients
+
+Azalea can act as a local [MCP](https://modelcontextprotocol.io) server over
+stdio, so LLM clients such as Claude Code and Claude Desktop can use your
+voices. It is experimental and off by default.
+
+1. Set up voices in Azalea as described above.
+2. In Config's **Synthesis** section, turn on **MCP Server**. The
+   **Launch command** row below it shows the command for your installation:
+   Azalea's executable followed by `--mcp`. Copy it with the button next to it.
+3. Add that command to your client. For Claude Code:
+
+   ```sh
+   claude mcp add azalea -- /path/to/azalea --mcp
+   ```
+
+   For Claude Desktop, add an entry to `claude_desktop_config.json`:
+
+   ```json
+   {
+     "mcpServers": {
+       "azalea": { "command": "/path/to/azalea", "args": ["--mcp"] }
+     }
+   }
+   ```
+
+The client starts its own Azalea process without a window, so the app doesn't
+need to be running. It loads your voice setup, user dictionary, and English
+word settings. It offers two tools:
+
+- `list_speakers` lists the installed speakers and their talk styles.
+- `synthesize` reads Japanese text with a speaker (name or UUID) and style
+  (name or ID), writes a WAV file to an `azalea-mcp` folder in the system
+  temporary directory, and returns its path.
+
+While **MCP Server** is off, the tools return an error asking you to turn it
+on; the change applies without restarting the client. Credit the VOICEVOX
+characters you use according to their terms.
+
 ## 日本語
 
 Azalea（アザレア）は、VOICEVOX向けの非公式デスクトップGUIです。
@@ -107,6 +149,9 @@ Rust版VOICEVOX Coreを直接利用します。
 - **プロジェクトの保存：** プリセットと手動調整を`.azp`に保存し、名前を付けて保存したり、
   最近使ったプロジェクトを開いたりできます。現在はスキーマバージョン`1`のみ対応し、
   バージョンなしのファイルや他のバージョンは読み込めません。
+- **LLMクライアントから利用：** 試験的なMCPサーバーにより、ClaudeなどのMCPクライアントから
+  話者とスタイルの一覧を取得し、テキストをWAVファイルに合成できます。設定の「合成」で
+  「MCPサーバー」を有効にし、表示される起動コマンドをクライアントに追加してください。
 - **表示と操作のカスタマイズ：** キャラクターの立ち絵、パネルのサイズ変更・折りたたみ、
   ショートカット、ライト・ダークテーマとテーマ色を設定できます。
   UIは日本語・英語・簡体字中国語に対応し、音声合成は日本語専用です。

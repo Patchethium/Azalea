@@ -32,7 +32,8 @@
       "edit_phoneme": "Couldn't apply the reading edit",
       "reset_tuning": "Couldn't reset pitch and duration edits",
       "load_config": "Couldn't read the settings file. Setting changes won't be saved until it is fixed.",
-      "save_config": "Couldn't save settings"
+      "save_config": "Couldn't save settings",
+      "copy_mcp_command": "Couldn't copy the launch command"
     },
     "warning": {
       "resolve_export_path": "Couldn't check for existing files; the suggested filename may replace one",
@@ -268,6 +269,12 @@
     "spectrogram_preview": "Spectrogram Preview",
     "streaming_synthesis": "Streaming Synthesis",
     "post_processing": "Post-Processing Tab",
+    "mcp_server": "MCP Server",
+    "mcp_server_description": "Lets MCP clients such as Claude list the voices and synthesize speech by launching Azalea with --mcp. Add the command below to your client.",
+    "mcp_command": "Launch command",
+    "copy_mcp_command": "Copy launch command",
+    "mcp_command_copied": "Launch command copied",
+    "mcp_command_unavailable": "Couldn't get the launch command",
     "default_export_dir": "Default export directory",
     "export_dir_path": "Directory",
     "silent_save": "Silent save",

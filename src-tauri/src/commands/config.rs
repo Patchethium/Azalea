@@ -148,6 +148,23 @@ pub async fn open_config_dir() -> std::result::Result<(), String> {
   .map_err(|error| error.to_string())
 }
 
+/// How an MCP client launches this executable as Azalea's stdio MCP server.
+#[derive(Clone, serde::Serialize, specta::Type)]
+pub struct McpLaunchCommand {
+  pub command: String,
+  pub args: Vec<String>,
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn mcp_launch_command() -> std::result::Result<McpLaunchCommand, String> {
+  let command = std::env::current_exe().map_err(|error| error.to_string())?;
+  Ok(McpLaunchCommand {
+    command: command.to_string_lossy().into_owned(),
+    args: vec![crate::mcp::MCP_FLAG.to_owned()],
+  })
+}
+
 /// Resolves a path to the folder a file manager should show: the path itself
 /// for a directory, or the containing folder for a file.
 fn folder_to_open(path: &std::path::Path) -> std::result::Result<std::path::PathBuf, String> {

@@ -182,6 +182,10 @@ pub struct UIConfig {
   /// edits but playback, buffering and export ignore them.
   #[serde(default)]
   pub post_processing: bool,
+  /// Lets MCP clients use the voices through `azalea --mcp`. The server reads it on every
+  /// call and refuses tools while it is off.
+  #[serde(default)]
+  pub mcp_enabled: bool,
   /// Reads English words OpenJTalk cannot pronounce through e2k instead of spelling them out.
   #[serde(default = "english_transform_default")]
   pub english_transform: bool,
@@ -257,6 +261,7 @@ impl Default for UIConfig {
       spectrogram_preview: spectrogram_preview_default(),
       streaming_synthesis: streaming_synthesis_default(),
       post_processing: false,
+      mcp_enabled: false,
       english_transform: english_transform_default(),
       english_accent_prediction: english_transform_default(),
       english_ngram_filter: english_transform_default(),
@@ -818,6 +823,7 @@ mod tests {
     assert!(!config.ui.spectrogram_preview);
     assert!(config.ui.streaming_synthesis);
     assert!(!config.ui.post_processing);
+    assert!(!config.ui.mcp_enabled);
     assert!(config.ui.playback_timeline);
     assert!(matches!(config.ui.pitch_scale, PitchScale::Optimal));
     assert!(config.ui.pitch_ruler);

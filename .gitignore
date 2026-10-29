@@ -8,6 +8,8 @@ config_dev/config.toml.bak
 config_dev/user_dictionary.json
 config_dev/assets/
 config_dev/voicevox/
+config_dev/e2k/
+config_dev/fonts/
 .DS_Store
 coverage/
 logs/

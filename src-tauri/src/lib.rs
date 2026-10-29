@@ -7,6 +7,7 @@ pub mod config;
 pub mod core;
 pub mod english;
 mod launch;
+pub mod mcp;
 pub mod post;
 mod spectrogram;
 pub mod streaming;
@@ -74,6 +75,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
       supports_pitch_control,
       get_range,
       open_config_dir,
+      mcp_launch_command,
       open_path_location,
       get_dictionary_entries,
       dictionary_entry_conflicts,
@@ -138,14 +140,20 @@ fn export_typescript_bindings(builder: &Builder<tauri::Wry>) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+  #[allow(unused_mut)]
+  let mut context = tauri::generate_context!();
+  config::manager::init_config_dir(&context.config().identifier);
+  // An MCP client launched us as its stdio server: serve it instead of the
+  // window, before the single-instance plugin would forward the launch.
+  if std::env::args().skip(1).any(|arg| arg == mcp::MCP_FLAG) {
+    mcp::run_stdio();
+    return;
+  }
+
   let builder = specta_builder();
 
   #[cfg(debug_assertions)]
   export_typescript_bindings(&builder);
-
-  #[allow(unused_mut)]
-  let mut context = tauri::generate_context!();
-  config::manager::init_config_dir(&context.config().identifier);
   // Development builds share the bundle identifier with release builds, and
   // the single-instance plugin keys on it. Give them a distinct runtime
   // identifier so a dev build never forwards launches to an installed release

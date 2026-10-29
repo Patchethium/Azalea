@@ -214,6 +214,14 @@ async openConfigDir() : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async mcpLaunchCommand() : Promise<Result<McpLaunchCommand, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("mcp_launch_command") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 /**
  * Opens a folder, or the folder containing a file, in the system file manager.
  * Only folders are opened, so files are never executed.
@@ -829,6 +837,10 @@ export type KeyboardShortcuts = { undo?: KeyboardShortcut; redo?: KeyboardShortc
 export type LicensePackage = { name: string; version: string }
 export type Locale = "Ja" | "En" | "ZhCn"
 /**
+ * How an MCP client launches this executable as Azalea's stdio MCP server.
+ */
+export type McpLaunchCommand = { command: string; args: string[] }
+/**
  * モーラ（子音＋母音）ごとの情報。
  * 
  * # Validation
@@ -1112,6 +1124,11 @@ streaming_synthesis?: boolean;
  * edits but playback, buffering and export ignore them.
  */
 post_processing?: boolean; 
+/**
+ * Lets MCP clients use the voices through `azalea --mcp`. The server reads it on every
+ * call and refuses tools while it is off.
+ */
+mcp_enabled?: boolean; 
 /**
  * Reads English words OpenJTalk cannot pronounce through e2k instead of spelling them out.
  */

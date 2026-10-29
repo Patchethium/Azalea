@@ -18,6 +18,7 @@ import { PathButton } from "@components/pathButton";
 import { useToasts } from "@components/toast";
 import { AppButton } from "@components/button";
 import { ExtraDownloadButton } from "@components/extraDownload";
+import { IconButton } from "@components/iconButton";
 import { Tooltip } from "@components/tooltip";
 import { Button } from "@kobalte/core/button";
 import { Dialog } from "@kobalte/core/dialog";
@@ -25,7 +26,13 @@ import { AppSwitch } from "@components/switch";
 import { Tabs } from "@kobalte/core/tabs";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import _ from "lodash";
-import { createSignal, For, type ParentComponent, Show } from "solid-js";
+import {
+  createResource,
+  createSignal,
+  For,
+  type ParentComponent,
+  Show,
+} from "solid-js";
 import {
   DEFAULT_PITCH_DRIFT_RANGE,
   DEFAULT_PITCH_NOISE_SIGMA,
@@ -535,6 +542,22 @@ export function ConfigPage() {
                 onChange={setSpectrogramPreviewEnabled}
               />
             </ConfigItem>
+            <ConfigItem
+              label={t1("config.mcp_server")}
+              description={t1("config.mcp_server_description")}
+              experimental
+            >
+              <AppSwitch
+                label={t1("config.mcp_server")}
+                checked={config.ui.mcp_enabled ?? false}
+                onChange={(v) => setConfig("ui", "mcp_enabled", v)}
+              />
+            </ConfigItem>
+            <Show when={config.ui.mcp_enabled}>
+              <ConfigItem label={t1("config.mcp_command")} nested>
+                <McpCommandSetting />
+              </ConfigItem>
+            </Show>
           </Tabs.Content>
           <Tabs.Content value="shortcuts" class={contentClass}>
             <ShortcutSettings />
@@ -552,6 +575,60 @@ export function ConfigPage() {
         </div>
       </AppDialogContent>
     </Dialog>
+  );
+}
+
+/** Quotes a command-line word that contains whitespace or quotes. */
+export function shellWord(word: string) {
+  return /[\s"']/.test(word) ? `"${word.replace(/"/g, '\\"')}"` : word;
+}
+
+/** The command an MCP client runs to launch Azalea as its stdio server. */
+function McpCommandSetting() {
+  const { t1 } = usei18n()!;
+  const toasts = useToasts();
+  // Resolves to null when the executable path is unavailable.
+  const [launch] = createResource(async () => {
+    const result = await commands.mcpLaunchCommand();
+    if (result.status === "error") return null;
+    return [result.data.command, ...result.data.args].map(shellWord).join(" ");
+  });
+  const copy = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toasts.success(t1("config.mcp_command_copied"));
+    } catch (error) {
+      toasts.error(t1("toast.error.copy_mcp_command"), error);
+    }
+  };
+  return (
+    <Show
+      when={launch()}
+      fallback={
+        <Show when={launch() === null}>
+          <span class="text-sm text-danger">
+            {t1("config.mcp_command_unavailable")}
+          </span>
+        </Show>
+      }
+    >
+      {(text) => (
+        <div class="flex min-w-0 items-center gap1">
+          <code
+            class="max-w-64 truncate rounded bg-hover px1.5 py0.5 font-mono text-xs"
+            title={text()}
+          >
+            {text()}
+          </code>
+          <IconButton
+            icon="i-lucide:copy"
+            label={t1("config.copy_mcp_command")}
+            size="sm"
+            onClick={() => void copy(text())}
+          />
+        </div>
+      )}
+    </Show>
   );
 }
 

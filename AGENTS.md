@@ -513,6 +513,72 @@ below it, all on the output timeline. Exported
 first played block is mapped too. WORLD could also render time edits; a
 setting to choose between WSOLA and WORLD may come later.
 
+## MCP Server
+
+Launching the app executable with `--mcp` (`mcp::MCP_FLAG`) runs a stdio MCP
+server (`src-tauri/src/mcp.rs`, built on the official `rmcp` SDK) instead of
+the window. `run()` checks the flag right after resolving the config
+directory and before the single-instance plugin, so a client's launch is
+never forwarded to a running app; stdout belongs to the protocol, so nothing
+on that path may print to it. The server loads its own core on the first tool
+call from the app's config (`resolve_setup`), applies the saved user
+dictionary and uses the English options only while the models are installed.
+It does not need or talk to a running app; manipulating live app state is
+left to a future HTTP transport hosted by the app.
+
+`UIConfig.mcp_enabled` (default off, an experimental "MCP Server" switch in
+the config dialog's Synthesis section) gates it: the server reads the config
+on every tool call and returns `DISABLED_MESSAGE` as a tool error while it is
+off, without loading the core. While it is on, a nested row shows the launch
+command from `mcp_launch_command` (the current executable and `--mcp`,
+quoted by `shellWord`) with a copy button.
+
+Tools: `list_speakers` returns talk speakers and styles (speakers split across
+models merged, sorted by VOICEVOX order); `synthesize` takes `text`, `speaker`
+(name or UUID) and `style` (name or numeric ID), synthesizes the plain query,
+writes the WAV to `{temp_dir}/azalea-mcp/` and returns its path, duration and
+sample rate as structured content. Synthesis is serialized. `McpEnvironment`
+abstracts settings, core loading and the output directory so unit tests run
+without a core; the real-core integration test covers both tools.
+
+### Using the MCP Server
+
+Debug builds read `config_dev`, so the server answers only while
+`config_dev/config.toml` has `mcp_enabled = true` under `[ui]` (the switch in
+a `pnpm tauri dev` window writes it). Build the binary with `cargo build` in
+`src-tauri`; `pnpm tauri dev` and `pnpm e2e:build` rebuild the same
+`target/debug/azalea`. Release installs use their own executable, shown in the
+dialog's Launch command row.
+
+To give Claude Code the tools, register the debug binary for this project:
+
+```sh
+claude mcp add azalea -- "$PWD/src-tauri/target/debug/azalea" --mcp
+```
+
+A session loads MCP tools only when it starts, so start a new session after
+registering. `claude mcp list` checks the handshake, `claude mcp remove azalea`
+undoes it.
+
+Without a client, pipe a whole session into the binary; it answers pending
+requests before exiting at end of input, one JSON-RPC message per line:
+
+```sh
+printf '%s\n' \
+  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"sh","version":"0"}}}' \
+  '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+  '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_speakers","arguments":{}}}' \
+  '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"synthesize","arguments":{"text":"テストです。","speaker":"ずんだもん","style":"ノーマル"}}}' \
+  | src-tauri/target/debug/azalea --mcp
+```
+
+Tool failures (setting off, unknown speaker or style listing the valid ones,
+empty text, core errors) are results with `isError: true`, not JSON-RPC
+errors. Each call returns the setting's current value, so toggling the switch
+needs no restart. English words are spelled out until the e2k models are
+downloaded (see Optional Downloads). WAV files accumulate in
+`{temp_dir}/azalea-mcp/`; delete them when done testing.
+
 ## Build, Test, and Development Commands
 
 - `pnpm install` installs frontend and Tauri CLI dependencies.

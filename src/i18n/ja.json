@@ -32,7 +32,8 @@
       "edit_phoneme": "読みの編集を適用できませんでした",
       "reset_tuning": "ピッチと長さの編集をリセットできませんでした",
       "load_config": "設定ファイルを読み込めませんでした。修正されるまで設定の変更は保存されません。",
-      "save_config": "設定を保存できませんでした"
+      "save_config": "設定を保存できませんでした",
+      "copy_mcp_command": "起動コマンドをコピーできませんでした"
     },
     "warning": {
       "resolve_export_path": "既存のファイルを確認できませんでした。提案されたファイル名で上書きされる可能性があります",
@@ -302,6 +303,12 @@
     "spectrogram_preview": "スペクトログラムプレビュー",
     "streaming_synthesis": "ストリーミング合成",
     "post_processing": "ポスト処理タブ",
+    "mcp_server": "MCPサーバー",
+    "mcp_server_description": "ClaudeなどのMCPクライアントが、Azaleaを--mcp付きで起動して音声の一覧取得と音声合成を行えるようにします。下のコマンドをクライアントに追加してください。",
+    "mcp_command": "起動コマンド",
+    "copy_mcp_command": "起動コマンドをコピー",
+    "mcp_command_copied": "起動コマンドをコピーしました",
+    "mcp_command_unavailable": "起動コマンドを取得できませんでした",
     "default_export_dir": "デフォルトの書き出し先",
     "export_dir_path": "ディレクトリ",
     "silent_save": "サイレント保存",
