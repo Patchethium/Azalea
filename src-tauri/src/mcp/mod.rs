@@ -1,5 +1,5 @@
 //! A stdio MCP server, started by launching the app with `--mcp`, that lets LLM
-//! clients list the installed voices and synthesize speech with them.
+//! clients list the installed voices, keep presets and synthesize speech.
 //!
 //! It loads its own core from the app's config, so it works without the app
 //! running, and answers only while `UIConfig.mcp_enabled` is on. The setting is
@@ -20,9 +20,16 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::{OnceCell, Semaphore};
 use voicevox_core::{CharacterMeta, StyleId};
 
+mod presets;
+
+pub use presets::{CreatePresetRequest, PresetInfo, PresetList, PRESETS_FILE};
+
 use crate::{
   commands::{apply_saved_dictionary, resolve_setup},
-  config::{manager::user_dictionary_path, ConfigManager},
+  config::{
+    manager::{config_dir, user_dictionary_path},
+    ConfigManager,
+  },
   core::{is_talk_style, Core},
   english::EnglishOptions,
 };
@@ -40,12 +47,15 @@ pub struct McpSettings {
   pub english: Option<EnglishOptions>,
 }
 
-/// Where the server gets its settings, core and output directory, replaceable in tests.
+/// Where the server gets its settings, core, presets and output directory,
+/// replaceable in tests.
 pub trait McpEnvironment: Send + Sync + 'static {
   fn settings(&self) -> Result<McpSettings, String>;
   /// Builds the core; called at most once, on the first call that needs it.
   fn load_core(&self) -> Result<Core, String>;
   fn output_dir(&self) -> PathBuf;
+  /// The file holding the server's own presets.
+  fn presets_path(&self) -> PathBuf;
 }
 
 /// Reads the app's config, user dictionary and downloaded English models.
@@ -75,6 +85,10 @@ impl McpEnvironment for AppEnvironment {
   fn output_dir(&self) -> PathBuf {
     std::env::temp_dir().join("azalea-mcp")
   }
+
+  fn presets_path(&self) -> PathBuf {
+    config_dir().join(PRESETS_FILE)
+  }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, schemars::JsonSchema)]
@@ -96,14 +110,50 @@ pub struct SpeakerList {
   pub speakers: Vec<SpeakerInfo>,
 }
 
-#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Default, Deserialize, schemars::JsonSchema)]
 pub struct SynthesizeRequest {
   /// The Japanese text to read aloud.
   pub text: String,
-  /// Speaker name or UUID, as listed by `list_speakers`.
-  pub speaker: String,
-  /// Style name (such as ノーマル) or numeric style ID, as listed by `list_speakers`.
-  pub style: String,
+  /// Speaker name or UUID, as listed by `list_speakers`. Required without a
+  /// preset; must be omitted with one.
+  pub speaker: Option<String>,
+  /// Style name (such as ノーマル) or numeric style ID, as listed by
+  /// `list_speakers`. Required without a preset; must be omitted with one.
+  pub style: Option<String>,
+  /// Name or ID of a preset from `list_presets`. Its voice, speed, pitch,
+  /// intonation, volume and silences are used.
+  pub preset: Option<String>,
+}
+
+/// What a synthesis request asks for once its arguments are checked.
+#[derive(Debug, PartialEq)]
+enum Voice {
+  Explicit { speaker: String, style: String },
+  Preset(String),
+}
+
+/// Checks that a request names either a speaker and style or a preset, treating
+/// blank strings as omitted.
+fn requested_voice(request: &SynthesizeRequest) -> Result<Voice, String> {
+  let given = |value: &Option<String>| {
+    value
+      .as_deref()
+      .map(str::trim)
+      .filter(|value| !value.is_empty())
+      .map(str::to_owned)
+  };
+  match (
+    given(&request.speaker),
+    given(&request.style),
+    given(&request.preset),
+  ) {
+    (None, None, Some(preset)) => Ok(Voice::Preset(preset)),
+    (_, _, Some(_)) => {
+      Err("A preset supplies its own voice; omit speaker and style when passing preset.".into())
+    }
+    (Some(speaker), Some(style), None) => Ok(Voice::Explicit { speaker, style }),
+    _ => Err("Pass both speaker and style, or a preset.".into()),
+  }
 }
 
 #[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
@@ -115,6 +165,8 @@ pub struct SynthesizeResult {
   pub speaker: String,
   pub style: String,
   pub style_id: u32,
+  /// The preset's name, when one was used.
+  pub preset: Option<String>,
 }
 
 /// Lists the talk speakers and styles in `metas`, merging speakers split across
@@ -282,10 +334,59 @@ impl AzaleaMcp {
     }))
   }
 
+  /// Reads the stored presets off the async runtime.
+  async fn load_presets(&self) -> Result<Vec<crate::config::types::Preset>, String> {
+    let path = self.environment.presets_path();
+    tokio::task::spawn_blocking(move || presets::load_presets(&path))
+      .await
+      .map_err(|e| e.to_string())?
+  }
+
   #[tool(
-    description = "Read Japanese text aloud with a VOICEVOX speaker and style. Writes a WAV file \
-    to a temporary directory and returns its path. Uses Azalea's user dictionary and English word \
-    settings."
+    description = "List the presets saved with create_preset: each one's voice, speed, pitch, \
+    intonation, volume and silences. Pass a preset's name or ID to `synthesize`."
+  )]
+  pub async fn list_presets(&self) -> Result<Json<PresetList>, String> {
+    let (_, core) = self.ready().await?;
+    let speakers = Self::speakers(&core);
+    let stored = self.load_presets().await?;
+    Ok(Json(PresetList {
+      presets: stored
+        .iter()
+        .map(|preset| presets::preset_info(&speakers, preset))
+        .collect(),
+    }))
+  }
+
+  #[tool(
+    description = "Save a named preset: a speaker and style plus speed, pitch, intonation, \
+    volume and silences (omitted values use VOICEVOX's defaults). Presets are kept by this \
+    server, separate from the Azalea app's presets."
+  )]
+  pub async fn create_preset(
+    &self,
+    Parameters(request): Parameters<CreatePresetRequest>,
+  ) -> Result<Json<PresetInfo>, String> {
+    let (_, core) = self.ready().await?;
+    let speakers = Self::speakers(&core);
+    let (speaker, style) = resolve_style(&speakers, &request.speaker, &request.style)?;
+    // Holding the gate keeps concurrent creations from losing each other's presets.
+    let _permit = self.gate.acquire().await.map_err(|e| e.to_string())?;
+    let mut stored = self.load_presets().await?;
+    let preset = presets::new_preset(&request, speaker, style, &stored)?;
+    let info = presets::preset_info(&speakers, &preset);
+    stored.push(preset);
+    let path = self.environment.presets_path();
+    tokio::task::spawn_blocking(move || presets::save_presets(&path, &stored))
+      .await
+      .map_err(|e| e.to_string())??;
+    Ok(Json(info))
+  }
+
+  #[tool(
+    description = "Read Japanese text aloud with a VOICEVOX speaker and style, or with a preset \
+    from list_presets (then omit speaker and style). Writes a WAV file to a temporary directory \
+    and returns its path. Uses Azalea's user dictionary and English word settings."
   )]
   pub async fn synthesize(
     &self,
@@ -294,18 +395,30 @@ impl AzaleaMcp {
     if request.text.trim().is_empty() {
       return Err("The text is empty.".into());
     }
+    let voice = requested_voice(&request)?;
     let (settings, core) = self.ready().await?;
     let speakers = Self::speakers(&core);
-    let (speaker, style) = resolve_style(&speakers, &request.speaker, &request.style)?;
+    let (preset, (speaker, style)) = match &voice {
+      Voice::Explicit { speaker, style } => (None, resolve_style(&speakers, speaker, style)?),
+      Voice::Preset(key) => {
+        let stored = self.load_presets().await?;
+        let preset = presets::find_preset(&stored, key)?.clone();
+        let voice = presets::preset_voice(&speakers, &preset)?;
+        (Some(preset), voice)
+      }
+    };
     let (speaker_name, style_name, style_id) = (speaker.name.clone(), style.name.clone(), style.id);
     let output_dir = self.environment.output_dir();
     let _permit = self.gate.acquire().await.map_err(|e| e.to_string())?;
     let text = request.text;
     tokio::task::spawn_blocking(move || {
       let id = StyleId(style_id);
-      let query = core
+      let mut query = core
         .audio_query_with_english(&text, id, settings.english)
         .map_err(|e| e.to_string())?;
+      if let Some(preset) = &preset {
+        presets::apply_preset(&mut query, preset)?;
+      }
       let wav = core.synthesis(&query, id).map_err(|e| e.to_string())?;
       let (sample_rate, duration_seconds) = wav_info(&wav)?;
       let path = write_wav(&output_dir, style_id, &wav)?;
@@ -316,6 +429,7 @@ impl AzaleaMcp {
         speaker: speaker_name,
         style: style_name,
         style_id,
+        preset: preset.map(|preset| preset.name),
       }))
     })
     .await
@@ -332,7 +446,9 @@ impl ServerHandler for AzaleaMcp {
       )
       .with_instructions(
         "Azalea synthesizes Japanese speech with VOICEVOX. Call list_speakers to find a speaker \
-        and style, then synthesize to get a WAV file path. Generated audio must credit the \
+        and style, then synthesize to get a WAV file path. To reuse a voice with adjusted speed, \
+        pitch, intonation, volume or silences, save it with create_preset and pass the preset \
+        to synthesize. Generated audio must credit the \
         VOICEVOX character according to its terms of use (for example \"VOICEVOX:ずんだもん\").",
       )
   }
@@ -497,6 +613,10 @@ mod tests {
     fn output_dir(&self) -> PathBuf {
       std::env::temp_dir()
     }
+
+    fn presets_path(&self) -> PathBuf {
+      std::env::temp_dir().join("azalea-mcp-unit-test-presets.toml")
+    }
   }
 
   fn server(settings: Result<McpSettings, String>) -> (AzaleaMcp, Arc<AtomicUsize>) {
@@ -518,15 +638,72 @@ mod tests {
   fn request(text: &str) -> Parameters<SynthesizeRequest> {
     Parameters(SynthesizeRequest {
       text: text.into(),
-      speaker: "ずんだもん".into(),
-      style: "ノーマル".into(),
+      speaker: Some("ずんだもん".into()),
+      style: Some("ノーマル".into()),
+      preset: None,
     })
+  }
+
+  #[test]
+  fn requested_voice_needs_a_speaker_and_style_or_a_preset_alone() {
+    let voice = |speaker: Option<&str>, style: Option<&str>, preset: Option<&str>| {
+      requested_voice(&SynthesizeRequest {
+        text: "テスト".into(),
+        speaker: speaker.map(Into::into),
+        style: style.map(Into::into),
+        preset: preset.map(Into::into),
+      })
+    };
+    assert_eq!(
+      voice(Some("ずんだもん"), Some("ノーマル"), None),
+      Ok(Voice::Explicit {
+        speaker: "ずんだもん".into(),
+        style: "ノーマル".into()
+      })
+    );
+    assert_eq!(
+      voice(Some(" "), None, Some(" Narration ")),
+      Ok(Voice::Preset("Narration".into()))
+    );
+    let error = voice(Some("ずんだもん"), None, Some("Narration")).unwrap_err();
+    assert!(error.contains("omit speaker and style"), "{error}");
+    assert!(voice(None, Some("ノーマル"), Some("Narration")).is_err());
+    for (speaker, style) in [
+      (Some("ずんだもん"), None),
+      (None, Some("ノーマル")),
+      (None, None),
+    ] {
+      let error = voice(speaker, style, Some("")).unwrap_err();
+      assert!(error.contains("both speaker and style"), "{error}");
+    }
+  }
+
+  #[tokio::test]
+  async fn synthesize_rejects_bad_voice_arguments_before_reading_settings() {
+    let (server, core_loads) = server(Err("unused".into()));
+    let mut both = request("こんにちは");
+    both.0.preset = Some("Narration".into());
+    assert!(error(server.synthesize(both).await).contains("omit speaker and style"));
+    assert_eq!(core_loads.load(Ordering::SeqCst), 0);
   }
 
   #[tokio::test]
   async fn disabled_server_refuses_tools_without_loading_the_core() {
     let (server, core_loads) = server(Ok(McpSettings::default()));
     assert_eq!(error(server.list_speakers().await), DISABLED_MESSAGE);
+    assert_eq!(error(server.list_presets().await), DISABLED_MESSAGE);
+    let create = Parameters(CreatePresetRequest {
+      name: "Narration".into(),
+      speaker: "ずんだもん".into(),
+      style: "ノーマル".into(),
+      speed: None,
+      pitch: None,
+      intonation: None,
+      volume: None,
+      start_silence_ms: None,
+      end_silence_ms: None,
+    });
+    assert_eq!(error(server.create_preset(create).await), DISABLED_MESSAGE);
     assert_eq!(
       error(server.synthesize(request("こんにちは")).await),
       DISABLED_MESSAGE
@@ -580,7 +757,15 @@ mod tests {
       .map(|tool| tool.name.into_owned())
       .collect();
     names.sort();
-    assert_eq!(names, ["list_speakers", "synthesize"]);
+    assert_eq!(
+      names,
+      [
+        "create_preset",
+        "list_presets",
+        "list_speakers",
+        "synthesize"
+      ]
+    );
 
     let result = client
       .call_tool(CallToolRequestParams::new("list_speakers"))

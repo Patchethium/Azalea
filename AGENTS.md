@@ -534,12 +534,31 @@ command from `mcp_launch_command` (the current executable and `--mcp`,
 quoted by `shellWord`) with a copy button.
 
 Tools: `list_speakers` returns talk speakers and styles (speakers split across
-models merged, sorted by VOICEVOX order); `synthesize` takes `text`, `speaker`
-(name or UUID) and `style` (name or numeric ID), synthesizes the plain query,
-writes the WAV to `{temp_dir}/azalea-mcp/` and returns its path, duration and
-sample rate as structured content. Synthesis is serialized. `McpEnvironment`
-abstracts settings, core loading and the output directory so unit tests run
-without a core; the real-core integration test covers both tools.
+models merged, sorted by VOICEVOX order); `synthesize` takes `text` and either
+`speaker` (name or UUID) and `style` (name or numeric ID), or `preset` (name or
+ID) alone, rejecting a preset combined with either; it synthesizes the query
+(with the preset applied, as `getModifiedQuery` does), writes the WAV to
+`{temp_dir}/azalea-mcp/` and returns its path, duration, sample rate, voice and
+preset name as structured content. `list_presets` and `create_preset` manage the
+server's own presets (`src-tauri/src/mcp/presets.rs`).
+
+MCP presets are stored in `mcp_presets.toml` in the config directory
+(`config_dev` in development, ignored by git) using the app's `Preset` format,
+including `speaker_uuid` and `style_name`. They are deliberately separate from
+system and project presets, so a running app neither shows nor overwrites
+them. `create_preset` takes a unique name (case-insensitive), a speaker and
+style, and optional speed (50–200, default 100), pitch (-0.5–0.5), intonation
+and volume (0–2) and start/end silence in milliseconds (0–1500, default 100,
+matching synthesis without a preset); values outside the preset editor's
+ranges are rejected. A preset's voice is resolved like project preset
+fallbacks: an uninstalled stored speaker makes it unavailable (never another
+speaker reusing the style ID), and the style matches by stored name, then ID.
+Reported pitch, intonation and volume are rounded to three decimals. There
+are no update or delete tools yet; edit or remove the file by hand.
+
+Synthesis and preset creation are serialized. `McpEnvironment` abstracts
+settings, core loading, the output directory and the preset file so unit tests
+run without a core; the real-core integration test covers every tool.
 
 ### Using the MCP Server
 
@@ -572,9 +591,9 @@ printf '%s\n' \
   | src-tauri/target/debug/azalea --mcp
 ```
 
-Tool failures (setting off, unknown speaker or style listing the valid ones,
-empty text, core errors) are results with `isError: true`, not JSON-RPC
-errors. Each call returns the setting's current value, so toggling the switch
+Tool failures (setting off, unknown speaker, style or preset listing the valid
+ones, invalid preset values, empty text, core errors) are results with
+`isError: true`, not JSON-RPC errors. Each call reads the setting's current value, so toggling the switch
 needs no restart. English words are spelled out until the e2k models are
 downloaded (see Optional Downloads). WAV files accumulate in
 `{temp_dir}/azalea-mcp/`; delete them when done testing.

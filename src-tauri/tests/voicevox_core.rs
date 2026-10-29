@@ -1093,11 +1093,15 @@ impl azalea_lib::mcp::McpEnvironment for RealCoreMcpEnvironment {
   fn output_dir(&self) -> std::path::PathBuf {
     self.output_dir.clone()
   }
+
+  fn presets_path(&self) -> std::path::PathBuf {
+    self.output_dir.join("presets.toml")
+  }
 }
 
 #[tokio::test]
-async fn real_core_mcp_lists_speakers_and_synthesizes_a_wav_file() {
-  use azalea_lib::mcp::{AzaleaMcp, SynthesizeRequest};
+async fn real_core_mcp_lists_speakers_synthesizes_and_uses_presets() {
+  use azalea_lib::mcp::{AzaleaMcp, CreatePresetRequest, SynthesizeRequest};
   use rmcp::handler::server::wrapper::Parameters;
 
   let dir = tempfile::tempdir().unwrap();
@@ -1124,8 +1128,9 @@ async fn real_core_mcp_lists_speakers_and_synthesizes_a_wav_file() {
   let result = match server
     .synthesize(Parameters(SynthesizeRequest {
       text: TEST_TEXT.into(),
-      speaker: speaker.name.clone(),
-      style: style.name.clone(),
+      speaker: Some(speaker.name.clone()),
+      style: Some(style.name.clone()),
+      preset: None,
     }))
     .await
   {
@@ -1144,9 +1149,88 @@ async fn real_core_mcp_lists_speakers_and_synthesizes_a_wav_file() {
   let unknown = server
     .synthesize(Parameters(SynthesizeRequest {
       text: TEST_TEXT.into(),
-      speaker: speaker.speaker_uuid.clone(),
-      style: "no such style".into(),
+      speaker: Some(speaker.speaker_uuid.clone()),
+      style: Some("no such style".into()),
+      preset: None,
     }))
     .await;
   assert!(matches!(unknown, Err(error) if error.contains(&style.name)));
+
+  // A fast, silence-free preset with another style of the same speaker, when there is one.
+  let preset_style = speaker.styles.last().unwrap();
+  let Ok(created) = server
+    .create_preset(Parameters(CreatePresetRequest {
+      name: "Fast".into(),
+      speaker: speaker.speaker_uuid.clone(),
+      style: preset_style.id.to_string(),
+      speed: Some(200),
+      pitch: Some(0.1),
+      intonation: None,
+      volume: None,
+      start_silence_ms: Some(0),
+      end_silence_ms: Some(0),
+    }))
+    .await
+  else {
+    panic!("create_preset failed");
+  };
+  assert!(created.0.available);
+  assert_eq!(created.0.style_id, preset_style.id);
+  let duplicate = server
+    .create_preset(Parameters(CreatePresetRequest {
+      name: "fast".into(),
+      speaker: speaker.name.clone(),
+      style: style.name.clone(),
+      speed: None,
+      pitch: None,
+      intonation: None,
+      volume: None,
+      start_silence_ms: None,
+      end_silence_ms: None,
+    }))
+    .await;
+  assert!(matches!(duplicate, Err(error) if error.contains("already exists")));
+  let Ok(listed) = server.list_presets().await else {
+    panic!("list_presets failed");
+  };
+  assert_eq!(listed.0.presets, vec![created.0.clone()]);
+
+  let fast = match server
+    .synthesize(Parameters(SynthesizeRequest {
+      text: TEST_TEXT.into(),
+      preset: Some(created.0.id.clone()),
+      ..Default::default()
+    }))
+    .await
+  {
+    Ok(result) => result.0,
+    Err(error) => panic!("synthesize with a preset failed: {error}"),
+  };
+  assert_eq!(fast.preset.as_deref(), Some("Fast"));
+  assert_eq!(fast.style_id, preset_style.id);
+  // Double speed without the default 0.1 s silences roughly halves the audio.
+  assert!(
+    fast.duration_seconds < result.duration_seconds * 0.6,
+    "{} vs {}",
+    fast.duration_seconds,
+    result.duration_seconds
+  );
+
+  let both = server
+    .synthesize(Parameters(SynthesizeRequest {
+      text: TEST_TEXT.into(),
+      speaker: Some(speaker.name.clone()),
+      style: None,
+      preset: Some("Fast".into()),
+    }))
+    .await;
+  assert!(matches!(both, Err(error) if error.contains("omit speaker and style")));
+  let missing = server
+    .synthesize(Parameters(SynthesizeRequest {
+      text: TEST_TEXT.into(),
+      preset: Some("Slow".into()),
+      ..Default::default()
+    }))
+    .await;
+  assert!(matches!(missing, Err(error) if error.contains("Available presets: Fast")));
 }

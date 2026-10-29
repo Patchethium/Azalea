@@ -108,12 +108,16 @@ voices. It is experimental and off by default.
 
 The client starts its own Azalea process without a window, so the app doesn't
 need to be running. It loads your voice setup, user dictionary, and English
-word settings. It offers two tools:
+word settings. It offers these tools:
 
 - `list_speakers` lists the installed speakers and their talk styles.
+- `create_preset` saves a named voice with speed, pitch, intonation, volume,
+  and leading and trailing silence; `list_presets` lists the saved presets.
+  These presets are kept in `mcp_presets.toml` in Azalea's config folder,
+  separate from the presets in the app.
 - `synthesize` reads Japanese text with a speaker (name or UUID) and style
-  (name or ID), writes a WAV file to an `azalea-mcp` folder in the system
-  temporary directory, and returns its path.
+  (name or ID), or with a preset (name or ID), writes a WAV file to an
+  `azalea-mcp` folder in the system temporary directory, and returns its path.
 
 While **MCP Server** is off, the tools return an error asking you to turn it
 on; the change applies without restarting the client. Credit the VOICEVOX
@@ -150,7 +154,7 @@ Rust版VOICEVOX Coreを直接利用します。
   最近使ったプロジェクトを開いたりできます。現在はスキーマバージョン`1`のみ対応し、
   バージョンなしのファイルや他のバージョンは読み込めません。
 - **LLMクライアントから利用：** 試験的なMCPサーバーにより、ClaudeなどのMCPクライアントから
-  話者とスタイルの一覧を取得し、テキストをWAVファイルに合成できます。設定の「合成」で
+  話者とスタイルの一覧を取得し、テキストをWAVファイルに合成できます。MCP専用のプリセットも作成できます。設定の「合成」で
   「MCPサーバー」を有効にし、表示される起動コマンドをクライアントに追加してください。
 - **表示と操作のカスタマイズ：** キャラクターの立ち絵、パネルのサイズ変更・折りたたみ、
   ショートカット、ライト・ダークテーマとテーマ色を設定できます。

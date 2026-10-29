@@ -521,7 +521,7 @@ fn toggle_pitch_completion_shortcut_default() -> KeyboardShortcut {
   KeyboardShortcut::new("L", true, false)
 }
 
-#[derive(Clone, Deserialize, Serialize, Type)]
+#[derive(Clone, Debug, Deserialize, Serialize, Type)]
 pub struct Preset {
   #[serde(default)]
   pub id: String,
