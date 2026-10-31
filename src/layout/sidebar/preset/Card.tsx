@@ -43,17 +43,8 @@ export function PresetCard(props: PresetCardProps) {
         }}
       >
         <div class="min-w-0 flex-1 flex flex-col">
-          <div class="flex items-center gap1">
-            <div class="min-w-0 flex-1 truncate">
-              {preset()?.name || t1("preset.placeholder_name")}
-            </div>
-            <SortableHandle
-              sortable={local.sortable}
-              index={local.presetIndex}
-              label={t1("preset.controls.reorder")}
-              visible={hovered()}
-              class="text-ink-faint"
-            />
+          <div class="min-w-0 truncate">
+            {preset()?.name || t1("preset.placeholder_name")}
           </div>
           <div class="text-xs text-ink-subtle flex flex-row items-center">
             {identity()?.speaker.name}
@@ -61,6 +52,13 @@ export function PresetCard(props: PresetCardProps) {
             {identity()?.style.name}
           </div>
         </div>
+        <SortableHandle
+          sortable={local.sortable}
+          index={local.presetIndex}
+          label={t1("preset.controls.reorder")}
+          visible={hovered()}
+          class="self-end text-ink-faint"
+        />
       </div>
     </div>
   );

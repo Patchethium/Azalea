@@ -145,18 +145,6 @@ export function TextBlockView(props: {
               </p>
             </Show>
           </div>
-          <Show when={props.sortable}>
-            {(sortable) => (
-              <SortableHandle
-                sortable={sortable()}
-                index={props.index}
-                label={t1("text_block.controls.reorder")}
-                visible={hovered() || toolbarHovered()}
-                // Sit flush with the block's right edge when nothing follows.
-                class={`ml-1 text-ink-faint ${config.ui.buffer_render ? "" : "-mr-3"}`}
-              />
-            )}
-          </Show>
           <Show when={config.ui.buffer_render}>
             <Tooltip content={props.synthStateText()}>
               <output
@@ -183,6 +171,18 @@ export function TextBlockView(props: {
                 />
               </output>
             </Tooltip>
+          </Show>
+          <Show when={props.sortable}>
+            {(sortable) => (
+              <SortableHandle
+                sortable={sortable()}
+                index={props.index}
+                label={t1("text_block.controls.reorder")}
+                visible={hovered() || toolbarHovered()}
+                // Sit flush with the block's right edge.
+                class="ml-0.5 -mr-3 text-ink-faint"
+              />
+            )}
           </Show>
         </div>
       </div>
