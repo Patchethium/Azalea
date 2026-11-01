@@ -108,8 +108,9 @@ jobs:
           sudo apt-get install --yes clang mold libasound2-dev libwebkit2gtk-4.1-dev
 
       - name: Install Rust nightly
-        uses: dtolnay/rust-toolchain@nightly
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: nightly-2026-10-28
           components: rustfmt
 
       - name: Install cargo-about
