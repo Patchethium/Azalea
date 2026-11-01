@@ -559,6 +559,53 @@ async loadProject(path: string) : Promise<Result<Project, string>> {
  */
 async takeStartupProject() : Promise<string | null> {
     return await TAURI_INVOKE("take_startup_project");
+},
+/**
+ * Starts recording from the default microphone, discarding any earlier
+ * recording.
+ */
+async startVoiceRecording() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("start_voice_recording") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Stops recording, keeps the audio for analysis and returns its length in
+ * seconds.
+ */
+async stopVoiceRecording() : Promise<Result<number, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("stop_voice_recording") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Stops recording and discards the running and the last recording.
+ */
+async cancelVoiceRecording() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cancel_voice_recording") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Aligns the voice to `accent_phrases` (a block's current query) and returns
+ * them with the voice's timing and unmapped pitch.
+ */
+async analyzeVoiceImport(source: VoiceSource, accentPhrases: AccentPhrase[]) : Promise<Result<VoiceImport, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("analyze_voice_import", { source, accentPhrases }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -573,7 +620,8 @@ initializationEvent: InitializationEvent,
 openProjectRequested: OpenProjectRequested,
 spectrogramColumnsEvent: SpectrogramColumnsEvent,
 spectrogramJobEvent: SpectrogramJobEvent,
-synthesisJobEvent: SynthesisJobEvent
+synthesisJobEvent: SynthesisJobEvent,
+voiceRecordingLevelEvent: VoiceRecordingLevelEvent
 }>({
 downloadProgressEvent: "download-progress-event",
 extraDownloadProgressEvent: "extra-download-progress-event",
@@ -582,7 +630,8 @@ initializationEvent: "initialization-event",
 openProjectRequested: "open-project-requested",
 spectrogramColumnsEvent: "spectrogram-columns-event",
 spectrogramJobEvent: "spectrogram-job-event",
-synthesisJobEvent: "synthesis-job-event"
+synthesisJobEvent: "synthesis-job-event",
+voiceRecordingLevelEvent: "voice-recording-level-event"
 })
 
 /** user-defined constants **/
@@ -823,7 +872,7 @@ export type DownloadSetup = { directory: string; components: DownloadComponent[]
 loaded_models: string[] | null }
 export type DownloadedSetupConfig = { cache_size?: number; cpu_num_threads?: number }
 export type ExtraDownloadProgressEvent = { operation_id: string; pack: ExtraPack; completed_bytes: number; total_bytes: number }
-export type ExtraPack = "Fonts" | "EnglishModels"
+export type ExtraPack = "Fonts" | "EnglishModels" | "AlignerModel"
 export type ExtraStatus = { pack: ExtraPack; bytes: number; installed: boolean }
 export type FrontendReadyEvent = null
 export type InitializationEvent = { config: AzaleaConfig | null; core_initialized: boolean; metas: CharacterMeta[] | null; range: ([StyleId, PitchRange])[]; error: string | null; resolved_core?: CoreConfig | null; active_setup_source?: SetupSource | null; 
@@ -1161,6 +1210,48 @@ export_lab?: boolean; last_exported_dir?: string | null;
  * Recently opened or saved project paths, most recent first.
  */
 recent_projects?: string[]; shortcuts?: KeyboardShortcuts }
+/**
+ * The block's query with the recording's timing and the speaker's pitch.
+ */
+export type VoiceImport = { 
+/**
+ * The input phrases with every mora and pause length replaced and each
+ * voiced mora's pitch set to the speaker's mean log f0 (0 elsewhere).
+ */
+accent_phrases: AccentPhrase[]; 
+/**
+ * Natural-log f0 of the trimmed recording every `frame_period_ms`, 0 when
+ * unvoiced.
+ */
+f0: number[]; frame_period_ms: number; 
+/**
+ * Length of the trimmed recording in seconds.
+ */
+duration: number }
+/**
+ * The microphone level while recording, about every 50 ms.
+ */
+export type VoiceRecordingLevelEvent = { 
+/**
+ * Peak absolute sample since the previous event, in `[0, 1]`.
+ */
+peak: number; seconds: number; 
+/**
+ * The recording reached its 60-second limit; stop it to keep what it has.
+ */
+full: boolean }
+/**
+ * Where the voice to import comes from.
+ */
+export type VoiceSource = 
+/**
+ * The last finished recording.
+ */
+"Recording" | 
+/**
+ * An audio file the user picked.
+ */
+{ File: string }
 
 /** tauri-specta globals **/
 

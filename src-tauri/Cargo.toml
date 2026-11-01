@@ -60,6 +60,10 @@ uuid = { version = "1", features = ["v4"] }
 sys-locale = "0.3.2"
 tempfile = "3"
 e2k = { git = "https://github.com/Patchethium/e2k", tag = "v0.8.2" }
+snfa = { git = "https://github.com/Patchethium/snfa", tag = "rust-v0.1.0" }
+symphonia = { version = "0.6.1", default-features = false, features = ["wav", "pcm", "flac", "mp3", "vorbis", "ogg", "aac", "isomp4", "adpcm"] }
+rubato = "5.0.1"
+audioadapter-buffers = "5.2.0"
 
 [dependencies.voicevox_core]
 git = "https://github.com/Patchethium/voicevox_core.git"

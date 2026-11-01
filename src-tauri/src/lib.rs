@@ -12,6 +12,7 @@ pub mod post;
 mod spectrogram;
 pub mod streaming;
 mod synthesis;
+pub mod voice_import;
 use core::Core;
 
 use commands::*;
@@ -45,6 +46,7 @@ pub struct AppState {
   pub(crate) config_manager: LockedState<config::ConfigManager>,
   pub(crate) audio_player: LockedState<audio::AudioPlayer>,
   pub(crate) post_cache: post::PostCache,
+  pub(crate) voice_recorder: commands::VoiceRecorderState,
 }
 
 fn specta_builder() -> Builder<tauri::Wry> {
@@ -112,6 +114,10 @@ fn specta_builder() -> Builder<tauri::Wry> {
       save_project,
       load_project,
       take_startup_project,
+      start_voice_recording,
+      stop_voice_recording,
+      cancel_voice_recording,
+      analyze_voice_import,
     ])
     .events(collect_events![
       InitializationEvent,
@@ -121,6 +127,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
       SpectrogramColumnsEvent,
       DownloadProgressEvent,
       ExtraDownloadProgressEvent,
+      VoiceRecordingLevelEvent,
       OpenProjectRequested
     ])
 }
@@ -189,6 +196,7 @@ pub fn run() {
       config_manager: RwLock::new(None),
       audio_player: RwLock::new(None),
       post_cache: post::PostCache::default(),
+      voice_recorder: Default::default(),
     })
     .manage(StartupProject::from_process())
     .invoke_handler(builder.invoke_handler())
@@ -282,6 +290,7 @@ mod tests {
       config_manager: RwLock::new(None),
       audio_player: RwLock::new(None),
       post_cache: post::PostCache::default(),
+      voice_recorder: Default::default(),
     }
   }
 

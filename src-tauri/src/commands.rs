@@ -8,6 +8,7 @@ mod licenses;
 mod process;
 mod project;
 mod utils;
+mod voice_import;
 
 pub use assets::*;
 pub use config::*;
@@ -18,3 +19,4 @@ pub use extras::*;
 pub use licenses::*;
 pub use process::*;
 pub use project::*;
+pub use voice_import::*;

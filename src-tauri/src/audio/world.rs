@@ -1,6 +1,6 @@
 //! Safe bindings to the vendored WORLD vocoder (`third_party/world`), compiled by `build.rs`.
 //!
-//! Only the pieces the post-processing tab needs are bound: Harvest f0 estimation, CheapTrick
+//! Only the pieces the post-processing tab and voice import need are bound: Harvest f0 estimation, CheapTrick
 //! spectral envelopes, D4C aperiodicity and Synthesis. The C++ code has no input validation, so
 //! every entry point here checks its arguments before crossing the FFI boundary.
 
@@ -119,8 +119,12 @@ fn row_pointers(rows: &mut [Vec<f64>]) -> Vec<*mut c_double> {
   rows.iter_mut().map(|row| row.as_mut_ptr()).collect()
 }
 
-/// Estimates f0 with Harvest and the spectral envelope and aperiodicity at those frames.
-pub fn analyze(x: &[f64], sample_rate: u32, range: F0Range) -> Result<WorldFeatures, String> {
+/// Validates the input and runs Harvest, returning each frame's temporal position and f0.
+fn harvest_frames(
+  x: &[f64],
+  sample_rate: u32,
+  range: F0Range,
+) -> Result<(Vec<f64>, Vec<f64>), String> {
   if x.len() < MIN_SAMPLES {
     return Err("The waveform is too short to analyze".into());
   }
@@ -137,8 +141,8 @@ pub fn analyze(x: &[f64], sample_rate: u32, range: F0Range) -> Result<WorldFeatu
   let fs = ffi_int(sample_rate as usize, "The sample rate")?;
   let x_length = ffi_int(x.len(), "The waveform length")?;
 
-  // SAFETY: every option struct is initialized by WORLD before use, buffers are sized from
-  // WORLD's own length functions, and all pointers outlive the calls.
+  // SAFETY: the option struct is initialized by WORLD before use, the buffers are sized from
+  // WORLD's own length function, and all pointers outlive the call.
   unsafe {
     let mut harvest = std::mem::zeroed::<ffi::HarvestOption>();
     ffi::InitializeHarvestOption(&mut harvest);
@@ -157,7 +161,27 @@ pub fn analyze(x: &[f64], sample_rate: u32, range: F0Range) -> Result<WorldFeatu
       temporal_positions.as_mut_ptr(),
       f0.as_mut_ptr(),
     );
+    Ok((temporal_positions, f0))
+  }
+}
 
+/// Estimates f0 with Harvest alone, one value every [`FRAME_PERIOD_MS`]; 0 marks unvoiced
+/// frames.
+pub fn harvest(x: &[f64], sample_rate: u32, range: F0Range) -> Result<Vec<f64>, String> {
+  harvest_frames(x, sample_rate, range).map(|(_, f0)| f0)
+}
+
+/// Estimates f0 with Harvest and the spectral envelope and aperiodicity at those frames.
+pub fn analyze(x: &[f64], sample_rate: u32, range: F0Range) -> Result<WorldFeatures, String> {
+  let (temporal_positions, f0) = harvest_frames(x, sample_rate, range)?;
+  let fs = ffi_int(sample_rate as usize, "The sample rate")?;
+  let x_length = ffi_int(x.len(), "The waveform length")?;
+  let frames = ffi_int(f0.len(), "The frame count")?;
+  let frame_count = f0.len();
+
+  // SAFETY: every option struct is initialized by WORLD before use, buffers are sized from
+  // WORLD's own length functions, and all pointers outlive the calls.
+  unsafe {
     let mut cheaptrick = std::mem::zeroed::<ffi::CheapTrickOption>();
     ffi::InitializeCheapTrickOption(fs, &mut cheaptrick);
     // Frames below CheapTrick's floor are treated as unvoiced, so follow a lower search floor.
@@ -294,6 +318,14 @@ mod tests {
       .spectrogram
       .iter()
       .all(|row| row.len() == 513 && row.iter().all(|v| v.is_finite())));
+  }
+
+  #[test]
+  fn harvest_alone_matches_the_full_analysis() {
+    let x = tone(0.6, |t| 180.0 + 60.0 * t);
+    let features = analyze(&x, FS, F0Range::default()).unwrap();
+    assert_eq!(harvest(&x, FS, F0Range::default()).unwrap(), features.f0);
+    assert!(harvest(&[0.0; 100], FS, F0Range::default()).is_err());
   }
 
   #[test]

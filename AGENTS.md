@@ -19,16 +19,18 @@ Their custom user dictionary is shared.
 
 ## Optional Downloads
 
-To keep the bundle small, the Noto Sans CJK fonts (`UIConfig.embedded_font`)
-and the e2k English reading models are not bundled. `src-tauri/src/commands/extras.rs`
-downloads them as `ExtraPack`s (`Fonts`, `EnglishModels`) from pinned URLs with
+To keep the bundle small, the Noto Sans CJK fonts (`UIConfig.embedded_font`),
+the e2k English reading models and the snfa aligner model (voice import) are
+not bundled. `src-tauri/src/commands/extras.rs` downloads them as
+`ExtraPack`s (`Fonts`, `EnglishModels`, `AlignerModel`) from pinned URLs with
 fixed sizes and SHA-256 hashes, staging each file and moving it into place only
 after it verifies. They live next to the VOICEVOX downloads:
-`config_dev/{fonts,e2k}` in development and
-`dirs::data_local_dir()/{bundle_identifier}/{fonts,e2k}` in release. Unlike the
+`config_dev/{fonts,e2k,snfa}` in development and
+`dirs::data_local_dir()/{bundle_identifier}/{fonts,e2k,snfa}` in release. Unlike the
 VOICEVOX components, clearing the asset cache (`clear_assets`) also deletes
 them and `get_assets_size` counts them. When the e2k tag in `Cargo.toml`
-changes, update `ENGLISH_MODEL_FILES` to that tag's models.
+changes, update `ENGLISH_MODEL_FILES` to that tag's models; when the snfa tag
+changes, update `ALIGNER_MODEL_FILES` to that release's `jp.safetensors`.
 
 Until a pack is installed, `ExtraDownloadButton` (`src/components/extraDownload/`)
 replaces the setting's control (the font toggle group, the "Transform English
@@ -196,6 +198,47 @@ transliterate the rest. Single letters are always spelled.
 the plain methods keep OpenJTalk's reading. The query cache key includes the
 options, and the frontend regenerates pristine queries after a save that
 changes the effective options (`englishReadingRevision`).
+
+## Voice Import
+
+Voice import turns the user's own reading of a block's text, recorded in the
+app or picked as an audio file, into that block's mora durations and pitches
+(a pseudo voice conversion: no waveform is converted). The aligner is
+[snfa](https://github.com/Patchethium/snfa)'s Rust crate, a git dependency
+pinned by tag whose `rust/` port matches the numpy implementation; its model
+is the `AlignerModel` pack (see Optional Downloads), loaded once per process
+on first use without caching failures (`voice_import::provide_aligner`
+supplies one in tests).
+
+- `src-tauri/src/audio/decode.rs` decodes WAV, FLAC, MP3, Ogg Vorbis and AAC
+  (M4A/ADTS) with symphonia, mixes down to mono, rejects audio over 60 s
+  (`MAX_SECONDS`) and resamples with rubato.
+- `src-tauri/src/audio/record.rs` records the default input device through
+  rodio's cpal re-export on a thread that owns the stream (cpal streams are
+  not `Send`), capped at 60 s, reporting the peak level every 50 ms. macOS
+  reads `NSMicrophoneUsageDescription` from `src-tauri/Info.plist`.
+- `src-tauri/src/voice_import.rs` resamples to the model's 16 kHz, trims
+  silence like snfa's README, aligns the query's phonemes (consonant, vowel,
+  pause per mora; lowercased, `kw`/`gw` as `k`/`g`) with padded edge pauses,
+  and writes each consonant, vowel and pause length (at least 10 ms). The
+  query's `pre_phoneme_length` and `post_phoneme_length` are kept, since the
+  recording's edge silence is arbitrary. Harvest (`world::harvest`, 71–800 Hz)
+  runs on the trimmed audio; each voiced mora (`a i u e o N`) takes the mean
+  natural-log f0 of the voiced frames in its vowel, voiced moras without any
+  are interpolated from voiced neighbours, and unvoiced vowels, `cl` and
+  pauses get 0. These pitches are the speaker's own; the frontend maps them
+  into the style's range.
+- Commands (`src-tauri/src/commands/voice_import.rs`):
+  `start_voice_recording` (emits `VoiceRecordingLevelEvent`),
+  `stop_voice_recording` (keeps the audio and returns its length),
+  `cancel_voice_recording`, and `analyze_voice_import(source, accent_phrases)`
+  with `VoiceSource::Recording` or `VoiceSource::File(path)`, returning
+  `VoiceImport { accent_phrases, f0, frame_period_ms, duration }`.
+
+`src-tauri/tests/voice_import.rs` imports VOICEVOX speech against its own
+query on the real core and checks the timing and pitch come back; it reads
+the model from `AZALEA_TEST_SNFA_MODEL` or `config_dev/snfa/jp.safetensors`
+and fails clearly without one.
 
 ## Project Files
 

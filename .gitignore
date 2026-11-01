@@ -12,6 +12,7 @@ config_dev/assets/
 config_dev/voicevox/
 config_dev/e2k/
 config_dev/fonts/
+config_dev/snfa/
 .DS_Store
 coverage/
 logs/

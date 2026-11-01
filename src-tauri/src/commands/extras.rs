@@ -1,11 +1,12 @@
 //! Optional downloads that keep the bundle small: the Noto Sans CJK fonts for
-//! the embedded-font setting and the e2k English reading models. Only pinned
+//! the embedded-font setting, the e2k English reading models and the snfa
+//! aligner model for voice import. Only pinned
 //! files are fetched; no URL or destination path crosses IPC.
 use super::downloads::{
   commit, directory, fetch_file, remove_owned_path, verified_file, FileCheck, VerifiedFiles,
 };
 use crate::async_job::JobCancellation;
-use crate::config::manager::{english_models_dir, fonts_dir};
+use crate::config::manager::{aligner_model_dir, english_models_dir, fonts_dir};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::collections::HashMap;
@@ -19,6 +20,7 @@ use tauri_specta::Event;
 pub enum ExtraPack {
   Fonts,
   EnglishModels,
+  AlignerModel,
 }
 
 pub(crate) struct ExtraFile {
@@ -77,13 +79,26 @@ const ENGLISH_MODEL_FILES: &[ExtraFile] = &[
   },
 ];
 
+/// The model of the snfa release `Cargo.toml` pins.
+pub(crate) const ALIGNER_MODEL_FILES: &[ExtraFile] = &[ExtraFile {
+  name: "jp.safetensors",
+  url: "https://github.com/Patchethium/snfa/releases/download/rust-v0.1.0/jp.safetensors",
+  bytes: 1248924,
+  sha256: "a1bd8eb1cc88ce77e50b86d88f3fde5042fc4c9ecb31fa56ece7fd66ac775075",
+}];
+
 impl ExtraPack {
-  const ALL: [ExtraPack; 2] = [ExtraPack::Fonts, ExtraPack::EnglishModels];
+  const ALL: [ExtraPack; 3] = [
+    ExtraPack::Fonts,
+    ExtraPack::EnglishModels,
+    ExtraPack::AlignerModel,
+  ];
 
   pub(crate) fn files(self) -> &'static [ExtraFile] {
     match self {
       ExtraPack::Fonts => FONT_FILES,
       ExtraPack::EnglishModels => ENGLISH_MODEL_FILES,
+      ExtraPack::AlignerModel => ALIGNER_MODEL_FILES,
     }
   }
 
@@ -91,6 +106,7 @@ impl ExtraPack {
     match self {
       ExtraPack::Fonts => fonts_dir(),
       ExtraPack::EnglishModels => english_models_dir(),
+      ExtraPack::AlignerModel => aligner_model_dir(),
     }
   }
 
@@ -114,7 +130,7 @@ pub struct ExtraDownloadProgressEvent {
   pub total_bytes: u64,
 }
 
-/// One download per pack; both packs may download at the same time.
+/// One download per pack; different packs may download at the same time.
 static OPERATIONS: LazyLock<Mutex<HashMap<ExtraPack, (String, Arc<JobCancellation>)>>> =
   LazyLock::new(Mutex::default);
 
@@ -341,7 +357,12 @@ mod tests {
     for pack in ExtraPack::ALL {
       assert!(!pack.files().is_empty());
       for file in pack.files() {
-        assert!(file.url.starts_with("https://raw.githubusercontent.com/"));
+        assert!(
+          file.url.starts_with("https://raw.githubusercontent.com/")
+            || file.url.starts_with("https://github.com/Patchethium/"),
+          "{}",
+          file.url
+        );
         assert!(file.url.ends_with(file.name));
         assert_eq!(file.sha256.len(), 64);
         assert!(file.bytes > 0);
@@ -350,6 +371,11 @@ mod tests {
     assert!(ENGLISH_MODEL_FILES
       .iter()
       .all(|file| file.url.contains("/e2k/v0.8.2/")));
+    // Keep the release in step with the snfa tag in `Cargo.toml`.
+    assert!(ALIGNER_MODEL_FILES
+      .iter()
+      .all(|file| file.url.contains("/snfa/releases/download/rust-v0.1.0/")));
+    assert!(include_str!("../../Cargo.toml").contains("tag = \"rust-v0.1.0\""));
   }
 
   #[test]

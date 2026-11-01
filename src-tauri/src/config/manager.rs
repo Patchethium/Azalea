@@ -92,6 +92,11 @@ pub(crate) fn english_models_dir() -> Result<PathBuf, String> {
   Ok(local_data_dir()?.join("e2k"))
 }
 
+/// Downloaded snfa aligner model for voice import.
+pub(crate) fn aligner_model_dir() -> Result<PathBuf, String> {
+  Ok(local_data_dir()?.join("snfa"))
+}
+
 pub(crate) fn assets_dir() -> PathBuf {
   config_dir().join("assets")
 }
@@ -219,6 +224,7 @@ mod tests {
     );
     assert_eq!(fonts_dir().unwrap(), development_root.join("fonts"));
     assert_eq!(english_models_dir().unwrap(), development_root.join("e2k"));
+    assert_eq!(aligner_model_dir().unwrap(), development_root.join("snfa"));
   }
 
   #[test]
