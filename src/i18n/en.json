@@ -69,7 +69,7 @@
     "post_pencil": "Pencil",
     "post_line": "Line",
     "post_draw_unvoiced": "Draw on unvoiced frames",
-    "post_hint": "Drag to draw the pitch, right-drag to restore it. With Timing, click to add an anchor and drag it. Ctrl+scroll zooms.",
+    "post_warning": "Post tuning is experimental, downgraded audio fidelity is expected.",
     "post_hz": "{{ value }} Hz",
     "post_unvoiced": "unvoiced",
     "post_seconds": "{{ value }} s",

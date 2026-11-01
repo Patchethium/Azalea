@@ -69,7 +69,7 @@
     "post_pencil": "画笔",
     "post_line": "直线",
     "post_draw_unvoiced": "在清音帧上绘制",
-    "post_hint": "拖动绘制音高，右键拖动恢复。使用“时间”工具时，单击添加锚点并拖动。Ctrl+滚轮缩放。",
+    "post_warning": "后期调整为实验性功能，音质可能会有所下降。",
     "post_hz": "{{ value }} Hz",
     "post_unvoiced": "清音",
     "post_seconds": "{{ value }} 秒",

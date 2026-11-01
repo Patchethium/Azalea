@@ -546,7 +546,13 @@ export function PostPanel() {
       </div>
       <div class="h-6 w-full shrink-0 flex items-center gap-3 overflow-hidden px-2 text-xs text-ink-subtle">
         <Show when={panel.queryExists()}>
-          <span class="min-w-0 flex-1 truncate">{t1("bottom.post_hint")}</span>
+          <span class="min-w-0 flex flex-1 items-center gap-1 text-warning-ink">
+            <span
+              aria-hidden="true"
+              class="i-lucide:triangle-alert size-3.5 shrink-0"
+            />
+            <span class="truncate">{t1("bottom.post_warning")}</span>
+          </span>
           <dl
             class="m0 grid shrink-0 grid-flow-col auto-cols-max gap-x-3"
             data-post-readout

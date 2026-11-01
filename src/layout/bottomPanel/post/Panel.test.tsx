@@ -139,7 +139,7 @@ describe("Post panel", () => {
       postPhonemeLength: 0.2,
     });
     expect(analyze.mock.calls[0][1]).toBe(1);
-    expect(screen.getByText(/Drag to draw the pitch/)).toBeInTheDocument();
+    expect(screen.getByText(/Post tuning is experimental/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "Tuning" }));
     fireEvent.click(screen.getByRole("tab", { name: "Post" }));

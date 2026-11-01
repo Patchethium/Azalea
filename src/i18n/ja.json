@@ -69,7 +69,7 @@
     "post_pencil": "ペン",
     "post_line": "直線",
     "post_draw_unvoiced": "無声フレームにも描画",
-    "post_hint": "ドラッグでピッチを描画、右ドラッグで元に戻します。タイミングではクリックでアンカーを追加してドラッグします。Ctrl+スクロールでズーム。",
+    "post_warning": "ポスト調整は実験的な機能です。音質の低下が予想されます。",
     "post_hz": "{{ value }} Hz",
     "post_unvoiced": "無声",
     "post_seconds": "{{ value }} 秒",
