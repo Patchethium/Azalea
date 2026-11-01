@@ -2049,4 +2049,88 @@ describe("TextBlock", () => {
       expect(getTextStore().textStore[0].query?.speedScale).toBe(1.5);
     },
   );
+  it("predicts pitch again for a new seed and keeps accent edits", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    const query = vi.spyOn(commands, "audioQuery");
+    const predicted = audioQuery().accent_phrases.map((phrase) => ({
+      ...phrase,
+      moras: phrase.moras.map((mora) => ({ ...mora, pitch: 6.1 })),
+    }));
+    const replace = vi
+      .spyOn(commands, "replaceMoraPitch")
+      .mockResolvedValue({ status: "ok", data: predicted });
+    const { getTextStore } = renderBlock(false);
+    getTextStore().setTextStore(0, "accent_is_modified", true);
+
+    getTextStore().setTextStore(0, "pitch_noise_seed", 42);
+
+    await waitFor(() =>
+      expect(replace).toHaveBeenCalledWith(audioQuery().accent_phrases, 1, 42),
+    );
+    await waitFor(() =>
+      expect(getTextStore().textStore[0].query?.accent_phrases).toEqual(
+        predicted,
+      ),
+    );
+    expect(query).not.toHaveBeenCalled();
+    expect(getTextStore().textStore[0].accent_is_modified).toBe(true);
+    expect(getTextStore().textStore[0].pitch_is_modified).toBe(false);
+  });
+
+  it("keeps a pitch-edited query when the seed changes", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    const query = vi.spyOn(commands, "audioQuery");
+    const replace = vi.spyOn(commands, "replaceMoraPitch");
+    const { getTextStore } = renderBlock(false, true);
+    getTextStore().setTextStore(0, "accent_is_modified", true);
+
+    getTextStore().setTextStore(0, "pitch_noise_seed", 42);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(replace).not.toHaveBeenCalled();
+    expect(query).not.toHaveBeenCalled();
+    expect(getTextStore().textStore[0].query).toEqual(audioQuery());
+  });
+
+  it("drops a seeded pitch prediction made for older accent phrases", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    type PitchResult = Awaited<ReturnType<typeof commands.replaceMoraPitch>>;
+    let resolve!: (result: PitchResult) => void;
+    vi.spyOn(commands, "replaceMoraPitch").mockReturnValue(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    const { getTextStore } = renderBlock(false);
+    getTextStore().setTextStore(0, "accent_is_modified", true);
+    getTextStore().setTextStore(0, "pitch_noise_seed", 42);
+    await waitFor(() => expect(commands.replaceMoraPitch).toHaveBeenCalled());
+
+    getTextStore().setTextStore(0, "query", "accent_phrases", 0, "accent", 2);
+    resolve({
+      status: "ok",
+      data: [{ ...audioQuery().accent_phrases[0], accent: 1 }],
+    });
+    await new Promise((done) => setTimeout(done, 0));
+
+    expect(getTextStore().textStore[0].query?.accent_phrases[0].accent).toBe(2);
+  });
+
+  it("reports a failed seeded pitch prediction", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    vi.spyOn(commands, "replaceMoraPitch").mockResolvedValue({
+      status: "error",
+      error: "no model",
+    });
+    const { getTextStore } = renderBlock(false);
+    getTextStore().setTextStore(0, "accent_is_modified", true);
+
+    getTextStore().setTextStore(0, "pitch_noise_seed", 42);
+
+    await waitFor(() => expect(consoleError).toHaveBeenCalledWith("no model"));
+    expect(getTextStore().textStore[0].query).toEqual(audioQuery());
+  });
 });

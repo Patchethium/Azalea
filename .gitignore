@@ -16,3 +16,4 @@ config_dev/fonts/
 coverage/
 logs/
 docs/
+video/

@@ -284,7 +284,9 @@ Enforce the orthogonality in control state: the tuning panel must never read
 `accent_is_modified` and the accent panel must never read the tuning flags.
 Specifically, the pitch-noise seed controls are disabled only by
 `duration_is_modified` or `pitch_is_modified`, never by accent or phoneme
-edits, and a tuning reset must not enable, disable, or clear the accent reset
+edits. A seed change on a block with only accent or phoneme edits predicts
+its pitch again with `replace_mora_pitch` and the new seed, keeping those
+edits (reading the text again would drop them), and a tuning reset must not enable, disable, or clear the accent reset
 (or vice versa).
 
 Accent and phoneme edits call `markQueryAccentModified`, pitch edits call

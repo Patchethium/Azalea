@@ -137,6 +137,31 @@ function TextBlock(props: { index: number; sortable?: Sortable }) {
     500,
   );
 
+  // A new seed on a block with only accent or phoneme edits predicts its
+  // pitch again, keeping those edits; reading the text again would drop them.
+  const repredictPitch = async (
+    styleId: number,
+    requestRevision: number,
+    seed: number,
+  ) => {
+    const sent = structuredClone(unwrap(currentQuery()!.accent_phrases));
+    const result = await commands.replaceMoraPitch(sent, styleId, seed);
+    const query = currentQuery();
+    if (
+      disposed ||
+      requestRevision !== queryRequestRevision ||
+      query === null ||
+      JSON.stringify(unwrap(query.accent_phrases)) !== JSON.stringify(sent)
+    )
+      return;
+    if (result.status === "ok")
+      setTextStore(props.index, "query", "accent_phrases", result.data);
+    else {
+      console.error(result.error);
+      toasts.error(t1("toast.error.audio_query"), result.error);
+    }
+  };
+
   onCleanup(() => {
     disposed = true;
     queryRequestRevision += 1;
@@ -164,9 +189,23 @@ function TextBlock(props: { index: number; sortable?: Sortable }) {
           (previous[1] !== text ||
             previous[4] !== seed ||
             (previous[2] !== undefined && previous[2] !== styleId));
+        const onlySeedChanged =
+          contentChanged &&
+          previous[1] === text &&
+          (previous[2] === undefined || previous[2] === styleId);
         if (text === "") {
           fetchAudioQuery.cancel();
           setQuery(null);
+        } else if (
+          onlySeedChanged &&
+          sourceBlock.query !== null &&
+          sourceBlock.accent_is_modified === true &&
+          sourceBlock.pitch_is_modified !== true &&
+          sourceBlock.duration_is_modified !== true &&
+          styleId !== undefined
+        ) {
+          fetchAudioQuery.cancel();
+          void repredictPitch(styleId, requestRevision, seed);
         } else if (isQueryModified(sourceBlock) && sourceBlock.query !== null) {
           fetchAudioQuery.cancel();
         } else if (sourceBlock.query !== null && !contentChanged) {
