@@ -20,6 +20,7 @@ import { useMetaStore } from "@contexts/meta";
 import { useShortcutsStore } from "@contexts/shortcuts";
 import { findPresetById, findPresetStyle, useTextStore } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
+import { useVoiceImportStore } from "@contexts/voiceImport";
 import { getModifiedQuery, postEditBase } from "$utils";
 import { activePostEdit } from "@layout/bottomPanel/post/postEdit";
 
@@ -37,6 +38,7 @@ export function usePlaybackControls(
   const { metas } = useMetaStore()!;
   const { uiStore, setUIStore } = useUIStore()!;
   const { playbackTimelineEnabled, postProcessingEnabled } = useConfigStore()!;
+  const voices = useVoiceImportStore();
   const { t1 } = usei18n()!;
   const toasts = useToasts();
   const {
@@ -108,7 +110,17 @@ export function usePlaybackControls(
       ? preset
       : null;
   });
-  const canPlay = () => queryExists() && currentPreset() !== null;
+  /** On the voice tab, playback plays the selected block's voice instead. */
+  const selectedVoice = () => {
+    const block = selectedTextBlock();
+    return uiStore.bottomPanel !== "voice" || block === null
+      ? null
+      : (voices?.voiceSessions[block.id] ?? null);
+  };
+  const canPlay = () =>
+    uiStore.bottomPanel === "voice"
+      ? selectedVoice() !== null
+      : queryExists() && currentPreset() !== null;
   const currentModifiedQuery = createMemo(() => {
     const block = selectedTextBlock();
     const preset = currentPreset();
@@ -226,7 +238,33 @@ export function usePlaybackControls(
     } else setIsPlaying(false);
   };
 
+  const speakVoice = async () => {
+    const voice = selectedVoice();
+    if (voice === null || playRequestPending()) return null;
+    setPlayRequestPending(true);
+    try {
+      if (isPlaying()) await stop();
+      activePlaybackSequence = null;
+      const result = await commands.playVoice(
+        voice.voiceId,
+        playbackTimelineEnabled() && voice.playbackStart > 0
+          ? voice.playbackStart
+          : null,
+      );
+      if (result.status === "ok") {
+        setIsPlaying(true);
+        return selectedTextBlock()?.id ?? null;
+      }
+      console.error("Failed to play the voice:", result.error);
+      toasts.error(t1("toast.error.play_audio"), result.error);
+      return null;
+    } finally {
+      setPlayRequestPending(false);
+    }
+  };
+
   const speak = async () => {
+    if (uiStore.bottomPanel === "voice") return speakVoice();
     const block = selectedTextBlock();
     const preset = unwrap(currentPreset());
     if (block === null || preset == null || !queryExists()) return null;

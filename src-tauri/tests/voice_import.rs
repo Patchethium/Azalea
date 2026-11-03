@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use azalea_lib::{
   audio::decode::decode_file,
   core::Core,
-  voice_import::{import_voice, provide_aligner},
+  voice_import::{import_voice, provide_aligner, PreparedVoice, MIN_PHONEME_SECONDS},
 };
 use voicevox_core::{AccentPhrase, StyleId};
 
@@ -103,7 +103,7 @@ fn real_core_voice_import_recovers_synthesized_timing_and_pitch() {
   let imported = import_voice(&audio, flat).expect("voice import failed");
 
   let expected = boundaries(&query.accent_phrases);
-  let actual = boundaries(&imported.accent_phrases);
+  let actual = boundaries(&imported);
   assert_eq!(actual.len(), expected.len());
   let errors: Vec<f64> = expected
     .iter()
@@ -116,7 +116,7 @@ fn real_core_voice_import_recovers_synthesized_timing_and_pitch() {
 
   // Unvoiced moras stay unvoiced, and voiced ones follow the synthesized contour.
   let expected = voiced_pitches(&query.accent_phrases);
-  let actual = voiced_pitches(&imported.accent_phrases);
+  let actual = voiced_pitches(&imported);
   for (e, a) in expected.iter().zip(&actual) {
     assert_eq!(
       *e == 0.0,
@@ -135,8 +135,48 @@ fn real_core_voice_import_recovers_synthesized_timing_and_pitch() {
   println!("pitch correlation {r:.3}, mean offset {offset:.3}");
   assert!(r > 0.8, "pitch correlation {r:.3}");
   assert!(offset.abs() < 0.1, "mean log-pitch offset {offset:.3}");
+}
 
-  assert!(imported.duration > 0.5);
-  assert_eq!(imported.frame_period_ms, 5.0);
-  assert!(imported.f0.iter().any(|f| *f > 0.0));
+#[test]
+fn real_core_voice_segments_can_be_adjusted_and_played() {
+  provide_test_aligner();
+  let core = Core::init(&test_core_config()).expect("failed to initialize VOICEVOX Core");
+  let mut style_ids: Vec<StyleId> = core.speaker_to_vvm.keys().copied().collect();
+  style_ids.sort_unstable();
+  let query = core.audio_query("こんにちは", style_ids[0]).unwrap();
+  let wav = core.synthesis(&query, style_ids[0]).unwrap();
+  let directory = tempfile::tempdir().unwrap();
+  let path = directory.path().join("voice.wav");
+  std::fs::write(&path, wav).unwrap();
+  let voice = PreparedVoice::prepare(&decode_file(&path).unwrap()).unwrap();
+
+  let analysis = voice.analysis();
+  assert!((analysis.duration - voice.duration()).abs() < 1e-9);
+  assert_eq!(analysis.f0.len(), (voice.duration() * 200.0) as usize + 1);
+  assert!(analysis.f0.iter().any(|f| *f > 0.0));
+  let played = hound::WavReader::new(std::io::Cursor::new(voice.wav().unwrap())).unwrap();
+  assert_eq!(played.spec().sample_rate, 16_000);
+  assert_eq!(played.len() as f64, (voice.duration() * 16_000.0).round());
+
+  let mut segments = voice.align(&query.accent_phrases).unwrap();
+  assert_eq!(segments.first().unwrap().start, 0.0);
+  assert_eq!(segments.last().unwrap().end, voice.duration());
+  // Move the boundary after the first phoneme 30 ms later.
+  let boundary = segments[1].end + 0.03;
+  segments[1].end = boundary;
+  segments[2].start = boundary;
+  let adjusted = voice
+    .accent_phrases(query.accent_phrases.clone(), &segments)
+    .unwrap();
+  let first = &adjusted[0].moras[0];
+  let expected = (segments[1].end - segments[1].start).max(MIN_PHONEME_SECONDS);
+  let actual = f64::from(f32::from(
+    first.consonant_length.unwrap_or(first.vowel_length),
+  ));
+  assert!((actual - expected).abs() < 1e-6, "{actual} vs {expected}");
+
+  segments[2].phoneme = "pau".into();
+  assert!(voice
+    .accent_phrases(query.accent_phrases.clone(), &segments)
+    .is_err());
 }

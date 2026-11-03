@@ -83,7 +83,12 @@
     "post_undo": "Undo post-processing edit",
     "post_redo": "Redo post-processing edit",
     "post_playback_start": "Playback start",
-    "post_playback_start_value": "Start playback at {{ time }} s"
+    "post_playback_start_value": "Start playback at {{ time }} s",
+    "voice": "Voice",
+    "voice_record": "Record voice",
+    "voice_stop": "Stop recording",
+    "voice_choose_file": "Choose voice file",
+    "voice_remove": "Remove voice"
   },
   "shortcuts": {
     "title": "Shortcuts",
@@ -289,7 +294,9 @@
     "no_truncation": "No truncation",
     "cpu_num_threads": "CPU threads",
     "reinitialize_core": "Reinitialize the core to apply changes",
-    "auto": "Auto"
+    "auto": "Auto",
+    "voice_import": "Voice Import",
+    "voice_import_description": "Times and pitches a text block from your own reading of it, recorded here or chosen from an audio file, in a Voice tab between the accent and tuning tabs."
   },
   "titlebar": {
     "minimize": "Minimize",
@@ -433,5 +440,24 @@
     "downloading": "Downloading portraits…",
     "download_failed": "Couldn't download some portraits.",
     "resize": "Resize portrait panel"
+  },
+  "voice_import": {
+    "empty": "Record yourself reading this text, or choose a recording of it. Its timing and intonation go into the tuning panel, moved into the voice’s pitch range.",
+    "record": "Record",
+    "choose_file": "Choose file",
+    "recording": "Recording {{ seconds }} s",
+    "level": "Microphone level",
+    "loading": "Loading the voice…",
+    "aligning": "Aligning…",
+    "failed": "Voice import failed",
+    "retry": "Align again",
+    "file_filter": "Audio",
+    "canvas": "Voice alignment",
+    "playback_start": "Voice playback start",
+    "playback_start_value": "{{ time }} s",
+    "scale": "Intonation scale",
+    "fit": "Fit to the voice",
+    "offset": "Pitch offset (semitones)",
+    "hint": "Drag a phoneme boundary to adjust the alignment."
   }
 }

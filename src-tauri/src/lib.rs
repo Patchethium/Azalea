@@ -117,7 +117,11 @@ fn specta_builder() -> Builder<tauri::Wry> {
       start_voice_recording,
       stop_voice_recording,
       cancel_voice_recording,
-      analyze_voice_import,
+      load_voice_file,
+      align_voice,
+      voice_accent_phrases,
+      play_voice,
+      remove_voice,
     ])
     .events(collect_events![
       InitializationEvent,

@@ -13,6 +13,7 @@ import { PitchBaselineProvider } from "@contexts/pitchBaseline";
 import { PostAnalysisProvider } from "@contexts/postAnalysis";
 import { SpectrogramProvider } from "@contexts/spectrogram";
 import { SystemProvider } from "@contexts/system";
+import { VoiceImportProvider } from "@contexts/voiceImport";
 import { TextProvider, useTextStore } from "@contexts/text";
 import { UIProvider } from "@contexts/ui";
 import { audioQuery, config, metas, pitchRange } from "./test/fixtures";
@@ -38,6 +39,7 @@ const renderApp = () => {
         [ShortcutsProvider, null],
         [i18nProvider, null],
         [TextProvider, null],
+        [VoiceImportProvider, null],
       ]}
     >
       <Harness />

@@ -13,6 +13,8 @@ import type { WaveformSynthesisNotice } from "@layout/bottomPanel/types";
 import { usePlaybackControls } from "@layout/bottomPanel/usePlaybackControls";
 import { useQueryReset } from "@layout/bottomPanel/useQueryReset";
 import { usei18n } from "@contexts/i18n";
+import { useVoiceImportStore } from "@contexts/voiceImport";
+import { useVoiceActions } from "@layout/bottomPanel/voice/useVoiceActions";
 import { onCleanup, onMount, Show } from "solid-js";
 
 export function ControlBar(props: {
@@ -26,6 +28,7 @@ export function ControlBar(props: {
     pitchCompletionAvailable,
     pitchCompletionActive,
     togglePitchCompletionLock,
+    voiceImportEnabled,
   } = useConfigStore()!;
   const {
     matchesShortcut,
@@ -49,6 +52,13 @@ export function ControlBar(props: {
     () => props.disabled ?? false,
   );
   const { canReset, resetEdits, resetLabel } = useQueryReset();
+  const voices = useVoiceImportStore()!;
+  const voiceActions = useVoiceActions(() => props.disabled ?? false);
+  const voiceRecording = voiceActions.voiceRecording;
+  const selectedVoice = () => {
+    const block = selectedTextBlock();
+    return block === null ? null : (voices.voiceSessions[block.id] ?? null);
+  };
   // Undo and redo step through the post edits while the post tab is shown,
   // leaving text fields their own undo.
   onMount(() => {
@@ -289,6 +299,45 @@ export function ControlBar(props: {
               class="mx1 h-4 b-0 b-l b-border-menu"
             />
           </Show>
+          <Show when={voiceImportEnabled() && uiStore.bottomPanel === "voice"}>
+            <ToolbarButton
+              icon={
+                voiceRecording() === null ? "i-lucide:mic" : "i-lucide:square"
+              }
+              label={t1(
+                voiceRecording() === null
+                  ? "bottom.voice_record"
+                  : "bottom.voice_stop",
+              )}
+              ariaPressed={voiceRecording() !== null}
+              highlightPressed
+              disabled={
+                voiceRecording() === null
+                  ? !voiceActions.canStartRecording()
+                  : voiceRecording()!.phase !== "recording"
+              }
+              onClick={() => void voiceActions.toggleVoiceRecording()}
+            />
+            <ToolbarButton
+              icon="i-lucide:file-audio"
+              label={t1("bottom.voice_choose_file")}
+              disabled={!voiceActions.canChooseFile()}
+              onClick={() => void voiceActions.chooseVoiceFile()}
+            />
+            <ToolbarButton
+              icon="i-lucide:trash-2"
+              label={t1("bottom.voice_remove")}
+              disabled={selectedVoice() === null}
+              onClick={() => {
+                const block = selectedTextBlock();
+                if (block !== null) voices.removeVoice(block.id);
+              }}
+            />
+            <Separator
+              orientation="vertical"
+              class="mx1 h-4 b-0 b-l b-border-menu"
+            />
+          </Show>
           <ToolbarButton
             icon="i-lucide:rotate-ccw"
             label={resetLabel()}
@@ -306,8 +355,14 @@ export function ControlBar(props: {
           </Show>
         </div>
       </div>
-      {/* The post tab has its own free playback-start timeline. */}
-      <Show when={playbackTimelineEnabled() && uiStore.bottomPanel !== "post"}>
+      {/* The post and voice tabs have their own free playback-start timelines. */}
+      <Show
+        when={
+          playbackTimelineEnabled() &&
+          uiStore.bottomPanel !== "post" &&
+          uiStore.bottomPanel !== "voice"
+        }
+      >
         <PlaybackTimeline
           phrases={controls.playbackPhrases()}
           anchorIndex={controls.playbackAnchorIndex()}

@@ -210,6 +210,14 @@ is the `AlignerModel` pack (see Optional Downloads), loaded once per process
 on first use without caching failures (`voice_import::provide_aligner`
 supplies one in tests).
 
+`UIConfig.voice_import` (default off, an experimental config-dialog switch
+that a download button stands in for until the model is installed) shows the
+Voice tab between the accent and tuning tabs; switching it off moves an open
+voice tab to tuning and forgets every voice. Tabs depend on each other in
+order, and the voice tab writes into the tuning content.
+
+Backend:
+
 - `src-tauri/src/audio/decode.rs` decodes WAV, FLAC, MP3, Ogg Vorbis and AAC
   (M4A/ADTS) with symphonia, mixes down to mono, rejects audio over 60 s
   (`MAX_SECONDS`) and resamples with rubato.
@@ -217,28 +225,63 @@ supplies one in tests).
   rodio's cpal re-export on a thread that owns the stream (cpal streams are
   not `Send`), capped at 60 s, reporting the peak level every 50 ms. macOS
   reads `NSMicrophoneUsageDescription` from `src-tauri/Info.plist`.
-- `src-tauri/src/voice_import.rs` resamples to the model's 16 kHz, trims
-  silence like snfa's README, aligns the query's phonemes (consonant, vowel,
-  pause per mora; lowercased, `kw`/`gw` as `k`/`g`) with padded edge pauses,
-  and writes each consonant, vowel and pause length (at least 10 ms). The
-  query's `pre_phoneme_length` and `post_phoneme_length` are kept, since the
-  recording's edge silence is arbitrary. Harvest (`world::harvest`, 71–800 Hz)
-  runs on the trimmed audio; each voiced mora (`a i u e o N`) takes the mean
-  natural-log f0 of the voiced frames in its vowel, voiced moras without any
-  are interpolated from voiced neighbours, and unvoiced vowels, `cl` and
-  pauses get 0. These pitches are the speaker's own; the frontend maps them
-  into the style's range.
-- Commands (`src-tauri/src/commands/voice_import.rs`):
-  `start_voice_recording` (emits `VoiceRecordingLevelEvent`),
-  `stop_voice_recording` (keeps the audio and returns its length),
-  `cancel_voice_recording`, and `analyze_voice_import(source, accent_phrases)`
-  with `VoiceSource::Recording` or `VoiceSource::File(path)`, returning
-  `VoiceImport { accent_phrases, f0, frame_period_ms, duration }`.
+- `src-tauri/src/voice_import.rs`: `PreparedVoice::prepare` resamples to the
+  model's 16 kHz, trims silence like snfa's README and runs Harvest
+  (`world::harvest`, 71–800 Hz). `align` times the query's phonemes
+  (consonant, vowel, pause per mora; lowercased, `kw`/`gw` as `k`/`g`) as
+  `VoiceSegment`s in seconds, with the edge pauses the aligner pads.
+  `accent_phrases` validates segments against the text (same phonemes,
+  contiguous, in order, within the recording) and writes each consonant,
+  vowel and pause length (at least `MIN_PHONEME_SECONDS`, 10 ms); the query's
+  `pre_phoneme_length` and `post_phoneme_length` are kept, since the
+  recording's edge silence is arbitrary. Each voiced mora (`a i u e o N`)
+  takes the mean natural-log f0 of the voiced frames in its vowel, voiced
+  moras without any are interpolated from voiced neighbours, and unvoiced
+  vowels, `cl` and pauses get 0. `analysis` returns the f0 and the post tab's
+  display spectrogram as a `PostF0Analysis` (`post::f0_analysis`).
+- Commands (`src-tauri/src/commands/voice_import.rs`) keep voices for the
+  session only, by ID, in an LRU of 32: `start_voice_recording` (emits
+  `VoiceRecordingLevelEvent`), `stop_voice_recording` and `load_voice_file`
+  (both return a `LoadedVoice { voice_id, analysis }`),
+  `cancel_voice_recording`, `align_voice`, `voice_accent_phrases`,
+  `play_voice` (the trimmed recording from a start time, through the shared
+  `AudioPlayer`, finishing with `audio-playback-finished`) and
+  `remove_voice`.
+
+Frontend:
+
+- `src/contexts/voiceImport.ts` (`VoiceImportProvider`, inside
+  `TextProvider`) keeps one `VoiceSession` per block for the session: never
+  persisted, forgotten when the block is deleted. Attaching a voice (record,
+  or choose a file, which replaces the current one) aligns it and applies it.
+  Applying is live: after alignment, a released boundary drag and each
+  mapping change, `voice_accent_phrases` returns the speaker's pitches, which
+  `mapPitches` (`src/layout/bottomPanel/tuning/voiceImport.ts`) moves into the
+  style's range (its built-in `PitchRange`, else the block's pitches when the
+  voice was attached): the speaker's center (the 97% window, as
+  `PitchRange::from_samples`) lands on the voice's center shifted by an offset
+  in semitones, and the contour is scaled by the user's scale or one that fits
+  the widths (0.25–2), clamped to the histogram bounds. The result is written
+  into the query and marks the duration and pitch flags, never the accent
+  flag. Accent and phoneme edits (a `pitchStructureSignature` change) realign
+  the voice, dropping boundary adjustments; style changes remap it; pitch and
+  duration edits do not touch it. Removing a voice keeps what it wrote, which
+  the tuning reset clears. Responses are matched per block by request, so a
+  late load, alignment or apply cannot overwrite a newer one.
+- The Voice tab (`src/layout/bottomPanel/voice/Panel.tsx`) draws the
+  recording's spectrogram (`spectrogramBitmap`, shared with the post tab),
+  f0 and phoneme strip; dragging a phoneme boundary (`moveBoundary`, keeping
+  each side at least 10 ms) updates locally and applies on release. Its own
+  playback-start timeline replaces the accent-phrase one, and the main play
+  button plays the recording from it on this tab. The toolbar holds Record or
+  Stop, Choose file and Remove; the footer holds the intonation scale with a
+  Fit button and the semitone offset.
 
 `src-tauri/tests/voice_import.rs` imports VOICEVOX speech against its own
-query on the real core and checks the timing and pitch come back; it reads
-the model from `AZALEA_TEST_SNFA_MODEL` or `config_dev/snfa/jp.safetensors`
-and fails clearly without one.
+query on the real core and checks the timing and pitch come back, and that
+adjusted segments are applied and mismatched ones rejected; it reads the
+model from `AZALEA_TEST_SNFA_MODEL` or `config_dev/snfa/jp.safetensors` and
+fails clearly without one.
 
 ## Project Files
 

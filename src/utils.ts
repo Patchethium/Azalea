@@ -1,4 +1,10 @@
-import type { AudioQuery, AudioSidecars, Preset, UIConfig } from "$binding";
+import type {
+  AccentPhrase,
+  AudioQuery,
+  AudioSidecars,
+  Preset,
+  UIConfig,
+} from "$binding";
 import _ from "lodash";
 import { RECENT_PROJECTS_LIMIT } from "$constants";
 
@@ -123,6 +129,24 @@ export const renderRequestFingerprint = (
  * synthesized (preset applied) and its style. Any change to either clears the
  * block's post edits.
  */
+/**
+ * The phonemes and accents of a query, without pitch or duration values. Pitch
+ * prediction depends only on these, so tuning edits keep the same signature.
+ */
+export const pitchStructureSignature = (phrases: readonly AccentPhrase[]) =>
+  JSON.stringify(
+    phrases.map((phrase) => [
+      phrase.accent,
+      phrase.is_interrogative,
+      phrase.pause_mora !== null,
+      phrase.moras.map((mora) => [
+        mora.text,
+        mora.consonant ?? null,
+        mora.vowel,
+      ]),
+    ]),
+  );
+
 export const postEditBase = (query: AudioQuery, styleId: number) =>
   renderRequestFingerprint(query, styleId).hash;
 

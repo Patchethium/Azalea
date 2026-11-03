@@ -38,6 +38,7 @@ import {
   DEFAULT_PITCH_NOISE_SIGMA,
   DEFAULT_PITCH_TUNING_MODE,
   DEFAULT_SYNTHESIS_DELAY_MS,
+  DEFAULT_VOICE_IMPORT,
   MAX_PITCH_DRIFT_RANGE,
   MAX_PITCH_NOISE_SIGMA,
   MIN_PITCH_DRIFT_RANGE,
@@ -102,6 +103,7 @@ export function ConfigPage() {
     englishNgramFilterEnabled,
     englishTurboModelEnabled,
     englishModelsInstalled,
+    alignerModelInstalled,
     setupSource,
     pitchControlSupported,
     pitchNoiseActive,
@@ -534,6 +536,27 @@ export function ConfigPage() {
                 checked={postProcessingEnabled()}
                 onChange={setPostProcessingEnabled}
               />
+            </ConfigItem>
+            <ConfigItem
+              label={t1("config.voice_import")}
+              description={t1("config.voice_import_description")}
+              experimental
+            >
+              <Show
+                when={alignerModelInstalled()}
+                fallback={
+                  <ExtraDownloadButton
+                    pack="AlignerModel"
+                    label={t1("config.voice_import")}
+                  />
+                }
+              >
+                <AppSwitch
+                  label={t1("config.voice_import")}
+                  checked={config.ui.voice_import ?? DEFAULT_VOICE_IMPORT}
+                  onChange={(v) => setConfig("ui", "voice_import", v)}
+                />
+              </Show>
             </ConfigItem>
             <ConfigItem label={t1("config.spectrogram_preview")} experimental>
               <AppSwitch

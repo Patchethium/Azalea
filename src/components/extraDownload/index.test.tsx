@@ -13,9 +13,14 @@ import { MetaProvider } from "@contexts/meta";
 import { type ConfigSection, UIProvider, useUIStore } from "@contexts/ui";
 import { config } from "../../test/fixtures";
 
-const status = (fonts: boolean, english: boolean): ExtraStatus[] => [
+const status = (
+  fonts: boolean,
+  english: boolean,
+  aligner = true,
+): ExtraStatus[] => [
   { pack: "Fonts", bytes: 23187805, installed: fonts },
   { pack: "EnglishModels", bytes: 7887840, installed: english },
+  { pack: "AlignerModel", bytes: 1248924, installed: aligner },
 ];
 
 function renderConfig(section: ConfigSection) {
@@ -127,6 +132,38 @@ describe("ExtraDownloadButton", () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
     expect(appConfig().englishModelsInstalled()).toBe(true);
+  });
+
+  it("downloads the aligner model in place of the voice import switch", async () => {
+    mockIPC(() => null, { shouldMockEvents: true });
+    vi.mocked(commands.getExtrasStatus)
+      .mockResolvedValueOnce({ status: "ok", data: status(true, true, false) })
+      .mockResolvedValue({ status: "ok", data: status(true, true, true) });
+    const download = vi
+      .spyOn(commands, "downloadExtra")
+      .mockResolvedValue({ status: "ok", data: false });
+    const appConfig = renderConfig("synthesis");
+
+    const button = await screen.findByRole("button", {
+      name: `${en.config.voice_import}: Download (1.2 MB)`,
+    });
+    expect(
+      screen.queryByRole("switch", { name: en.config.voice_import }),
+    ).not.toBeInTheDocument();
+    expect(appConfig().alignerModelInstalled()).toBe(false);
+
+    fireEvent.click(button);
+    await waitFor(() => expect(download).toHaveBeenCalledOnce());
+    expect(download.mock.calls[0][1]).toBe("AlignerModel");
+    const toggle = await screen.findByRole("switch", {
+      name: en.config.voice_import,
+    });
+    // Installing the model does not turn the feature on.
+    expect(toggle).not.toBeChecked();
+    expect(appConfig().voiceImportEnabled()).toBe(false);
+    fireEvent.click(toggle);
+    expect(appConfig().config.ui.voice_import).toBe(true);
+    expect(appConfig().voiceImportEnabled()).toBe(true);
   });
 
   it("reports a failed font download and offers the download again", async () => {

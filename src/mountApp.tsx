@@ -9,6 +9,7 @@ import { PitchBaselineProvider } from "@contexts/pitchBaseline";
 import { PostAnalysisProvider } from "@contexts/postAnalysis";
 import { SpectrogramProvider } from "@contexts/spectrogram";
 import { SystemProvider } from "@contexts/system";
+import { VoiceImportProvider } from "@contexts/voiceImport";
 import { TextProvider } from "@contexts/text";
 import { UIProvider } from "@contexts/ui";
 
@@ -27,6 +28,7 @@ export const mountApp = () =>
           [ShortcutsProvider, null],
           [i18nProvider, null],
           [TextProvider, null],
+          [VoiceImportProvider, null],
         ]}
       >
         <App />

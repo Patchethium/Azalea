@@ -83,7 +83,12 @@
     "post_undo": "ポスト処理の編集を元に戻す",
     "post_redo": "ポスト処理の編集をやり直す",
     "post_playback_start": "再生開始位置",
-    "post_playback_start_value": "{{ time }} 秒から再生"
+    "post_playback_start_value": "{{ time }} 秒から再生",
+    "voice": "音声",
+    "voice_record": "音声を録音",
+    "voice_stop": "録音を停止",
+    "voice_choose_file": "音声ファイルを選択",
+    "voice_remove": "音声を削除"
   },
   "shortcuts": {
     "title": "ショートカット",
@@ -323,7 +328,9 @@
     "no_truncation": "無制限",
     "cpu_num_threads": "CPUスレッド数",
     "reinitialize_core": "変更を適用するにはコアを再初期化",
-    "auto": "自動"
+    "auto": "自動",
+    "voice_import": "音声インポート",
+    "voice_import_description": "自分で読み上げた音声（ここで録音、または音声ファイルを選択）から、テキストの長さと音高を設定します。アクセントタブと調整タブの間に音声タブが追加されます。"
   },
   "titlebar": {
     "minimize": "最小化",
@@ -433,5 +440,24 @@
     "downloading": "立ち絵をダウンロード中…",
     "download_failed": "一部の立ち絵をダウンロードできませんでした。",
     "resize": "立ち絵パネルのサイズを変更"
+  },
+  "voice_import": {
+    "empty": "このテキストを読み上げて録音するか、その録音ファイルを選択してください。タイミングと抑揚が声の音域に合わせて調整パネルに反映されます。",
+    "record": "録音",
+    "choose_file": "ファイルを選択",
+    "recording": "録音中 {{ seconds }} 秒",
+    "level": "マイクの入力レベル",
+    "loading": "音声を読み込み中…",
+    "aligning": "アライメント中…",
+    "failed": "音声のインポートに失敗しました",
+    "retry": "もう一度アライメント",
+    "file_filter": "音声",
+    "canvas": "音声のアライメント",
+    "playback_start": "音声の再生開始位置",
+    "playback_start_value": "{{ time }} 秒",
+    "scale": "抑揚の倍率",
+    "fit": "声に合わせる",
+    "offset": "音高のずらし（半音）",
+    "hint": "音素の境界をドラッグしてアライメントを調整できます。"
   }
 }

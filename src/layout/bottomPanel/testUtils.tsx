@@ -23,6 +23,7 @@ import { PitchBaselineProvider } from "@contexts/pitchBaseline";
 import { PostAnalysisProvider } from "@contexts/postAnalysis";
 import { SpectrogramProvider } from "@contexts/spectrogram";
 import { SystemProvider } from "@contexts/system";
+import { VoiceImportProvider } from "@contexts/voiceImport";
 import { findPresetById, TextProvider, useTextStore } from "@contexts/text";
 import { UIProvider, useUIStore } from "@contexts/ui";
 import { getModifiedQuery } from "$utils";
@@ -151,6 +152,7 @@ export const renderPanel = (
         [ShortcutsProvider, null],
         [i18nProvider, null],
         [TextProvider, null],
+        [VoiceImportProvider, null],
       ]}
     >
       <Harness />
@@ -218,6 +220,7 @@ export const renderTuningHook = (
         [SystemProvider, null],
         [i18nProvider, null],
         [TextProvider, null],
+        [VoiceImportProvider, null],
       ]}
     >
       <Harness />
@@ -287,6 +290,7 @@ export const renderPlaybackHook = (
         [ShortcutsProvider, null],
         [i18nProvider, null],
         [TextProvider, null],
+        [VoiceImportProvider, null],
       ]}
     >
       <Harness />

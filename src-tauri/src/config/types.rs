@@ -182,6 +182,10 @@ pub struct UIConfig {
   /// edits but playback, buffering and export ignore them.
   #[serde(default)]
   pub post_processing: bool,
+  /// Shows the experimental voice tab, which times and pitches a block from
+  /// the user's own reading of it.
+  #[serde(default)]
+  pub voice_import: bool,
   /// Lets MCP clients use the voices through `azalea --mcp`. The server reads it on every
   /// call and refuses tools while it is off.
   #[serde(default)]
@@ -261,6 +265,7 @@ impl Default for UIConfig {
       spectrogram_preview: spectrogram_preview_default(),
       streaming_synthesis: streaming_synthesis_default(),
       post_processing: false,
+      voice_import: false,
       mcp_enabled: false,
       english_transform: english_transform_default(),
       english_accent_prediction: english_transform_default(),
@@ -823,6 +828,7 @@ mod tests {
     assert!(!config.ui.spectrogram_preview);
     assert!(config.ui.streaming_synthesis);
     assert!(!config.ui.post_processing);
+    assert!(!config.ui.voice_import);
     assert!(!config.ui.mcp_enabled);
     assert!(config.ui.playback_timeline);
     assert!(matches!(config.ui.pitch_scale, PitchScale::Optimal));

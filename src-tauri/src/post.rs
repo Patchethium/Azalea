@@ -310,19 +310,12 @@ impl PostAnalysisData {
   }
 
   pub fn summary(&self) -> PostF0Analysis {
-    PostF0Analysis {
-      frame_period_ms: FRAME_PERIOD_MS as f32,
-      f0: self.features.f0.iter().map(|value| *value as f32).collect(),
-      f0_floor: self.range.floor as f32,
-      f0_ceil: self.range.ceil as f32,
-      duration: self.features.sample_count as f64 / f64::from(self.features.sample_rate),
-      spectrogram: PostSpectrogram {
-        rows: DISPLAY_ROWS as u32,
-        min_hz: DISPLAY_MIN_HZ as f32,
-        max_hz: DISPLAY_MAX_HZ as f32,
-        data: base64::engine::general_purpose::STANDARD.encode(&self.spectrogram),
-      },
-    }
+    f0_analysis(
+      &self.features.f0,
+      self.range,
+      self.features.sample_count as f64 / f64::from(self.features.sample_rate),
+      &self.spectrogram,
+    )
   }
 
   /// Applies `edit` to `wav`, the waveform this analysis was made from: f0 edits with WORLD,
@@ -363,8 +356,31 @@ impl PostAnalysisData {
   }
 }
 
+/// An f0 contour with its display spectrogram (from [`display_spectrogram`]), as the editor
+/// draws it; voice import shows recordings the same way.
+pub(crate) fn f0_analysis(
+  f0: &[f64],
+  range: F0Range,
+  duration: f64,
+  spectrogram: &[u8],
+) -> PostF0Analysis {
+  PostF0Analysis {
+    frame_period_ms: FRAME_PERIOD_MS as f32,
+    f0: f0.iter().map(|value| *value as f32).collect(),
+    f0_floor: range.floor as f32,
+    f0_ceil: range.ceil as f32,
+    duration,
+    spectrogram: PostSpectrogram {
+      rows: DISPLAY_ROWS as u32,
+      min_hz: DISPLAY_MIN_HZ as f32,
+      max_hz: DISPLAY_MAX_HZ as f32,
+      data: base64::engine::general_purpose::STANDARD.encode(spectrogram),
+    },
+  }
+}
+
 /// `frames × DISPLAY_ROWS` bytes of log-frequency power, aligned with the analysis frames.
-fn display_spectrogram(mono: &[f64], sample_rate: u32, frames: usize) -> Vec<u8> {
+pub(crate) fn display_spectrogram(mono: &[f64], sample_rate: u32, frames: usize) -> Vec<u8> {
   // About 6 Hz bins, enough to separate low harmonics.
   let fft_size = (4096 * sample_rate as usize / 24_000)
     .next_power_of_two()

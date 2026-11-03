@@ -1,11 +1,15 @@
 //! Voice import: turns a recording of the user reading a block's text into
 //! that block's mora durations and pitches.
 //!
-//! The snfa forced aligner (its model downloaded as
-//! [`ExtraPack::AlignerModel`](crate::commands::ExtraPack)) times each phoneme
-//! of the block's own query, WORLD's Harvest estimates f0, and each voiced
-//! mora takes the mean log f0 over its vowel. The pitches are the speaker's
-//! own; the frontend maps them into the style's range before applying them.
+//! A recording is prepared once ([`PreparedVoice`]): resampled for the
+//! aligner, trimmed, and analyzed with WORLD's Harvest. The snfa forced
+//! aligner (its model downloaded as
+//! [`ExtraPack::AlignerModel`](crate::commands::ExtraPack)) then times each
+//! phoneme of the block's own query as [`VoiceSegment`]s, which the user may
+//! adjust, and [`PreparedVoice::accent_phrases`] turns the segments into mora
+//! lengths and pitches: each voiced mora takes the mean log f0 over its
+//! vowel. The pitches are the speaker's own; the frontend maps them into the
+//! style's range before applying them.
 
 use std::sync::OnceLock;
 
@@ -15,6 +19,7 @@ use voicevox_core::AccentPhrase;
 use crate::audio::decode::{resample, MonoAudio};
 use crate::audio::world::{self, F0Range, FRAME_PERIOD_MS};
 use crate::config::manager::aligner_model_dir;
+use crate::post::{display_spectrogram, f0_analysis, PostF0Analysis};
 
 /// The model file in the aligner pack.
 const MODEL_FILE: &str = "jp.safetensors";
@@ -23,7 +28,12 @@ const TRIM_TOP_DB: f64 = 20.0;
 const TRIM_FRAME_LENGTH: usize = 2048;
 const TRIM_HOP_LENGTH: usize = 512;
 /// Shortest phoneme length written, so no phoneme disappears.
-const MIN_PHONEME_SECONDS: f64 = 0.01;
+pub const MIN_PHONEME_SECONDS: f64 = 0.01;
+/// Harvest's search range for human voices: WORLD's default.
+const VOICE_F0_RANGE: F0Range = F0Range {
+  floor: 71.0,
+  ceil: 800.0,
+};
 
 static ALIGNER: OnceLock<snfa::Aligner> = OnceLock::new();
 
@@ -52,18 +62,12 @@ fn aligner() -> Result<&'static snfa::Aligner, String> {
   Ok(ALIGNER.get_or_init(|| aligner))
 }
 
-/// The block's query with the recording's timing and the speaker's pitch.
-#[derive(Clone, Debug, serde::Serialize, specta::Type)]
-pub struct VoiceImport {
-  /// The input phrases with every mora and pause length replaced and each
-  /// voiced mora's pitch set to the speaker's mean log f0 (0 elsewhere).
-  pub accent_phrases: Vec<AccentPhrase>,
-  /// Natural-log f0 of the trimmed recording every `frame_period_ms`, 0 when
-  /// unvoiced.
-  pub f0: Vec<f32>,
-  pub frame_period_ms: f32,
-  /// Length of the trimmed recording in seconds.
-  pub duration: f32,
+/// One aligned phoneme of a recording, in seconds from the trimmed start.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, specta::Type)]
+pub struct VoiceSegment {
+  pub phoneme: String,
+  pub start: f64,
+  pub end: f64,
 }
 
 /// Whether VOICEVOX predicts a pitch for a mora with this vowel. Unvoiced
@@ -101,19 +105,48 @@ fn transcript(phrases: &[AccentPhrase]) -> Vec<String> {
   phonemes
 }
 
-fn length(segment: &snfa::Segment) -> Result<PositiveFinite<f32>, String> {
-  let seconds = f64::from(segment.end_ms.saturating_sub(segment.start_ms)) / 1000.0;
-  PositiveFinite::<f32>::new(seconds.max(MIN_PHONEME_SECONDS) as f32).map_err(|e| e.to_string())
+fn length(segment: &VoiceSegment) -> Result<PositiveFinite<f32>, String> {
+  let seconds = (segment.end - segment.start).max(MIN_PHONEME_SECONDS);
+  PositiveFinite::<f32>::new(seconds as f32).map_err(|e| e.to_string())
 }
 
-/// Writes the aligned lengths into `phrases`. `segments` are the aligner's
-/// output for [`transcript`] with the edge pauses it pads, which only absorb
-/// the recording's leading and trailing silence. Returns each mora's vowel
-/// span in milliseconds, in flattened order without pauses.
+/// Checks that `segments` are [`transcript`]'s phonemes between the edge
+/// pauses the aligner pads, contiguous and in order within `duration`.
+fn validate_segments(
+  phrases: &[AccentPhrase],
+  segments: &[VoiceSegment],
+  duration: f64,
+) -> Result<(), String> {
+  let mut expected = vec!["pau".to_string()];
+  expected.extend(transcript(phrases));
+  expected.push("pau".into());
+  if segments.len() != expected.len()
+    || segments
+      .iter()
+      .zip(&expected)
+      .any(|(segment, phoneme)| segment.phoneme != *phoneme)
+  {
+    return Err("The alignment does not match the text".into());
+  }
+  let ordered = segments.iter().all(|segment| {
+    segment.start.is_finite() && segment.end.is_finite() && segment.start <= segment.end
+  }) && segments.windows(2).all(|pair| pair[0].end == pair[1].start);
+  let first = segments.first().map_or(0.0, |segment| segment.start);
+  let last = segments.last().map_or(0.0, |segment| segment.end);
+  if !ordered || first < 0.0 || last > duration + 1e-6 {
+    return Err("The alignment is not in order".into());
+  }
+  Ok(())
+}
+
+/// Writes the segments' lengths into `phrases`. The edge pauses only absorb
+/// the recording's leading and trailing silence; the query's own
+/// `pre_phoneme_length` and `post_phoneme_length` stay. Returns each mora's
+/// vowel span in seconds, in flattened order without pauses.
 fn apply_durations(
   phrases: &mut [AccentPhrase],
-  segments: &[snfa::Segment],
-) -> Result<Vec<(u32, u32)>, String> {
+  segments: &[VoiceSegment],
+) -> Result<Vec<(f64, f64)>, String> {
   let expected = transcript(phrases).len() + 2;
   if segments.len() != expected {
     return Err(format!(
@@ -131,7 +164,7 @@ fn apply_durations(
       }
       let vowel = next()?;
       mora.vowel_length = length(vowel)?;
-      spans.push((vowel.start_ms, vowel.end_ms));
+      spans.push((vowel.start, vowel.end));
     }
     if let Some(pause) = &mut phrase.pause_mora {
       pause.vowel_length = length(next()?)?;
@@ -140,10 +173,10 @@ fn apply_durations(
   Ok(spans)
 }
 
-/// Mean natural-log f0 of the voiced frames in `[start_ms, end_ms)`.
-fn mean_log_f0(f0: &[f64], (start_ms, end_ms): (u32, u32)) -> Option<f64> {
-  let first = (f64::from(start_ms) / FRAME_PERIOD_MS).ceil() as usize;
-  let last = (f64::from(end_ms) / FRAME_PERIOD_MS).ceil() as usize;
+/// Mean natural-log f0 of the voiced frames in `[start, end)` seconds.
+fn mean_log_f0(f0: &[f64], (start, end): (f64, f64)) -> Option<f64> {
+  let first = (start * 1000.0 / FRAME_PERIOD_MS - 1e-9).ceil().max(0.0) as usize;
+  let last = (end * 1000.0 / FRAME_PERIOD_MS - 1e-9).ceil().max(0.0) as usize;
   let voiced: Vec<f64> = f0
     .get(first..last.min(f0.len()))
     .unwrap_or_default()
@@ -188,7 +221,7 @@ fn interpolate(values: &mut [Option<f64>]) -> Result<(), String> {
 /// mora's to 0. `spans` come from [`apply_durations`].
 fn apply_pitch(
   phrases: &mut [AccentPhrase],
-  spans: &[(u32, u32)],
+  spans: &[(f64, f64)],
   f0: &[f64],
 ) -> Result<(), String> {
   let voiced: Vec<bool> = phrases
@@ -224,46 +257,118 @@ fn apply_pitch(
   Ok(())
 }
 
+/// A recording ready to align: mono at the aligner's sample rate with its
+/// leading and trailing silence trimmed, and its f0.
+pub struct PreparedVoice {
+  samples: Vec<f32>,
+  sample_rate: u32,
+  f0: Vec<f64>,
+}
+
+impl PreparedVoice {
+  pub fn prepare(audio: &MonoAudio) -> Result<Self, String> {
+    let aligner = aligner()?;
+    audio.check_length()?;
+    let audio = resample(audio, aligner.sample_rate())?;
+    let range = snfa::trim_audio(
+      &audio.samples,
+      TRIM_TOP_DB,
+      TRIM_FRAME_LENGTH,
+      TRIM_HOP_LENGTH,
+    )
+    .ok_or("The recording is too short")?;
+    let samples = audio.samples[range].to_vec();
+    let x: Vec<f64> = samples.iter().map(|&s| f64::from(s)).collect();
+    let f0 = world::harvest(&x, audio.sample_rate, VOICE_F0_RANGE)?;
+    Ok(Self {
+      samples,
+      sample_rate: audio.sample_rate,
+      f0,
+    })
+  }
+
+  /// Length of the trimmed recording in seconds.
+  pub fn duration(&self) -> f64 {
+    self.samples.len() as f64 / f64::from(self.sample_rate)
+  }
+
+  /// The f0 contour and spectrogram the voice tab draws.
+  pub fn analysis(&self) -> PostF0Analysis {
+    let x: Vec<f64> = self.samples.iter().map(|&s| f64::from(s)).collect();
+    let spectrogram = display_spectrogram(&x, self.sample_rate, self.f0.len());
+    f0_analysis(&self.f0, VOICE_F0_RANGE, self.duration(), &spectrogram)
+  }
+
+  /// The trimmed recording as 16-bit mono WAV, for playback.
+  pub fn wav(&self) -> Result<Vec<u8>, String> {
+    let spec = hound::WavSpec {
+      channels: 1,
+      sample_rate: self.sample_rate,
+      bits_per_sample: 16,
+      sample_format: hound::SampleFormat::Int,
+    };
+    let mut wav = std::io::Cursor::new(Vec::new());
+    let mut writer = hound::WavWriter::new(&mut wav, spec).map_err(|e| e.to_string())?;
+    for sample in &self.samples {
+      let value = (sample * 32767.0).round().clamp(-32768.0, 32767.0) as i16;
+      writer.write_sample(value).map_err(|e| e.to_string())?;
+    }
+    writer.finalize().map_err(|e| e.to_string())?;
+    Ok(wav.into_inner())
+  }
+
+  /// Times the phonemes of `phrases` in the recording, with an edge pause
+  /// before and after them.
+  pub fn align(&self, phrases: &[AccentPhrase]) -> Result<Vec<VoiceSegment>, String> {
+    if phrases.iter().all(|phrase| phrase.moras.is_empty()) {
+      return Err("The text has nothing to read".into());
+    }
+    let segments = aligner()?
+      .align(&self.samples, &transcript(phrases), true)
+      .map_err(|e| match e {
+        snfa::Error::AudioTooShort | snfa::Error::TooManyPhonemes { .. } => {
+          "The recording is too short for this text".to_string()
+        }
+        e => format!("Failed to align the recording: {e}"),
+      })?;
+    let duration = self.duration();
+    let mut segments: Vec<VoiceSegment> = segments
+      .into_iter()
+      .map(|segment| VoiceSegment {
+        phoneme: segment.phoneme,
+        start: f64::from(segment.start_ms) / 1000.0,
+        end: f64::from(segment.end_ms) / 1000.0,
+      })
+      .collect();
+    // The aligner's frames can end short of the last samples.
+    if let Some(last) = segments.last_mut() {
+      last.end = last.end.max(duration);
+    }
+    Ok(segments)
+  }
+
+  /// `phrases` with the lengths of `segments` and the speaker's pitch.
+  pub fn accent_phrases(
+    &self,
+    mut phrases: Vec<AccentPhrase>,
+    segments: &[VoiceSegment],
+  ) -> Result<Vec<AccentPhrase>, String> {
+    validate_segments(&phrases, segments, self.duration())?;
+    let spans = apply_durations(&mut phrases, segments)?;
+    apply_pitch(&mut phrases, &spans, &self.f0)?;
+    Ok(phrases)
+  }
+}
+
 /// Aligns `audio` to `phrases` and returns them with the recording's timing
 /// and the speaker's pitch.
-pub fn import_voice(audio: &MonoAudio, phrases: Vec<AccentPhrase>) -> Result<VoiceImport, String> {
-  let aligner = aligner()?;
-  audio.check_length()?;
-  if phrases.iter().all(|phrase| phrase.moras.is_empty()) {
-    return Err("The text has nothing to read".into());
-  }
-  let audio = resample(audio, aligner.sample_rate())?;
-  let range = snfa::trim_audio(
-    &audio.samples,
-    TRIM_TOP_DB,
-    TRIM_FRAME_LENGTH,
-    TRIM_HOP_LENGTH,
-  )
-  .ok_or("The recording is too short")?;
-  let samples = &audio.samples[range];
-  let phonemes = transcript(&phrases);
-  let segments = aligner
-    .align(samples, &phonemes, true)
-    .map_err(|e| match e {
-      snfa::Error::AudioTooShort | snfa::Error::TooManyPhonemes { .. } => {
-        "The recording is too short for this text".to_string()
-      }
-      e => format!("Failed to align the recording: {e}"),
-    })?;
-  let mut phrases = phrases;
-  let spans = apply_durations(&mut phrases, &segments)?;
-  let x: Vec<f64> = samples.iter().map(|&s| f64::from(s)).collect();
-  let f0 = world::harvest(&x, audio.sample_rate, F0Range::default())?;
-  apply_pitch(&mut phrases, &spans, &f0)?;
-  Ok(VoiceImport {
-    accent_phrases: phrases,
-    f0: f0
-      .iter()
-      .map(|&f| if f > 0.0 { f.ln() as f32 } else { 0.0 })
-      .collect(),
-    frame_period_ms: FRAME_PERIOD_MS as f32,
-    duration: samples.len() as f32 / audio.sample_rate as f32,
-  })
+pub fn import_voice(
+  audio: &MonoAudio,
+  phrases: Vec<AccentPhrase>,
+) -> Result<Vec<AccentPhrase>, String> {
+  let voice = PreparedVoice::prepare(audio)?;
+  let segments = voice.align(&phrases)?;
+  voice.accent_phrases(phrases, &segments)
 }
 
 #[cfg(test)]
@@ -322,11 +427,11 @@ mod tests {
       .collect()
   }
 
-  fn segment(phoneme: &str, start_ms: u32, end_ms: u32) -> snfa::Segment {
-    snfa::Segment {
+  fn segment(phoneme: &str, start_ms: u32, end_ms: u32) -> VoiceSegment {
+    VoiceSegment {
       phoneme: phoneme.into(),
-      start_ms,
-      end_ms,
+      start: f64::from(start_ms) / 1000.0,
+      end: f64::from(end_ms) / 1000.0,
     }
   }
 
@@ -358,7 +463,7 @@ mod tests {
       segment("pau", 1000, 1400),
     ];
     let spans = apply_durations(&mut phrases, &segments).unwrap();
-    assert_eq!(spans, [(340, 500), (500, 580), (900, 1000)]);
+    assert_eq!(spans, [(0.34, 0.5), (0.5, 0.58), (0.9, 1.0)]);
     let ko = &phrases[0].moras[0];
     assert!((f32::from(ko.consonant_length.unwrap()) - 0.04).abs() < 1e-6);
     assert!((f32::from(ko.vowel_length) - 0.16).abs() < 1e-6);
@@ -382,13 +487,40 @@ mod tests {
   }
 
   #[test]
+  fn segments_must_follow_the_text_in_order() {
+    let phrases = phrases(&[(&[(Some("k"), "o")], false)]);
+    let valid = [
+      segment("pau", 0, 100),
+      segment("k", 100, 150),
+      segment("o", 150, 300),
+      segment("pau", 300, 400),
+    ];
+    assert!(validate_segments(&phrases, &valid, 0.4).is_ok());
+    let mut wrong_phoneme = valid.clone();
+    wrong_phoneme[2].phoneme = "a".into();
+    assert!(validate_segments(&phrases, &wrong_phoneme, 0.4).is_err());
+    assert!(validate_segments(&phrases, &valid[..3], 0.4).is_err());
+    let mut gap = valid.clone();
+    gap[2].start = 0.16;
+    assert!(validate_segments(&phrases, &gap, 0.4).is_err());
+    let mut backwards = valid.clone();
+    backwards[1].end = 0.09;
+    backwards[2].start = 0.09;
+    assert!(validate_segments(&phrases, &backwards, 0.4).is_err());
+    assert!(validate_segments(&phrases, &valid, 0.3).is_err());
+    let mut nan = valid.clone();
+    nan[3].end = f64::NAN;
+    assert!(validate_segments(&phrases, &nan, 0.4).is_err());
+  }
+
+  #[test]
   fn mean_log_f0_averages_voiced_frames_inside_the_span() {
     // Frames every 5 ms: 0, 5, 10, 15 ms.
     let f0 = [100.0, 200.0, 0.0, 400.0];
-    let mean = mean_log_f0(&f0, (5, 20)).unwrap();
+    let mean = mean_log_f0(&f0, (0.005, 0.02)).unwrap();
     assert!((mean - (200f64.ln() + 400f64.ln()) / 2.0).abs() < 1e-12);
-    assert_eq!(mean_log_f0(&f0, (10, 15)), None);
-    assert_eq!(mean_log_f0(&f0, (40, 60)), None);
+    assert_eq!(mean_log_f0(&f0, (0.01, 0.015)), None);
+    assert_eq!(mean_log_f0(&f0, (0.04, 0.06)), None);
   }
 
   #[test]
@@ -421,7 +553,7 @@ mod tests {
       ],
       false,
     )]);
-    let spans = [(0, 20), (20, 40), (40, 60), (60, 80)];
+    let spans = [(0.0, 0.02), (0.02, 0.04), (0.04, 0.06), (0.06, 0.08)];
     let mut f0 = vec![0.0; 16];
     f0[..4].fill(150.0);
     f0[4..8].fill(300.0);
@@ -441,7 +573,7 @@ mod tests {
   #[test]
   fn a_recording_without_voice_is_rejected() {
     let mut phrases = phrases(&[(&[(None, "a")], false)]);
-    assert!(apply_pitch(&mut phrases, &[(0, 50)], &[0.0; 20])
+    assert!(apply_pitch(&mut phrases, &[(0.0, 0.05)], &[0.0; 20])
       .unwrap_err()
       .contains("No voice"));
     assert!(apply_pitch(&mut phrases, &[], &[0.0; 20]).is_err());
@@ -450,7 +582,7 @@ mod tests {
   #[test]
   fn text_without_voiced_moras_keeps_every_pitch_at_zero() {
     let mut phrases = phrases(&[(&[(Some("s"), "U"), (None, "cl")], false)]);
-    apply_pitch(&mut phrases, &[(0, 20), (20, 40)], &[0.0; 10]).unwrap();
+    apply_pitch(&mut phrases, &[(0.0, 0.02), (0.02, 0.04)], &[0.0; 10]).unwrap();
     assert!(phrases[0].moras.iter().all(|m| f32::from(m.pitch) == 0.0));
   }
 }

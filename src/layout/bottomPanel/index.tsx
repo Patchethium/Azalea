@@ -3,6 +3,7 @@ import { ControlBar } from "@layout/bottomPanel/ControlBar";
 import { PhonemePanel } from "@layout/bottomPanel/PhonemePanel";
 import { PostPanel } from "@layout/bottomPanel/post/Panel";
 import { TuningPanel } from "@layout/bottomPanel/tuning/Panel";
+import { VoicePanel } from "@layout/bottomPanel/voice/Panel";
 import type { WaveformSynthesisNotice } from "@layout/bottomPanel/types";
 import { createEffect, createSignal, Show } from "solid-js";
 import { useConfigStore } from "@contexts/config";
@@ -16,10 +17,14 @@ function BottomPanel(props: { disabled?: boolean }) {
   const [waveformSynthesisNotice, setWaveformSynthesisNotice] =
     createSignal<WaveformSynthesisNotice | null>(null);
   const { uiStore, setUIStore } = useUIStore()!;
-  const { postProcessingEnabled } = useConfigStore()!;
-  // The post tab is experimental and hidden unless enabled in the config.
+  const { postProcessingEnabled, voiceImportEnabled } = useConfigStore()!;
+  // The post and voice tabs are experimental and hidden unless enabled in the
+  // config.
   createEffect(() => {
     if (!postProcessingEnabled() && uiStore.bottomPanel === "post") {
+      setUIStore("bottomPanel", "tuning");
+    }
+    if (!voiceImportEnabled() && uiStore.bottomPanel === "voice") {
       setUIStore("bottomPanel", "tuning");
     }
   });
@@ -30,6 +35,7 @@ function BottomPanel(props: { disabled?: boolean }) {
       aria-disabled={props.disabled}
       aria-label={[
         t1("bottom.accent"),
+        ...(voiceImportEnabled() ? [t1("bottom.voice")] : []),
         t1("bottom.tuning"),
         ...(postProcessingEnabled() ? [t1("bottom.post")] : []),
       ].join(" / ")}
@@ -66,6 +72,15 @@ function BottomPanel(props: { disabled?: boolean }) {
               >
                 {t1("bottom.accent")}
               </Tabs.Trigger>
+              <Show when={voiceImportEnabled()}>
+                <Tabs.Trigger
+                  disabled={props.disabled}
+                  class="bg-transparent enabled:hover:bg-hover disabled:cursor-not-allowed px-2 rounded-md outline-none select-none"
+                  value="voice"
+                >
+                  {t1("bottom.voice")}
+                </Tabs.Trigger>
+              </Show>
               <Tabs.Trigger
                 disabled={props.disabled}
                 class="bg-transparent enabled:hover:bg-hover disabled:cursor-not-allowed px-2 rounded-md outline-none select-none"
@@ -101,6 +116,24 @@ function BottomPanel(props: { disabled?: boolean }) {
               <PhonemePanel />
             </Show>
           </Tabs.Content>
+          <Show when={voiceImportEnabled()}>
+            <Tabs.Content
+              class="flex-1 size-full min-h-0"
+              value="voice"
+              inert={props.disabled}
+            >
+              <Show
+                when={!props.disabled}
+                fallback={
+                  <div class="size-full flex items-center justify-center text-ink-subtle">
+                    {t1("bottom.no_query")}
+                  </div>
+                }
+              >
+                <VoicePanel disabled={props.disabled} />
+              </Show>
+            </Tabs.Content>
+          </Show>
           <Tabs.Content
             class="flex-1 size-full"
             value="tuning"

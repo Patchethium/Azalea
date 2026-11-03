@@ -561,8 +561,7 @@ async takeStartupProject() : Promise<string | null> {
     return await TAURI_INVOKE("take_startup_project");
 },
 /**
- * Starts recording from the default microphone, discarding any earlier
- * recording.
+ * Starts recording from the default microphone.
  */
 async startVoiceRecording() : Promise<Result<null, string>> {
     try {
@@ -573,10 +572,9 @@ async startVoiceRecording() : Promise<Result<null, string>> {
 }
 },
 /**
- * Stops recording, keeps the audio for analysis and returns its length in
- * seconds.
+ * Stops recording and loads the recording as a voice.
  */
-async stopVoiceRecording() : Promise<Result<number, string>> {
+async stopVoiceRecording() : Promise<Result<LoadedVoice, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("stop_voice_recording") };
 } catch (e) {
@@ -585,7 +583,7 @@ async stopVoiceRecording() : Promise<Result<number, string>> {
 }
 },
 /**
- * Stops recording and discards the running and the last recording.
+ * Stops recording and discards it.
  */
 async cancelVoiceRecording() : Promise<Result<null, string>> {
     try {
@@ -596,12 +594,59 @@ async cancelVoiceRecording() : Promise<Result<null, string>> {
 }
 },
 /**
- * Aligns the voice to `accent_phrases` (a block's current query) and returns
- * them with the voice's timing and unmapped pitch.
+ * Loads an audio file as a voice.
  */
-async analyzeVoiceImport(source: VoiceSource, accentPhrases: AccentPhrase[]) : Promise<Result<VoiceImport, string>> {
+async loadVoiceFile(path: string) : Promise<Result<LoadedVoice, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("analyze_voice_import", { source, accentPhrases }) };
+    return { status: "ok", data: await TAURI_INVOKE("load_voice_file", { path }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Times the phonemes of `accent_phrases` (a block's current query) in the
+ * voice, with an edge pause before and after them.
+ */
+async alignVoice(voiceId: string, accentPhrases: AccentPhrase[]) : Promise<Result<VoiceSegment[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("align_voice", { voiceId, accentPhrases }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * `accent_phrases` with the lengths of `segments` and the speaker's own
+ * pitch (natural-log f0, 0 for unvoiced moras), before range mapping.
+ */
+async voiceAccentPhrases(voiceId: string, accentPhrases: AccentPhrase[], segments: VoiceSegment[]) : Promise<Result<AccentPhrase[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("voice_accent_phrases", { voiceId, accentPhrases, segments }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Plays the voice's trimmed recording from `start_time_seconds`, replacing
+ * any playback. Completion is reported like block playback, through
+ * `audio-playback-finished`.
+ */
+async playVoice(voiceId: string, startTimeSeconds: number | null) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("play_voice", { voiceId, startTimeSeconds }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Forgets a voice.
+ */
+async removeVoice(voiceId: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("remove_voice", { voiceId }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -884,6 +929,11 @@ unsupported_system_locale?: string | null }
 export type KeyboardShortcut = { key: string; primary?: boolean; secondary?: boolean; shift?: boolean; alt?: boolean }
 export type KeyboardShortcuts = { undo?: KeyboardShortcut; redo?: KeyboardShortcut; save_project?: KeyboardShortcut; save_project_as?: KeyboardShortcut; export_audio?: KeyboardShortcut; toggle_playback?: KeyboardShortcut; play_current?: KeyboardShortcut; play_next?: KeyboardShortcut; toggle_pitch_completion?: KeyboardShortcut }
 export type LicensePackage = { name: string; version: string }
+/**
+ * A loaded voice: its ID for the other voice commands, and its trimmed
+ * recording's f0 and spectrogram.
+ */
+export type LoadedVoice = { voice_id: string; analysis: PostF0Analysis }
 export type Locale = "Ja" | "En" | "ZhCn"
 /**
  * How an MCP client launches this executable as Azalea's stdio MCP server.
@@ -1174,6 +1224,11 @@ streaming_synthesis?: boolean;
  */
 post_processing?: boolean; 
 /**
+ * Shows the experimental voice tab, which times and pitches a block from
+ * the user's own reading of it.
+ */
+voice_import?: boolean; 
+/**
  * Lets MCP clients use the voices through `azalea --mcp`. The server reads it on every
  * call and refuses tools while it is off.
  */
@@ -1211,24 +1266,6 @@ export_lab?: boolean; last_exported_dir?: string | null;
  */
 recent_projects?: string[]; shortcuts?: KeyboardShortcuts }
 /**
- * The block's query with the recording's timing and the speaker's pitch.
- */
-export type VoiceImport = { 
-/**
- * The input phrases with every mora and pause length replaced and each
- * voiced mora's pitch set to the speaker's mean log f0 (0 elsewhere).
- */
-accent_phrases: AccentPhrase[]; 
-/**
- * Natural-log f0 of the trimmed recording every `frame_period_ms`, 0 when
- * unvoiced.
- */
-f0: number[]; frame_period_ms: number; 
-/**
- * Length of the trimmed recording in seconds.
- */
-duration: number }
-/**
  * The microphone level while recording, about every 50 ms.
  */
 export type VoiceRecordingLevelEvent = { 
@@ -1241,17 +1278,9 @@ peak: number; seconds: number;
  */
 full: boolean }
 /**
- * Where the voice to import comes from.
+ * One aligned phoneme of a recording, in seconds from the trimmed start.
  */
-export type VoiceSource = 
-/**
- * The last finished recording.
- */
-"Recording" | 
-/**
- * An audio file the user picked.
- */
-{ File: string }
+export type VoiceSegment = { phoneme: string; start: number; end: number }
 
 /** tauri-specta globals **/
 

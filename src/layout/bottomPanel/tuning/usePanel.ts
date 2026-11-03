@@ -1,5 +1,4 @@
 import {
-  type AccentPhrase,
   type AudioQuery,
   commands,
   events,
@@ -46,7 +45,11 @@ import type {
   DraggingMode,
   WaveformSynthesisNotice,
 } from "@layout/bottomPanel/types";
-import { getModifiedQuery, renderRequestFingerprint } from "$utils";
+import {
+  getModifiedQuery,
+  pitchStructureSignature,
+  renderRequestFingerprint,
+} from "$utils";
 import { debounce, type Scheduled } from "@solid-primitives/scheduled";
 import _ from "lodash";
 import {
@@ -68,22 +71,6 @@ import { createDriftScale, createPitchScale } from "./pitchScale";
 let spectrogramGenerationSequence = 0;
 /** Coalesces streamed spectrogram columns into one redraw per display frame. */
 const PARTIAL_SPECTROGRAM_DRAW_MS = 16;
-
-// Pitch prediction depends on phonemes and accents but not on pitch or
-// duration values, so tuning edits keep the same baseline.
-const pitchStructureSignature = (phrases: readonly AccentPhrase[]) =>
-  JSON.stringify(
-    phrases.map((phrase) => [
-      phrase.accent,
-      phrase.is_interrogative,
-      phrase.pause_mora !== null,
-      phrase.moras.map((mora) => [
-        mora.text,
-        mora.consonant ?? null,
-        mora.vowel,
-      ]),
-    ]),
-  );
 
 type ActiveSpectrogramRequest = {
   request: SpectrogramJobRequest;

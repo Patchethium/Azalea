@@ -14,6 +14,7 @@ import { ShortcutsProvider } from "@contexts/shortcuts";
 import { SpectrogramProvider } from "@contexts/spectrogram";
 import { SystemProvider } from "@contexts/system";
 import { TextProvider, useTextStore } from "@contexts/text";
+import { VoiceImportProvider } from "@contexts/voiceImport";
 import { UIProvider, useUIStore } from "@contexts/ui";
 import { audioQuery, config, metas, preset } from "../../test/fixtures";
 
@@ -114,6 +115,7 @@ export const renderBlock = (
         [ShortcutsProvider, null],
         [i18nProvider, null],
         [TextProvider, null],
+        [VoiceImportProvider, null],
       ]}
     >
       <Harness />

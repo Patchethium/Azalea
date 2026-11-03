@@ -19,6 +19,7 @@ export const MAX_RENDER_ATTEMPTS = 3;
 export const DEFAULT_SPECTROGRAM_PREVIEW = false;
 export const DEFAULT_STREAMING_SYNTHESIS = true;
 export const DEFAULT_POST_PROCESSING = false;
+export const DEFAULT_VOICE_IMPORT = false;
 export const DEFAULT_ENGLISH_TRANSFORM = true;
 export const DEFAULT_ENGLISH_ACCENT_PREDICTION = true;
 export const DEFAULT_ENGLISH_NGRAM_FILTER = true;

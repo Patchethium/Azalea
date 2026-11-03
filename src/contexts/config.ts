@@ -32,6 +32,7 @@ import {
   DEFAULT_STREAMING_SYNTHESIS,
   DEFAULT_POST_PROCESSING,
   DEFAULT_THEME_MODE,
+  DEFAULT_VOICE_IMPORT,
 } from "$constants";
 import { createExtras } from "@contexts/extras";
 import { useMetaStore } from "@contexts/meta";
@@ -131,6 +132,10 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
   const extras = createExtras();
   void extras.refresh();
   const englishModelsInstalled = () => extras.installed("EnglishModels");
+  const alignerModelInstalled = () => extras.installed("AlignerModel");
+  /** Whether the experimental voice import button is shown. */
+  const voiceImportEnabled = () =>
+    (config.ui.voice_import ?? DEFAULT_VOICE_IMPORT) && alignerModelInstalled();
   const fontsInstalled = () => extras.installed("Fonts");
   /** The English reading options the backend applies, null when disabled. */
   const englishReadingKey = () =>
@@ -348,6 +353,8 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     englishTurboModelEnabled,
     englishReadingRevision,
     englishModelsInstalled,
+    alignerModelInstalled,
+    voiceImportEnabled,
     fontsInstalled,
     extras,
     setupChangePending,

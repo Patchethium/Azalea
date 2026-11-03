@@ -2,7 +2,7 @@ import { createContextProvider } from "@solid-primitives/context";
 import { createStore } from "solid-js/store";
 
 type PageType = "config" | "dictionary" | null; // null means main page
-type BottomPanelType = "accent" | "tuning" | "post";
+type BottomPanelType = "accent" | "voice" | "tuning" | "post";
 type PostTool = "pencil" | "line" | "time";
 type ConfigSection =
   | "interface"

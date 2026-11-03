@@ -83,7 +83,12 @@
     "post_undo": "撤销后处理编辑",
     "post_redo": "重做后处理编辑",
     "post_playback_start": "播放起始位置",
-    "post_playback_start_value": "从 {{ time }} 秒开始播放"
+    "post_playback_start_value": "从 {{ time }} 秒开始播放",
+    "voice": "语音",
+    "voice_record": "录制语音",
+    "voice_stop": "停止录音",
+    "voice_choose_file": "选择语音文件",
+    "voice_remove": "移除语音"
   },
   "shortcuts": {
     "title": "快捷键",
@@ -289,7 +294,9 @@
     "no_truncation": "不截断",
     "cpu_num_threads": "CPU线程数",
     "reinitialize_core": "应用更改需重新初始化核心",
-    "auto": "自动"
+    "auto": "自动",
+    "voice_import": "语音导入",
+    "voice_import_description": "根据你自己朗读的录音（在此录制或选择音频文件）设置文本块的时长和音高。会在重音与调音标签页之间添加语音标签页。"
   },
   "titlebar": {
     "minimize": "最小化",
@@ -433,5 +440,24 @@
     "downloading": "正在下载立绘…",
     "download_failed": "部分立绘无法下载。",
     "resize": "调整立绘面板大小"
+  },
+  "voice_import": {
+    "empty": "录下你朗读这段文本的声音，或选择相应的录音文件。其节奏和语调会映射到该声音的音域并写入调音面板。",
+    "record": "录音",
+    "choose_file": "选择文件",
+    "recording": "正在录音 {{ seconds }} 秒",
+    "level": "麦克风音量",
+    "loading": "正在加载语音…",
+    "aligning": "正在对齐…",
+    "failed": "语音导入失败",
+    "retry": "重新对齐",
+    "file_filter": "音频",
+    "canvas": "语音对齐",
+    "playback_start": "语音播放起点",
+    "playback_start_value": "{{ time }} 秒",
+    "scale": "语调倍率",
+    "fit": "适配该声音",
+    "offset": "音高偏移（半音）",
+    "hint": "拖动音素边界可调整对齐。"
   }
 }

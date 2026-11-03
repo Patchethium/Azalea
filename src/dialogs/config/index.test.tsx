@@ -190,7 +190,7 @@ describe("ConfigPage", () => {
     await openSection("Synthesis");
     expect(
       screen.getAllByRole("button", { name: "Experimental Features" }),
-    ).toHaveLength(7);
+    ).toHaveLength(8);
     expect(
       screen.queryByRole("switch", { name: "Non-blocking synthesis" }),
     ).not.toBeInTheDocument();
@@ -204,7 +204,7 @@ describe("ConfigPage", () => {
     expect(appConfig.config.ui.buffer_render).toBe(true);
     expect(
       screen.getAllByRole("button", { name: "Experimental Features" }),
-    ).toHaveLength(8);
+    ).toHaveLength(9);
 
     const nonblocking = screen.getByRole("switch", {
       name: "Non-blocking synthesis",
@@ -258,6 +258,12 @@ describe("ConfigPage", () => {
     fireEvent.click(post);
     expect(appConfig.postProcessingEnabled()).toBe(true);
     expect(appConfig.config.ui.post_processing).toBe(true);
+
+    const voiceImport = screen.getByRole("switch", { name: "Voice Import" });
+    expect(voiceImport).not.toBeChecked();
+    fireEvent.click(voiceImport);
+    expect(appConfig.config.ui.voice_import).toBe(true);
+    expect(appConfig.voiceImportEnabled()).toBe(true);
 
     const noise = screen.getByRole("switch", {
       name: "Noised pitch generation",
