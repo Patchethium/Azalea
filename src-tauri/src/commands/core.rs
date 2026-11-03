@@ -820,7 +820,8 @@ async fn follow_render_into_playback(
       tap.queue_progress(&snapshot);
     }
     if progress.changed().await.is_err() {
-      return std::future::pending().await;
+      // The render ended; wait to be dropped.
+      std::future::pending::<()>().await;
     }
   }
 }

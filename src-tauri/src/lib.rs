@@ -183,6 +183,9 @@ pub fn run() {
 
   #[cfg(not(debug_assertions))] // prevent default on release build
   let app = app.plugin(tauri_plugin_prevent_default::init());
+  // Debug builds keep the webview's defaults; this keeps the dependency used.
+  #[cfg(debug_assertions)]
+  use tauri_plugin_prevent_default as _;
 
   app
     .manage(AppState {
