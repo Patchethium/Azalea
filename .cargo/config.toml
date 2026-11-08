@@ -17,3 +17,8 @@ rustflags = ["-Z", "threads=8"]
 [unstable.git]
 shallow_index = true
 shallow_deps = true
+
+# cmake-rs reads target-specific toolchain files, so other targets are unaffected.
+[env]
+CMAKE_TOOLCHAIN_FILE_x86_64_pc_windows_msvc = { value = "src-tauri/cmake/msvc-static-crt.cmake", relative = true }
+CMAKE_TOOLCHAIN_FILE_aarch64_pc_windows_msvc = { value = "src-tauri/cmake/msvc-static-crt.cmake", relative = true }
