@@ -331,11 +331,14 @@ async replaceMora(ap: AccentPhrase[], styleId: StyleId, seed: number) : Promise<
 }
 },
 /**
- * Replace pitch in accent phrases
+ * Replace pitch in accent phrases, with noise of strength `sigma` unless it is `None`.
+ * 
+ * The caller passes `sigma` because the saved config can lag behind a change the frontend
+ * already made.
  */
-async replaceMoraPitch(ap: AccentPhrase[], styleId: StyleId, seed: number) : Promise<Result<AccentPhrase[], string>> {
+async replaceMoraPitch(ap: AccentPhrase[], styleId: StyleId, seed: number, sigma: number | null) : Promise<Result<AccentPhrase[], string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("replace_mora_pitch", { ap, styleId, seed }) };
+    return { status: "ok", data: await TAURI_INVOKE("replace_mora_pitch", { ap, styleId, seed, sigma }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

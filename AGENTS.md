@@ -414,14 +414,17 @@ The baseline is never persisted. Cache it in `PitchBaselineProvider`
 by block, style, seed, noise settings, core revision and a phoneme/accent
 signature that excludes pitch and duration so tuning edits never refetch.
 When `pitch_is_modified` is unset, the current pitches are the seeded
-prediction: snapshot them synchronously as the baseline so relative sliders
-start centered and absolute mode shows the baseline ghost without a request.
-Cache that snapshot only after any pending generated query for the key settles,
-so changing the noise seed cannot store the previous seed's pitches as the new
-baseline. Only pitch-edited blocks without a cached baseline request one with
-`replace_mora_pitch` using the block's noise seed and current noise settings;
-until it arrives or if it fails, relative sliders fall back to the absolute
-mapping.
+prediction: they are the baseline directly, so relative sliders start centered
+and absolute mode shows the baseline ghost without a request. Snapshot them
+into the cache every time they change while no generated query is pending,
+overwriting earlier snapshots for the key: a seed or noise change switches the
+key before the regenerated pitches arrive, so a snapshot taken in between
+belongs to the previous inputs and must not stay the baseline the first edit
+uses. Only pitch-edited blocks without a cached baseline request one with
+`replace_mora_pitch`, passing the block's noise seed and the noise strength
+from the key (`pitchNoiseSigma`, null without noise) rather than relying on
+the backend's saved config, which can lag behind a change; until it arrives
+or if it fails, relative sliders fall back to the absolute mapping.
 Mapping changes (baseline arrival, mode switch, drift range) reposition sliders
 without the pitch transition. Pitch completion does not rebase the baseline:
 completed moras show their drift from the seeded prediction.

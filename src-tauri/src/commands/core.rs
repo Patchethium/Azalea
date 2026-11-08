@@ -415,7 +415,10 @@ pub async fn replace_mora(
   .await
 }
 
-/// Replace pitch in accent phrases
+/// Replace pitch in accent phrases, with noise of strength `sigma` unless it is `None`.
+///
+/// The caller passes `sigma` because the saved config can lag behind a change the frontend
+/// already made.
 #[tauri::command]
 #[specta::specta]
 pub async fn replace_mora_pitch(
@@ -423,11 +426,9 @@ pub async fn replace_mora_pitch(
   ap: Vec<AccentPhrase>,
   style_id: StyleId,
   seed: u32,
+  sigma: Option<f32>,
 ) -> std::result::Result<Vec<AccentPhrase>, String> {
-  let noise = state_ref!(state, config_manager)
-    .config
-    .ui
-    .pitch_noise_options(seed);
+  let noise = sigma.map(|sigma| voicevox_core::PitchNoiseOptions { sigma, seed });
   run_core_task(&state, move |core| {
     core
       .replace_mora_pitch(ap, style_id)

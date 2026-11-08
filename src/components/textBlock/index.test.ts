@@ -2065,7 +2065,12 @@ describe("TextBlock", () => {
     getTextStore().setTextStore(0, "pitch_noise_seed", 42);
 
     await waitFor(() =>
-      expect(replace).toHaveBeenCalledWith(audioQuery().accent_phrases, 1, 42),
+      expect(replace).toHaveBeenCalledWith(
+        audioQuery().accent_phrases,
+        1,
+        42,
+        null,
+      ),
     );
     await waitFor(() =>
       expect(getTextStore().textStore[0].query?.accent_phrases).toEqual(

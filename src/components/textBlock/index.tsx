@@ -64,7 +64,8 @@ function TextBlock(props: { index: number; sortable?: Sortable }) {
   const { isApplicationShortcutAllowed, matchesShortcut } =
     useShortcutsStore()!;
   const { setUIStore } = useUIStore()!;
-  const { config, setConfig, postProcessingEnabled } = useConfigStore()!;
+  const { config, setConfig, postProcessingEnabled, pitchNoiseSigma } =
+    useConfigStore()!;
   const { t1, t2 } = usei18n()!;
   const toasts = useToasts();
   const currentText = createMemo(() => textStore[props.index]);
@@ -145,7 +146,12 @@ function TextBlock(props: { index: number; sortable?: Sortable }) {
     seed: number,
   ) => {
     const sent = structuredClone(unwrap(currentQuery()!.accent_phrases));
-    const result = await commands.replaceMoraPitch(sent, styleId, seed);
+    const result = await commands.replaceMoraPitch(
+      sent,
+      styleId,
+      seed,
+      pitchNoiseSigma(),
+    );
     const query = currentQuery();
     if (
       disposed ||

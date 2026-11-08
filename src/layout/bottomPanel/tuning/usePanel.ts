@@ -8,7 +8,6 @@ import {
 import {
   DEFAULT_BOTTOM_SCALE,
   DEFAULT_PITCH_DRIFT_RANGE,
-  DEFAULT_PITCH_NOISE_SIGMA,
   DEFAULT_PITCH_SCALE,
   DEFAULT_PITCH_TUNING_MODE,
   DEFAULT_SYNTHESIS_DELAY_MS,
@@ -107,6 +106,7 @@ export function useTuningPanel(
     setConfig,
     spectrogramPreviewEnabled,
     pitchNoiseActive,
+    pitchNoiseSigma,
     pitchCompletionAvailable,
     pitchCompletionActive,
     range,
@@ -578,8 +578,7 @@ export function useTuningPanel(
       block.id,
       preset.style_id,
       block.pitch_noise_seed,
-      pitchNoiseActive(),
-      config.ui.pitch_noise_sigma ?? DEFAULT_PITCH_NOISE_SIGMA,
+      pitchNoiseSigma(),
       coreRevision(),
       pitchStructureSignature(phrases),
     ]);
@@ -588,85 +587,84 @@ export function useTuningPanel(
     const block = currentText();
     return block === null ? undefined : queryPending[block.id];
   };
-  createEffect(
-    on([pitchBaselineKey, currentQueryPending], async ([key, pending]) => {
-      if (
-        key === null ||
-        pending !== undefined ||
-        untrack(() => getPitchBaseline(key)) !== null ||
-        pendingPitchBaselines.has(key)
-      )
-        return;
-      const block = currentText();
-      const preset = currentPreset();
-      if (!block?.query || preset === null) return;
-      if (block.pitch_is_modified !== true) {
-        // Record the seeded prediction only after a regenerated query for
-        // this key has settled. Until then the query still holds pitches
-        // from the previous seed. The text block begins that regeneration in
-        // its own effect, which may run after this one in the same update,
-        // so check again once the update has finished.
-        await Promise.resolve();
-        const current = untrack(currentText);
-        if (
-          !mounted ||
-          untrack(pitchBaselineKey) !== key ||
-          untrack(currentQueryPending) !== undefined ||
-          untrack(() => getPitchBaseline(key)) !== null ||
-          !current?.query ||
-          current.pitch_is_modified === true
-        )
-          return;
-        setPitchBaseline(
-          key,
-          current.query.accent_phrases.map((phrase) =>
-            phrase.moras.map((mora) => mora.pitch),
-          ),
-          false,
-        );
-        return;
-      }
-      const phrases = structuredClone(unwrap(block.query.accent_phrases));
-      pendingPitchBaselines.add(key);
-      try {
-        const result = await commands.replaceMoraPitch(
-          phrases,
-          preset.style_id,
-          block.pitch_noise_seed,
-        );
-        if (result.status === "error") {
-          if (mounted)
-            console.error("Failed to predict pitch baseline:", result.error);
-          return;
-        }
-        // The result is valid for its own key even if the block has changed
-        // since, so it is cached rather than discarded.
-        setPitchBaseline(
-          key,
-          result.data.map((phrase) => phrase.moras.map((mora) => mora.pitch)),
-        );
-      } catch (error) {
-        if (mounted) console.error("Failed to predict pitch baseline:", error);
-      } finally {
-        pendingPitchBaselines.delete(key);
-      }
-    }),
-  );
-  const pitchBaseline = createMemo(() => {
-    const key = pitchBaselineKey();
-    if (key === null) return null;
-    const cached = getPitchBaseline(key);
-    if (cached !== null) return cached;
+  /** The current pitches while they are unedited, which makes them the prediction. */
+  const uneditedPitches = createMemo(() => {
     const block = currentText();
-    const query = block?.query;
-    if (!query || block.pitch_is_modified === true) return null;
-    // The effect above caches this once the generated query settles. Return
-    // the live snapshot meanwhile so sliders keep their mapping without
-    // storing pitches that may still belong to the previous seed.
-    return query.accent_phrases.map((phrase) =>
+    if (!block?.query || block.pitch_is_modified === true) return null;
+    return block.query.accent_phrases.map((phrase) =>
       phrase.moras.map((mora) => mora.pitch),
     );
   });
+  // Snapshot unedited pitches every time they change, overwriting earlier
+  // snapshots: a seed or noise change switches the key before the
+  // regenerated pitches arrive, so the pitches seen in between belong to the
+  // previous inputs and must not remain the baseline the first edit uses.
+  createEffect(
+    on(
+      [pitchBaselineKey, currentQueryPending, uneditedPitches],
+      ([key, pending, pitches]) => {
+        if (key !== null && pending === undefined && pitches !== null)
+          setPitchBaseline(key, pitches, false);
+      },
+    ),
+  );
+  createEffect(
+    on(
+      [
+        pitchBaselineKey,
+        currentQueryPending,
+        () => currentText()?.pitch_is_modified === true,
+      ],
+      async ([key, pending, edited]) => {
+        if (
+          key === null ||
+          pending !== undefined ||
+          !edited ||
+          untrack(() => getPitchBaseline(key)) !== null ||
+          pendingPitchBaselines.has(key)
+        )
+          return;
+        const block = currentText();
+        const preset = currentPreset();
+        if (!block?.query || preset === null) return;
+        const phrases = structuredClone(unwrap(block.query.accent_phrases));
+        pendingPitchBaselines.add(key);
+        try {
+          // The noise options come from the key: the backend's saved config
+          // can still hold the previous ones right after a change.
+          const result = await commands.replaceMoraPitch(
+            phrases,
+            preset.style_id,
+            block.pitch_noise_seed,
+            untrack(pitchNoiseSigma),
+          );
+          if (result.status === "error") {
+            if (mounted)
+              console.error("Failed to predict pitch baseline:", result.error);
+            return;
+          }
+          // The result is valid for its own key even if the block has changed
+          // since, so it is cached rather than discarded.
+          setPitchBaseline(
+            key,
+            result.data.map((phrase) => phrase.moras.map((mora) => mora.pitch)),
+          );
+        } catch (error) {
+          if (mounted)
+            console.error("Failed to predict pitch baseline:", error);
+        } finally {
+          pendingPitchBaselines.delete(key);
+        }
+      },
+    ),
+  );
+  // Unedited pitches are the prediction itself; the cache holds the last
+  // snapshot for edited ones.
+  const pitchBaseline = createMemo(() =>
+    pitchBaselineKey() === null
+      ? null
+      : (uneditedPitches() ?? getPitchBaseline(pitchBaselineKey()!)),
+  );
   const baselineFor = (phraseIndex: number, moraIndex: number) =>
     pitchBaseline()?.[phraseIndex]?.[moraIndex] ?? null;
 

@@ -26,6 +26,7 @@ import {
   DEFAULT_ENGLISH_TRANSFORM,
   DEFAULT_ENGLISH_TURBO_MODEL,
   DEFAULT_TITLEBAR_STYLE,
+  DEFAULT_PITCH_NOISE_SIGMA,
   DEFAULT_PITCH_RULER,
   DEFAULT_PLAYBACK_TIMELINE,
   DEFAULT_SPECTROGRAM_PREVIEW,
@@ -164,6 +165,11 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
   const [pitchControlSupported, setPitchControlSupported] = createSignal(true);
   const pitchNoiseActive = () =>
     (config.ui.pitch_noise_enabled ?? false) && pitchControlSupported();
+  /** The noise strength pitch predictions use, null without noise. */
+  const pitchNoiseSigma = () =>
+    pitchNoiseActive()
+      ? (config.ui.pitch_noise_sigma ?? DEFAULT_PITCH_NOISE_SIGMA)
+      : null;
   const pitchCompletionAvailable = () =>
     (config.ui.pitch_completion_enabled ?? false) && pitchControlSupported();
   const pitchCompletionActive = () =>
@@ -385,6 +391,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     setPitchRulerEnabled,
     pitchControlSupported,
     pitchNoiseActive,
+    pitchNoiseSigma,
     pitchCompletionAvailable,
     pitchCompletionActive,
     togglePitchCompletionLock,

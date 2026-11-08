@@ -4064,6 +4064,85 @@ describe("Relative pitch tuning", () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
+  // A seed or noise change switches the baseline key before the regenerated
+  // pitches arrive, so the pitches seen in between belong to the old inputs.
+  it.each(["pitch_noise_seed", "pitch_noise_sigma"] as const)(
+    "follows unedited pitches regenerated after a %s change",
+    async (input) => {
+      mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+        shouldMockEvents: true,
+      });
+      const replace = vi
+        .spyOn(commands, "replaceMoraPitch")
+        .mockImplementation(predicted(5));
+      const { getConfigStore, getTextStore } = renderPanel({
+        spectrogram_preview: false,
+        pitch_tuning_mode: "Relative",
+        pitch_noise_enabled: true,
+      });
+      fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+      const slider = await screen.findByRole("slider", { name: "コ" });
+      if (input === "pitch_noise_seed")
+        getTextStore().setTextStore(0, "pitch_noise_seed", 7);
+      else getConfigStore().setConfig("ui", "pitch_noise_sigma", 0.2);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      getTextStore().setTextStore(
+        0,
+        "query",
+        "accent_phrases",
+        0,
+        "moras",
+        0,
+        "pitch",
+        5,
+      );
+      expect(slider).toHaveAttribute("aria-valuetext", "0 semitones");
+
+      const track = mockTrack(slider);
+      fireEvent(
+        track,
+        new MouseEvent("pointerdown", { bubbles: true, clientY: 25 }),
+      );
+      fireEvent(
+        track,
+        new MouseEvent("pointerup", { bubbles: true, clientY: 25 }),
+      );
+      expect(
+        getTextStore().textStore[0].query!.accent_phrases[0].moras[0].pitch,
+      ).toBeCloseTo(5 + 6 * SEMITONE, 6);
+      expect(slider).toHaveAttribute("aria-valuetext", "+6.00 semitones");
+      expect(replace).not.toHaveBeenCalled();
+    },
+  );
+
+  // The backend's saved config can lag behind a noise change, so the request
+  // carries the noise settings its key was built from.
+  it("requests the baseline with the noise settings of its key", async () => {
+    mockIPC(
+      (cmd) =>
+        cmd === "get_os" ? "Linux" : cmd === "supports_pitch_control" || null,
+      { shouldMockEvents: true },
+    );
+    const replace = vi
+      .spyOn(commands, "replaceMoraPitch")
+      .mockImplementation(predicted(5));
+    const { getConfigStore, getTextStore } = renderPanel({
+      spectrogram_preview: false,
+      pitch_tuning_mode: "Relative",
+      pitch_noise_enabled: true,
+      pitch_noise_sigma: 0.3,
+    });
+    await markPitchEdited(getTextStore);
+    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    await screen.findByRole("slider", { name: "コ" });
+    await waitFor(() => expect(replace).toHaveBeenCalledTimes(1));
+    expect(replace.mock.calls[0].slice(1)).toEqual([1, 0, 0.3]);
+
+    getConfigStore().setConfig("ui", "pitch_noise_enabled", false);
+    await waitFor(() => expect(replace).toHaveBeenCalledTimes(2));
+    expect(replace.mock.calls[1].slice(1)).toEqual([1, 0, null]);
+  });
+
   it("resets pitch to the prediction on right click", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
