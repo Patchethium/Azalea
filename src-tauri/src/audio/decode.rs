@@ -1,5 +1,5 @@
-//! Decodes the audio files voice import accepts (WAV, FLAC, MP3, Ogg Vorbis, AAC in M4A or
-//! ADTS) to mono samples, and resamples them for the aligner.
+//! Decodes the audio files voice import accepts (WAV, FLAC, MP3, Ogg Vorbis) to mono samples,
+//! and resamples them for the aligner.
 
 use std::fs::File;
 use std::path::Path;
@@ -126,9 +126,12 @@ pub fn resample(audio: &MonoAudio, sample_rate: u32) -> Result<MonoAudio, String
   if audio.sample_rate == sample_rate {
     return Ok(audio.clone());
   }
-  let frames = audio.samples.len();
-  let input = InterleavedSlice::new(&audio.samples, 1, frames).map_err(|e| e.to_string())?;
-  let mut resampler = Fft::<f32>::new(
+  // Resample in f64, the precision every other FFT in Azalea uses, so the binary carries a
+  // single instantiation of rustfft.
+  let samples: Vec<f64> = audio.samples.iter().map(|&s| f64::from(s)).collect();
+  let frames = samples.len();
+  let input = InterleavedSlice::new(&samples, 1, frames).map_err(|e| e.to_string())?;
+  let mut resampler = Fft::<f64>::new(
     audio.sample_rate as usize,
     sample_rate as usize,
     1024,
@@ -140,7 +143,7 @@ pub fn resample(audio: &MonoAudio, sample_rate: u32) -> Result<MonoAudio, String
     .process_all(&input, frames, None)
     .map_err(|e| e.to_string())?;
   Ok(MonoAudio {
-    samples: output.take_data(),
+    samples: output.take_data().into_iter().map(|s| s as f32).collect(),
     sample_rate,
   })
 }

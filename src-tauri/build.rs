@@ -17,6 +17,23 @@ fn collect_licenses() {
     status.success(),
     "Dependency license collection failed; see the diagnostics above"
   );
+  compress_licenses();
+}
+
+/// The license texts are mostly repeated boilerplate, so the binary embeds them compressed.
+fn compress_licenses() {
+  use std::io::Write;
+
+  let out_dir = std::path::PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
+  let report = std::fs::read(out_dir.join("dependency-licenses.json"))
+    .expect("The license collector must write its report");
+  let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::best());
+  encoder.write_all(&report).unwrap();
+  std::fs::write(
+    out_dir.join("dependency-licenses.json.gz"),
+    encoder.finish().unwrap(),
+  )
+  .expect("Failed to write the compressed license report");
 }
 
 /// Compiles the WORLD vocoder (the `third_party/world` submodule) used by the post-processing

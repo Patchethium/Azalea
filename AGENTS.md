@@ -218,9 +218,11 @@ order, and the voice tab writes into the tuning content.
 
 Backend:
 
-- `src-tauri/src/audio/decode.rs` decodes WAV, FLAC, MP3, Ogg Vorbis and AAC
-  (M4A/ADTS) with symphonia, mixes down to mono, rejects audio over 60 s
-  (`MAX_SECONDS`) and resamples with rubato.
+- `src-tauri/src/audio/decode.rs` decodes WAV, FLAC, MP3 and Ogg Vorbis with
+  symphonia (AAC/M4A and ADPCM are left out to keep the binary small), mixes
+  down to mono, rejects audio over 60 s (`MAX_SECONDS`) and resamples with
+  rubato in f64, the precision Azalea's other FFTs use, so rustfft is
+  instantiated once.
 - `src-tauri/src/audio/record.rs` records the default input device through
   rodio's cpal re-export on a thread that owns the stream (cpal streams are
   not `Send`), capped at 60 s, reporting the peak level every 50 ms. macOS

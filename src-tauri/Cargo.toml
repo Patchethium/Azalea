@@ -19,6 +19,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 cc = "1"
+flate2 = "1"
 
 [dependencies]
 typed_floats = "1.0.7"
@@ -61,7 +62,7 @@ sys-locale = "0.3.2"
 tempfile = "3"
 e2k = { git = "https://github.com/Patchethium/e2k", tag = "v0.8.2" }
 snfa = { git = "https://github.com/Patchethium/snfa", tag = "rust-v0.1.0" }
-symphonia = { version = "0.6.1", default-features = false, features = ["wav", "pcm", "flac", "mp3", "vorbis", "ogg", "aac", "isomp4", "adpcm"] }
+symphonia = { version = "0.6.1", default-features = false, features = ["wav", "pcm", "flac", "mp3", "vorbis", "ogg"] }
 rubato = "5.0.1"
 audioadapter-buffers = "5.2.0"
 

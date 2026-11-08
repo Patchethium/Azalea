@@ -22,11 +22,9 @@ pub fn get_dependency_licenses() -> Vec<DependencyLicense> {
   static LICENSES: OnceLock<Vec<DependencyLicense>> = OnceLock::new();
   LICENSES
     .get_or_init(|| {
-      serde_json::from_str(include_str!(concat!(
-        env!("OUT_DIR"),
-        "/dependency-licenses.json"
-      )))
-      .expect("The build-time license collector must produce a valid report")
+      let compressed = include_bytes!(concat!(env!("OUT_DIR"), "/dependency-licenses.json.gz"));
+      serde_json::from_reader(flate2::read::GzDecoder::new(&compressed[..]))
+        .expect("The build-time license collector must produce a valid report")
     })
     .clone()
 }

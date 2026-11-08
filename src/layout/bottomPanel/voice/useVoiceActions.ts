@@ -48,7 +48,7 @@ export function useVoiceActions(disabled: () => boolean) {
       filters: [
         {
           name: t1("voice_import.file_filter"),
-          extensions: ["wav", "flac", "mp3", "ogg", "oga", "m4a", "aac"],
+          extensions: ["wav", "flac", "mp3", "ogg", "oga"],
         },
       ],
     });
