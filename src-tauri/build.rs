@@ -56,6 +56,11 @@ fn build_world() {
   ];
   let mut build = cc::Build::new();
   build.cpp(true).include(src).warnings(false);
+  // WORLD at -O0 makes post-processing and voice import several times slower
+  // in dev and test builds; release keeps the profile's size optimization.
+  if std::env::var("OPT_LEVEL").as_deref() == Ok("0") {
+    build.opt_level(2);
+  }
   for file in files {
     let path = format!("{src}/{file}.cpp");
     println!("cargo:rerun-if-changed={path}");
