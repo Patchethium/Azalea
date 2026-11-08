@@ -712,6 +712,17 @@ downloaded (see Optional Downloads). WAV files accumulate in
 
 Linux development also requires the Tauri prerequisites, `clang`, and `mold`. The development core path is stored in `config_dev/config.toml`.
 
+## Missing Tools
+
+When a tool, dependency, browser or model that a task needs is missing,
+install it instead of working around its absence with a substitute or
+fallback. For example, download the browser a library pins rather than
+pointing it at a system browser it does not support. Prefer project-local
+or user-level installs from the tool's official source, and keep anything
+downloaded out of the repository: use ignored directories or the tool's own
+cache. Tell the user what was installed and where. Ask before an install
+that needs root or changes system-wide configuration.
+
 ## Driving the Running App
 
 Agents cannot see the Tauri webview from a browser, so `e2e/driver.ts` drives
