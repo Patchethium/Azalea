@@ -2,6 +2,15 @@
 linker = "clang"
 rustflags = ["-C", "link-arg=-fuse-ld=mold"]
 
+# Link the MSVC runtime statically so the C++ dependencies (WORLD, OpenJTalk)
+# do not need MSVCP140.dll / VCRUNTIME140.dll on machines without the VC++
+# redistributable. Target rustflags replace `build.rustflags`, so repeat them.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-Z", "threads=8", "-C", "target-feature=+crt-static"]
+
+[target.aarch64-pc-windows-msvc]
+rustflags = ["-Z", "threads=8", "-C", "target-feature=+crt-static"]
+
 [build]
 rustflags = ["-Z", "threads=8"]
 
