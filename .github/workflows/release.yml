@@ -88,7 +88,10 @@ jobs:
         with:
           tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
           releaseName: 'Azalea v__VERSION__'
-          releaseBody: 'See the assets to download this version and install.'
+          releaseBody: |
+            See the assets to download this version and install.
+
+            **Windows:** Azalea needs the [Microsoft Visual C++ Redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe). Install it if Azalea reports that `MSVCP140.dll` or `VCRUNTIME140.dll` is missing.
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}

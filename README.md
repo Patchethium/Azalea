@@ -28,7 +28,10 @@ without running `voicevox_engine`.
 ## Quickstart
 
 1. Install a build for Windows, macOS (Apple Silicon) or Linux from
-   [Releases](https://github.com/Patchethium/Azalea/releases).
+   [Releases](https://github.com/Patchethium/Azalea/releases). On Windows,
+   install the
+   [Microsoft Visual C++ Redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe)
+   first if Azalea reports that `MSVCP140.dll` or `VCRUNTIME140.dll` is missing.
 2. Launch Azalea, select **Open config**, and in **Voice → Voice setup** choose
    one of:
    - **Azalea-managed models:** review the model terms, pick voice packages
@@ -87,6 +90,9 @@ Azalea（アザレア）は、VOICEVOX向けの非公式デスクトップGUIで
 
 1. [Releases](https://github.com/Patchethium/Azalea/releases)から、お使いの環境
    （Windows・macOS Apple Silicon・Linux）向けのビルドをインストールします。
+   Windowsで`MSVCP140.dll`や`VCRUNTIME140.dll`が見つからないと表示される場合は、
+   [Microsoft Visual C++ 再頒布可能パッケージ](https://aka.ms/vs/17/release/vc_redist.x64.exe)
+   をインストールしてください。
 2. 起動時の画面で**設定を開く**を押し、**音声 → 音声環境**で次のいずれかを選びます。
    - **Azalea管理のモデル：** 利用規約を確認し、**モデル管理**で必要なモデルを
      ダウンロードして**モデルを適用**を押します。ランタイムと辞書は自動で取得されます。
