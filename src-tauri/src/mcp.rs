@@ -37,8 +37,23 @@ use crate::{
 /// The command-line flag that starts the server instead of the app.
 pub const MCP_FLAG: &str = "--mcp";
 
-pub const DISABLED_MESSAGE: &str = "Azalea's MCP server is disabled. Turn on \"MCP Server\" \
-  in Azalea's config dialog (Synthesis section) and try again.";
+macro_rules! disabled_message {
+  () => {
+    "Azalea's MCP server is disabled, and only the user can enable it. Ask the user to turn on \
+    the experimental \"MCP Server\" switch in Azalea's config dialog (Synthesis section), then \
+    retry; no restart is needed."
+  };
+}
+
+/// Debug builds read `config_dev`, so only a development window's switch reaches them.
+#[cfg(debug_assertions)]
+pub const DISABLED_MESSAGE: &str = concat!(
+  disabled_message!(),
+  " This is a development build, which reads config_dev: turn it on in a `pnpm tauri dev` \
+  window, not in an installed Azalea."
+);
+#[cfg(not(debug_assertions))]
+pub const DISABLED_MESSAGE: &str = disabled_message!();
 
 /// What the server reads from the app on each call.
 #[derive(Clone, Copy, Debug, Default)]
@@ -448,7 +463,9 @@ impl ServerHandler for AzaleaMcp {
         "Azalea synthesizes Japanese speech with VOICEVOX. Call list_speakers to find a speaker \
         and style, then synthesize to get a WAV file path. To reuse a voice with adjusted speed, \
         pitch, intonation, volume or silences, save it with create_preset and pass the preset \
-        to synthesize. Generated audio must credit the \
+        to synthesize. The tools work only while the user has turned on the \"MCP Server\" \
+        switch in Azalea's config dialog; if a tool reports that the server is disabled, ask \
+        the user to turn it on rather than retrying. Generated audio must credit the \
         VOICEVOX character according to its terms of use (for example \"VOICEVOX:ずんだもん\").",
       )
   }
