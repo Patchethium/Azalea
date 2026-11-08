@@ -67,10 +67,20 @@ jobs:
       - name: install frontend dependencies
         run: pnpm i
 
+      # The prebuilt download can hang on GitHub release outages; build from
+      # source when it does not finish in time.
       - name: install cargo-about
+        id: cargo_about
+        continue-on-error: true
+        timeout-minutes: 2
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-about@0.9.2
+          fallback: none
+
+      - name: build cargo-about from source
+        if: steps.cargo_about.outcome != 'success'
+        run: cargo install cargo-about --locked --version 0.9.2 --features cli
 
       - uses: tauri-apps/tauri-action@v0.6.2
         env:
