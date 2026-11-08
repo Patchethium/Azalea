@@ -164,10 +164,30 @@ jobs:
           echo "917e592cae92a02fb7668bd9e168df4e39c8ab2f5302c2be71906c70ec4e2df2  $AZALEA_TEST_CORE_DIR/models/0.vvm" \
             | sha256sum --check
 
+      - name: Restore snfa aligner model
+        id: snfa_model
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}/snfa
+          key: snfa-rust-v0.1.0-jp-safetensors-0
+
+      - name: Download snfa aligner model
+        if: steps.snfa_model.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+
+          mkdir -p "$RUNNER_TEMP/snfa"
+          curl --fail --location --retry 3 \
+            --output "$RUNNER_TEMP/snfa/jp.safetensors" \
+            https://github.com/Patchethium/snfa/releases/download/rust-v0.1.0/jp.safetensors
+          echo "a1bd8eb1cc88ce77e50b86d88f3fde5042fc4c9ecb31fa56ece7fd66ac775075  $RUNNER_TEMP/snfa/jp.safetensors" \
+            | sha256sum --check
+
       - name: Run all Rust tests
         working-directory: src-tauri
         env:
           AZALEA_TEST_CORE_DIR: ${{ runner.temp }}/voicevox-core
+          AZALEA_TEST_SNFA_MODEL: ${{ runner.temp }}/snfa/jp.safetensors
         run: cargo test --locked -- --test-threads=1
 
       - name: Verify generated TypeScript bindings
