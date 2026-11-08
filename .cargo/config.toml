@@ -2,23 +2,9 @@
 linker = "clang"
 rustflags = ["-C", "link-arg=-fuse-ld=mold"]
 
-# Link the MSVC runtime statically so the C++ dependencies (WORLD, OpenJTalk)
-# do not need MSVCP140.dll / VCRUNTIME140.dll on machines without the VC++
-# redistributable. Target rustflags replace `build.rustflags`, so repeat them.
-[target.x86_64-pc-windows-msvc]
-rustflags = ["-Z", "threads=8", "-C", "target-feature=+crt-static"]
-
-[target.aarch64-pc-windows-msvc]
-rustflags = ["-Z", "threads=8", "-C", "target-feature=+crt-static"]
-
 [build]
 rustflags = ["-Z", "threads=8"]
 
 [unstable.git]
 shallow_index = true
 shallow_deps = true
-
-# cmake-rs reads target-specific toolchain files, so other targets are unaffected.
-[env]
-CMAKE_TOOLCHAIN_FILE_x86_64_pc_windows_msvc = { value = "src-tauri/cmake/msvc-static-crt.cmake", relative = true }
-CMAKE_TOOLCHAIN_FILE_aarch64_pc_windows_msvc = { value = "src-tauri/cmake/msvc-static-crt.cmake", relative = true }
