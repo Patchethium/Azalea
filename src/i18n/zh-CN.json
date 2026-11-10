@@ -296,7 +296,10 @@
     "reinitialize_core": "应用更改需重新初始化核心",
     "auto": "自动",
     "voice_import": "语音导入",
-    "voice_import_description": "根据你自己朗读的录音（在此录制或选择音频文件）设置文本块的时长和音高。会在重音与调音标签页之间添加语音标签页。"
+    "voice_import_description": "根据你自己朗读的录音（在此录制或选择音频文件）设置文本块的时长和音高。会在重音与调音标签页之间添加语音标签页。",
+    "updates": "更新",
+    "auto_update_check": "自动检查更新",
+    "check_for_updates": "检查更新"
   },
   "titlebar": {
     "minimize": "最小化",
@@ -459,5 +462,27 @@
     "fit": "适配该声音",
     "offset": "音高偏移（半音）",
     "hint": "拖动音素边界可调整对齐。"
+  },
+  "update": {
+    "title": "有可用更新",
+    "close": "关闭更新对话框",
+    "message": "Azalea {{ version }} 已发布。当前版本为 {{ current }}。",
+    "manual": "此安装方式无法自动更新。请从发布页面下载新版本。",
+    "release_notes": "更新说明",
+    "later": "稍后",
+    "download": "下载",
+    "downloading": "正在下载更新…",
+    "cancel": "取消",
+    "ready": "更新已下载。重启 Azalea 以完成安装。",
+    "restart": "重启并安装",
+    "installing": "正在安装更新…",
+    "open_release_page": "打开发布页面",
+    "download_failed": "无法下载更新。",
+    "install_failed": "无法安装更新。",
+    "check_now": "立即检查",
+    "checking": "正在检查…",
+    "show": "Azalea {{ version }} 已发布",
+    "up_to_date": "Azalea 已是最新版本。",
+    "check_failed": "无法检查更新。"
   }
 }

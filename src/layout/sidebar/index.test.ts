@@ -977,9 +977,11 @@ describe("Sidebar dictionary", () => {
 describe("Sidebar unsaved changes", () => {
   const renderDirtySidebar = () => {
     let text!: NonNullable<ReturnType<typeof useTextStore>>;
+    let configStore!: NonNullable<ReturnType<typeof useConfigStore>>;
     const result = renderSidebarHook(
       ({ config: appConfig, meta, text: textStore }) => {
         text = textStore;
+        configStore = appConfig;
         batch(() => {
           appConfig.setConfig(config({ auto_save: false }));
           meta.setMetas(metas);
@@ -997,7 +999,7 @@ describe("Sidebar unsaved changes", () => {
         textStore.markProjectSaved();
       },
     );
-    return { ...result, getText: () => text };
+    return { ...result, getText: () => text, getConfig: () => configStore };
   };
 
   it("keeps the project dirty after a failed save and records the path only after success", async () => {
@@ -1188,6 +1190,47 @@ describe("Sidebar unsaved changes", () => {
     controls.setUIStore("pendingProjectAction", "close");
     await controls.resolveProjectAction("discard");
     expect(calls).toContain("plugin:window|destroy");
+  });
+
+  it("restarts into a downloaded update after unsaved changes are settled", async () => {
+    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
+      shouldMockEvents: true,
+    });
+    mockWindows("main");
+    vi.mocked(commands.updatesSupported).mockResolvedValue(true);
+    vi.spyOn(commands, "checkForUpdate").mockResolvedValue({
+      status: "ok",
+      data: {
+        version: "1.1.0",
+        current_version: "1.0.0",
+        installable: true,
+        release_url:
+          "https://github.com/Patchethium/Azalea/releases/tag/app-v1.1.0",
+      },
+    });
+    vi.spyOn(commands, "downloadUpdate").mockResolvedValue({
+      status: "ok",
+      data: false,
+    });
+    const install = vi
+      .spyOn(commands, "installUpdate")
+      .mockResolvedValue({ status: "ok", data: null });
+    const { getControls, getText, getConfig } = renderDirtySidebar();
+    await Promise.resolve();
+    const controls = getControls();
+    const { updater } = getConfig();
+    await updater.check();
+    await updater.download();
+    getText().setTextStore(0, "text", "Edited");
+
+    controls.setUIStore("pendingProjectAction", "install_update");
+    await controls.resolveProjectAction("cancel");
+    expect(install).not.toHaveBeenCalled();
+
+    controls.setUIStore("pendingProjectAction", "install_update");
+    await controls.resolveProjectAction("discard");
+    expect(install).toHaveBeenCalledTimes(1);
+    expect(updater.store.phase).toBe("installing");
   });
 
   it("logs failures from project actions", async () => {

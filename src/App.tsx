@@ -1,6 +1,7 @@
 import { events, type TitlebarStyle } from "$binding";
 import Resizable from "@corvu/resizable";
 import ConfigPage from "@dialogs/config";
+import { UpdateDialog } from "@dialogs/Update";
 import { AppToastRegion, useToasts } from "@components/toast";
 import { TitleBar } from "@components/titleBar";
 import MainPage from "@layout/MainPage";
@@ -301,6 +302,7 @@ function App() {
             <Resizable.Panel class="w-full overflow-hidden" minSize="400px">
               <MainPage />
               <ConfigPage />
+              <UpdateDialog />
             </Resizable.Panel>
           </Resizable>
         </Show>

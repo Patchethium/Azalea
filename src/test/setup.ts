@@ -51,6 +51,8 @@ beforeEach(async () => {
     status: "ok",
     data: true,
   });
+  // Updates are off, as in development builds, unless a test turns them on.
+  vi.spyOn(commands, "updatesSupported").mockResolvedValue(false);
   // Tests start with the optional downloads in place unless they say otherwise.
   vi.spyOn(commands, "getExtrasStatus").mockResolvedValue({
     status: "ok",

@@ -34,6 +34,7 @@ import {
   Show,
 } from "solid-js";
 import {
+  DEFAULT_AUTO_UPDATE_CHECK,
   DEFAULT_PITCH_DRIFT_RANGE,
   DEFAULT_PITCH_NOISE_SIGMA,
   DEFAULT_PITCH_TUNING_MODE,
@@ -108,6 +109,7 @@ export function ConfigPage() {
     pitchControlSupported,
     pitchNoiseActive,
     pitchCompletionAvailable,
+    updater,
   } = useConfigStore()!;
   /** Explains a pitch-control switch the ONNX Runtime cannot support. */
   const PitchControlTooltip: ParentComponent = (props) => (
@@ -241,6 +243,21 @@ export function ConfigPage() {
                     />
                   </div>
                 </div>
+              </ConfigItem>
+            </Show>
+            <Show when={updater.supported()}>
+              <ConfigSectionTitle label={t1("config.updates")} />
+              <ConfigItem label={t1("config.auto_update_check")}>
+                <AppSwitch
+                  label={t1("config.auto_update_check")}
+                  checked={
+                    config.ui.auto_update_check ?? DEFAULT_AUTO_UPDATE_CHECK
+                  }
+                  onChange={(v) => setConfig("ui", "auto_update_check", v)}
+                />
+              </ConfigItem>
+              <ConfigItem label={t1("config.check_for_updates")}>
+                <UpdateCheckButton />
               </ConfigItem>
             </Show>
           </Tabs.Content>
@@ -598,6 +615,45 @@ export function ConfigPage() {
         </div>
       </AppDialogContent>
     </Dialog>
+  );
+}
+
+/** Looks for a newer release now; one that is found opens the update dialog. */
+function UpdateCheckButton() {
+  const { t1, t2 } = usei18n()!;
+  const { updater } = useConfigStore()!;
+  const toasts = useToasts();
+  const check = async () => {
+    const result = await updater.check();
+    if (result.status === "current") toasts.success(t1("update.up_to_date"));
+    else if (result.status === "error")
+      toasts.error(t1("update.check_failed"), result.error);
+  };
+  return (
+    <Show
+      when={updater.store.update}
+      fallback={
+        <AppButton
+          size="sm"
+          disabled={updater.checking()}
+          onClick={() => void check()}
+          class="shrink-0"
+        >
+          {t1(updater.checking() ? "update.checking" : "update.check_now")}
+        </AppButton>
+      }
+    >
+      {(update) => (
+        <AppButton
+          size="sm"
+          variant="primary"
+          onClick={updater.show}
+          class="shrink-0"
+        >
+          {t2("update.show", { version: update().version })}
+        </AppButton>
+      )}
+    </Show>
   );
 }
 
