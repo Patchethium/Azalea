@@ -129,6 +129,18 @@ Development builds keep their config and downloads in `config_dev/`; set the
 core there from the app. Release builds use
 `{config_dir}/com.azalea.app/config.toml`.
 
+### Landing page
+
+The repository is a pnpm workspace: the app lives at the root and the
+[landing page](https://patchethium.github.io/Azalea/) in `landing/`. Pushes to
+`master` deploy it to GitHub Pages.
+
+```sh
+pnpm landing:dev       # develop the page
+pnpm landing:build     # build it into landing/dist
+pnpm landing:capture   # retake its screenshots from the app's frontend
+```
+
 ### Setting up a core manually
 
 Besides the in-app download or a VOICEVOX installation, you can use the

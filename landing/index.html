@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="description"
+      content="Azalea is a lightweight, unofficial desktop GUI for VOICEVOX, built around voice presets and fine pitch tuning."
+    />
+    <meta property="og:title" content="Azalea" />
+    <meta
+      property="og:description"
+      content="A lightweight, unofficial desktop GUI for VOICEVOX."
+    />
+    <meta property="og:type" content="website" />
+    <link rel="icon" type="image/png" href="../src-tauri/icons/128x128.png" />
+    <title>Azalea — a lightweight VOICEVOX GUI</title>
+    <script>
+      // Apply the stored or system theme before first paint.
+      (() => {
+        let theme = null;
+        try {
+          theme = localStorage.getItem("azalea-theme");
+        } catch {}
+        const dark =
+          theme === "dark" ||
+          (theme !== "light" &&
+            matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.classList.toggle("dark", dark);
+      })();
+    </script>
+  </head>
+  <body>
+    <noscript>Azalea is a lightweight, unofficial desktop GUI for VOICEVOX. See https://github.com/Patchethium/Azalea</noscript>
+    <div id="root"></div>
+    <script src="/src/index.tsx" type="module"></script>
+  </body>
+</html>

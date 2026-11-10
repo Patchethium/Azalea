@@ -4,3 +4,5 @@ allowBuilds:
   # downloads are unnecessary.
   edgedriver: false
   geckodriver: false
+packages:
+  - landing

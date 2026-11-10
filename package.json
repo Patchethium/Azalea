@@ -19,7 +19,10 @@
     "test:licenses": "node --test scripts/licenses.test.mjs",
     "test:all": "pnpm test:licenses && pnpm check && pnpm build && pnpm test:coverage && cargo test --locked --manifest-path src-tauri/Cargo.toml -- --test-threads=1",
     "e2e:build": "tauri build --debug --no-bundle",
-    "e2e": "tsx e2e/driver.ts"
+    "e2e": "tsx e2e/driver.ts",
+    "landing:dev": "pnpm --filter azalea-landing dev",
+    "landing:build": "pnpm --filter azalea-landing build",
+    "landing:capture": "pnpm --filter azalea-landing capture"
   },
   "license": "GPL-3.0-or-later",
   "dependencies": {

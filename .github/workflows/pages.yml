@@ -1,0 +1,72 @@
+name: pages
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - ".github/workflows/pages.yml"
+      - "landing/**"
+      - "icon/**"
+      - "src-tauri/icons/128x128.png"
+      - "uno.config.ts"
+      - "pnpm-lock.yaml"
+  pull_request:
+    paths:
+      - ".github/workflows/pages.yml"
+      - "landing/**"
+      - "uno.config.ts"
+  workflow_dispatch:
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build landing page
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.28.6
+
+      - name: setup node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # The landing page reuses the app's UnoCSS config, so the root
+      # workspace dependencies are installed too.
+      - name: install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: build
+        run: pnpm landing:build
+
+      - name: upload site
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: landing/dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

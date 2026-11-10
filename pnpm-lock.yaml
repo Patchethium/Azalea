@@ -112,6 +112,43 @@ importers:
         specifier: 9.32.0
         version: 9.32.0(supports-color@7.2.0)
 
+  landing:
+    dependencies:
+      '@kobalte/core':
+        specifier: ^0.13.14
+        version: 0.13.14(solid-js@1.9.17)
+      lenis:
+        specifier: ^1.3.11
+        version: 1.3.27(vue@3.5.44(typescript@7.0.2))
+      solid-js:
+        specifier: ^1.9.17
+        version: 1.9.17
+    devDependencies:
+      '@iconify-json/lucide':
+        specifier: ^1.2.145
+        version: 1.2.145
+      '@unocss/preset-icons':
+        specifier: 66.2.0
+        version: 66.2.0(supports-color@7.2.0)
+      '@unocss/reset':
+        specifier: 66.2.0
+        version: 66.2.0
+      playwright:
+        specifier: 1.63.0
+        version: 1.63.0
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      unocss:
+        specifier: 66.2.0
+        version: 66.2.0(postcss@8.5.30)(supports-color@7.2.0)(vite@6.4.4(@types/node@20.19.43)(jiti@2.7.0)(tsx@4.23.15))(vue@3.5.44(typescript@7.0.2))
+      vite:
+        specifier: ^6.4.4
+        version: 6.4.4(@types/node@20.19.43)(jiti@2.7.0)(tsx@4.23.15)
+      vite-plugin-solid:
+        specifier: ^2.11.14
+        version: 2.11.14(@testing-library/jest-dom@6.9.1)(solid-js@1.9.17)(supports-color@7.2.0)(vite@6.4.4(@types/node@20.19.43)(jiti@2.7.0)(tsx@4.23.15))
+
 packages:
 
   '@adobe/css-tools@4.5.0':
@@ -2250,6 +2287,20 @@ packages:
     resolution: {integrity: sha512-b94GiNHQNy6JNTrt5w6zNyffMrNkXZb3KTkCZJb2V1xaEGCk093vkZ2jk3tpaeP33/OiXC+WvK9AxUebnf5nbw==}
     engines: {node: '>= 0.6.3'}
 
+  lenis@1.3.27:
+    resolution: {integrity: sha512-QIHNH4LIfWyLfgH/5K0aTGZgyFJJ7GfHNcaH/AIgyKjb8gstLh5siNGvrVqz1w5ClLXzOvllBVk7vby8JzUVPQ==}
+    peerDependencies:
+      '@nuxt/kit': '>=3.0.0'
+      react: '>=17.0.0'
+      vue: '>=3.0.0'
+    peerDependenciesMeta:
+      '@nuxt/kit':
+        optional: true
+      react:
+        optional: true
+      vue:
+        optional: true
+
   lie@3.3.0:
     resolution: {integrity: sha512-UaiMJzeWRlEujzAuw5LokY1L5ecNQYZKfmyZ9L7wDHb/p5etKaxXhohBcrw0EYby+G/NA52vRSN4N39dxHAIwQ==}
 
@@ -2464,6 +2515,16 @@ packages:
 
   pkg-types@2.3.3:
     resolution: {integrity: sha512-j/lCFdcppV0JxWpCEITdbDltBxPP6cHT+yNJ6Go2OgoSA9518X847X9z0p6LtA4Nc16+eQzCZjRrWanTGvHJ5w==}
+
+  playwright-core@1.63.0:
+    resolution: {integrity: sha512-rYCsBF/M5HjUch52bbtVONEFjv6Xu8sm8h72dNlR5bzIE1fvC/bxgspzkjSfU+MweEMmPM8KJebG6nnyxo5mCg==}
+    engines: {node: '>=20'}
+    hasBin: true
+
+  playwright@1.63.0:
+    resolution: {integrity: sha512-+7ziBLidS4NaNCdt57SUDT+wYmmd5fmiQejUic/kb+YsYSCPyOOE9sebzMjNmQrsnNpDJqd4WHvV/8lfKfUDUg==}
+    engines: {node: '>=20'}
+    hasBin: true
 
   postcss@8.5.30:
     resolution: {integrity: sha512-zkd+e9S1AQHhmaBKye9zlFHWjOwVgqXl1q3ECYy8561K7qxR2cREf/STLskulBFd78k6AOFeA+ff1TtEzk9bAA==}
@@ -4987,6 +5048,10 @@ snapshots:
     dependencies:
       readable-stream: 2.3.8
 
+  lenis@1.3.27(vue@3.5.44(typescript@7.0.2)):
+    optionalDependencies:
+      vue: 3.5.44(typescript@7.0.2)
+
   lie@3.3.0:
     dependencies:
       immediate: 3.0.6
@@ -5213,6 +5278,12 @@ snapshots:
       confbox: 0.3.1
       exsolve: 1.1.3
       pathe: 2.0.3
+
+  playwright-core@1.63.0: {}
+
+  playwright@1.63.0:
+    dependencies:
+      playwright-core: 1.63.0
 
   postcss@8.5.30:
     dependencies:

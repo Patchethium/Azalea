@@ -45,6 +45,39 @@ are installed.
 
 The Rust backend is under `src-tauri/`. Tauri commands are grouped in `src-tauri/src/commands/`, configuration handling in `config/`, and audio code in `audio/`. Rust integration tests and fixtures live in `src-tauri/tests/`. Application icons are in `src-tauri/icons/`; project artwork is in `icon/`. Treat `src/binding.ts` as generated bindings and avoid hand-editing it.
 
+## Landing Page
+
+The repository is a pnpm workspace (`pnpm-workspace.yaml`): the Tauri app
+stays at the root and the landing page is the `azalea-landing` package in
+`landing/`, a SolidJS, UnoCSS and Vite site deployed to GitHub Pages by
+`.github/workflows/pages.yml` on pushes to `master` (pull requests only
+build it). Run it with `pnpm landing:dev` and build it with
+`pnpm landing:build`, which type-checks first. It builds with relative asset
+URLs (`base: "./"`), so it works under any Pages path.
+
+The page follows the app's design system instead of redefining it:
+`landing/uno.config.ts` spreads the root `uno.config.ts`, and
+`landing/src/styles.css` holds a copy of the color tokens it uses from
+`src/app.module.css`; update the copy when those tokens change. The logo and
+favicon are imported from `icon/` and `src-tauri/icons/`. Controls use
+Kobalte primitives, like the app's.
+
+Its text lives in `landing/src/i18n.ts` in English, Japanese and Simplified
+Chinese; keep the three synchronized. The language menu switches the whole
+page (never stack the translations); the choice comes from `?lang=`, then
+local storage, then the browser's languages. Smooth scrolling (Lenis), the
+scroll reveals and the hero tilt live in `landing/src/scroll.ts` and are
+skipped under `prefers-reduced-motion`.
+
+Do not draw the app's UI for the page. Screenshots in
+`landing/public/screenshots/` come from the real frontend:
+`pnpm landing:capture` (`landing/scripts/capture.mjs`) serves the app with
+Vite, loads it in Playwright's Chromium with `landing/scripts/mockBackend.js`
+answering the Tauri IPC from fixture voices, readings and spectrograms, and
+writes light and dark PNGs. Rerun it and commit the result after visible UI
+changes; add IPC handlers to the mock when a new shot needs them. The page's
+footer states that screenshots show sample data.
+
 ## VOICEVOX Core Generative Noise
 
 The [Patchethium/voicevox_core fork](https://github.com/Patchethium/voicevox_core)
