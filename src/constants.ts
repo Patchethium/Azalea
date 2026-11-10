@@ -25,6 +25,7 @@ export const DEFAULT_ENGLISH_ACCENT_PREDICTION = true;
 export const DEFAULT_ENGLISH_NGRAM_FILTER = true;
 export const DEFAULT_ENGLISH_TURBO_MODEL = false;
 export const DEFAULT_PLAYBACK_TIMELINE = true;
+export const DEFAULT_AUTO_UPDATE_CHECK = true;
 export const DEFAULT_PITCH_SCALE = "Optimal" as const;
 export const DEFAULT_PITCH_RULER = true;
 export const DEFAULT_PITCH_TUNING_MODE = "Absolute" as const;

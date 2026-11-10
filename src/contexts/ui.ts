@@ -15,6 +15,8 @@ type PendingProjectAction =
   | "open"
   | "close"
   | "quit"
+  /** Restarts into a downloaded update. */
+  | "install_update"
   | { kind: "open_recent"; path: string };
 type LastFocusedCaret = { blockId: string; offset: number } | null;
 /**

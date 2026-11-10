@@ -204,6 +204,9 @@ pub struct UIConfig {
   pub english_turbo_model: bool,
   #[serde(default = "playback_timeline_default")]
   pub playback_timeline: bool,
+  /// Looks for a newer release at startup and offers to install it.
+  #[serde(default = "auto_update_check_default")]
+  pub auto_update_check: bool,
   #[serde(default)]
   pub pitch_scale: PitchScale,
   #[serde(default = "pitch_ruler_default")]
@@ -272,6 +275,7 @@ impl Default for UIConfig {
       english_ngram_filter: english_transform_default(),
       english_turbo_model: false,
       playback_timeline: playback_timeline_default(),
+      auto_update_check: auto_update_check_default(),
       pitch_scale: Default::default(),
       pitch_ruler: pitch_ruler_default(),
       pitch_tuning_mode: Default::default(),
@@ -412,6 +416,10 @@ fn english_transform_default() -> bool {
 }
 
 fn export_text_default() -> bool {
+  true
+}
+
+fn auto_update_check_default() -> bool {
   true
 }
 
@@ -831,6 +839,7 @@ mod tests {
     assert!(!config.ui.voice_import);
     assert!(!config.ui.mcp_enabled);
     assert!(config.ui.playback_timeline);
+    assert!(config.ui.auto_update_check);
     assert!(matches!(config.ui.pitch_scale, PitchScale::Optimal));
     assert!(config.ui.pitch_ruler);
     assert!(matches!(config.ui.titlebar_style, TitlebarStyle::Custom));
