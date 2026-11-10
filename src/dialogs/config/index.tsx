@@ -126,7 +126,7 @@ export function ConfigPage() {
       <AppDialogContent
         title={t1("config.title")}
         closeLabel={t1("config.close")}
-        class="h-[min(80vh,36rem)] w-[min(90vw,44rem)]"
+        class="h-[min(85vh,40rem)] w-[min(90vw,52rem)]"
       >
         <Tabs
           orientation="vertical"
