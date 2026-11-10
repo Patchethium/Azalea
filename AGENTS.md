@@ -63,11 +63,13 @@ capability; the frontend goes through `src-tauri/src/commands/update.rs`:
   installable, release_url }` or null, and keeps the plugin's `Update` in
   `UpdateState`. A newer release without a package for this platform is still
   announced, as not installable.
-- `installable` is true only for installations the package can replace in
-  place: an AppImage run from its image, the Windows MSI and NSIS installs,
-  and a macOS binary inside an `.app` bundle (`installable_as`). `.deb`,
-  `.rpm` and unbundled binaries are pointed at `release_url`
-  (`releases/tag/app-v{version}`) instead.
+- `installable` is true for every packaged installation (`installable_as`):
+  an AppImage run from its image, the Windows MSI and NSIS installs, a macOS
+  binary inside an `.app` bundle, and `.deb` and `.rpm` installs, whose
+  package the plugin hands to `dpkg -i` or `rpm -U` through `pkexec` (falling
+  back to a zenity or kdialog password prompt, then `sudo`), so installing
+  asks for an administrator's password. Unbundled binaries are pointed at
+  `release_url` (`releases/tag/app-v{version}`) instead.
 - `download_update` (with `UpdateDownloadProgressEvent`s, cancelled by
   `cancel_update_download`) keeps the package in memory once the plugin has
   verified its signature; a later check of the same release keeps it.

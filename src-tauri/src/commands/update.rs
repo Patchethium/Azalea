@@ -70,17 +70,18 @@ fn supported() -> bool {
   !cfg!(debug_assertions) || development_endpoint().is_some()
 }
 
-/// Whether an installation of this kind can be replaced in place.
+/// Whether an installation of this kind can install the update itself.
 ///
-/// `.deb` and `.rpm` packages belong to the system's package manager and
-/// unbundled binaries have no installer, so those are pointed at the release
-/// page. An AppImage's contents run outside their image when extracted, and a
-/// macOS binary may run outside an application bundle; neither can be
-/// replaced by the package either.
+/// `.deb` and `.rpm` installations hand the package to the system's package
+/// manager, which asks for an administrator's password. Unbundled binaries
+/// have no installer, an AppImage's contents run outside their image when
+/// extracted, and a macOS binary may run outside an application bundle; none
+/// of those can be replaced by the package, so they are pointed at the
+/// release page.
 fn installable_as(bundle: Option<BundleType>, in_appimage: bool, executable: &Path) -> bool {
   match bundle {
     Some(BundleType::AppImage) => in_appimage,
-    Some(BundleType::Msi | BundleType::Nsis) => true,
+    Some(BundleType::Msi | BundleType::Nsis | BundleType::Deb | BundleType::Rpm) => true,
     Some(BundleType::App | BundleType::Dmg) => {
       let mut parents = executable.ancestors().skip(1);
       parents.next().is_some_and(|dir| dir.ends_with("MacOS"))
@@ -89,7 +90,7 @@ fn installable_as(bundle: Option<BundleType>, in_appimage: bool, executable: &Pa
           .next()
           .is_some_and(|dir| dir.extension().is_some_and(|ext| ext == "app"))
     }
-    Some(BundleType::Deb | BundleType::Rpm) | None => false,
+    None => false,
   }
 }
 
@@ -319,7 +320,8 @@ pub async fn install_update(app: AppHandle, state: State<'_, UpdateState>) -> Re
       .ok_or("The update has not been downloaded")?;
     (pending.update.clone(), package)
   };
-  // Installing may wait for an administrator prompt.
+  // Installing may wait for an administrator's password, which the package
+  // managers behind `.deb` and `.rpm` installations always ask for.
   tauri::async_runtime::spawn_blocking(move || update.install(package.as_slice()))
     .await
     .map_err(|e| e.to_string())?
@@ -418,14 +420,14 @@ mod tests {
   }
 
   #[test]
-  fn only_replaceable_installations_update_in_place() {
+  fn only_packaged_installations_install_updates() {
     let anywhere = Path::new("/usr/bin/azalea");
     assert!(installable_as(Some(BundleType::AppImage), true, anywhere));
     assert!(!installable_as(Some(BundleType::AppImage), false, anywhere));
     assert!(installable_as(Some(BundleType::Msi), false, anywhere));
     assert!(installable_as(Some(BundleType::Nsis), false, anywhere));
-    assert!(!installable_as(Some(BundleType::Deb), false, anywhere));
-    assert!(!installable_as(Some(BundleType::Rpm), false, anywhere));
+    assert!(installable_as(Some(BundleType::Deb), false, anywhere));
+    assert!(installable_as(Some(BundleType::Rpm), false, anywhere));
     assert!(!installable_as(None, true, anywhere));
     let bundled = Path::new("/Applications/azalea.app/Contents/MacOS/azalea");
     assert!(installable_as(Some(BundleType::App), false, bundled));

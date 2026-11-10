@@ -43,8 +43,8 @@ without running `voicevox_engine`.
 
 Azalea looks for a newer release when it starts and offers to download and
 install it; **Interface → Updates** in config turns the check off or runs it
-on demand. Installations from the `.deb` or `.rpm` package are pointed to the
-release page instead of updating themselves.
+on demand. Installations from the `.deb` or `.rpm` package ask for an
+administrator's password to install the update.
 
 ## Using Azalea from MCP clients
 
@@ -106,8 +106,8 @@ Azalea（アザレア）は、VOICEVOX向けの非公式デスクトップGUIで
 
 起動時に新しいリリースを確認し、ダウンロードとインストールを案内します。設定の
 **インターフェース → アップデート**で確認を無効にしたり、手動で確認したりできます。`.deb`・
-`.rpm`パッケージからインストールした場合は、自動更新の代わりにリリースページを
-案内します。
+`.rpm`パッケージからインストールした場合は、アップデートのインストール時に管理者
+パスワードを求められます。
 
 MCPサーバーは設定の「合成」で「MCPサーバー」を有効にし、表示される起動コマンドを
 クライアントに追加してください（[英語の手順](#using-azalea-from-mcp-clients)）。
