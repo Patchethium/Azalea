@@ -1,8 +1,127 @@
 # MCP API Design: Stateless Speech Synthesis (Draft 2)
 
-Status: step 1 of the implementation order is done (see the end); the rest
-is design. "Exists" and "new" in the headings describe the server before
-that work.
+Status: step 1 of the implementation order is done; the rest is design.
+"Exists" and "new" in the headings describe the server before that work.
+Start with the Handoff below.
+
+## Handoff
+
+Written at the end of the session that produced this design and step 1, for
+the session that continues on a local machine.
+
+### State
+
+- Branch `claude/mcp-server-improvement`, pushed, working tree clean. No pull
+  request is open; none was asked for.
+- The old branch name `claude/compassionate-galileo-rzffn3` may still exist
+  on the remote (the session could not delete it). It holds only the first
+  draft of this file and can be removed:
+  `git push origin --delete claude/compassionate-galileo-rzffn3`.
+- The user reviewed and agreed to this whole design, including every item
+  under "Assumptions to confirm" (decided, despite the heading). Do not
+  reopen them without a reason.
+
+### What step 1 delivered
+
+In `src-tauri/src/mcp.rs`, `src-tauri/src/mcp/presets.rs` and the new
+`src-tauri/src/mcp/ids.rs`:
+
+- Tools `get_status`, `list_speakers`, `list_presets`, `create_preset`,
+  `update_preset`, `delete_preset`, `synthesize`.
+- Presets required by `synthesize`; agent presets as templates filled in by
+  `update_preset`, kept in `mcp_presets.toml` until deleted; system presets
+  listed read-only; word-pair IDs recorded in `mcp_ids.toml`.
+- `synthesize` takes `text` or `kana`, returns `kana` and `credit`, and has
+  `apply_dictionary` and the `english*` arguments. The user dictionary is
+  re-applied when its file changes.
+- Error codes (`fail(code, message)`), `deny_unknown_fields` on requests,
+  `MAX_TEXT_CHARS`.
+
+The MCP section of `AGENTS.md` describes the code as it is and is the
+reference for what exists; the README lists the tools.
+
+### How it was verified
+
+In a cloud container, with CI's VOICEVOX test assets (ONNX Runtime 1.17.3,
+voicevox_vvm 0.16.4 `0.vvm`) through `AZALEA_TEST_CORE_DIR`:
+
+- `cargo test --locked --lib`: 248 passed, 26 of them the MCP server's.
+- `--test voicevox_core`: 21 passed, including
+  `real_core_mcp_lists_speakers_synthesizes_and_uses_presets` and
+  `real_core_mcp_reads_text_with_the_user_dictionary_only_when_asked`.
+- `--test downloaded_setup`: passed.
+- The debug binary driven over stdio through the whole flow and its errors.
+
+Not run, so run them locally first:
+
+- `--test voice_import` (needs the snfa model; nothing it covers changed).
+- The frontend suite and `pnpm check` (no frontend file changed).
+- Anything with the English models installed: `english: true` was only
+  checked to fail with `unsupported_feature` without them. A successful
+  English reading through the server is untested.
+- A real MCP client (Claude Code or Desktop), and listening to the audio.
+- A config that has system presets. The container's fresh config had none,
+  so the `user` list was exercised only in unit tests.
+
+```sh
+cd src-tauri && cargo test --locked -- --test-threads=1
+```
+
+### Where the code differs from this document
+
+- `get_status` has no `core.version` or `core.setup`. The fork's crate
+  version is `0.0.0`, so it was dropped rather than reported; add a real
+  source (for example the models' metadata) before bringing it back.
+- `get_status` returns `temp_dir` as the shared `{temp_dir}/azalea-mcp/`
+  directory. The per-connection directory is step 2.
+- `synthesize` results have no `temporary` or `labels_path` yet (step 2) and
+  keep `style_id` in addition to the fields shown here.
+- `update_preset` requires both `speaker` and `style` on every call.
+- Unknown argument names are rejected by rmcp with its own message, as a
+  tool error without one of this document's codes.
+- `limits` holds only `max_text_chars`; `max_items` comes with
+  `synthesize_sequence`.
+- The app's presets are keyed in `mcp_ids.toml` by the app's preset ID, or
+  by `name:<name>` while the app has given a preset no ID.
+
+### What is left, in order
+
+2. **Output and cleanup.** `output_path` (directory or `.wav` file) and
+   `overwrite` on `synthesize`; a per-connection temporary directory removed
+   when the client disconnects (after `server.waiting()` in `run_stdio`) and
+   stale ones removed at startup; the `temporary` flag; `labels` writing a
+   `.lab` with `audio::lab::lab_from_audio_query`. `McpEnvironment::output_dir`
+   and `write_wav` are the places to change. Put the retention rule in the
+   tool descriptions and the server instructions.
+3. **Queries.** The model-facing query shape and its conversion both ways,
+   `analyze_text` (`Core::analyze_text`; it must go through `sync_dictionary`
+   and honor the English options), `create_query`, `predict_prosody`
+   (`Core::replace_mora`, `replace_mora_pitch`, `replace_mora_duration`,
+   `apply_pitch_noise`, `complete_mora_pitch`), the `query` and `raw_query`
+   inputs, the pitch-noise arguments and `raw`.
+4. **Agent dictionaries.** `create_dictionary`, `update_dictionary`,
+   `delete_dictionary`, `list_dictionaries`, `dictionary_id`. Issue their IDs
+   from the same `IdFile`. `applied_dictionary` currently holds only the user
+   dictionary's revision; it must come to identify the combination applied.
+   `commands/dictionary.rs` has the word building and the conflict check to
+   reuse for `warnings`.
+5. **Sequences and the rest.** `synthesize_sequence`, MCP progress and
+   cancellation, the `list_speakers` filter and `credit`.
+
+### Things that are easy to get wrong
+
+- `checked_request` validates arguments before any state is read, and tests
+  rely on that order (bad arguments never load the core).
+- Tools that need the speaker list call `ready()`, which loads the core;
+  `get_status` and `delete_preset` deliberately do not.
+- The `*_with` methods exist so preset tools can be unit-tested with a fake
+  speaker list. Follow the pattern for new tools that need speakers.
+- Kana in results carries accent marks, so `テスト` appears as `テ'スト`;
+  strip `'`, `_` and `/` before comparing readings in tests.
+- Building needs `cargo-about` 0.9.2 and `pnpm install` (the build script
+  collects licenses) and the WORLD submodule.
+- `config_dev/mcp_presets.toml` and `config_dev/mcp_ids.toml` are ignored by
+  git; delete them to start from no agent presets.
 
 ## Where the server is today
 
