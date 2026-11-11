@@ -749,6 +749,48 @@ describe("App initialization", () => {
     },
   );
 
+  it("fills the macOS native title bar and restores custom-window transparency", async () => {
+    vi.spyOn(commands, "getOs").mockResolvedValue("MacOS");
+    const backgrounds: unknown[] = [];
+    const lastBackground = () => backgrounds[backgrounds.length - 1];
+    mockIPC(
+      (command, payload) => {
+        if (command === "plugin:window|set_background_color")
+          backgrounds.push((payload as { value: unknown }).value);
+        return command.includes("theme") ? "light" : null;
+      },
+      { shouldMockEvents: true },
+    );
+    mockWindows("main");
+    // jsdom does not load the app's CSS module theme tokens.
+    const root = document.documentElement;
+    root.style.setProperty("--az-surface-titlebar", "#e2e8f0");
+    const view = renderApp();
+    try {
+      await events.initializationEvent.emit({
+        config: config({ titlebar_style: "Native", theme_mode: "Light" }),
+        core_initialized: false,
+        metas: null,
+        range: [],
+        error: null,
+      });
+      await waitFor(() => expect(lastBackground()).toBe("#e2e8f0"));
+
+      root.style.setProperty("--az-surface-titlebar", "#1e293b");
+      view.getConfigStore().setConfig("ui", "theme_mode", "Dark");
+      await waitFor(() => expect(lastBackground()).toBe("#1e293b"));
+
+      view.getConfigStore().setConfig("ui", "titlebar_style", "Custom");
+      await waitFor(() => expect(lastBackground()).toBe("#00000000"));
+
+      view.getConfigStore().setConfig("ui", "titlebar_style", "Native");
+      await waitFor(() => expect(lastBackground()).toBe("#1e293b"));
+    } finally {
+      view.unmount();
+      root.style.removeProperty("--az-surface-titlebar");
+    }
+  });
+
   it("uses the embedded font only once the fonts are downloaded", async () => {
     mockIPC((cmd) => (cmd.includes("theme") ? "light" : null), {
       shouldMockEvents: true,

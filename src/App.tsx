@@ -232,6 +232,20 @@ function App() {
     const useDarkTheme =
       mode === "Dark" || (mode === "System" && systemTheme() === "dark");
     document.documentElement.classList.toggle("dark", useDarkTheme);
+
+    if (systemStore.os === "MacOS") {
+      // The window starts transparent for the custom title bar's rounded
+      // corners. Native decorations inherit that background unless we fill it.
+      const color =
+        appliedTitlebarStyle() === "Native"
+          ? getComputedStyle(document.documentElement)
+              .getPropertyValue("--az-surface-titlebar")
+              .trim()
+          : "#00000000";
+      void appWindow.setBackgroundColor(color).catch((error) => {
+        console.error("Failed to update window background:", error);
+      });
+    }
   });
 
   createEffect(() => {
