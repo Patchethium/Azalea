@@ -20,6 +20,9 @@ html {
   --nav-surface: rgba(241, 245, 249, 0.72);
   --glow: color-mix(in srgb, var(--primary-color) 26%, transparent);
   --frame-shadow: 0 40px 80px -30px rgba(15, 23, 42, 0.35);
+  --wave-low: #38bdf8;
+  --wave-high: #4f46e5;
+  --wave-opacity: 0.5;
   font-family:
     "Inter",
     ui-sans-serif,
@@ -67,6 +70,9 @@ html.dark {
   --nav-surface: rgba(15, 23, 42, 0.72);
   --glow: color-mix(in srgb, var(--primary-color) 32%, transparent);
   --frame-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.7);
+  --wave-low: #1d4ed8;
+  --wave-high: #7dd3fc;
+  --wave-opacity: 0.75;
 }
 
 body {
@@ -92,6 +98,26 @@ body {
 .nav-surface {
   background-color: var(--nav-surface);
   backdrop-filter: saturate(160%) blur(14px);
+}
+
+/* The three.js wave fields fade in once their scene is running. */
+.wave-field {
+  opacity: 0;
+  transition: opacity 1.4s ease;
+}
+
+.wave-field.is-ready {
+  opacity: 1;
+}
+
+.hero-waves {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black 35%,
+    black 75%,
+    transparent
+  );
 }
 
 /* The hero screenshot leans back and settles flat as the page scrolls;

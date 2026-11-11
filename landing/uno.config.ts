@@ -17,7 +17,7 @@ export default defineConfig({
     "button-secondary":
       "button-base b b-border bg-surface text-ink hover:bg-hover",
     "icon-button":
-      "focus-outline inline-flex size-9 items-center justify-center rounded-lg text-ink-muted transition-colors duration-150 hover:(bg-hover text-ink)",
+      "focus-outline inline-flex size-9 items-center justify-center rounded-lg bg-transparent text-ink-muted transition-colors duration-150 hover:(bg-hover text-ink)",
     eyebrow: "text-xs font-semibold uppercase tracking-[0.18em] text-accent",
   },
 });

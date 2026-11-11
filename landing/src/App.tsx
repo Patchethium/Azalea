@@ -10,6 +10,7 @@ import {
   t,
 } from "./i18n";
 import { startScrollEffects } from "./scroll";
+import type { WaveFieldOptions } from "./waveField";
 
 const REPOSITORY = "https://github.com/Patchethium/Azalea";
 const RELEASES = `${REPOSITORY}/releases/latest`;
@@ -51,11 +52,39 @@ function Screenshot(props: {
   );
 }
 
+/**
+ * A decorative three.js wave field behind its section. The scene loads after
+ * the page, so three.js stays out of the first paint.
+ */
+function WaveField(props: { class?: string; options?: WaveFieldOptions }) {
+  let canvas!: HTMLCanvasElement;
+  onMount(() => {
+    let disposed = false;
+    let stop: (() => void) | null = null;
+    void import("./waveField").then(({ startWaveField }) => {
+      if (disposed) return;
+      stop = startWaveField(canvas, props.options);
+      if (stop) canvas.classList.add("is-ready");
+    });
+    onCleanup(() => {
+      disposed = true;
+      stop?.();
+    });
+  });
+  return (
+    <canvas
+      ref={canvas}
+      class={`wave-field pointer-events-none absolute ${props.class ?? ""}`}
+      aria-hidden="true"
+    />
+  );
+}
+
 function LanguageSelect() {
   return (
     <DropdownMenu gutter={8} placement="bottom-end">
       <DropdownMenu.Trigger
-        class="focus-outline inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm text-ink-muted transition-colors duration-150 hover:(bg-hover text-ink)"
+        class="focus-outline inline-flex h-9 items-center gap-1.5 rounded-lg bg-transparent px-2.5 text-sm text-ink-muted transition-colors duration-150 hover:(bg-hover text-ink)"
         aria-label={t().nav.language}
       >
         <span class="i-lucide-languages size-4" aria-hidden="true" />
@@ -181,6 +210,7 @@ function App() {
             class="canvas-dots pointer-events-none absolute inset-0"
             aria-hidden="true"
           />
+          <WaveField class="hero-waves inset-x-0 top-40 h-[52rem] w-full" />
           <div class="container relative text-center">
             <p
               data-reveal
@@ -378,6 +408,30 @@ function App() {
                 />
               </a>
             </div>
+          </div>
+        </section>
+
+        <section class="relative overflow-hidden b-t b-border py-28 text-center sm:py-40">
+          <WaveField
+            class="inset-0 size-full"
+            options={{ lines: 44, amplitude: 1.25, cameraHeight: 1.5 }}
+          />
+          <div class="container relative">
+            <h2
+              data-reveal
+              class="mx-auto max-w-3xl text-balance text-4xl font-semibold leading-tight tracking-[-0.03em] sm:text-6xl"
+            >
+              {t().closing.title}
+            </h2>
+            <div data-reveal class="mt-10 flex justify-center">
+              <a class="button-primary" href={RELEASES}>
+                <span class="i-lucide-download size-4" aria-hidden="true" />
+                {t().hero.download}
+              </a>
+            </div>
+            <p data-reveal class="mt-5 text-xs text-ink-subtle">
+              {t().hero.platforms}
+            </p>
           </div>
         </section>
       </main>

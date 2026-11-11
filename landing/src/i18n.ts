@@ -92,6 +92,9 @@ const en = {
     download: "Go to releases",
     guide: "Read the guide",
   },
+  closing: {
+    title: "Give your script a voice.",
+  },
   footer: {
     disclaimer:
       "Azalea is an unofficial project and is not affiliated with VOICEVOX. Voice models are subject to their own terms of use.",
@@ -184,6 +187,9 @@ const ja: Messages = {
     download: "リリースページへ",
     guide: "ガイドを読む",
   },
+  closing: {
+    title: "台本に、声を。",
+  },
   footer: {
     disclaimer:
       "Azaleaは非公式のプロジェクトであり、VOICEVOXとは提携していません。音声モデルにはそれぞれの利用規約が適用されます。",
@@ -273,6 +279,9 @@ const zhCN: Messages = {
     ],
     download: "前往发布页",
     guide: "阅读指南",
+  },
+  closing: {
+    title: "让文字开口说话。",
   },
   footer: {
     disclaimer:

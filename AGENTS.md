@@ -69,6 +69,15 @@ local storage, then the browser's languages. Smooth scrolling (Lenis), the
 scroll reveals and the hero tilt live in `landing/src/scroll.ts` and are
 skipped under `prefers-reduced-motion`.
 
+The animated backdrops of the hero and the closing band are one three.js
+scene, `landing/src/waveField.ts`: wave lines and drifting particles drawn by
+shaders, colored by the `--wave-*` variables in `styles.css` (additive
+blending on dark pages). The `WaveField` component imports it dynamically so
+three.js stays out of the first paint. Each scene renders only while on
+screen and the tab is visible, follows the pointer, draws one still frame
+under `prefers-reduced-motion`, and leaves the page unchanged when WebGL is
+unavailable.
+
 Do not draw the app's UI for the page. Screenshots in
 `landing/public/screenshots/` come from the real frontend:
 `pnpm landing:capture` (`landing/scripts/capture.mjs`) serves the app with
