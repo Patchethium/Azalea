@@ -134,7 +134,7 @@ with the session.
 list_speakers                       → pick a speaker and style
 create_preset                       → { id: "a-3f1c…", speaker: null, … }
 update_preset { id, speaker, style, speed: 110, … }
-synthesize { preset: "a-3f1c…", text: "こんにちは" }
+synthesize { preset_id: "a-3f1c…", text: "こんにちは" }
 ```
 
 Or, with a preset the user already made: `list_presets` → `synthesize` with
@@ -155,7 +155,7 @@ Flattened into each tool's arguments rather than nested.
 
 ### Preset (required wherever a voice is needed)
 
-`preset`: an ID from `list_presets` or `create_preset`. Missing →
+`preset_id`: an ID from `list_presets` or `create_preset`. Missing →
 `missing_preset`; incomplete → `incomplete_preset`; voice not installed →
 `voice_unavailable`. The preset's speed, pitch, intonation, volume and
 silences always apply, replacing those values in a passed `raw_query`.
@@ -360,7 +360,7 @@ Two Reading options decide what a `text` call is read with:
 | `false` | omitted | OpenJTalk alone |
 | `false` | set | The agent dictionary alone, so the reading depends on nothing outside the session |
 
-An unknown `dictionary_id` is an `unknown_dictionary` error. Unlike `preset`,
+An unknown `dictionary_id` is an `unknown_dictionary` error. Unlike `preset_id`,
 `dictionary_id` is optional.
 
 ### `analyze_text` (new)
@@ -380,7 +380,7 @@ Utterance (`text` or `kana`) + Preset + Reading options + Pitch noise +
 ```json
 {
   "query": { "kana": "…", "accent_phrases": [ … ] },
-  "preset": "a-3f1c…",
+  "preset_id": "a-3f1c…",
   "speaker": "ずんだもん",
   "style": "ノーマル",
   "duration_seconds": 1.42
@@ -420,7 +420,7 @@ Output, plus:
   "temporary": true,
   "duration_seconds": 1.42,
   "sample_rate": 24000,
-  "preset": "a-3f1c…",
+  "preset_id": "a-3f1c…",
   "speaker": "ずんだもん",
   "style": "ノーマル",
   "credit": "VOICEVOX:ずんだもん",
@@ -439,8 +439,8 @@ A script: several utterances, each with its own preset, as one file or many.
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `items` | array | Each: Utterance, and optionally `preset`, Reading options, Pitch noise, `gap_after_ms` |
-| `preset`, Reading options, Pitch noise | | Defaults for items that omit them. An item with no preset of its own and no default fails the call |
+| `items` | array | Each: Utterance, and optionally `preset_id`, Reading options, Pitch noise, `gap_after_ms` |
+| `preset_id`, Reading options, Pitch noise | | Defaults for items that omit them. An item with no preset of its own and no default fails the call |
 | `gap_ms` | 0–5000 | Silence between items (default 0; each item already carries its preset's silences) |
 | `combine` | bool | `true` (default): one WAV. `false`: one per item |
 | `output_path` | string | As in Output when combined. When not combined, a directory |
@@ -454,7 +454,7 @@ A script: several utterances, each with its own preset, as one file or many.
   "sample_rate": 24000,
   "credits": ["VOICEVOX:ずんだもん", "VOICEVOX:四国めたん"],
   "items": [
-    { "index": 0, "start": 0.0, "end": 1.42, "preset": "a-3f1c…", "kana": "コンニチワ'", "path": null }
+    { "index": 0, "start": 0.0, "end": 1.42, "preset_id": "a-3f1c…", "kana": "コンニチワ'", "path": null }
   ]
 }
 ```
@@ -481,8 +481,8 @@ token, and stops at the next chunk boundary on cancellation.
 
 ## Migration from the current tools
 
-- `synthesize` no longer takes `speaker` and `style`; it requires `preset`,
-  and `preset` takes an ID only, not a name.
+- `synthesize` no longer takes `speaker` and `style`; it requires `preset_id`
+  (renamed from `preset`), which takes an ID only, not a name.
 - `create_preset` no longer takes a name, voice and values; it returns a
   template to fill and pass to `update_preset`.
 - `list_presets` returns `{ agent, user }` instead of `{ presets }`.
@@ -531,7 +531,7 @@ token, and stops at the next chunk boundary on cancellation.
    applies, since it is not a config setting.
 4. **`update_preset` replaces the whole preset** rather than merging the
    fields it is given.
-5. **`preset` accepts IDs only**, since agent preset names need not be unique
+5. **`preset_id` accepts IDs only**, since agent preset names need not be unique
    and user and agent names can collide.
 6. **`query` and `raw_query` are separate input fields**, and `raw: true`
    switches the output to `raw_query`.
@@ -544,6 +544,3 @@ token, and stops at the next chunk boundary on cancellation.
    presets, and `update_dictionary` replaces the whole dictionary.
 10. **With both dictionaries applied, the agent entry wins** for a surface
     both hold.
-11. **Field naming.** The dictionary field is `dictionary_id` as requested,
-    while the preset field is `preset`. Renaming it to `preset_id` would make
-    the two consistent.
