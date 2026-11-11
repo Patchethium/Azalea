@@ -1075,14 +1075,14 @@ fn real_core_post_processing_raises_only_the_edited_frames() {
 }
 
 struct RealCoreMcpEnvironment {
-  output_dir: std::path::PathBuf,
+  dir: std::path::PathBuf,
 }
 
 impl azalea_lib::mcp::McpEnvironment for RealCoreMcpEnvironment {
   fn settings(&self) -> Result<azalea_lib::mcp::McpSettings, String> {
     Ok(azalea_lib::mcp::McpSettings {
       enabled: true,
-      english: None,
+      ..Default::default()
     })
   }
 
@@ -1091,27 +1091,51 @@ impl azalea_lib::mcp::McpEnvironment for RealCoreMcpEnvironment {
   }
 
   fn output_dir(&self) -> std::path::PathBuf {
-    self.output_dir.clone()
+    self.dir.join("out")
   }
 
   fn presets_path(&self) -> std::path::PathBuf {
-    self.output_dir.join("presets.toml")
+    self.dir.join("presets.toml")
+  }
+
+  fn ids_path(&self) -> std::path::PathBuf {
+    self.dir.join("ids.toml")
+  }
+
+  fn dictionary_path(&self) -> std::path::PathBuf {
+    self.dir.join("user_dictionary.json")
   }
 }
 
 #[tokio::test]
 async fn real_core_mcp_lists_speakers_synthesizes_and_uses_presets() {
-  use azalea_lib::mcp::{AzaleaMcp, CreatePresetRequest, SynthesizeRequest};
+  use azalea_lib::mcp::{
+    AzaleaMcp, CreatePresetRequest, DeletePresetRequest, SynthesizeRequest, UpdatePresetRequest,
+  };
   use rmcp::handler::server::wrapper::Parameters;
+
+  fn ok<T>(result: Result<rmcp::Json<T>, String>, tool: &str) -> T {
+    match result {
+      Ok(rmcp::Json(value)) => value,
+      Err(error) => panic!("{tool} failed: {error}"),
+    }
+  }
+  fn code<T>(result: Result<rmcp::Json<T>, String>) -> String {
+    match result {
+      Ok(_) => panic!("the tool unexpectedly succeeded"),
+      Err(error) => error,
+    }
+  }
 
   let dir = tempfile::tempdir().unwrap();
   let server = AzaleaMcp::new(RealCoreMcpEnvironment {
-    output_dir: dir.path().join("out"),
+    dir: dir.path().to_owned(),
   });
-  let Ok(speakers) = server.list_speakers().await else {
-    panic!("list_speakers failed");
-  };
-  let speakers = speakers.0.speakers;
+  let before = ok(server.get_status().await, "get_status");
+  assert!(before.enabled && !before.core.loaded);
+  assert_eq!(before.pitch_control.available, None);
+
+  let speakers = ok(server.list_speakers().await, "list_speakers").speakers;
   assert!(!speakers.is_empty(), "the installation has no speakers");
   let listed = speakers
     .iter()
@@ -1122,22 +1146,79 @@ async fn real_core_mcp_lists_speakers_synthesizes_and_uses_presets() {
     listed,
     talk_style_ids(&core).into_iter().collect::<HashSet<_>>()
   );
+  let after = ok(server.get_status().await, "get_status");
+  assert!(after.core.loaded);
+  assert_eq!(
+    after.pitch_control.available,
+    Some(core.supports_pitch_control())
+  );
 
   let speaker = &speakers[0];
   let style = &speaker.styles[0];
-  let result = match server
-    .synthesize(Parameters(SynthesizeRequest {
-      text: TEST_TEXT.into(),
-      speaker: Some(speaker.name.clone()),
-      style: Some(style.name.clone()),
-      preset: None,
+
+  // A preset starts as a template that cannot be used yet.
+  let template = ok(
+    server
+      .create_preset(Parameters(CreatePresetRequest::default()))
+      .await,
+    "create_preset",
+  );
+  assert!(!template.complete);
+  let synthesize = |preset_id: &str, text: Option<&str>, kana: Option<&str>| {
+    server.synthesize(Parameters(SynthesizeRequest {
+      text: text.map(Into::into),
+      kana: kana.map(Into::into),
+      preset_id: Some(preset_id.into()),
+      ..Default::default()
     }))
-    .await
-  {
-    Ok(result) => result.0,
-    Err(error) => panic!("synthesize failed: {error}"),
   };
+  let incomplete = code(synthesize(&template.id, Some(TEST_TEXT), None).await);
+  assert!(
+    incomplete.starts_with("incomplete_preset: "),
+    "{incomplete}"
+  );
+  let unknown = code(synthesize("lazy-lantern", Some(TEST_TEXT), None).await);
+  assert!(unknown.starts_with("unknown_preset: "), "{unknown}");
+  assert!(unknown.contains(&template.id), "{unknown}");
+
+  let unknown_style = code(
+    server
+      .update_preset(Parameters(UpdatePresetRequest {
+        id: template.id.clone(),
+        speaker: Some(speaker.speaker_uuid.clone()),
+        style: Some("no such style".into()),
+        ..Default::default()
+      }))
+      .await,
+  );
+  assert!(
+    unknown_style.starts_with("unknown_style: ") && unknown_style.contains(&style.name),
+    "{unknown_style}"
+  );
+
+  let plain = ok(
+    server
+      .update_preset(Parameters(UpdatePresetRequest {
+        id: template.id.clone(),
+        name: Some("Plain".into()),
+        speaker: Some(speaker.name.clone()),
+        style: Some(style.name.clone()),
+        ..Default::default()
+      }))
+      .await,
+    "update_preset",
+  );
+  assert!(plain.complete && plain.available);
+  assert_eq!(plain.style_id, Some(style.id));
+
+  let result = ok(
+    synthesize(&plain.id, Some(TEST_TEXT), None).await,
+    "synthesize",
+  );
   assert_eq!(result.style_id, style.id);
+  assert_eq!(result.preset_id, plain.id);
+  assert_eq!(result.credit, format!("VOICEVOX:{}", speaker.name));
+  assert!(!result.kana.is_empty());
   let path = Path::new(&result.path);
   assert_eq!(path.parent().unwrap(), dir.path().join("out"));
   let wav = std::fs::read(path).unwrap();
@@ -1146,67 +1227,56 @@ async fn real_core_mcp_lists_speakers_synthesizes_and_uses_presets() {
   assert!(result.duration_seconds > 0.5, "{}", result.duration_seconds);
   assert!(samples.iter().any(|&sample| sample != 0));
 
-  let unknown = server
-    .synthesize(Parameters(SynthesizeRequest {
-      text: TEST_TEXT.into(),
-      speaker: Some(speaker.speaker_uuid.clone()),
-      style: Some("no such style".into()),
-      preset: None,
-    }))
-    .await;
-  assert!(matches!(unknown, Err(error) if error.contains(&style.name)));
+  // The returned kana reads the same text again.
+  let from_kana = ok(
+    synthesize(&plain.id, None, Some(&result.kana)).await,
+    "synthesize from kana",
+  );
+  assert_eq!(from_kana.kana, result.kana);
+  assert!(
+    (from_kana.duration_seconds - result.duration_seconds).abs() < 0.05,
+    "{} vs {}",
+    from_kana.duration_seconds,
+    result.duration_seconds
+  );
 
   // A fast, silence-free preset with another style of the same speaker, when there is one.
   let preset_style = speaker.styles.last().unwrap();
-  let Ok(created) = server
-    .create_preset(Parameters(CreatePresetRequest {
-      name: "Fast".into(),
-      speaker: speaker.speaker_uuid.clone(),
-      style: preset_style.id.to_string(),
-      speed: Some(200),
-      pitch: Some(0.1),
-      intonation: None,
-      volume: None,
-      start_silence_ms: Some(0),
-      end_silence_ms: Some(0),
-    }))
-    .await
-  else {
-    panic!("create_preset failed");
-  };
-  assert!(created.0.available);
-  assert_eq!(created.0.style_id, preset_style.id);
-  let duplicate = server
-    .create_preset(Parameters(CreatePresetRequest {
-      name: "fast".into(),
-      speaker: speaker.name.clone(),
-      style: style.name.clone(),
-      speed: None,
-      pitch: None,
-      intonation: None,
-      volume: None,
-      start_silence_ms: None,
-      end_silence_ms: None,
-    }))
-    .await;
-  assert!(matches!(duplicate, Err(error) if error.contains("already exists")));
-  let Ok(listed) = server.list_presets().await else {
-    panic!("list_presets failed");
-  };
-  assert_eq!(listed.0.presets, vec![created.0.clone()]);
+  let copy = ok(
+    server
+      .create_preset(Parameters(CreatePresetRequest {
+        copy_from: Some(plain.id.clone()),
+      }))
+      .await,
+    "create_preset",
+  );
+  assert_ne!(copy.id, plain.id);
+  assert_eq!(copy.name, "Plain");
+  let fast_preset = ok(
+    server
+      .update_preset(Parameters(UpdatePresetRequest {
+        id: copy.id.clone(),
+        name: Some("Fast".into()),
+        speaker: Some(speaker.speaker_uuid.clone()),
+        style: Some(preset_style.id.to_string()),
+        speed: Some(200),
+        pitch: Some(0.1),
+        start_silence_ms: Some(0),
+        end_silence_ms: Some(0),
+        ..Default::default()
+      }))
+      .await,
+    "update_preset",
+  );
+  assert_eq!(fast_preset.style_id, Some(preset_style.id));
+  let listed = ok(server.list_presets().await, "list_presets");
+  assert_eq!(listed.agent, vec![plain.clone(), fast_preset.clone()]);
+  assert!(listed.user.is_empty());
 
-  let fast = match server
-    .synthesize(Parameters(SynthesizeRequest {
-      text: TEST_TEXT.into(),
-      preset: Some(created.0.id.clone()),
-      ..Default::default()
-    }))
-    .await
-  {
-    Ok(result) => result.0,
-    Err(error) => panic!("synthesize with a preset failed: {error}"),
-  };
-  assert_eq!(fast.preset.as_deref(), Some("Fast"));
+  let fast = ok(
+    synthesize(&fast_preset.id, Some(TEST_TEXT), None).await,
+    "synthesize with the fast preset",
+  );
   assert_eq!(fast.style_id, preset_style.id);
   // Double speed without the default 0.1 s silences roughly halves the audio.
   assert!(
@@ -1216,21 +1286,96 @@ async fn real_core_mcp_lists_speakers_synthesizes_and_uses_presets() {
     result.duration_seconds
   );
 
-  let both = server
-    .synthesize(Parameters(SynthesizeRequest {
-      text: TEST_TEXT.into(),
+  let deleted = ok(
+    server
+      .delete_preset(Parameters(DeletePresetRequest {
+        id: fast_preset.id.clone(),
+      }))
+      .await,
+    "delete_preset",
+  );
+  assert_eq!(deleted.name, "Fast");
+  let gone = code(synthesize(&fast_preset.id, Some(TEST_TEXT), None).await);
+  assert!(gone.starts_with("unknown_preset: "), "{gone}");
+}
+
+#[tokio::test]
+async fn real_core_mcp_reads_text_with_the_user_dictionary_only_when_asked() {
+  use azalea_lib::mcp::{AzaleaMcp, CreatePresetRequest, SynthesizeRequest, UpdatePresetRequest};
+  use rmcp::handler::server::wrapper::Parameters;
+
+  const SURFACE: &str = "Azalea";
+  let dir = tempfile::tempdir().unwrap();
+  let server = AzaleaMcp::new(RealCoreMcpEnvironment {
+    dir: dir.path().to_owned(),
+  });
+  let Ok(speakers) = server.list_speakers().await else {
+    panic!("list_speakers failed");
+  };
+  let speaker = &speakers.0.speakers[0];
+  let Ok(template) = server
+    .create_preset(Parameters(CreatePresetRequest::default()))
+    .await
+  else {
+    panic!("create_preset failed");
+  };
+  let Ok(preset) = server
+    .update_preset(Parameters(UpdatePresetRequest {
+      id: template.0.id.clone(),
       speaker: Some(speaker.name.clone()),
-      style: None,
-      preset: Some("Fast".into()),
-    }))
-    .await;
-  assert!(matches!(both, Err(error) if error.contains("omit speaker and style")));
-  let missing = server
-    .synthesize(Parameters(SynthesizeRequest {
-      text: TEST_TEXT.into(),
-      preset: Some("Slow".into()),
+      style: Some(speaker.styles[0].name.clone()),
       ..Default::default()
     }))
-    .await;
-  assert!(matches!(missing, Err(error) if error.contains("Available presets: Fast")));
+    .await
+  else {
+    panic!("update_preset failed");
+  };
+  let read = |apply_dictionary: Option<bool>| {
+    let server = server.clone();
+    let preset_id = preset.0.id.clone();
+    async move {
+      match server
+        .synthesize(Parameters(SynthesizeRequest {
+          text: Some(SURFACE.into()),
+          preset_id: Some(preset_id),
+          apply_dictionary,
+          ..Default::default()
+        }))
+        .await
+      {
+        // The reading without its accent, devoicing and phrase marks.
+        Ok(result) => result.0.kana.replace(['\'', '_', '/'], ""),
+        Err(error) => panic!("synthesize failed: {error}"),
+      }
+    }
+  };
+
+  // Without a dictionary file the reading is OpenJTalk's own.
+  let plain = read(None).await;
+  assert!(!plain.contains("テスト"), "{plain}");
+
+  // A dictionary saved while the server runs is picked up by the next call.
+  let dictionary = voicevox_core::blocking::UserDict::new();
+  let word = voicevox_core::UserDictWord::builder()
+    .word_type(voicevox_core::UserDictWordType::ProperNoun)
+    .build(SURFACE, "テスト".into(), 1)
+    .unwrap();
+  dictionary.add_word(word).unwrap();
+  dictionary
+    .save(dir.path().join("user_dictionary.json"))
+    .unwrap();
+  let Ok(status) = server.get_status().await else {
+    panic!("get_status failed");
+  };
+  assert_eq!(status.0.dictionary.entries, 1);
+  let with_dictionary = read(None).await;
+  assert!(with_dictionary.contains("テスト"), "{with_dictionary}");
+
+  // A call can opt out, and the next one gets the dictionary back.
+  assert_eq!(read(Some(false)).await, plain);
+  assert_eq!(read(Some(true)).await, with_dictionary);
+
+  // Removing the file removes the dictionary.
+  std::fs::remove_file(dir.path().join("user_dictionary.json")).unwrap();
+  assert_eq!(read(None).await, plain);
 }

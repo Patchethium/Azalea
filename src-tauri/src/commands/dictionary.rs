@@ -206,7 +206,7 @@ fn entry_from_word(id: Uuid, word: &UserDictWord) -> Result<DictionaryEntry, Str
   })
 }
 
-fn load_dictionary(path: &Path) -> Result<UserDict, String> {
+pub(crate) fn load_dictionary(path: &Path) -> Result<UserDict, String> {
   let dictionary = UserDict::new();
   if path.exists() {
     dictionary.load(path).map_err(|error| error.to_string())?;

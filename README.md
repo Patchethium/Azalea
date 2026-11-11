@@ -67,10 +67,14 @@ stdio. It is experimental, incomplete and off by default.
 
 The client starts its own windowless Azalea process with your config. Tools:
 
+- `get_status`: what the installation supports and what can change a result.
 - `list_speakers`: installed speakers and their styles.
-- `synthesize`: reads text with a speaker and style, or a preset, and returns
-  the path of a WAV file.
-- `create_preset` / `list_presets`: MCP-only presets, separate from the app's.
+- `list_presets`: the client's own presets and, read-only, the app's.
+- `create_preset` / `update_preset` / `delete_preset`: the client's presets,
+  kept separately from the app's until deleted. Each holds a voice and its
+  speed, pitch, intonation, volume and silences.
+- `synthesize`: reads text, or a reading given as kana, with a preset and
+  returns the path of a WAV file.
 
 ## 日本語
 

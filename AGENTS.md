@@ -614,10 +614,13 @@ the window. `run()` checks the flag right after resolving the config
 directory and before the single-instance plugin, so a client's launch is
 never forwarded to a running app; stdout belongs to the protocol, so nothing
 on that path may print to it. The server loads its own core on the first tool
-call from the app's config (`resolve_setup`), applies the saved user
-dictionary and uses the English options only while the models are installed.
-It does not need or talk to a running app; manipulating live app state is
-left to a future HTTP transport hosted by the app.
+call from the app's voice setup (`resolve_setup`). It does not need or talk to
+a running app; manipulating live app state is left to a future HTTP transport
+hosted by the app.
+
+`.agents/mcp-api-design.md` is the design the server is being built towards;
+step 1 of its implementation order is done, and the tools below are what
+exists. Keep the two in step when either changes.
 
 `UIConfig.mcp_enabled` (default off, an experimental "MCP Server" switch in
 the config dialog's Synthesis section) gates it: the server reads the config
@@ -626,32 +629,86 @@ off, without loading the core. While it is on, a nested row shows the launch
 command from `mcp_launch_command` (the current executable and `--mcp`,
 quoted by `shellWord`) with a copy button.
 
-Tools: `list_speakers` returns talk speakers and styles (speakers split across
-models merged, sorted by VOICEVOX order); `synthesize` takes `text` and either
-`speaker` (name or UUID) and `style` (name or numeric ID), or `preset` (name or
-ID) alone, rejecting a preset combined with either; it synthesizes the query
-(with the preset applied, as `getModifiedQuery` does), writes the WAV to
-`{temp_dir}/azalea-mcp/` and returns its path, duration, sample rate, voice and
-preset name as structured content. `list_presets` and `create_preset` manage the
-server's own presets (`src-tauri/src/mcp/presets.rs`).
+That switch is the only app setting that changes what a call does. Reading
+options are arguments that default to off, and `get_status` reports the app's
+English, pitch-noise and pitch-completion settings as `app_settings` purely
+as a reminder. Do not make a tool consult `UIConfig` for anything else. The
+voice setup, the system presets and the user dictionary are read as data.
 
-MCP presets are stored in `mcp_presets.toml` in the config directory
-(`config_dev` in development, ignored by git) using the app's `Preset` format,
-including `speaker_uuid` and `style_name`. They are deliberately separate from
-system and project presets, so a running app neither shows nor overwrites
-them. `create_preset` takes a unique name (case-insensitive), a speaker and
-style, and optional speed (50–200, default 100), pitch (-0.5–0.5), intonation
-and volume (0–2) and start/end silence in milliseconds (0–1500, default 100,
-matching synthesis without a preset); values outside the preset editor's
-ranges are rejected. A preset's voice is resolved like project preset
-fallbacks: an uninstalled stored speaker makes it unavailable (never another
-speaker reusing the style ID), and the style matches by stored name, then ID.
-Reported pitch, intonation and volume are rounded to three decimals. There
-are no update or delete tools yet; edit or remove the file by hand.
+Tools:
 
-Synthesis and preset creation are serialized. `McpEnvironment` abstracts
-settings, core loading, the output directory and the preset file so unit tests
-run without a core; the real-core integration test covers every tool.
+- `get_status` answers even while the server is disabled and never loads the
+  core: whether it is enabled, the app and core versions, whether the English
+  models are downloaded, whether the loaded runtime supports pitch control
+  (null until the core is loaded), the user dictionary's entry count and
+  `revision` (the first eight hex digits of its file's SHA-256), `app_settings`,
+  `limits` and the output directory.
+- `list_speakers` returns talk speakers and styles (speakers split across
+  models merged, sorted by VOICEVOX order).
+- `list_presets` returns `{ agent, user }`: the agent's own presets and the
+  app's system presets, which are read-only.
+- `create_preset` returns a new agent preset and its ID: a template with
+  default values and no voice, or a copy of the preset named by `copy_from`.
+- `update_preset` takes the whole preset back and replaces every stored
+  value; omitted values return to their defaults. It needs a `speaker` (name
+  or UUID) and `style` (name or numeric ID) and accepts and ignores the
+  read-only fields a listing adds, so a listed preset can be passed back.
+- `delete_preset` removes an agent preset.
+- `synthesize` takes `text` or `kana` (AquesTalk-style, exactly one) and a
+  required `preset_id`, applies the preset as `getModifiedQuery` does, writes
+  the WAV to `{temp_dir}/azalea-mcp/` and returns its path, duration, sample
+  rate, voice, `credit` line and the `kana` it read. `apply_dictionary`
+  (default true) chooses whether `text` is read with the user dictionary;
+  `english` (default false) with `english_accent`, `english_ngram_filter` and
+  `english_model` (`base` or `turbo`) reads English words through e2k and
+  fails with `unsupported_feature` until the models are downloaded.
+
+Request structs use `deny_unknown_fields`, so a misspelled argument is
+rejected rather than dropped. Tool errors start with a stable code and a
+colon (`fail(code, message)`): `disabled`, `no_voice_setup`,
+`invalid_argument`, `missing_preset`, `unknown_preset`, `incomplete_preset`,
+`read_only_preset`, `unknown_speaker`, `unknown_style`, `voice_unavailable`,
+`unsupported_feature`, `limit_exceeded`, `io_error` and `core_error`. Text
+longer than `MAX_TEXT_CHARS` (2000) is `limit_exceeded`.
+
+Presets (`src-tauri/src/mcp/presets.rs`): agent presets are stored in
+`mcp_presets.toml` in the config directory (`config_dev` in development,
+ignored by git) as `StoredPreset`s and kept until deleted, deliberately
+separate from system and project presets, so a running app neither shows nor
+overwrites them. The file still reads the app's `Preset` field names that
+earlier versions wrote. A template has no voice (`incomplete_preset` when
+used). A preset's voice is resolved like project preset fallbacks: an
+uninstalled stored speaker makes it unavailable (never another speaker
+reusing the style ID), and the style matches by stored name, then ID. Values
+outside the preset editor's ranges are rejected (speed 50–200, pitch
+-0.5–0.5, intonation and volume 0–2, silences 0–1500 ms). Reported pitch,
+intonation and volume are rounded to three decimals.
+
+IDs (`src-tauri/src/mcp/ids.rs`) are two words such as `quick-fox`, which a
+model repeats more reliably than a UUID; they match ignoring case and
+surrounding whitespace, and presets are found by ID only, never by name.
+`mcp_ids.toml` next to the presets records every ID issued, so a deleted
+preset's ID is not reused, and the ID given to each system preset (by the
+app's preset ID, or its name while it has none), so those stay stable across
+sessions, reordering and renames. Presets from earlier files and duplicates
+get a new ID on load. When adding another kind of object with IDs, issue them
+from the same `IdFile` so an ID is unique across kinds.
+
+The user dictionary is never written. The core holds one dictionary at a
+time, so before reading `text` the server compares what the call wants (the
+saved file's revision, or none when `apply_dictionary` is false or the file
+is missing) with what the previous call left applied
+(`AzaleaMcp.applied_dictionary`) and switches only when they differ
+(`sync_dictionary`), under the synthesis gate. Edits the app saves therefore
+reach a running server on its next call.
+
+Synthesis is serialized by one gate and preset file access by another
+(`with_presets` loads, changes and saves under it). `McpEnvironment`
+abstracts settings, core loading, the output directory and the preset, ID
+and dictionary files so unit tests run without a core: the `*_with` methods
+behind the preset tools take the speaker list as an argument for that
+reason. The real-core integration tests cover every tool and the dictionary
+switching.
 
 ### Using the MCP Server
 
@@ -680,16 +737,21 @@ printf '%s\n' \
   '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"sh","version":"0"}}}' \
   '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
   '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_speakers","arguments":{}}}' \
-  '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"synthesize","arguments":{"text":"テストです。","speaker":"ずんだもん","style":"ノーマル"}}}' \
+  '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"list_presets","arguments":{}}}' \
   | src-tauri/target/debug/azalea --mcp
 ```
 
+`synthesize` needs a preset ID, so take one from the `list_presets` result
+(the app's Default preset is listed under `user`) and send a second session:
+`{"name":"synthesize","arguments":{"text":"テストです。","preset_id":"<id>"}}`.
+
 Tool failures (setting off, unknown speaker, style or preset listing the valid
 ones, invalid preset values, empty text, core errors) are results with
-`isError: true`, not JSON-RPC errors. Each call reads the setting's current value, so toggling the switch
-needs no restart. English words are spelled out until the e2k models are
-downloaded (see Optional Downloads). WAV files accumulate in
-`{temp_dir}/azalea-mcp/`; delete them when done testing.
+`isError: true`, not JSON-RPC errors; an unknown argument name is a JSON-RPC
+invalid-params error. Each call reads the setting's current value, so toggling
+the switch needs no restart. English words are spelled out unless the call
+passes `english`, which needs the e2k models (see Optional Downloads). WAV
+files accumulate in `{temp_dir}/azalea-mcp/`; delete them when done testing.
 
 ## Build, Test, and Development Commands
 

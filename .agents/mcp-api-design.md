@@ -1,7 +1,8 @@
 # MCP API Design: Stateless Speech Synthesis (Draft 2)
 
-Status: draft for discussion. Only the four tools marked "exists" are
-implemented, and this design changes three of them (see Migration).
+Status: step 1 of the implementation order is done (see the end); the rest
+is design. "Exists" and "new" in the headings describe the server before
+that work.
 
 ## Where the server is today
 
@@ -78,7 +79,7 @@ case and surrounding whitespace.
 
 User presets have long opaque IDs in the app, so the server gives each one a
 word pair too and remembers the pairing in its own file
-(`mcp_aliases.toml`), keeping the ID stable across sessions and renames. The
+(`mcp_ids.toml`, which also records every ID issued), keeping the ID stable across sessions and renames. The
 app's files are not touched. `"user"` is reserved for the user dictionary.
 
 ### Preset shape
@@ -523,7 +524,7 @@ token, and stops at the next chunk boundary on cancellation.
 
 ## Suggested order of implementation
 
-1. Preset rework (`create_preset`, `update_preset`, `delete_preset`, two-field
+1. **Done.** Preset rework (`create_preset`, `update_preset`, `delete_preset`, two-field
    `list_presets`), `synthesize` requiring a preset, `kana` input and output,
    `get_status`, `apply_dictionary` with reload on change, the `english`
    arguments, error codes, config isolation.
