@@ -44,6 +44,10 @@ Gaps a client hits quickly:
   switch. Pitch noise and English-word reading are per-call arguments that
   default to off. The voice setup (which core and models) is still resolved
   from the config, because the server has no other source for it.
+- **What still varies is visible.** The installation can change between calls
+  (the user edits the dictionary, downloads the English models, switches the
+  voice setup). `get_status` reports each of those read-only, so a client can
+  tell why the same arguments gave a different result.
 - **Deterministic.** Same arguments, preset values and installation give the
   same audio, including with pitch noise, because the seed is an argument.
 - **Paths, not payloads.** Audio is returned as a file path, never inline.
@@ -163,6 +167,11 @@ silences always apply, replacing those values in a passed `raw_query`.
 | `english` | `false` | Read English words OpenJTalk does not know as katakana. `unsupported_feature` when the models are not downloaded |
 | `english_accent` | `true` | Use the predicted accent for those words |
 | `english_ngram_filter` | `true` | Keep acronyms spelled out |
+| `english_model` | `"base"` | `"base"` or `"turbo"` (the smaller distilled model) |
+
+These apply to `analyze_text`, `create_query`, `synthesize` and
+`synthesize_sequence`. The app's own English-word switches are not consulted.
+Without `english`, such words are spelled out letter by letter.
 
 ### Pitch noise (optional)
 
@@ -244,20 +253,56 @@ core.
 {
   "enabled": true,
   "app_version": "0.4.0",
-  "core": { "loaded": true, "version": "0.17.x" },
-  "features": { "pitch_control": true, "english": true },
+  "core": { "loaded": true, "version": "0.17.x", "setup": "downloaded" },
+  "english": { "available": true },
+  "pitch_control": { "available": true },
+  "dictionary": { "entries": 42, "revision": "5d1f0c2a" },
   "limits": { "max_text_chars": 2000, "max_items": 200 },
   "temp_dir": "/tmp/azalea-mcp",
   "temp_retention_hours": 24
 }
 ```
 
-`features` is null until the core has been loaded by another call.
+Everything here is read-only; no tool changes it.
+
+| Field | Meaning | What it gates or explains |
+| --- | --- | --- |
+| `english.available` | The English reading models are downloaded | The `english` argument; otherwise `unsupported_feature` |
+| `pitch_control.available` | The loaded runtime supports pitch control; `null` until the core is loaded | `pitch_noise_sigma` and `keep_pitch_through_mora` |
+| `dictionary.entries`, `dictionary.revision` | Size of the user dictionary and a short hash of its contents | A changed revision means `text` may be read differently than before |
+| `core.setup`, `core.version` | Which voice setup and core are in use | Different models predict different prosody |
+
+The app's own switches for these features (English transform, pitch noise,
+pitch completion) are deliberately not reported: they have no effect on the
+server, and showing them would suggest they do. When a feature is
+unavailable, the `unsupported_feature` message says what the user must do
+(download the English models; use Azalea-managed models and restart).
 
 ### `list_speakers` (exists, extended)
 
 Adds an optional `speaker` filter (name or UUID) and a `credit` string per
 speaker (`"VOICEVOX:ずんだもん"`).
+
+### `list_dictionary` (new)
+
+The user dictionary, read-only. Optional `surface` filter (substring).
+
+```json
+{
+  "revision": "5d1f0c2a",
+  "entries": [
+    { "surface": "Azalea", "pronunciation": "アザレア", "accent_type": 1,
+      "word_type": "ProperNoun", "priority": 5 }
+  ]
+}
+```
+
+`accent_type` is the mora after which the pitch falls, `0` for flat;
+`priority` is 0–10. The server applies the dictionary the app saved, and
+reloads it before a call when the file has changed, so edits made in the app
+reach a running server and `revision` always matches what `text` is read
+with. A client that needs a reading the dictionary does not give passes
+`kana` instead; the server never writes the dictionary.
 
 ### `analyze_text` (new)
 
@@ -394,7 +439,7 @@ token, and stops at the next chunk boundary on cancellation.
 - **Voice import** (`audio_path` + utterance → query): a natural later tool;
   needs the aligner pack.
 - **User dictionary writes**: they change what the app reads, so they belong
-  to the future app-hosted transport.
+  to the future app-hosted transport. Reading is covered by `list_dictionary`.
 - **Sample rate and stereo output**, singing styles, live playback, control of
   a running app.
 
@@ -402,7 +447,8 @@ token, and stops at the next chunk boundary on cancellation.
 
 1. Preset rework (`create_preset`, `update_preset`, `delete_preset`, two-field
    `list_presets`), `synthesize` requiring a preset, `kana` input and output,
-   `get_status`, error codes, config isolation.
+   `get_status`, `list_dictionary` with reload on change, the `english`
+   arguments, error codes, config isolation.
 2. Output location, temporary-file retention, labels.
 3. Model-facing query shape, `analyze_text`, `create_query`,
    `predict_prosody`, pitch noise, `raw`.
@@ -426,3 +472,9 @@ token, and stops at the next chunk boundary on cancellation.
    and user and agent names can collide.
 6. **`query` and `raw_query` are separate input fields**, and `raw: true`
    switches the output to `raw_query`.
+7. **`get_status` reports availability, not the app's switches.** It says
+   whether English reading and pitch control can be used and identifies the
+   dictionary, but not whether the user has those features turned on in the
+   app, since that no longer affects the server.
+8. **The server reloads the dictionary when its file changes.** Today it is
+   applied once, when the core loads.
