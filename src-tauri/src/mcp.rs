@@ -227,7 +227,6 @@ pub struct SpeakerList {
 pub struct CoreStatus {
   /// Whether a call has loaded the voice core yet.
   pub loaded: bool,
-  pub version: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, schemars::JsonSchema)]
@@ -688,7 +687,6 @@ impl AzaleaMcp {
       app_version: env!("CARGO_PKG_VERSION").into(),
       core: CoreStatus {
         loaded: core.is_some(),
-        version: voicevox_core::VERSION.into(),
       },
       english: EnglishStatus {
         available: settings.english_available,
@@ -914,11 +912,26 @@ impl AzaleaMcp {
               reading.apply_dictionary,
               &applied_dictionary,
             )?;
-            core.audio_query_with_english(text, id, reading.english)
+            core
+              .audio_query_with_english(text, id, reading.english)
+              .map_err(|e| fail("core_error", e))?
           }
-          Utterance::Kana(kana) => core.audio_query_from_kana(kana, id),
-        }
-        .map_err(|e| fail("core_error", e))?;
+          Utterance::Kana(kana) => {
+            // Loaded first, so that a failure below is the kana's.
+            if !core.is_speaker_loaded(id) {
+              core.load_speaker(id).map_err(|e| fail("core_error", e))?;
+            }
+            core.audio_query_from_kana(kana, id).map_err(|e| {
+              fail(
+                "invalid_argument",
+                format!(
+                  "The kana could not be read ({e}). Write katakana with ' after each phrase's \
+                  accented mora, / between phrases and 、 for a pause, as in a result's `kana`."
+                ),
+              )
+            })?
+          }
+        };
         presets::apply_preset(&mut query, &preset)?;
         let wav = core
           .synthesis(&query, id)
@@ -1450,13 +1463,7 @@ mod tests {
     let status = value(server.get_status().await);
     assert!(!status.enabled);
     assert_eq!(status.app_version, env!("CARGO_PKG_VERSION"));
-    assert_eq!(
-      status.core,
-      CoreStatus {
-        loaded: false,
-        version: voicevox_core::VERSION.into()
-      }
-    );
+    assert_eq!(status.core, CoreStatus { loaded: false });
     assert!(status.english.available);
     assert_eq!(status.pitch_control.available, None);
     assert_eq!(

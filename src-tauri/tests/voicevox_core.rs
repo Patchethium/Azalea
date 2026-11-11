@@ -1240,6 +1240,10 @@ async fn real_core_mcp_lists_speakers_synthesizes_and_uses_presets() {
     result.duration_seconds
   );
 
+  // Text that is not kana notation is the caller's mistake, not the core's.
+  let bad_kana = code(synthesize(&plain.id, None, Some("こんにちは")).await);
+  assert!(bad_kana.starts_with("invalid_argument: "), "{bad_kana}");
+
   // A fast, silence-free preset with another style of the same speaker, when there is one.
   let preset_style = speaker.styles.last().unwrap();
   let copy = ok(

@@ -638,7 +638,7 @@ voice setup, the system presets and the user dictionary are read as data.
 Tools:
 
 - `get_status` answers even while the server is disabled and never loads the
-  core: whether it is enabled, the app and core versions, whether the English
+  core: whether it is enabled, the app version, whether the English
   models are downloaded, whether the loaded runtime supports pitch control
   (null until the core is loaded), the user dictionary's entry count and
   `revision` (the first eight hex digits of its file's SHA-256), `app_settings`,
@@ -661,10 +661,13 @@ Tools:
   (default true) chooses whether `text` is read with the user dictionary;
   `english` (default false) with `english_accent`, `english_ngram_filter` and
   `english_model` (`base` or `turbo`) reads English words through e2k and
-  fails with `unsupported_feature` until the models are downloaded.
+  fails with `unsupported_feature` until the models are downloaded. Kana the
+  core cannot parse is `invalid_argument`; the style's model is loaded first
+  so that a load failure is not reported as the kana's.
 
 Request structs use `deny_unknown_fields`, so a misspelled argument is
-rejected rather than dropped. Tool errors start with a stable code and a
+rejected rather than dropped (rmcp reports it as a tool error naming the
+field and the accepted ones, without a code). Tool errors start with a stable code and a
 colon (`fail(code, message)`): `disabled`, `no_voice_setup`,
 `invalid_argument`, `missing_preset`, `unknown_preset`, `incomplete_preset`,
 `read_only_preset`, `unknown_speaker`, `unknown_style`, `voice_unavailable`,
@@ -747,8 +750,7 @@ printf '%s\n' \
 
 Tool failures (setting off, unknown speaker, style or preset listing the valid
 ones, invalid preset values, empty text, core errors) are results with
-`isError: true`, not JSON-RPC errors; an unknown argument name is a JSON-RPC
-invalid-params error. Each call reads the setting's current value, so toggling
+`isError: true`, not JSON-RPC errors. Each call reads the setting's current value, so toggling
 the switch needs no restart. English words are spelled out unless the call
 passes `english`, which needs the e2k models (see Optional Downloads). WAV
 files accumulate in `{temp_dir}/azalea-mcp/`; delete them when done testing.

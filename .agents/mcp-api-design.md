@@ -274,7 +274,7 @@ core.
 {
   "enabled": true,
   "app_version": "0.4.0",
-  "core": { "loaded": true, "version": "0.17.x", "setup": "downloaded" },
+  "core": { "loaded": true },
   "english": { "available": true },
   "pitch_control": { "available": true },
   "dictionary": { "entries": 42, "revision": "5d1f0c2a" },
@@ -295,7 +295,6 @@ Everything here is read-only; no tool changes it.
 | `english.available` | The English reading models are downloaded | The `english` argument; otherwise `unsupported_feature` |
 | `pitch_control.available` | The loaded runtime supports pitch control; `null` until the core is loaded | `pitch_noise_sigma` and `keep_pitch_through_mora` |
 | `dictionary.entries`, `dictionary.revision` | Size of the user dictionary and a short hash of its contents | A changed revision means `text` may be read differently than before |
-| `core.setup`, `core.version` | Which voice setup and core are in use | Different models predict different prosody |
 
 `app_settings` shows how the user has these features set in the Azalea app,
 as a reminder only. They have no effect on the server: a client that wants
