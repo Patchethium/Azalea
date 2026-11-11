@@ -164,7 +164,8 @@ silences always apply, replacing those values in a passed `raw_query`.
 
 | Field | Default | Meaning |
 | --- | --- | --- |
-| `apply_dictionary` | `true` | Read the text with the user dictionary. `false` gives OpenJTalk's own reading, the same on every installation |
+| `apply_dictionary` | `true` | Read the text with the user dictionary |
+| `dictionary_id` | none | Also read it with this agent dictionary (see Dictionaries) |
 | `english` | `false` | Read English words OpenJTalk does not know as katakana. `unsupported_feature` when the models are not downloaded |
 | `english_accent` | `true` | Use the predicted accent for those words |
 | `english_ngram_filter` | `true` | Keep acronyms spelled out |
@@ -291,13 +292,22 @@ read `enabled: true` as "already applied". When a feature is unavailable, the `u
 Adds an optional `speaker` filter (name or UUID) and a `credit` string per
 speaker (`"VOICEVOX:ずんだもん"`).
 
-### `list_dictionary` (new)
+### Dictionaries
 
-The user dictionary, read-only. Optional `surface` filter (substring).
+Dictionaries follow the preset model: the user's is read-only, and the
+client creates its own temporary ones and names one per call.
+
+| | Agent dictionaries | User dictionary |
+| --- | --- | --- |
+| Source | Created by the client through this server | The dictionary the app saved |
+| Lifetime | The server process; kept in memory only, never visible to the app | Reloaded before a call when its file has changed |
+| Mutable by the server | Yes | Never |
+| Selected by | `dictionary_id` | `apply_dictionary` |
 
 ```json
 {
-  "revision": "5d1f0c2a",
+  "id": "d-71be…",
+  "name": "",
   "entries": [
     { "surface": "Azalea", "pronunciation": "アザレア", "accent_type": 1,
       "word_type": "ProperNoun", "priority": 5 }
@@ -305,33 +315,53 @@ The user dictionary, read-only. Optional `surface` filter (substring).
 }
 ```
 
-`accent_type` is the mora after which the pitch falls, `0` for flat;
-`priority` is 0–10. The server reloads the dictionary before a call when the
-file has changed, so edits made in the app reach a running server and
-`revision` always matches what `text` is read with. The user dictionary is
-read-only: no tool writes it. Calls choose whether it applies with
-`apply_dictionary`; a client that needs a reading it does not give passes
-`kana` instead.
+`accent_type` is the mora after which the pitch falls, `0` for flat.
+`word_type` (default `ProperNoun`) and `priority` (0–10, default 5) are
+optional. A dictionary holds one entry per surface.
 
-### Agent dictionary (proposed, not settled)
+#### `create_dictionary` (new)
 
-A temporary dictionary owned by the client, the counterpart of agent presets:
-kept in memory for the server process, never written to disk, never visible
-to the app.
+Optional `copy_from`: another dictionary's ID, or `"user"` to start from the
+user dictionary. Returns a new agent dictionary, empty or copied, under a
+fresh ID. An empty dictionary is valid to use.
 
-| Tool | Meaning |
-| --- | --- |
-| `set_dictionary_entry` | Add or replace the agent entry for a `surface`: `pronunciation` (katakana), `accent_type`, and optional `word_type` (default `ProperNoun`) and `priority` (default 5) |
-| `delete_dictionary_entry` | Remove the agent entry for a `surface` |
-| `list_dictionary` | Returns `{ agent, user }`, like `list_presets`, with a `revision` for each |
+#### `update_dictionary` (new)
 
-Agent entries apply to every `text` call of the session. `apply_dictionary`
-keeps governing only the user dictionary, so `apply_dictionary: false` with
-agent entries gives readings that depend on nothing outside the session.
-When both dictionaries hold the same surface, the agent entry is the one
-used. `set_dictionary_entry` returns the warnings the app's dictionary dialog
-shows when OpenJTalk's own reading still wins in some context (alone or
-before a particle), so the client can raise the priority.
+Takes the whole dictionary as returned by `create_dictionary`, with its
+entries edited. The `id` selects it and the rest replaces what is stored, as
+`update_preset` does. Returns the stored dictionary with a `revision`, plus a
+`warnings` list naming entries whose reading OpenJTalk's own would still beat
+in some context (alone or before a particle), as the app's dictionary dialog
+warns, so the client can raise their priority.
+
+#### `delete_dictionary` (new)
+
+Removes an agent dictionary by ID.
+
+#### `list_dictionaries` (new)
+
+```json
+{
+  "agent": [ { "id": "d-71be…", "name": "names", "revision": "9a02c4e1", "entries": [ … ] } ],
+  "user": { "revision": "5d1f0c2a", "entries": [ … ] }
+}
+```
+
+Optional `surface` filter (substring) on the entries returned.
+
+#### Using them
+
+Two Reading options decide what a `text` call is read with:
+
+| `apply_dictionary` | `dictionary_id` | Read with |
+| --- | --- | --- |
+| `true` (default) | omitted | The user dictionary |
+| `true` | set | Both; the agent entry is used where both hold a surface |
+| `false` | omitted | OpenJTalk alone |
+| `false` | set | The agent dictionary alone, so the reading depends on nothing outside the session |
+
+An unknown `dictionary_id` is an `unknown_dictionary` error. Unlike `preset`,
+`dictionary_id` is optional.
 
 ### `analyze_text` (new)
 
@@ -438,6 +468,7 @@ token, and stops at the next chunk boundary on cancellation.
 - **Errors.** Tool results with `isError: true`. Messages start with a stable
   code: `disabled`, `no_voice_setup`, `invalid_argument`, `missing_preset`,
   `unknown_preset`, `incomplete_preset`, `read_only_preset`,
+  `unknown_dictionary`,
   `unknown_speaker`, `unknown_style`, `voice_unavailable`,
   `unsupported_feature`, `limit_exceeded`, `output_exists`, `io_error`,
   `core_error`, `cancelled`. Unknown names keep listing the valid ones.
@@ -468,9 +499,8 @@ token, and stops at the next chunk boundary on cancellation.
 - **Voice import** (`audio_path` + utterance → query): a natural later tool;
   needs the aligner pack.
 - **User dictionary writes**: they change what the app reads, so they belong
-  to the future app-hosted transport. Reading is covered by
-  `list_dictionary`, and client-owned entries by the proposed agent
-  dictionary.
+  to the future app-hosted transport. Client-owned entries go in agent
+  dictionaries instead.
 - **Sample rate and stereo output**, singing styles, live playback, control of
   a running app.
 
@@ -478,12 +508,14 @@ token, and stops at the next chunk boundary on cancellation.
 
 1. Preset rework (`create_preset`, `update_preset`, `delete_preset`, two-field
    `list_presets`), `synthesize` requiring a preset, `kana` input and output,
-   `get_status`, `list_dictionary` with reload on change, the `english`
+   `get_status`, `apply_dictionary` with reload on change, the `english`
    arguments, error codes, config isolation.
 2. Output location, temporary-file retention, labels.
 3. Model-facing query shape, `analyze_text`, `create_query`,
    `predict_prosody`, pitch noise, `raw`.
-4. `synthesize_sequence`, progress and cancellation, `list_speakers`
+4. Agent dictionaries (`create_dictionary`, `update_dictionary`,
+   `delete_dictionary`, `list_dictionaries`, `dictionary_id`).
+5. `synthesize_sequence`, progress and cancellation, `list_speakers`
    additions.
 
 ## Assumptions to confirm
@@ -508,6 +540,10 @@ token, and stops at the next chunk boundary on cancellation.
 8. **`apply_dictionary` defaults to `true`**, matching today's behavior. The
    core holds one dictionary at a time, so a call that differs from the
    previous one swaps it under the core gate first.
-9. **Agent dictionary details**, if it goes ahead: entries keyed by surface
-   (one per surface), always applied within the session, and winning over a
-   user entry with the same surface.
+9. **Agent dictionaries are in memory for the server process**, like agent
+   presets, and `update_dictionary` replaces the whole dictionary.
+10. **With both dictionaries applied, the agent entry wins** for a surface
+    both hold.
+11. **Field naming.** The dictionary field is `dictionary_id` as requested,
+    while the preset field is `preset`. Renaming it to `preset_id` would make
+    the two consistent.
