@@ -164,6 +164,7 @@ silences always apply, replacing those values in a passed `raw_query`.
 
 | Field | Default | Meaning |
 | --- | --- | --- |
+| `apply_dictionary` | `true` | Read the text with the user dictionary. `false` gives OpenJTalk's own reading, the same on every installation |
 | `english` | `false` | Read English words OpenJTalk does not know as katakana. `unsupported_feature` when the models are not downloaded |
 | `english_accent` | `true` | Use the predicted accent for those words |
 | `english_ngram_filter` | `true` | Keep acronyms spelled out |
@@ -257,6 +258,11 @@ core.
   "english": { "available": true },
   "pitch_control": { "available": true },
   "dictionary": { "entries": 42, "revision": "5d1f0c2a" },
+  "app_settings": {
+    "english": { "enabled": true, "accent_prediction": true, "ngram_filter": true, "model": "base" },
+    "pitch_noise": { "enabled": false, "sigma": 0.1 },
+    "pitch_completion": { "enabled": false }
+  },
   "limits": { "max_text_chars": 2000, "max_items": 200 },
   "temp_dir": "/tmp/azalea-mcp",
   "temp_retention_hours": 24
@@ -272,10 +278,12 @@ Everything here is read-only; no tool changes it.
 | `dictionary.entries`, `dictionary.revision` | Size of the user dictionary and a short hash of its contents | A changed revision means `text` may be read differently than before |
 | `core.setup`, `core.version` | Which voice setup and core are in use | Different models predict different prosody |
 
-The app's own switches for these features (English transform, pitch noise,
-pitch completion) are deliberately not reported: they have no effect on the
-server, and showing them would suggest they do. When a feature is
-unavailable, the `unsupported_feature` message says what the user must do
+`app_settings` shows how the user has these features set in the Azalea app,
+as a reminder only. They have no effect on the server: a client that wants
+the app's behavior passes the matching arguments itself (`english`,
+`english_accent`, `english_ngram_filter`, `english_model`,
+`pitch_noise_sigma`). The field's description says so, so a model does not
+read `enabled: true` as "already applied". When a feature is unavailable, the `unsupported_feature` message says what the user must do
 (download the English models; use Azalea-managed models and restart).
 
 ### `list_speakers` (exists, extended)
@@ -298,11 +306,32 @@ The user dictionary, read-only. Optional `surface` filter (substring).
 ```
 
 `accent_type` is the mora after which the pitch falls, `0` for flat;
-`priority` is 0–10. The server applies the dictionary the app saved, and
-reloads it before a call when the file has changed, so edits made in the app
-reach a running server and `revision` always matches what `text` is read
-with. A client that needs a reading the dictionary does not give passes
-`kana` instead; the server never writes the dictionary.
+`priority` is 0–10. The server reloads the dictionary before a call when the
+file has changed, so edits made in the app reach a running server and
+`revision` always matches what `text` is read with. The user dictionary is
+read-only: no tool writes it. Calls choose whether it applies with
+`apply_dictionary`; a client that needs a reading it does not give passes
+`kana` instead.
+
+### Agent dictionary (proposed, not settled)
+
+A temporary dictionary owned by the client, the counterpart of agent presets:
+kept in memory for the server process, never written to disk, never visible
+to the app.
+
+| Tool | Meaning |
+| --- | --- |
+| `set_dictionary_entry` | Add or replace the agent entry for a `surface`: `pronunciation` (katakana), `accent_type`, and optional `word_type` (default `ProperNoun`) and `priority` (default 5) |
+| `delete_dictionary_entry` | Remove the agent entry for a `surface` |
+| `list_dictionary` | Returns `{ agent, user }`, like `list_presets`, with a `revision` for each |
+
+Agent entries apply to every `text` call of the session. `apply_dictionary`
+keeps governing only the user dictionary, so `apply_dictionary: false` with
+agent entries gives readings that depend on nothing outside the session.
+When both dictionaries hold the same surface, the agent entry is the one
+used. `set_dictionary_entry` returns the warnings the app's dictionary dialog
+shows when OpenJTalk's own reading still wins in some context (alone or
+before a particle), so the client can raise the priority.
 
 ### `analyze_text` (new)
 
@@ -439,7 +468,9 @@ token, and stops at the next chunk boundary on cancellation.
 - **Voice import** (`audio_path` + utterance → query): a natural later tool;
   needs the aligner pack.
 - **User dictionary writes**: they change what the app reads, so they belong
-  to the future app-hosted transport. Reading is covered by `list_dictionary`.
+  to the future app-hosted transport. Reading is covered by
+  `list_dictionary`, and client-owned entries by the proposed agent
+  dictionary.
 - **Sample rate and stereo output**, singing styles, live playback, control of
   a running app.
 
@@ -472,9 +503,11 @@ token, and stops at the next chunk boundary on cancellation.
    and user and agent names can collide.
 6. **`query` and `raw_query` are separate input fields**, and `raw: true`
    switches the output to `raw_query`.
-7. **`get_status` reports availability, not the app's switches.** It says
-   whether English reading and pitch control can be used and identifies the
-   dictionary, but not whether the user has those features turned on in the
-   app, since that no longer affects the server.
-8. **The server reloads the dictionary when its file changes.** Today it is
+7. **The server reloads the dictionary when its file changes.** Today it is
    applied once, when the core loads.
+8. **`apply_dictionary` defaults to `true`**, matching today's behavior. The
+   core holds one dictionary at a time, so a call that differs from the
+   previous one swaps it under the core gate first.
+9. **Agent dictionary details**, if it goes ahead: entries keyed by surface
+   (one per surface), always applied within the session, and winning over a
+   user entry with the same surface.
