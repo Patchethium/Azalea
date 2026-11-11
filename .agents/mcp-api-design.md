@@ -34,9 +34,11 @@ Gaps a client hits quickly:
   dictionary). The server keeps no utterance, job or handle between calls;
   what a client carries from one call to the next travels as a value: text,
   kana or a query.
-- **Presets are the one piece of state, and they are required.** Every call
-  that needs a voice names a preset by ID. Agent presets are temporary and
-  mutable; user presets are read-only.
+- **Presets and dictionaries are the only state.** Every call that needs a
+  voice names a preset by ID. Agent presets and dictionaries are mutable and
+  kept on disk until deleted; the user's are read-only.
+- **IDs are short word pairs** such as `quick-fox`, so a model can carry them
+  between calls without miscopying them.
 - **Three levels of input, one pipeline.** `text` (Azalea reads it), `kana`
   (the client fixes reading and accent), `query` (the client fixes
   everything). Each tool that takes an utterance accepts exactly one.
@@ -59,19 +61,31 @@ Gaps a client hits quickly:
 | | Agent presets | User presets |
 | --- | --- | --- |
 | Source | Created by the client through this server | The app's system presets |
-| Lifetime | The server process (one client session); kept in memory only | Read from the app on each call |
+| Lifetime | Until deleted; stored in `mcp_presets.toml` in the config directory, never shown by the app | Read from the app on each call |
 | Mutable by the server | Yes | Never |
-| ID | `a-` + UUID, issued by `create_preset` | The preset's stable ID from the app |
+| ID | A word pair issued by `create_preset` | A word pair the server assigns the first time it sees the preset |
 
-An unknown ID is an `unknown_preset` error that tells the client to call
-`list_presets` or create one, which also covers agent presets lost to a
-server restart.
+An unknown ID is an `unknown_preset` error that lists the valid IDs with
+their names.
+
+### IDs
+
+Preset and dictionary IDs are two lowercase English words joined by a hyphen
+(`quick-fox`, `lazy-dog`), drawn at random from a built-in word list. An ID
+is unique across presets and dictionaries together, so passing one in the
+wrong field is caught, and is not reused after deletion. IDs match ignoring
+case and surrounding whitespace.
+
+User presets have long opaque IDs in the app, so the server gives each one a
+word pair too and remembers the pairing in its own file
+(`mcp_aliases.toml`), keeping the ID stable across sessions and renames. The
+app's files are not touched. `"user"` is reserved for the user dictionary.
 
 ### Preset shape
 
 ```json
 {
-  "id": "a-3f1c…",
+  "id": "quick-fox",
   "name": "",
   "speaker": null,
   "style": null,
@@ -116,15 +130,15 @@ preset. A user preset's ID is rejected with `read_only_preset`, suggesting
 
 ### `delete_preset` (new)
 
-Removes an agent preset by ID. Optional for clients, since agent presets end
-with the session.
+Removes an agent preset by ID. Agent presets stay until deleted, so clients
+should remove the ones they no longer need.
 
 ### `list_presets` (exists, changed)
 
 ```json
 {
-  "agent": [ { "id": "a-3f1c…", "name": "narrator", "speaker": "ずんだもん", "…": "…" } ],
-  "user":  [ { "id": "b7d2…", "name": "Default", "speaker": "四国めたん", "…": "…" } ]
+  "agent": [ { "id": "quick-fox", "name": "narrator", "speaker": "ずんだもん", "…": "…" } ],
+  "user":  [ { "id": "calm-river", "name": "Default", "speaker": "四国めたん", "…": "…" } ]
 }
 ```
 
@@ -132,9 +146,9 @@ with the session.
 
 ```
 list_speakers                       → pick a speaker and style
-create_preset                       → { id: "a-3f1c…", speaker: null, … }
+create_preset                       → { id: "quick-fox", speaker: null, … }
 update_preset { id, speaker, style, speed: 110, … }
-synthesize { preset_id: "a-3f1c…", text: "こんにちは" }
+synthesize { preset_id: "quick-fox", text: "こんにちは" }
 ```
 
 Or, with a preset the user already made: `list_presets` → `synthesize` with
@@ -196,10 +210,11 @@ if it fails; nothing is written to the temporary directory as a fallback.
 
 **Retention, stated in the tool descriptions and server instructions:** files
 in the temporary directory (`{temp_dir}/azalea-mcp/`, reported by
-`get_status`) are deleted when they are more than 24 hours old, checked each
-time the server starts. Audio worth keeping must be written elsewhere with
-`output_path`; the server never deletes files outside its temporary
-directory.
+`get_status`) are deleted when they are more than 30 days old, checked each
+time the server starts. The operating system may clear its temporary
+directory sooner, typically on reboot. Audio worth keeping must be written
+elsewhere with `output_path`; the server never deletes files outside its
+temporary directory.
 
 ## Query shapes
 
@@ -266,7 +281,7 @@ core.
   },
   "limits": { "max_text_chars": 2000, "max_items": 200 },
   "temp_dir": "/tmp/azalea-mcp",
-  "temp_retention_hours": 24
+  "temp_retention_days": 30
 }
 ```
 
@@ -295,18 +310,18 @@ speaker (`"VOICEVOX:ずんだもん"`).
 ### Dictionaries
 
 Dictionaries follow the preset model: the user's is read-only, and the
-client creates its own temporary ones and names one per call.
+client creates its own and names one per call.
 
 | | Agent dictionaries | User dictionary |
 | --- | --- | --- |
 | Source | Created by the client through this server | The dictionary the app saved |
-| Lifetime | The server process; kept in memory only, never visible to the app | Reloaded before a call when its file has changed |
+| Lifetime | Until deleted; stored in `mcp_dictionaries.toml` in the config directory, never visible to the app | Reloaded before a call when its file has changed |
 | Mutable by the server | Yes | Never |
 | Selected by | `dictionary_id` | `apply_dictionary` |
 
 ```json
 {
-  "id": "d-71be…",
+  "id": "lazy-dog",
   "name": "",
   "entries": [
     { "surface": "Azalea", "pronunciation": "アザレア", "accent_type": 1,
@@ -342,7 +357,7 @@ Removes an agent dictionary by ID.
 
 ```json
 {
-  "agent": [ { "id": "d-71be…", "name": "names", "revision": "9a02c4e1", "entries": [ … ] } ],
+  "agent": [ { "id": "lazy-dog", "name": "names", "revision": "9a02c4e1", "entries": [ … ] } ],
   "user": { "revision": "5d1f0c2a", "entries": [ … ] }
 }
 ```
@@ -358,7 +373,7 @@ Two Reading options decide what a `text` call is read with:
 | `true` (default) | omitted | The user dictionary |
 | `true` | set | Both; the agent entry is used where both hold a surface |
 | `false` | omitted | OpenJTalk alone |
-| `false` | set | The agent dictionary alone, so the reading depends on nothing outside the session |
+| `false` | set | The agent dictionary alone, so the reading depends on nothing the user can change in the app |
 
 An unknown `dictionary_id` is an `unknown_dictionary` error. Unlike `preset_id`,
 `dictionary_id` is optional.
@@ -380,7 +395,7 @@ Utterance (`text` or `kana`) + Preset + Reading options + Pitch noise +
 ```json
 {
   "query": { "kana": "…", "accent_phrases": [ … ] },
-  "preset_id": "a-3f1c…",
+  "preset_id": "quick-fox",
   "speaker": "ずんだもん",
   "style": "ノーマル",
   "duration_seconds": 1.42
@@ -420,7 +435,7 @@ Output, plus:
   "temporary": true,
   "duration_seconds": 1.42,
   "sample_rate": 24000,
-  "preset_id": "a-3f1c…",
+  "preset_id": "quick-fox",
   "speaker": "ずんだもん",
   "style": "ノーマル",
   "credit": "VOICEVOX:ずんだもん",
@@ -454,7 +469,7 @@ A script: several utterances, each with its own preset, as one file or many.
   "sample_rate": 24000,
   "credits": ["VOICEVOX:ずんだもん", "VOICEVOX:四国めたん"],
   "items": [
-    { "index": 0, "start": 0.0, "end": 1.42, "preset_id": "a-3f1c…", "kana": "コンニチワ'", "path": null }
+    { "index": 0, "start": 0.0, "end": 1.42, "preset_id": "quick-fox", "kana": "コンニチワ'", "path": null }
   ]
 }
 ```
@@ -486,8 +501,8 @@ token, and stops at the next chunk boundary on cancellation.
 - `create_preset` no longer takes a name, voice and values; it returns a
   template to fill and pass to `update_preset`.
 - `list_presets` returns `{ agent, user }` instead of `{ presets }`.
-- `mcp_presets.toml` is no longer read or written. Existing files are left in
-  place, unused.
+- `mcp_presets.toml` keeps holding the agent presets. Presets already in it
+  stay usable and get a word-pair ID on first load.
 - English words are no longer read as katakana unless the call sets
   `english`.
 
@@ -520,9 +535,9 @@ token, and stops at the next chunk boundary on cancellation.
 
 ## Assumptions to confirm
 
-1. **"Temporary" means in memory for the server process.** Agent presets are
-   gone when the client disconnects, and `mcp_presets.toml` is retired. The
-   alternative is to keep them on disk and expire them.
+1. **Agent presets and dictionaries are permanent.** They are a few hundred
+   bytes each, so they stay on disk until the client deletes them, with no
+   expiry. Synthesized audio in the temporary directory is kept for 30 days.
 2. **User presets are the app's system presets** (`system_presets` in the
    config). Reading them is treated as data rather than a setting. Project
    presets stay out of reach because the server opens no project.
@@ -531,8 +546,9 @@ token, and stops at the next chunk boundary on cancellation.
    applies, since it is not a config setting.
 4. **`update_preset` replaces the whole preset** rather than merging the
    fields it is given.
-5. **`preset_id` accepts IDs only**, since agent preset names need not be unique
-   and user and agent names can collide.
+5. **`preset_id` and `dictionary_id` accept IDs only**, and IDs are short
+   word pairs (`quick-fox`, `lazy-dog`) that a model can repeat reliably.
+   User presets get one too, through an alias file the server keeps.
 6. **`query` and `raw_query` are separate input fields**, and `raw: true`
    switches the output to `raw_query`.
 7. **The server reloads the dictionary when its file changes.** Today it is
@@ -540,7 +556,7 @@ token, and stops at the next chunk boundary on cancellation.
 8. **`apply_dictionary` defaults to `true`**, matching today's behavior. The
    core holds one dictionary at a time, so a call that differs from the
    previous one swaps it under the core gate first.
-9. **Agent dictionaries are in memory for the server process**, like agent
-   presets, and `update_dictionary` replaces the whole dictionary.
+9. **Agent dictionaries are permanent**, like agent presets, and
+   `update_dictionary` replaces the whole dictionary.
 10. **With both dictionaries applied, the agent entry wins** for a surface
     both hold.
