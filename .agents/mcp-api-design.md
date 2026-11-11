@@ -208,13 +208,16 @@ Without `english`, such words are spelled out letter by letter.
 The server tries the write and reports `io_error` with the system's message
 if it fails; nothing is written to the temporary directory as a fallback.
 
-**Retention, stated in the tool descriptions and server instructions:** files
-in the temporary directory (`{temp_dir}/azalea-mcp/`, reported by
-`get_status`) are deleted when they are more than 30 days old, checked each
-time the server starts. The operating system may clear its temporary
-directory sooner, typically on reboot. Audio worth keeping must be written
-elsewhere with `output_path`; the server never deletes files outside its
-temporary directory.
+**Retention, stated in the tool descriptions and server instructions:** audio
+written without an `output_path` is temporary. It lives in a directory of its
+own for the connection (`temp_dir` in `get_status`, under
+`{temp_dir}/azalea-mcp/`) and is deleted when the client disconnects. Audio
+worth keeping must be written elsewhere with `output_path`; the server never
+deletes files outside its temporary directory.
+
+A server that is killed cannot clean up, so each server also removes, when it
+starts, the directories of connections whose process no longer exists. Other
+servers running at the same time are left alone.
 
 ## Query shapes
 
@@ -280,8 +283,7 @@ core.
     "pitch_completion": { "enabled": false }
   },
   "limits": { "max_text_chars": 2000, "max_items": 200 },
-  "temp_dir": "/tmp/azalea-mcp",
-  "temp_retention_days": 30
+  "temp_dir": "/tmp/azalea-mcp/7c41"
 }
 ```
 
@@ -431,7 +433,7 @@ Output, plus:
 
 ```json
 {
-  "path": "/tmp/azalea-mcp/azalea-9f2c….wav",
+  "path": "/tmp/azalea-mcp/7c41/azalea-9f2c….wav",
   "temporary": true,
   "duration_seconds": 1.42,
   "sample_rate": 24000,
@@ -445,8 +447,8 @@ Output, plus:
 ```
 
 `kana` is always returned, so the client can check the reading without a
-second call. `temporary` tells it whether the file falls under the retention
-rule.
+second call. `temporary` tells it whether the file will be deleted when the
+client disconnects.
 
 ### `synthesize_sequence` (new)
 
@@ -463,7 +465,7 @@ A script: several utterances, each with its own preset, as one file or many.
 
 ```json
 {
-  "path": "/tmp/azalea-mcp/azalea-seq-41ab….wav",
+  "path": "/tmp/azalea-mcp/7c41/azalea-seq-41ab….wav",
   "temporary": true,
   "duration_seconds": 12.8,
   "sample_rate": 24000,
@@ -525,7 +527,7 @@ token, and stops at the next chunk boundary on cancellation.
    `list_presets`), `synthesize` requiring a preset, `kana` input and output,
    `get_status`, `apply_dictionary` with reload on change, the `english`
    arguments, error codes, config isolation.
-2. Output location, temporary-file retention, labels.
+2. Output location, temporary-audio cleanup on disconnect, labels.
 3. Model-facing query shape, `analyze_text`, `create_query`,
    `predict_prosody`, pitch noise, `raw`.
 4. Agent dictionaries (`create_dictionary`, `update_dictionary`,
@@ -537,7 +539,8 @@ token, and stops at the next chunk boundary on cancellation.
 
 1. **Agent presets and dictionaries are permanent.** They are a few hundred
    bytes each, so they stay on disk until the client deletes them, with no
-   expiry. Synthesized audio in the temporary directory is kept for 30 days.
+   expiry. Synthesized audio without an `output_path` is deleted when the
+   connection closes.
 2. **User presets are the app's system presets** (`system_presets` in the
    config). Reading them is treated as data rather than a setting. Project
    presets stay out of reach because the server opens no project.
