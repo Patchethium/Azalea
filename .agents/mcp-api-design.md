@@ -1,7 +1,7 @@
-# MCP API Design: Stateless Speech Synthesis (Draft)
+# MCP API Design: Stateless Speech Synthesis (Draft 2)
 
-Status: draft for discussion. Nothing here is implemented beyond the four
-tools marked "exists".
+Status: draft for discussion. Only the four tools marked "exists" are
+implemented, and this design changes three of them (see Migration).
 
 ## Where the server is today
 
@@ -16,298 +16,413 @@ tools marked "exists".
 Gaps a client hits quickly:
 
 1. **Reading and accent are a black box.** A client cannot see how the text was
-   read, so it cannot notice or fix a misreading. `Core::audio_query_from_kana`
-   and `analyze_text` exist but are not reachable.
-2. **Delivery needs a stored preset.** Speed, pitch, intonation, volume and
-   silences can only be set by first writing a preset to disk, which is the
-   opposite of stateless. Presets cannot be updated or deleted.
-3. **No prosody control.** Pitch noise (seed, sigma), mora pitch and duration
-   edits, and pitch completion are unavailable.
-4. **One utterance, one file, one place.** No multi-line or multi-speaker
-   script, no combined file, no choice of output path, sample rate or channels,
-   no `.lab` labels or timing, and files pile up in the temp directory.
-5. **No discovery.** A client cannot ask what the installation supports
-   (pitch control, English readings, limits) or which core version it has.
-6. **Long calls are opaque.** No progress and no cancellation.
+   read, so it cannot notice or fix a misreading.
+2. **Presets are write-once.** They cannot be changed or removed, and the
+   user's own presets are invisible.
+3. **No prosody control.** Pitch noise, mora pitch and duration edits, and
+   pitch completion are unavailable.
+4. **One utterance, one file, one place.** No multi-speaker script, no choice
+   of output location, no `.lab` labels or timing, and files pile up.
+5. **No discovery, progress or cancellation.**
+6. **App settings leak in.** The English-word settings in the app's config
+   change what a call returns.
 
 ## Principles
 
-- **Stateless.** A call's result depends only on its arguments and the
-  installation (models, user dictionary, app config). The server keeps no
-  session, handle or job between calls. Anything a client wants to carry from
-  one call to the next travels as a value: text, kana, or a query document.
-- **Three levels of input, one pipeline.** `text` (let Azalea read it), `kana`
-  (the client fixes reading and accent), `query` (the client fixes everything).
-  Each tool that takes an utterance accepts exactly one of them.
-- **Deterministic.** Same arguments on the same installation give the same
-  audio, including with pitch noise, because the seed is an argument.
-- **Additive.** Existing tool names and fields keep their meaning.
-- **Read-only towards the app.** The server never changes app config, the user
-  dictionary or projects. Presets are the single piece of durable state and are
-  optional: everything a preset holds can be passed inline.
+- **Stateless synthesis.** A synthesis call's result depends only on its
+  arguments, the preset it names and the installation (models, user
+  dictionary). The server keeps no utterance, job or handle between calls;
+  what a client carries from one call to the next travels as a value: text,
+  kana or a query.
+- **Presets are the one piece of state, and they are required.** Every call
+  that needs a voice names a preset by ID. Agent presets are temporary and
+  mutable; user presets are read-only.
+- **Three levels of input, one pipeline.** `text` (Azalea reads it), `kana`
+  (the client fixes reading and accent), `query` (the client fixes
+  everything). Each tool that takes an utterance accepts exactly one.
+- **The app's config does not reach the server**, except the `mcp_enabled`
+  switch. Pitch noise and English-word reading are per-call arguments that
+  default to off. The voice setup (which core and models) is still resolved
+  from the config, because the server has no other source for it.
+- **Deterministic.** Same arguments, preset values and installation give the
+  same audio, including with pitch noise, because the seed is an argument.
+- **Paths, not payloads.** Audio is returned as a file path, never inline.
+
+## Presets
+
+### Two kinds
+
+| | Agent presets | User presets |
+| --- | --- | --- |
+| Source | Created by the client through this server | The app's system presets |
+| Lifetime | The server process (one client session); kept in memory only | Read from the app on each call |
+| Mutable by the server | Yes | Never |
+| ID | `a-` + UUID, issued by `create_preset` | The preset's stable ID from the app |
+
+An unknown ID is an `unknown_preset` error that tells the client to call
+`list_presets` or create one, which also covers agent presets lost to a
+server restart.
+
+### Preset shape
+
+```json
+{
+  "id": "a-3f1c…",
+  "name": "",
+  "speaker": null,
+  "style": null,
+  "speed": 100,
+  "pitch": 0,
+  "intonation": 1,
+  "volume": 1,
+  "start_silence_ms": 100,
+  "end_silence_ms": 100
+}
+```
+
+| Field | Accepts | Notes |
+| --- | --- | --- |
+| `name` | string | A label for the client's own use; need not be unique |
+| `speaker` | name or UUID from `list_speakers` | Required before use |
+| `style` | name or numeric ID | Required before use |
+| `speed` | 50–200 (%) | |
+| `pitch` | -0.5–0.5 | |
+| `intonation`, `volume` | 0–2 | |
+| `start_silence_ms`, `end_silence_ms` | 0–1500 | |
+
+Listings add read-only `speaker_uuid`, `style_id`, `available` (the voice is
+installed) and `complete` (speaker and style are set). User presets resolve
+their voice as project presets do: by stored speaker UUID, then style name,
+then style ID, never falling back to another speaker.
+
+### `create_preset` (exists, changed)
+
+Optional `copy_from` (any preset ID). Returns a new agent preset: the
+template above with defaults, or a copy of the source, under a fresh ID. A
+template is not usable until `update_preset` gives it a speaker and style.
+
+### `update_preset` (new)
+
+Takes the whole preset as returned by `create_preset`, filled in. The `id`
+selects the agent preset; every other field replaces the stored value, and
+omitted fields return to their defaults, so the call is a replace rather than
+a merge. Validates ranges and resolves the voice, then returns the stored
+preset. A user preset's ID is rejected with `read_only_preset`, suggesting
+`create_preset` with `copy_from`.
+
+### `delete_preset` (new)
+
+Removes an agent preset by ID. Optional for clients, since agent presets end
+with the session.
+
+### `list_presets` (exists, changed)
+
+```json
+{
+  "agent": [ { "id": "a-3f1c…", "name": "narrator", "speaker": "ずんだもん", "…": "…" } ],
+  "user":  [ { "id": "b7d2…", "name": "Default", "speaker": "四国めたん", "…": "…" } ]
+}
+```
+
+### Typical flow
+
+```
+list_speakers                       → pick a speaker and style
+create_preset                       → { id: "a-3f1c…", speaker: null, … }
+update_preset { id, speaker, style, speed: 110, … }
+synthesize { preset: "a-3f1c…", text: "こんにちは" }
+```
+
+Or, with a preset the user already made: `list_presets` → `synthesize` with
+an ID from `user`.
 
 ## Shared argument groups
 
-These field groups are flattened into each tool's arguments rather than
-nested, which is easier for a model to fill in.
+Flattened into each tool's arguments rather than nested.
 
 ### Utterance (exactly one)
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `text` | string | Japanese text, read with the user dictionary and the app's English-word settings |
+| `text` | string | Japanese text, read with the user dictionary |
 | `kana` | string | AquesTalk-style kana as VOICEVOX defines it (`コンニチワ'`, `/` and `、` phrase breaks, `_` devoicing, `？` interrogative) |
-| `query` | object | A full query document (below) |
+| `query` | object | A query in the model-facing shape (below) |
+| `raw_query` | object | A raw `AudioQuery` |
 
-### Voice
+### Preset (required wherever a voice is needed)
 
-| Field | Type | Meaning |
+`preset`: an ID from `list_presets` or `create_preset`. Missing →
+`missing_preset`; incomplete → `incomplete_preset`; voice not installed →
+`voice_unavailable`. The preset's speed, pitch, intonation, volume and
+silences always apply, replacing those values in a passed `raw_query`.
+
+### Reading options (with `text` only, optional)
+
+| Field | Default | Meaning |
 | --- | --- | --- |
-| `speaker` | string | Name or UUID (exists) |
-| `style` | string | Name or numeric ID (exists) |
-| `preset` | string | Preset name or ID; replaces `speaker` and `style` (exists) |
-
-### Delivery (all optional)
-
-| Field | Range | Default |
-| --- | --- | --- |
-| `speed` | 50–200 (%) | 100 |
-| `pitch` | -0.5–0.5 | 0 |
-| `intonation` | 0–2 | 1 |
-| `volume` | 0–2 | 1 |
-| `start_silence_ms`, `end_silence_ms` | 0–1500 | 100 |
-
-Same names, units and ranges as `create_preset`. Precedence: explicit argument,
-then preset, then the value in a passed `query`, then the default. This makes
-presets shorthand rather than a prerequisite.
+| `english` | `false` | Read English words OpenJTalk does not know as katakana. `unsupported_feature` when the models are not downloaded |
+| `english_accent` | `true` | Use the predicted accent for those words |
+| `english_ngram_filter` | `true` | Keep acronyms spelled out |
 
 ### Pitch noise (optional)
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `pitch_noise_seed` | u32 | Seed |
-| `pitch_noise_sigma` | number ≥ 0 | Strength in natural-log pitch units; 0 or omitted is off |
+| `pitch_noise_sigma` | number ≥ 0 | Strength in natural-log pitch units; omitted or 0 is off |
+| `pitch_noise_seed` | u32 | Seed, default 0 |
 
-Rejected with a clear message when `get_status` reports
-`features.pitch_control = false` (rather than silently ignored). The app's own
-`pitch_noise_enabled` setting is not consulted: the request is self-contained.
+`unsupported_feature` when `get_status` reports `pitch_control: false`.
 
-### Query document
+### Output (optional)
 
-The `AudioQuery` serialization Azalea already writes as `query` in `.azp`
-schema 2, so documents move between the server and project files unchanged.
-Roughly 150 bytes per mora. Tools return it only when asked
-(`include_query`), since most clients need just the kana.
+| Field | Meaning |
+| --- | --- |
+| `output_path` | Omitted: a generated name in the temporary directory. A directory: a generated name inside it (created if missing). A path ending in `.wav`: exactly that file |
+| `overwrite` | Replace an existing file at an explicit `.wav` path (default `false` → `output_exists`) |
+
+The server tries the write and reports `io_error` with the system's message
+if it fails; nothing is written to the temporary directory as a fallback.
+
+**Retention, stated in the tool descriptions and server instructions:** files
+in the temporary directory (`{temp_dir}/azalea-mcp/`, reported by
+`get_status`) are deleted when they are more than 24 hours old, checked each
+time the server starts. Audio worth keeping must be written elsewhere with
+`output_path`; the server never deletes files outside its temporary
+directory.
+
+## Query shapes
+
+Tools return the model-facing shape by default. With `raw: true` they return
+the raw `AudioQuery` instead, in the serialization Azalea writes as `query` in
+`.azp` schema 2, as `raw_query`.
+
+### Model-facing shape
+
+```json
+{
+  "kana": "コンニチワ'、/ア'ザレアデ_ス",
+  "accent_phrases": [
+    {
+      "accent": 5,
+      "interrogative": false,
+      "pause_ms": 320,
+      "moras": [
+        { "kana": "コ", "consonant_ms": 62, "vowel_ms": 88, "pitch_hz": 212.4 },
+        { "kana": "ン", "vowel_ms": 71, "pitch_hz": 221.0 }
+      ]
+    }
+  ]
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `kana` | The whole reading; output only, ignored on input |
+| `accent` | 1-based mora where the pitch falls; equal to the mora count for a flat (heiban) phrase |
+| `pause_ms` | Pause after the phrase; absent for none |
+| `moras[].kana` | Katakana of the mora; decides its phonemes |
+| `consonant_ms` | Absent for moras without a consonant |
+| `pitch_hz` | `0` for unvoiced (devoiced) moras |
+
+Differences from the raw query: pitch is in Hz instead of natural-log Hz,
+lengths in milliseconds instead of seconds, phonemes are implied by the kana,
+and the delivery values (speed, pitch shift, intonation, volume, silences,
+sample rate, stereo) are absent because the preset supplies them.
+
+On input the server converts back and validates: kana must be a known mora,
+`accent` within the phrase, values finite and non-negative. A devoiced vowel
+is expressed by `pitch_hz: 0`.
 
 ## Tools
 
 ### `get_status` (new)
 
 No arguments. Answers even while the server is disabled and never loads the
-core unless it is already loaded.
+core.
 
 ```json
 {
   "enabled": true,
   "app_version": "0.4.0",
-  "core": { "loaded": true, "version": "0.17.x", "setup": "downloaded" },
-  "features": {
-    "pitch_control": true,
-    "english_readings": true,
-    "streaming": true
-  },
-  "limits": { "max_text_chars": 2000, "max_items": 200, "max_inline_audio_seconds": 30 },
-  "output_dir": "/tmp/azalea-mcp"
+  "core": { "loaded": true, "version": "0.17.x" },
+  "features": { "pitch_control": true, "english": true },
+  "limits": { "max_text_chars": 2000, "max_items": 200 },
+  "temp_dir": "/tmp/azalea-mcp",
+  "temp_retention_hours": 24
 }
 ```
+
+`features` is null until the core has been loaded by another call.
 
 ### `list_speakers` (exists, extended)
 
-Adds an optional `speaker` filter (name or UUID) and, per style, `pitch_range`
-(`{ min_hz, max_hz }` from `config::range::style_range`, absent when unknown)
-and `streaming`. Adds `credit` per speaker (`"VOICEVOX:ずんだもん"`), so the
-attribution the server instructions ask for is copyable.
+Adds an optional `speaker` filter (name or UUID) and a `credit` string per
+speaker (`"VOICEVOX:ずんだもん"`).
 
 ### `analyze_text` (new)
 
-`text` → reading, without a voice and without loading a model
-(`Core::analyze_text` plus the English reader).
+`text` + Reading options → the reading, without a preset and without loading
+a voice model. Returns the model-facing shape without `consonant_ms`,
+`vowel_ms` and `pitch_hz` (those need a voice).
 
-```json
-{
-  "kana": "コンニチワ'、/ア'ザレアデ_ス",
-  "accent_phrases": [
-    { "text": "コンニチワ", "moras": 5, "accent": 5, "pause_after": true },
-    { "text": "アザレアデス", "moras": 6, "accent": 1, "pause_after": false }
-  ]
-}
-```
-
-The cheap loop for fixing a misreading is `analyze_text` → edit the kana →
+The cheap loop for fixing a misreading: `analyze_text` → edit the kana →
 `synthesize` with `kana`.
 
 ### `create_query` (new)
 
-Utterance (`text` or `kana`) + Voice + Delivery + Pitch noise → query
-document with predicted durations and pitches.
+Utterance (`text` or `kana`) + Preset + Reading options + Pitch noise +
+`raw` → a query with predicted lengths and pitches.
 
 ```json
 {
-  "query": { "...": "AudioQuery" },
-  "kana": "コンニチワ'",
-  "voice": { "speaker": "ずんだもん", "style": "ノーマル", "style_id": 3 },
+  "query": { "kana": "…", "accent_phrases": [ … ] },
+  "preset": "a-3f1c…",
+  "speaker": "ずんだもん",
+  "style": "ノーマル",
   "duration_seconds": 1.42
 }
 ```
 
+`duration_seconds` includes the preset's speed and silences.
+
 ### `predict_prosody` (new)
 
-For a client that edited a query's phonemes or accents and wants the model's
-prosody back, or wants to vary pitch. `query` + Voice + Pitch noise, plus:
+For a client that changed a query's kana or accents and wants the model's
+prosody back, or wants a different pitch contour. Utterance (`query` or
+`raw_query`) + Preset + Pitch noise + `raw`, plus:
 
 | Field | Type | Meaning |
 | --- | --- | --- |
 | `scope` | `"all"` \| `"pitch"` \| `"duration"` | What to predict again (default `all`) |
-| `keep_pitch_through_mora` | integer | Pitch completion: keep the query's pitches for the first *n* moras (flattened, pauses included) and predict the rest |
+| `keep_pitch_through_mora` | integer | Keep the query's pitches for the first *n* moras (counted across phrases, pauses included) and predict the rest. Needs `pitch_control` |
 
-Maps to `replace_mora`, `replace_mora_pitch`, `replace_mora_duration`,
-`apply_pitch_noise` and `complete_mora_pitch`. Returns the same shape as
-`create_query`. Phonemes, accents and delivery values are preserved.
+Returns the same shape as `create_query`. Maps to `replace_mora`,
+`replace_mora_pitch`, `replace_mora_duration`, `apply_pitch_noise` and
+`complete_mora_pitch`.
 
-### `synthesize` (exists, extended)
+### `synthesize` (exists, changed)
 
-Utterance (now `text`, `kana` or `query`) + Voice + Delivery + Pitch noise,
-plus Output:
+Utterance (any of the four) + Preset + Reading options + Pitch noise +
+Output, plus:
 
-| Field | Type | Default | Meaning |
-| --- | --- | --- | --- |
-| `output_path` | string | generated file in `output_dir` | Absolute path ending in `.wav` |
-| `overwrite` | bool | false | Otherwise an existing file is an error |
-| `sample_rate` | 24000 \| 44100 \| 48000 | 24000 | |
-| `stereo` | bool | false | |
-| `include_audio` | bool | false | Also return the WAV as an MCP audio content block, up to `max_inline_audio_seconds` |
-| `include_labels` | bool | false | Also write a `.lab` file next to the WAV |
-| `include_timing` | bool | false | Return per-mora timing |
-| `include_query` | bool | false | Return the query that was synthesized |
-
-Result (new fields are additions to today's):
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `labels` | `false` | Also write a `.lab` phoneme label file next to the WAV |
+| `include_query` | `false` | Return the synthesized query (`raw` selects its shape) |
 
 ```json
 {
-  "path": "/tmp/azalea-mcp/azalea-3-9f2c….wav",
+  "path": "/tmp/azalea-mcp/azalea-9f2c….wav",
+  "temporary": true,
   "duration_seconds": 1.42,
   "sample_rate": 24000,
-  "channels": 1,
+  "preset": "a-3f1c…",
   "speaker": "ずんだもん",
   "style": "ノーマル",
-  "style_id": 3,
-  "preset": null,
   "credit": "VOICEVOX:ずんだもん",
   "kana": "コンニチワ'",
-  "labels_path": null,
-  "timing": [{ "mora": "コ", "start": 0.10, "end": 0.21 }]
+  "labels_path": null
 }
 ```
 
-`kana` is always returned so the client can check the reading without a
-second call. The result also carries a `resource_link` to the file for clients
-that surface links.
+`kana` is always returned, so the client can check the reading without a
+second call. `temporary` tells it whether the file falls under the retention
+rule.
 
 ### `synthesize_sequence` (new)
 
-A script: several utterances, each with its own voice, as one file or many.
+A script: several utterances, each with its own preset, as one file or many.
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `items` | array | Each: Utterance + optional Voice, Delivery, Pitch noise, `gap_after_ms` |
-| *Voice, Delivery, Pitch noise* | | Defaults for items that omit them |
-| `gap_ms` | 0–5000 | Default silence between items (default 0; each item already has its own edge silences) |
+| `items` | array | Each: Utterance, and optionally `preset`, Reading options, Pitch noise, `gap_after_ms` |
+| `preset`, Reading options, Pitch noise | | Defaults for items that omit them. An item with no preset of its own and no default fails the call |
+| `gap_ms` | 0–5000 | Silence between items (default 0; each item already carries its preset's silences) |
 | `combine` | bool | `true` (default): one WAV. `false`: one per item |
-| `output_path` | string | The WAV when combined; a directory when not |
-| `overwrite`, `sample_rate`, `stereo`, `include_labels`, `include_timing` | | As in `synthesize`; labels of a combined file are offset per item, as the app's combined export does |
+| `output_path` | string | As in Output when combined. When not combined, a directory |
+| `overwrite`, `labels` | | As in `synthesize`; labels of a combined file are offset per item |
 
 ```json
 {
   "path": "/tmp/azalea-mcp/azalea-seq-41ab….wav",
+  "temporary": true,
   "duration_seconds": 12.8,
   "sample_rate": 24000,
-  "channels": 1,
   "credits": ["VOICEVOX:ずんだもん", "VOICEVOX:四国めたん"],
   "items": [
-    { "index": 0, "start": 0.0, "end": 1.42, "speaker": "ずんだもん", "style": "ノーマル",
-      "kana": "コンニチワ'", "path": null }
+    { "index": 0, "start": 0.0, "end": 1.42, "preset": "a-3f1c…", "kana": "コンニチワ'", "path": null }
   ]
 }
 ```
 
-Validation is all-or-nothing and happens before any synthesis: one bad item
-fails the call with its index. Reports MCP progress per item when the client
-sent a progress token, and stops at the next chunk boundary on cancellation
-(the streaming renderer already works chunk by chunk).
-
-### Presets (exist, completed)
-
-`list_presets` and `create_preset` stay. Add `update_preset` (name or ID plus
-any `create_preset` field, including a new `name`) and `delete_preset`. These
-four are the only tools that write durable state, and no other tool requires
-them.
+All items are validated before any synthesis; one bad item fails the call
+with its index. Reports MCP progress per item when the client sent a progress
+token, and stops at the next chunk boundary on cancellation.
 
 ## Cross-cutting behavior
 
-- **Errors.** Still tool results with `isError: true`. Messages start with a
-  stable code so clients can branch without parsing prose: `disabled`,
-  `no_voice_setup`, `invalid_argument`, `unknown_speaker`, `unknown_style`,
-  `unknown_preset`, `voice_unavailable`, `unsupported_feature`,
-  `limit_exceeded`, `output_exists`, `io_error`, `core_error`, `cancelled`.
-  Unknown names keep listing the valid ones.
-- **Unknown arguments are rejected** (`deny_unknown_fields`), so a misspelled
-  `intonation` is not silently dropped.
-- **Limits** are reported by `get_status` and enforced with `limit_exceeded`.
+- **Errors.** Tool results with `isError: true`. Messages start with a stable
+  code: `disabled`, `no_voice_setup`, `invalid_argument`, `missing_preset`,
+  `unknown_preset`, `incomplete_preset`, `read_only_preset`,
+  `unknown_speaker`, `unknown_style`, `voice_unavailable`,
+  `unsupported_feature`, `limit_exceeded`, `output_exists`, `io_error`,
+  `core_error`, `cancelled`. Unknown names keep listing the valid ones.
+- **Unknown arguments are rejected**, so a misspelled field is not silently
+  dropped.
 - **Concurrency.** Calls that touch the core stay serialized behind the
-  existing gate; `get_status`, `list_speakers` and `list_presets` do not wait
-  for it.
-- **Output files.** Generated names stay unique per call. On startup the
-  server deletes files in `output_dir` older than 24 hours; files written to a
-  client-chosen `output_path` are never touched.
-- **Annotations.** Mark `get_status`, `list_*`, `analyze_text`,
-  `create_query` and `predict_prosody` as `readOnlyHint`; `delete_preset` as
-  `destructiveHint`.
+  existing gate; status, listings and preset edits do not wait for it.
+- **Annotations.** `get_status`, `list_*`, `analyze_text`, `create_query` and
+  `predict_prosody` are `readOnlyHint`; `delete_preset` is `destructiveHint`.
+
+## Migration from the current tools
+
+- `synthesize` no longer takes `speaker` and `style`; it requires `preset`,
+  and `preset` takes an ID only, not a name.
+- `create_preset` no longer takes a name, voice and values; it returns a
+  template to fill and pass to `update_preset`.
+- `list_presets` returns `{ agent, user }` instead of `{ presets }`.
+- `mcp_presets.toml` is no longer read or written. Existing files are left in
+  place, unused.
+- English words are no longer read as katakana unless the call sets
+  `english`.
 
 ## Deliberately left out
 
-- **Post-processing edits** (WORLD f0 frames, time anchors): frame-level Hz
-  arrays are a poor fit for model-written arguments. Could later be accepted
-  as an optional `post` object on `synthesize`, since `PostEdit` is already a
-  self-contained value.
-- **Voice import**: fits statelessly (`audio_path` + utterance → query) and
-  would be a natural `import_voice` tool later; needs the aligner pack.
-- **User dictionary writes**: changes what the app reads, so it belongs to the
-  future app-hosted transport. A read-only `list_dictionary_entries` and a
-  per-call `readings` override list are possible stateless additions.
-- **Singing styles**, live playback, and control of a running app.
+- **Inline audio** (base64): fills the client's context; paths only.
+- **Post-processing edits** (WORLD f0 frames, time anchors): could later be an
+  optional `post` object on `synthesize`.
+- **Voice import** (`audio_path` + utterance → query): a natural later tool;
+  needs the aligner pack.
+- **User dictionary writes**: they change what the app reads, so they belong
+  to the future app-hosted transport.
+- **Sample rate and stereo output**, singing styles, live playback, control of
+  a running app.
 
 ## Suggested order of implementation
 
-1. Inline Delivery on `synthesize`, `kana` input, `kana` in the result,
-   `get_status`, error codes.
-2. `analyze_text`, `create_query`, `query` input, Pitch noise,
-   `predict_prosody`.
-3. Output options, labels and timing, `synthesize_sequence`, progress and
-   cancellation.
-4. `update_preset`, `delete_preset`, `list_speakers` additions, cleanup.
+1. Preset rework (`create_preset`, `update_preset`, `delete_preset`, two-field
+   `list_presets`), `synthesize` requiring a preset, `kana` input and output,
+   `get_status`, error codes, config isolation.
+2. Output location, temporary-file retention, labels.
+3. Model-facing query shape, `analyze_text`, `create_query`,
+   `predict_prosody`, pitch noise, `raw`.
+4. `synthesize_sequence`, progress and cancellation, `list_speakers`
+   additions.
 
-## Open questions
+## Assumptions to confirm
 
-1. **Presets under "stateless".** Keep them as optional shorthand (proposed),
-   or freeze them at today's two tools and steer clients to inline arguments?
-2. **Client-chosen `output_path`.** Convenient, but lets a client write a WAV
-   anywhere the user can. Allow any absolute `.wav` path (proposed), restrict
-   to configured directories, or keep temp-only?
-3. **Inline audio.** Is returning base64 audio in the result wanted at all, or
-   are paths enough for the clients you target?
-4. **Query format.** Expose the raw `AudioQuery` (proposed, matches `.azp`),
-   or define a smaller model-facing shape and convert?
-5. **Pitch noise default.** Off unless the call asks (proposed), or follow the
-   app's `pitch_noise_enabled` and sigma when the call says nothing?
-6. **Temp cleanup.** Is deleting day-old files in `azalea-mcp/` at startup
-   acceptable?
+1. **"Temporary" means in memory for the server process.** Agent presets are
+   gone when the client disconnects, and `mcp_presets.toml` is retired. The
+   alternative is to keep them on disk and expire them.
+2. **User presets are the app's system presets** (`system_presets` in the
+   config). Reading them is treated as data rather than a setting. Project
+   presets stay out of reach because the server opens no project.
+3. **Config isolation covers English-word reading**, which becomes the
+   per-call `english` argument, default off. The user dictionary still
+   applies, since it is not a config setting.
+4. **`update_preset` replaces the whole preset** rather than merging the
+   fields it is given.
+5. **`preset` accepts IDs only**, since agent preset names need not be unique
+   and user and agent names can collide.
+6. **`query` and `raw_query` are separate input fields**, and `raw: true`
+   switches the output to `raw_query`.
