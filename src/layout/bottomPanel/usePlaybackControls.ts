@@ -53,6 +53,7 @@ export function usePlaybackControls(
   >(null);
   let playbackShortcutFocus: HTMLElement | null = null;
   let activePlaybackSequence: PlaybackSequence | null = null;
+  let playbackCompletionRevision = 0;
 
   const clearPlaybackShortcutFocus = () => {
     playbackShortcutFocus?.removeAttribute("data-playback-shortcut-focus");
@@ -245,14 +246,20 @@ export function usePlaybackControls(
     try {
       if (isPlaying()) await stop();
       activePlaybackSequence = null;
+      const segment = voice.segments?.[voice.playbackSegment ?? -1];
+      const completionRevision = playbackCompletionRevision;
       const result = await commands.playVoice(
         voice.voiceId,
-        playbackTimelineEnabled() && voice.playbackStart > 0
-          ? voice.playbackStart
-          : null,
+        segment !== undefined
+          ? segment.start
+          : playbackTimelineEnabled() && voice.playbackStart > 0
+            ? voice.playbackStart
+            : null,
+        segment?.end ?? null,
       );
       if (result.status === "ok") {
-        setIsPlaying(true);
+        // A short phoneme can finish before the command response arrives.
+        setIsPlaying(completionRevision === playbackCompletionRevision);
         return selectedTextBlock()?.id ?? null;
       }
       console.error("Failed to play the voice:", result.error);
@@ -307,6 +314,7 @@ export function usePlaybackControls(
     let unlistenSequenceItemStarted: (() => void) | undefined;
     let unlistenPlaybackFailed: (() => void) | undefined;
     void listen("audio-playback-finished", () => {
+      playbackCompletionRevision += 1;
       activePlaybackSequence = null;
       setIsPlaying(false);
     }).then((unlisten) => {

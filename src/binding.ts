@@ -632,13 +632,14 @@ async voiceAccentPhrases(voiceId: string, accentPhrases: AccentPhrase[], segment
 }
 },
 /**
- * Plays the voice's trimmed recording from `start_time_seconds`, replacing
+ * Plays the voice's trimmed recording from `start_time_seconds` up to the
+ * optional exclusive `end_time_seconds`, replacing
  * any playback. Completion is reported like block playback, through
  * `audio-playback-finished`.
  */
-async playVoice(voiceId: string, startTimeSeconds: number | null) : Promise<Result<null, string>> {
+async playVoice(voiceId: string, startTimeSeconds: number | null, endTimeSeconds: number | null) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("play_voice", { voiceId, startTimeSeconds }) };
+    return { status: "ok", data: await TAURI_INVOKE("play_voice", { voiceId, startTimeSeconds, endTimeSeconds }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

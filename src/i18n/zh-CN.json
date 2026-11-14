@@ -459,6 +459,8 @@
     "scale": "语调倍率",
     "fit": "适配该声音",
     "offset": "音高偏移（半音）",
-    "hint": "拖动音素边界可调整对齐。"
+    "phoneme_playback": "音素播放",
+    "play_phoneme": "选择 {{ phoneme }}（{{ start }}–{{ end }} 秒）作为播放片段",
+    "hint": "点击音素切换片段播放，拖动边界调整对齐。"
   }
 }

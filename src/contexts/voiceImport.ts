@@ -47,6 +47,8 @@ export type VoiceSession = {
   mapping: PitchMapping;
   /** Where the voice plays from, in seconds of the trimmed recording. */
   playbackStart: number;
+  /** Phoneme whose current boundaries limit playback, or normal playback. */
+  playbackSegment: number | null;
   /** The style the last applied pitches were mapped for. */
   styleId: number | null;
   /** The scale that fit the speaker's contour to the voice when last applied. */
@@ -180,6 +182,7 @@ const createVoiceImportStore = () => {
       aligning: true,
       error: null,
       requestedSignature: pitchStructureSignature(snapshot),
+      playbackSegment: null,
     });
     const result = await commands.alignVoice(voiceId, snapshot);
     if (!isCurrent(blockId, token) || sessions[blockId]?.voiceId !== voiceId)
@@ -223,6 +226,7 @@ const createVoiceImportStore = () => {
       // A copy: the store merges later mappings into this object.
       mapping: { ...DEFAULT_PITCH_MAPPING },
       playbackStart: 0,
+      playbackSegment: null,
       styleId: null,
       fittedScale: null,
       aligning: false,
@@ -300,6 +304,23 @@ const createVoiceImportStore = () => {
       "playbackStart",
       Math.min(Math.max(seconds, 0), session.analysis.duration),
     );
+    setSessions(blockId, "playbackSegment", null);
+  };
+
+  const togglePlaybackSegment = (blockId: string, index: number) => {
+    const session = sessions[blockId];
+    if (
+      session === undefined ||
+      session.aligning ||
+      !Number.isInteger(index) ||
+      session.segments?.[index] === undefined
+    )
+      return;
+    setSessions(
+      blockId,
+      "playbackSegment",
+      session.playbackSegment === index ? null : index,
+    );
   };
 
   onMount(() => {
@@ -375,6 +396,7 @@ const createVoiceImportStore = () => {
     setVoiceSegments: setSegments,
     commitVoiceSegments: (blockId: string) => void apply(blockId),
     setVoicePlaybackStart: setPlaybackStart,
+    toggleVoicePlaybackSegment: togglePlaybackSegment,
     realignVoice: (blockId: string) => align(blockId),
   };
 };

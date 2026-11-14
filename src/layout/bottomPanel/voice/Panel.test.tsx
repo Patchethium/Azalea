@@ -9,6 +9,8 @@ import { renderPanel } from "@layout/bottomPanel/testUtils";
 import { SEMITONE } from "@layout/bottomPanel/tuning/voiceImport";
 import { fireEvent, screen, waitFor } from "@solidjs/testing-library";
 import { mockIPC } from "@tauri-apps/api/mocks";
+import userEvent from "@testing-library/user-event";
+import { emit } from "@tauri-apps/api/event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { audioQuery } from "../../../test/fixtures";
 import { moveBoundary } from "./Panel";
@@ -490,7 +492,7 @@ describe("Voice panel", () => {
     await waitFor(() => expect(play).toBeEnabled());
     fireEvent.click(play);
     await waitFor(() =>
-      expect(commands.playVoice).toHaveBeenCalledWith("voice-1", null),
+      expect(commands.playVoice).toHaveBeenCalledWith("voice-1", null, null),
     );
     const thumb = screen.getByRole("slider", { name: "Voice playback start" });
     thumb.focus();
@@ -510,6 +512,108 @@ describe("Voice panel", () => {
         0.499,
       ),
     );
+  });
+
+  it("toggles phoneme playback and follows adjusted segment boundaries", async () => {
+    await openVoiceTab();
+    const canvas = await attachFile();
+    const vowel = screen.getByRole("button", { name: /Select o / });
+    expect(vowel).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(vowel);
+    expect(vowel).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Play selected cell" }));
+    await waitFor(() =>
+      expect(commands.playVoice).toHaveBeenLastCalledWith("voice-1", 0.15, 0.4),
+    );
+    await emit("audio-playback-finished");
+    fireEvent.pointerDown(canvas, {
+      button: 0,
+      clientX: 0.15 * SCALE,
+      pointerId: 1,
+    });
+    fireEvent.pointerMove(canvas, { clientX: 0.2 * SCALE, pointerId: 1 });
+    fireEvent.pointerUp(canvas, { pointerId: 1 });
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Play selected cell" }),
+    );
+    await waitFor(() =>
+      expect(commands.playVoice).toHaveBeenLastCalledWith("voice-1", 0.2, 0.4),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Select o / }));
+    expect(screen.getByRole("button", { name: /Select o / })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    await emit("audio-playback-finished");
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Play selected cell" }),
+    );
+    await waitFor(() =>
+      expect(commands.playVoice).toHaveBeenLastCalledWith(
+        "voice-1",
+        null,
+        null,
+      ),
+    );
+  });
+
+  it("keeps phoneme clicks unfocused so Space toggles playback, and clears selection when realigned", async () => {
+    await openVoiceTab();
+    await attachFile();
+    const user = userEvent.setup();
+    const vowel = screen.getByRole("button", { name: /Select o / });
+    await user.click(vowel);
+    expect(vowel).not.toHaveFocus();
+    expect(vowel).toHaveAttribute("tabindex", "-1");
+    expect(vowel).toHaveAttribute("aria-pressed", "true");
+    expect(commands.playVoice).not.toHaveBeenCalled();
+    await user.keyboard(" ");
+    await waitFor(() =>
+      expect(commands.playVoice).toHaveBeenLastCalledWith("voice-1", 0.15, 0.4),
+    );
+    expect(vowel).toHaveAttribute("aria-pressed", "true");
+    vi.spyOn(commands, "stopAudio").mockResolvedValue({
+      status: "ok",
+      data: null,
+    });
+    await screen.findByRole("button", { name: "Stop playback" });
+    await user.keyboard(" ");
+    await waitFor(() => expect(commands.stopAudio).toHaveBeenCalledTimes(1));
+    expect(vowel).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Realign audio with phonemes" }),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Select o / })).toHaveAttribute(
+        "aria-pressed",
+        "false",
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Select o / })).toBeEnabled(),
+    );
+  });
+
+  it("keeps playback stopped when a short phoneme finishes before the command returns", async () => {
+    await openVoiceTab();
+    await attachFile();
+    fireEvent.click(screen.getByRole("button", { name: /Select k / }));
+    vi.mocked(commands.playVoice).mockImplementationOnce(async () => {
+      await emit("audio-playback-finished");
+      return { status: "ok", data: null };
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Play selected cell" }));
+    await waitFor(() =>
+      expect(commands.playVoice).toHaveBeenCalledWith("voice-1", 0.1, 0.15),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Play selected cell" }),
+      ).toBeEnabled(),
+    );
+    expect(
+      screen.queryByRole("button", { name: "Stop playback" }),
+    ).not.toBeInTheDocument();
   });
 
   it("ignores a file that loads after its voice was replaced or the block removed", async () => {

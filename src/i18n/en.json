@@ -459,6 +459,8 @@
     "scale": "Intonation scale",
     "fit": "Fit to the voice",
     "offset": "Pitch offset (semitones)",
-    "hint": "Drag a phoneme boundary to adjust the alignment."
+    "phoneme_playback": "Phoneme playback",
+    "play_phoneme": "Select {{ phoneme }} ({{ start }}–{{ end }} s) for playback",
+    "hint": "Click a phoneme to toggle segment playback. Drag a boundary to adjust the alignment."
   }
 }

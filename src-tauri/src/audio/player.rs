@@ -3,7 +3,7 @@ use std::io::Cursor;
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
-use tauri::async_runtime::{channel, spawn, spawn_blocking, JoinHandle, Sender};
+use tauri::async_runtime::{channel, spawn, spawn_blocking, JoinHandle, Receiver, Sender};
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::oneshot;
 
@@ -80,7 +80,6 @@ impl PlaybackFeed {
 }
 
 enum PlaybackOutcome {
-  Finished,
   Stopped,
   Failed(String),
 }
@@ -248,14 +247,18 @@ impl AudioPlayer {
           }
           queue.notify_started(sink.len(), &mut on_item_started);
           if !producing && sink.empty() {
-            return PlaybackOutcome::Finished;
+            // Rodio has handed the samples to the output device, whose buffer
+            // may still contain the entire clip for a short phoneme. Dropping
+            // the stream here cuts that audio off. Keep it open until playback
+            // is explicitly stopped/replaced or the player is dropped.
+            finish_playback(&mut stop_rx, on_finished);
+            return PlaybackOutcome::Stopped;
           }
           thread::sleep(Duration::from_millis(10));
         }
       })
       .await;
       match outcome {
-        Ok(PlaybackOutcome::Finished) => on_finished(),
         Ok(PlaybackOutcome::Failed(error)) => on_failed(error),
         Ok(PlaybackOutcome::Stopped) => {}
         Err(e) => eprintln!("Audio player task panicked: {e:?}"),
@@ -304,6 +307,12 @@ impl AudioPlayer {
       let _ = handle.await;
     }
   }
+}
+
+/// Notify the UI without releasing the output stream's surrounding scope.
+fn finish_playback(stop_rx: &mut Receiver<()>, on_finished: impl FnOnce()) {
+  on_finished();
+  let _ = stop_rx.blocking_recv();
 }
 
 fn pcm_samples(pcm: &[u8]) -> Vec<i16> {
@@ -357,7 +366,35 @@ impl Drop for AudioPlayer {
 
 #[cfg(test)]
 mod tests {
-  use super::{pcm_samples, SourceQueue};
+  use super::{finish_playback, pcm_samples, SourceQueue};
+
+  #[test]
+  fn completion_holds_the_output_until_stopped_or_dropped() {
+    for explicit_stop in [true, false] {
+      let (stop_tx, mut stop_rx) = tauri::async_runtime::channel(1);
+      let (finished_tx, finished_rx) = std::sync::mpsc::channel();
+      let (released_tx, released_rx) = std::sync::mpsc::channel();
+      let worker = std::thread::spawn(move || {
+        finish_playback(&mut stop_rx, || finished_tx.send(()).unwrap());
+        released_tx.send(()).unwrap();
+      });
+      finished_rx
+        .recv_timeout(std::time::Duration::from_secs(1))
+        .unwrap();
+      assert_eq!(
+        released_rx.recv_timeout(std::time::Duration::from_millis(20)),
+        Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+      );
+      if explicit_stop {
+        stop_tx.blocking_send(()).unwrap();
+      }
+      drop(stop_tx);
+      released_rx
+        .recv_timeout(std::time::Duration::from_secs(1))
+        .unwrap();
+      worker.join().unwrap();
+    }
+  }
 
   fn queue_with_items(sources_per_item: &[usize]) -> SourceQueue {
     let mut queue = SourceQueue::default();

@@ -197,7 +197,8 @@ pub async fn voice_accent_phrases(
     .map_err(|e| e.to_string())?
 }
 
-/// Plays the voice's trimmed recording from `start_time_seconds`, replacing
+/// Plays the voice's trimmed recording from `start_time_seconds` up to the
+/// optional exclusive `end_time_seconds`, replacing
 /// any playback. Completion is reported like block playback, through
 /// `audio-playback-finished`.
 #[tauri::command]
@@ -207,16 +208,14 @@ pub async fn play_voice(
   state: State<'_, AppState>,
   voice_id: String,
   start_time_seconds: Option<f64>,
+  end_time_seconds: Option<f64>,
 ) -> Result<(), String> {
-  let start_at = match start_time_seconds {
-    Some(seconds) => Duration::try_from_secs_f64(seconds)
-      .map_err(|_| "Playback start time must be a finite, non-negative number".to_string())?,
-    None => Duration::ZERO,
-  };
   let voice = voice(&state, &voice_id)?;
-  let wav = tauri::async_runtime::spawn_blocking(move || voice.wav())
-    .await
-    .map_err(|e| e.to_string())??;
+  let wav = tauri::async_runtime::spawn_blocking(move || {
+    voice.wav_range(start_time_seconds.unwrap_or(0.0), end_time_seconds)
+  })
+  .await
+  .map_err(|e| e.to_string())??;
   let previous = state
     .audio_player
     .write()
@@ -225,7 +224,7 @@ pub async fn play_voice(
   if let Some(previous) = previous {
     previous.stop().await;
   }
-  let player = AudioPlayer::play(wav, start_at, move || {
+  let player = AudioPlayer::play(wav, Duration::ZERO, move || {
     if let Err(error) = app.emit("audio-playback-finished", ()) {
       eprintln!("Failed to emit playback completion: {error}");
     }

@@ -29,6 +29,7 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  For,
   Match,
   onCleanup,
   onMount,
@@ -136,6 +137,7 @@ export function VoicePanel(props: { disabled?: boolean }) {
     );
   const plotHeight = () => Math.max(1, canvasHeight() - STRIP_HEIGHT);
   const xOfTime = (seconds: number) => seconds * scale() - scrollLeft();
+  const boundaryX = (seconds: number) => Math.round(xOfTime(seconds));
   const yOfHz = (hz: number) => {
     const { low, high } = range();
     return (
@@ -217,6 +219,28 @@ export function VoicePanel(props: { disabled?: boolean }) {
       );
     }
 
+    const selected = current.segments?.[current.playbackSegment ?? -1];
+    if (selected !== undefined) {
+      context.globalAlpha = 0.15;
+      context.fillStyle = `rgb(${red}, ${green}, ${blue})`;
+      context.fillRect(
+        xOfTime(selected.start),
+        STRIP_HEIGHT,
+        (selected.end - selected.start) * scale(),
+        plotHeight(),
+      );
+      context.globalAlpha = 0.8;
+      for (const time of [selected.start, selected.end]) {
+        context.fillRect(
+          Math.round(xOfTime(time)),
+          STRIP_HEIGHT,
+          2,
+          plotHeight(),
+        );
+      }
+      context.globalAlpha = 1;
+    }
+
     // Semitone grid with a label on each C.
     context.font = "10px sans-serif";
     context.textBaseline = "middle";
@@ -267,16 +291,13 @@ export function VoicePanel(props: { disabled?: boolean }) {
         context.fillStyle = highlighted
           ? `rgb(${red}, ${green}, ${blue})`
           : textColor;
-        context.fillRect(Math.round(start), 0, highlighted ? 2 : 1, height);
+        context.fillRect(
+          boundaryX(segment.start),
+          0,
+          highlighted ? 2 : 1,
+          height,
+        );
       }
-      context.globalAlpha = 0.85;
-      context.fillStyle = textColor;
-      context.fillText(
-        segment.phoneme,
-        start + 3,
-        STRIP_HEIGHT / 2,
-        Math.max(end - start - 4, 0),
-      );
     }
     context.globalAlpha = 0.18;
     context.fillStyle = textColor;
@@ -523,6 +544,45 @@ export function VoicePanel(props: { disabled?: boolean }) {
                 onLostPointerCapture={finishDrag}
                 onPointerLeave={() => setHoverBoundary(null)}
               />
+              <div
+                class="absolute left-0 text-xs"
+                style={{
+                  top: `${playbackTimelineEnabled() ? TIMELINE_HEIGHT : 0}px`,
+                  height: `${STRIP_HEIGHT}px`,
+                  width: `${duration() * scale()}px`,
+                }}
+                role="group"
+                aria-label={t1("voice_import.phoneme_playback")}
+              >
+                <For each={segments() ?? []}>
+                  {(segment, index) => (
+                    <Button
+                      data-voice-phoneme
+                      tabIndex={-1}
+                      onPointerDown={(event) => event.preventDefault()}
+                      class="absolute top-0 h-full overflow-hidden b-0 b-l b-border-menu bg-transparent px-0.5 text-left font-inherit text-inherit outline-none cursor-pointer hover:bg-hover focus-visible:(ring-2 ring-inset ring-focus-ring-soft) aria-pressed:(bg-primary-1 text-primary-7) dark:aria-pressed:(bg-primary-9 text-primary-2) disabled:cursor-not-allowed"
+                      style={{
+                        left: `${boundaryX(segment.start) + scrollLeft()}px`,
+                        width: `${boundaryX(segment.end) - boundaryX(segment.start)}px`,
+                      }}
+                      aria-label={t2("voice_import.play_phoneme", {
+                        phoneme: segment.phoneme,
+                        start: segment.start.toFixed(3),
+                        end: segment.end.toFixed(3),
+                      })}
+                      aria-pressed={session()?.playbackSegment === index()}
+                      disabled={editingDisabled()}
+                      onClick={() => {
+                        const id = blockId();
+                        if (id !== null && !editingDisabled())
+                          voices.toggleVoicePlaybackSegment(id, index());
+                      }}
+                    >
+                      {segment.phoneme}
+                    </Button>
+                  )}
+                </For>
+              </div>
             </div>
           </Match>
           <Match when={session()?.error}>

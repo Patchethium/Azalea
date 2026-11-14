@@ -275,7 +275,11 @@ Frontend:
   f0 and phoneme strip; dragging a phoneme boundary (`moveBoundary`, keeping
   each side at least 10 ms) updates locally and applies on release. Its own
   playback-start timeline replaces the accent-phrase one, and the main play
-  button plays the recording from it on this tab. The toolbar holds Record or
+  button plays the recording from it on this tab. Clicking a phoneme in the
+  strip toggles its segment as the playback range: Play and playback shortcuts
+  play that range once and stop at its end, even when the playback timeline is
+  hidden. The selection follows boundary drags and clears on realignment or
+  when a free playback start is set. The toolbar holds Record or
   Stop, Choose file and Remove; the footer holds the intonation scale with a
   Fit button and the semitone offset.
 
@@ -799,6 +803,8 @@ threshold. Future Rust coverage enforcement is tracked in
 Recent commits use short imperative, Conventional Commit-style prefixes such as `feat:`, `fix:`, and `chores:`. Keep each commit scoped to one concern. Open an issue before substantial work, as requested in the README. Pull requests should explain the problem and solution, link the issue, list validation commands, and include screenshots or recordings for visible UI changes. Avoid committing local core assets, generated build output, or machine-specific configuration.
 
 ## Git Guidelines
+
+Create commits on `master` unless the user explicitly requests another branch.
 
 Prefer using `git add .` than `git add file1 file2 ...` to make review easier for the user.
 

@@ -301,6 +301,25 @@ impl PreparedVoice {
 
   /// The trimmed recording as 16-bit mono WAV, for playback.
   pub fn wav(&self) -> Result<Vec<u8>, String> {
+    self.wav_range(0.0, None)
+  }
+
+  /// A sample-bounded part of the recording, with an exclusive end.
+  pub fn wav_range(&self, start: f64, end: Option<f64>) -> Result<Vec<u8>, String> {
+    let end = end.unwrap_or(self.duration());
+    if !start.is_finite()
+      || start < 0.0
+      || !end.is_finite()
+      || end <= start
+      || start >= self.duration()
+    {
+      return Err("Playback range must have finite, non-negative times with end after start within the recording".into());
+    }
+    let start = (start * f64::from(self.sample_rate)).round() as usize;
+    let end = ((end * f64::from(self.sample_rate)).round() as usize).min(self.samples.len());
+    if start >= end {
+      return Err("Playback range contains no audio samples".into());
+    }
     let spec = hound::WavSpec {
       channels: 1,
       sample_rate: self.sample_rate,
@@ -309,7 +328,7 @@ impl PreparedVoice {
     };
     let mut wav = std::io::Cursor::new(Vec::new());
     let mut writer = hound::WavWriter::new(&mut wav, spec).map_err(|e| e.to_string())?;
-    for sample in &self.samples {
+    for sample in &self.samples[start..end] {
       let value = (sample * 32767.0).round().clamp(-32768.0, 32767.0) as i16;
       writer.write_sample(value).map_err(|e| e.to_string())?;
     }
@@ -374,6 +393,36 @@ pub fn import_voice(
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn voice_playback_range_contains_only_selected_samples() {
+    let voice = PreparedVoice {
+      samples: vec![0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+      sample_rate: 10,
+      f0: vec![],
+    };
+    let read = |start, end| {
+      hound::WavReader::new(std::io::Cursor::new(voice.wav_range(start, end).unwrap()))
+        .unwrap()
+        .samples::<i16>()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap()
+    };
+    assert_eq!(read(0.2, Some(0.5)), vec![6553, 9830, 13107]);
+    assert_eq!(read(0.8, None), vec![26214, 29490]);
+    assert_eq!(read(0.8, Some(2.0)), read(0.8, None));
+    for (start, end) in [
+      (f64::NAN, Some(0.5)),
+      (-0.1, Some(0.5)),
+      (0.5, Some(f64::INFINITY)),
+      (0.5, Some(0.5)),
+      (0.6, Some(0.5)),
+      (1.1, None),
+      (0.2, Some(0.21)),
+    ] {
+      assert!(voice.wav_range(start, end).is_err(), "{start:?}..{end:?}");
+    }
+  }
 
   /// snfa's Japanese phoneme set, without the blank.
   const SNFA_PHONEMES: &[&str] = &[
