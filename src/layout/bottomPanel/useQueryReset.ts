@@ -9,6 +9,7 @@ import {
   useTextStore,
 } from "@contexts/text";
 import { useUIStore } from "@contexts/ui";
+import { useVoiceImportStore } from "@contexts/voiceImport";
 import { batch, createMemo, createSignal } from "solid-js";
 import { unwrap } from "solid-js/store";
 import { getModifiedQuery, postEditBase } from "$utils";
@@ -29,7 +30,9 @@ export function useQueryReset() {
     selectedTextBlockIndex,
     resetQueryEdits,
     commitPostEdit,
+    queryPending,
   } = useTextStore()!;
+  const voices = useVoiceImportStore()!;
   const { metas } = useMetaStore()!;
   const { uiStore } = useUIStore()!;
   const [resetPending, setResetPending] = createSignal(false);
@@ -49,6 +52,16 @@ export function useQueryReset() {
     if (block === null || currentPreset() === null || resetPending()) {
       return false;
     }
+    if (uiStore.bottomPanel === "voice") {
+      const session = voices.voiceSessions[block.id];
+      return (
+        session !== undefined &&
+        !session.aligning &&
+        (block.query?.accent_phrases.length ?? 0) > 0 &&
+        queryPending[block.id] === undefined &&
+        voices.voiceRecording() === null
+      );
+    }
     if (uiStore.bottomPanel === "post") {
       return (
         (block.post?.f0.length ?? 0) > 0 || (block.post?.time.length ?? 0) > 0
@@ -64,7 +77,9 @@ export function useQueryReset() {
         ? "bottom.reset_accent_edits"
         : uiStore.bottomPanel === "post"
           ? "bottom.reset_post_edits"
-          : "bottom.reset_tuning_edits",
+          : uiStore.bottomPanel === "voice"
+            ? "bottom.reset_voice_alignment"
+            : "bottom.reset_tuning_edits",
     );
 
   // The accent-panel reset rebuilds the query from the block text, discarding
@@ -81,6 +96,16 @@ export function useQueryReset() {
       preset === null ||
       resetPending()
     ) {
+      return;
+    }
+    if (uiStore.bottomPanel === "voice") {
+      if (!canReset()) return;
+      setResetPending(true);
+      try {
+        await voices.realignVoice(block.id);
+      } finally {
+        setResetPending(false);
+      }
       return;
     }
     if (uiStore.bottomPanel === "post") {

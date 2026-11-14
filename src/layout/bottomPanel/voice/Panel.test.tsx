@@ -86,7 +86,9 @@ const firstMora = (view: ReturnType<typeof renderPanel>) =>
 const attachFile = async () => {
   dialogs.open.mockResolvedValue("/voice.wav");
   fireEvent.click(screen.getByRole("button", { name: "Choose voice file" }));
-  return screen.findByRole("img", { name: "Voice alignment" });
+  const canvas = await screen.findByRole("img", { name: "Voice alignment" });
+  await waitFor(() => expect(canvas).toHaveAttribute("aria-disabled", "false"));
+  return canvas;
 };
 
 describe("Voice panel", () => {
@@ -231,6 +233,50 @@ describe("Voice panel", () => {
     expect(apply).not.toHaveBeenCalled();
   });
 
+  it("resets voice alignment by realigning adjusted boundaries and keeping the pitch mapping", async () => {
+    const view = await openVoiceTab();
+    const reset = screen.getByRole("button", {
+      name: "Realign audio with phonemes",
+    });
+    expect(reset).toBeDisabled();
+    const canvas = await attachFile();
+    await waitFor(() => expect(reset).toBeEnabled());
+
+    const offset = screen.getByRole("spinbutton", {
+      name: "Pitch offset (semitones)",
+    });
+    fireEvent.input(offset, { target: { value: "3" } });
+    fireEvent.change(offset);
+    await waitFor(() =>
+      expect(firstMora(view).pitch).toBeCloseTo(5 + 3 * SEMITONE),
+    );
+    fireEvent.pointerDown(canvas, {
+      button: 0,
+      clientX: 0.15 * SCALE,
+      pointerId: 1,
+    });
+    fireEvent.pointerMove(canvas, { clientX: 0.2 * SCALE, pointerId: 1 });
+    fireEvent.pointerUp(canvas, { pointerId: 1 });
+    await waitFor(() => expect(firstMora(view).vowel_length).toBeCloseTo(0.2));
+
+    vi.mocked(commands.alignVoice).mockClear();
+    vi.mocked(commands.alignVoice).mockResolvedValueOnce({
+      status: "ok",
+      data: aligned(),
+    });
+    fireEvent.click(reset);
+    expect(reset).toBeDisabled();
+    await waitFor(() => expect(commands.alignVoice).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(reset).toBeEnabled());
+    expect(firstMora(view).vowel_length).toBeCloseTo(0.25);
+    expect(firstMora(view).pitch).toBeCloseTo(5 + 3 * SEMITONE);
+    expect(view.getTextStore().textStore[0].pitch_is_modified).toBe(true);
+    expect(view.getTextStore().textStore[0].duration_is_modified).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove voice" }));
+    expect(reset).toBeDisabled();
+  });
+
   it("realigns after accent edits and remaps after style changes", async () => {
     const view = await openVoiceTab();
     await attachFile();
@@ -252,12 +298,101 @@ describe("Voice panel", () => {
     expect(commands.alignVoice).not.toHaveBeenCalled();
   });
 
+  it("locks voice controls and dims the preview until alignment is applied", async () => {
+    const view = await openVoiceTab();
+    const canvas = await attachFile();
+    const reset = screen.getByRole("button", {
+      name: "Realign audio with phonemes",
+    });
+    await waitFor(() => expect(reset).toBeEnabled());
+    let finishAlignment!: (
+      value: Awaited<ReturnType<typeof commands.alignVoice>>,
+    ) => void;
+    vi.mocked(commands.alignVoice).mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishAlignment = resolve;
+      }),
+    );
+    let finishApply!: (
+      value: Awaited<ReturnType<typeof commands.voiceAccentPhrases>>,
+    ) => void;
+    const apply = vi.mocked(commands.voiceAccentPhrases);
+    apply.mockClear();
+    apply.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishApply = resolve;
+      }),
+    );
+    fireEvent.click(reset);
+
+    const offset = screen.getByRole("spinbutton", {
+      name: "Pitch offset (semitones)",
+    });
+    expect(offset).toBeDisabled();
+    expect(
+      screen.getByRole("spinbutton", { name: "Intonation scale" }),
+    ).toBeDisabled();
+    for (const name of ["Record voice", "Choose voice file", "Remove voice"]) {
+      expect(screen.getByRole("button", { name })).toBeDisabled();
+    }
+    expect(canvas).toHaveClass("grayscale", "opacity-40");
+    expect(canvas).toHaveAttribute("aria-disabled", "true");
+    fireEvent.pointerDown(canvas, {
+      button: 0,
+      clientX: 0.15 * SCALE,
+      pointerId: 1,
+    });
+    fireEvent.pointerMove(canvas, { clientX: 0.2 * SCALE, pointerId: 1 });
+    fireEvent.pointerUp(canvas, { pointerId: 1 });
+    expect(apply).not.toHaveBeenCalled();
+
+    finishAlignment({ status: "ok", data: aligned() });
+    await waitFor(() => expect(apply).toHaveBeenCalledTimes(1));
+    expect(offset).toBeDisabled();
+    expect(canvas).toHaveClass("grayscale");
+    const [, phrases, segments] = apply.mock.calls[0];
+    finishApply({ status: "ok", data: timed(phrases, segments) });
+    await waitFor(() => expect(offset).toBeEnabled());
+    expect(canvas).not.toHaveClass("grayscale");
+    expect(firstMora(view).vowel_length).toBeCloseTo(0.25);
+  });
+
+  it("allows a manual realignment after a phoneme edit fails to align", async () => {
+    const view = await openVoiceTab();
+    await attachFile();
+    await waitFor(() => expect(firstMora(view).pitch).toBeCloseTo(5));
+    const align = vi.mocked(commands.alignVoice);
+    align.mockClear();
+    align.mockResolvedValue({ status: "error", error: "Alignment failed" });
+    view
+      .getTextStore()
+      .setTextStore(0, "query", "accent_phrases", 0, "moras", 0, "vowel", "a");
+    await screen.findByText(/Alignment failed/);
+    const reset = screen.getByRole("button", {
+      name: "Realign audio with phonemes",
+    });
+    await waitFor(() => expect(reset).toBeEnabled());
+    expect(align).toHaveBeenCalledTimes(1);
+
+    align.mockResolvedValue({ status: "ok", data: aligned() });
+    fireEvent.click(reset);
+    await waitFor(() => expect(align).toHaveBeenCalledTimes(2));
+    expect(align.mock.calls[1][1][0].moras[0].vowel).toBe("a");
+    await waitFor(() => expect(reset).toBeEnabled());
+    expect(screen.queryByText(/Alignment failed/)).not.toBeInTheDocument();
+  });
+
   it("records or chooses a voice from the empty state's buttons", async () => {
     await openVoiceTab();
     dialogs.open.mockResolvedValue("/voice.wav");
     fireEvent.click(screen.getByRole("button", { name: "Choose file" }));
     await screen.findByRole("img", { name: "Voice alignment" });
     expect(commands.loadVoiceFile).toHaveBeenCalledWith("/voice.wav");
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Remove voice" }),
+      ).toBeEnabled(),
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Remove voice" }));
     fireEvent.click(await screen.findByRole("button", { name: "Record" }));
@@ -333,6 +468,11 @@ describe("Voice panel", () => {
     expect(alert).toHaveTextContent("The recording is too short for this text");
     fireEvent.click(screen.getByRole("button", { name: "Align again" }));
     await screen.findByRole("img", { name: "Voice alignment" });
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Choose voice file" }),
+      ).toBeEnabled(),
+    );
 
     // A cancelled file dialog loads nothing.
     vi.mocked(commands.loadVoiceFile).mockClear();

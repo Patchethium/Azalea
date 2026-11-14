@@ -100,6 +100,13 @@ export function VoicePanel(props: { disabled?: boolean }) {
     return state !== null && state.blockId === blockId() ? state : null;
   };
   const segments = () => session()?.segments ?? null;
+  const editingDisabled = () => props.disabled || session()?.aligning === true;
+  createEffect(() => {
+    if (editingDisabled()) {
+      setDragging(null);
+      setHoverBoundary(null);
+    }
+  });
 
   const scale = () => config.ui?.bottom_scale ?? DEFAULT_BOTTOM_SCALE;
   const primary = () =>
@@ -292,6 +299,7 @@ export function VoicePanel(props: { disabled?: boolean }) {
     const id = blockId();
     if (dragging() === null || id === null) return;
     setDragging(null);
+    if (editingDisabled()) return;
     voices.commitVoiceSegments(id);
   };
 
@@ -318,11 +326,12 @@ export function VoicePanel(props: { disabled?: boolean }) {
       maxValue={props.max}
       step={props.step}
       value={props.value}
+      disabled={editingDisabled()}
       format={false}
       changeOnWheel
       onChange={(value) => {
         const parsed = Number.parseFloat(value);
-        if (Number.isFinite(parsed))
+        if (!editingDisabled() && Number.isFinite(parsed))
           props.onChange(_.clamp(parsed, props.min, props.max));
       }}
       class="flex items-center gap1"
@@ -335,7 +344,10 @@ export function VoicePanel(props: { disabled?: boolean }) {
   );
 
   return (
-    <div class="relative size-full flex flex-col">
+    <div
+      class="relative size-full flex flex-col"
+      aria-busy={session()?.aligning === true}
+    >
       <div
         ref={(element) => {
           scrollElement = element;
@@ -426,9 +438,10 @@ export function VoicePanel(props: { disabled?: boolean }) {
                     maxValue={Math.max(duration(), 0.001)}
                     step={0.001}
                     value={[session()?.playbackStart ?? 0]}
+                    disabled={editingDisabled()}
                     onChange={(value) => {
                       const id = blockId();
-                      if (id !== null)
+                      if (id !== null && !editingDisabled())
                         voices.setVoicePlaybackStart(id, value[0]);
                     }}
                     getValueLabel={(params) =>
@@ -443,7 +456,8 @@ export function VoicePanel(props: { disabled?: boolean }) {
                       onContextMenu={(event) => {
                         event.preventDefault();
                         const id = blockId();
-                        if (id !== null) voices.setVoicePlaybackStart(id, 0);
+                        if (id !== null && !editingDisabled())
+                          voices.setVoicePlaybackStart(id, 0);
                       }}
                     >
                       <Slider.Thumb
@@ -468,11 +482,14 @@ export function VoicePanel(props: { disabled?: boolean }) {
                 ref={setCanvasElement}
                 role="img"
                 aria-label={t1("voice_import.canvas")}
+                aria-disabled={editingDisabled()}
                 data-voice-canvas
                 class="sticky left-0 block shrink-0 touch-none"
                 classList={{
+                  "grayscale opacity-40": session()?.aligning === true,
                   "cursor-ew-resize":
-                    dragging() !== null || hoverBoundary() !== null,
+                    !editingDisabled() &&
+                    (dragging() !== null || hoverBoundary() !== null),
                 }}
                 style={{
                   width: `${viewport().width}px`,
@@ -480,7 +497,7 @@ export function VoicePanel(props: { disabled?: boolean }) {
                 }}
                 onContextMenu={(event) => event.preventDefault()}
                 onPointerDown={(event) => {
-                  if (event.button !== 0) return;
+                  if (editingDisabled() || event.button !== 0) return;
                   const index = boundaryAt(timeAt(event));
                   if (index === null) return;
                   setDragging(index);
@@ -488,6 +505,7 @@ export function VoicePanel(props: { disabled?: boolean }) {
                   event.currentTarget.setPointerCapture?.(event.pointerId);
                 }}
                 onPointerMove={(event) => {
+                  if (editingDisabled()) return;
                   const seconds = timeAt(event);
                   const index = dragging();
                   const id = blockId();
@@ -582,7 +600,9 @@ export function VoicePanel(props: { disabled?: boolean }) {
               <Tooltip content={t1("voice_import.fit")}>
                 <Button
                   aria-label={t1("voice_import.fit")}
-                  disabled={current().mapping.scale === null}
+                  disabled={
+                    editingDisabled() || current().mapping.scale === null
+                  }
                   class="size-5 flex items-center justify-center rounded bg-transparent outline-none enabled:hover:bg-hover focus-visible:(ring-2 ring-focus-ring-soft) disabled:(cursor-not-allowed text-ink-disabled)"
                   onClick={() =>
                     voices.setVoiceMapping(blockId()!, {

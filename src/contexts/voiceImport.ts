@@ -40,6 +40,8 @@ export type VoiceSession = {
   segments: VoiceSegment[] | null;
   /** `pitchStructureSignature` of the phrases `segments` were aligned to. */
   signature: string | null;
+  /** Last requested structure, including failed attempts, to avoid retry loops. */
+  requestedSignature: string | null;
   /** The block's pitches when the voice was attached, the fallback target. */
   basePitches: number[];
   mapping: PitchMapping;
@@ -103,12 +105,17 @@ const createVoiceImportStore = () => {
     setSessions(blockId, { aligning: false, error: String(error) });
 
   /** Writes the voice's timing and mapped pitch into the block's query. */
-  const apply = async (blockId: string) => {
+  const apply = async (blockId: string, alignmentToken?: number) => {
     const session = sessions[blockId];
     const index = blockIndex(blockId);
     const phrases = textStore[index]?.query?.accent_phrases;
-    if (session?.segments == null || phrases == null) return;
-    const token = nextRequest(blockId);
+    if (
+      session?.segments == null ||
+      (session.aligning && alignmentToken === undefined) ||
+      phrases == null
+    )
+      return;
+    const token = alignmentToken ?? nextRequest(blockId);
     const snapshot = structuredClone(unwrap(phrases));
     const signature = pitchStructureSignature(snapshot);
     if (signature !== session.signature) return;
@@ -167,7 +174,13 @@ const createVoiceImportStore = () => {
     const token = nextRequest(blockId);
     const snapshot = structuredClone(unwrap(phrases));
     const voiceId = session.voiceId;
-    setSessions(blockId, { aligning: true, error: null });
+    // Record the structure before the result so a failure waits for an edit
+    // or a manual retry instead of repeatedly realigning.
+    setSessions(blockId, {
+      aligning: true,
+      error: null,
+      requestedSignature: pitchStructureSignature(snapshot),
+    });
     const result = await commands.alignVoice(voiceId, snapshot);
     if (!isCurrent(blockId, token) || sessions[blockId]?.voiceId !== voiceId)
       return;
@@ -175,9 +188,12 @@ const createVoiceImportStore = () => {
     setSessions(blockId, {
       segments: result.data,
       signature: pitchStructureSignature(snapshot),
-      aligning: false,
     });
-    await apply(blockId);
+    try {
+      await apply(blockId, token);
+    } finally {
+      if (isCurrent(blockId, token)) setSessions(blockId, "aligning", false);
+    }
   };
 
   /** Forgets the block's voice; the timing and pitch it wrote stay. */
@@ -202,6 +218,7 @@ const createVoiceImportStore = () => {
       analysis: preparePostAnalysis(loaded.analysis),
       segments: null,
       signature: null,
+      requestedSignature: null,
       basePitches: moraPitches(textStore[index].query?.accent_phrases ?? []),
       // A copy: the store merges later mappings into this object.
       mapping: { ...DEFAULT_PITCH_MAPPING },
@@ -263,14 +280,15 @@ const createVoiceImportStore = () => {
   };
 
   const setMapping = (blockId: string, mapping: PitchMapping) => {
-    if (sessions[blockId] === undefined) return;
+    if (sessions[blockId] === undefined || sessions[blockId].aligning) return;
     setSessions(blockId, "mapping", reconcile({ ...mapping }));
     void apply(blockId);
   };
 
   /** Replaces the segments while a boundary is dragged, without applying. */
   const setSegments = (blockId: string, segments: VoiceSegment[]) => {
-    if (sessions[blockId]?.segments == null) return;
+    if (sessions[blockId]?.segments == null || sessions[blockId].aligning)
+      return;
     setSessions(blockId, "segments", reconcile(segments));
   };
 
@@ -330,10 +348,10 @@ const createVoiceImportStore = () => {
         phrases.length === 0 ||
         queryPending[block.id] !== undefined ||
         session.aligning ||
-        session.signature === null
+        session.requestedSignature === null
       )
         continue;
-      if (pitchStructureSignature(phrases) !== session.signature) {
+      if (pitchStructureSignature(phrases) !== session.requestedSignature) {
         untrack(() => void align(blockId));
       } else if (
         session.styleId !== null &&
@@ -357,7 +375,7 @@ const createVoiceImportStore = () => {
     setVoiceSegments: setSegments,
     commitVoiceSegments: (blockId: string) => void apply(blockId),
     setVoicePlaybackStart: setPlaybackStart,
-    realignVoice: (blockId: string) => void align(blockId),
+    realignVoice: (blockId: string) => align(blockId),
   };
 };
 

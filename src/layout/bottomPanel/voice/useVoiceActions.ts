@@ -15,7 +15,9 @@ export function useVoiceActions(disabled: () => boolean) {
   const toasts = useToasts();
 
   const canImportVoice = () =>
-    !disabled() && (selectedTextBlock()?.query?.accent_phrases.length ?? 0) > 0;
+    !disabled() &&
+    !voices.voiceSessions[selectedTextBlock()?.id ?? ""]?.aligning &&
+    (selectedTextBlock()?.query?.accent_phrases.length ?? 0) > 0;
   /** The recording of the selected block, if any. */
   const voiceRecording = () => {
     const state = voices.voiceRecording();

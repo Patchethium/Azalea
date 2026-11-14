@@ -59,6 +59,7 @@
     "jump_to_playback_anchor": "Show playback starting phrase",
     "reset_accent_edits": "Reset accent phrase edits (also resets pitch and duration)",
     "reset_tuning_edits": "Reset pitch and duration edits",
+    "reset_voice_alignment": "Realign audio with phonemes",
     "pitch_drift_value": "{{ value }} semitones",
     "tuning_options": "Tuning options",
     "post": "Post",

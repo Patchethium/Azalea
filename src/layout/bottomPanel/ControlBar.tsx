@@ -327,7 +327,9 @@ export function ControlBar(props: {
             <ToolbarButton
               icon="i-lucide:trash-2"
               label={t1("bottom.voice_remove")}
-              disabled={selectedVoice() === null}
+              disabled={
+                selectedVoice() === null || selectedVoice()?.aligning === true
+              }
               onClick={() => {
                 const block = selectedTextBlock();
                 if (block !== null) voices.removeVoice(block.id);

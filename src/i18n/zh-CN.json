@@ -59,6 +59,7 @@
     "jump_to_playback_anchor": "显示播放起始重音短语",
     "reset_accent_edits": "重置重音短语编辑（音高和时长也会重置）",
     "reset_tuning_edits": "重置音高和时长编辑",
+    "reset_voice_alignment": "重新对齐音频与音素",
     "pitch_drift_value": "{{ value }} 个半音",
     "tuning_options": "调整选项",
     "post": "后处理",

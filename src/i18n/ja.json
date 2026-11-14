@@ -59,6 +59,7 @@
     "jump_to_playback_anchor": "再生開始アクセント句を表示",
     "reset_accent_edits": "アクセント句の編集をリセット（ピッチと長さもリセットされます）",
     "reset_tuning_edits": "ピッチと長さの編集をリセット",
+    "reset_voice_alignment": "音声と音素を再アライメント",
     "pitch_drift_value": "{{ value }} 半音",
     "tuning_options": "調整オプション",
     "post": "ポスト",
