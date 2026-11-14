@@ -202,6 +202,7 @@ export function collectLicenses(outDir) {
     "package.json",
     "pnpm-lock.yaml",
     "src-tauri/third_party/world/LICENSE.txt",
+    "src-tauri/src/voice_import/domino/LICENSE",
   ].map((path) => join(root, path));
   let inputs = cachedReport(reportPath, cachePath, baseInputs);
   if (!inputs) {
@@ -253,7 +254,22 @@ export function collectLicenses(outDir) {
         "utf8",
       ),
     };
-    const licenses = mergeLicenses([...rust, ...frontend.entries, world]);
+    // The transition table and decoder in `voice_import/domino` come from it.
+    const pydomino = {
+      id: "MIT",
+      name: "pydomino license",
+      packages: [{ name: "pydomino", version: "ported" }],
+      text: readFileSync(
+        join(root, "src-tauri/src/voice_import/domino/LICENSE"),
+        "utf8",
+      ),
+    };
+    const licenses = mergeLicenses([
+      ...rust,
+      ...frontend.entries,
+      world,
+      pydomino,
+    ]);
     inputs = [...baseInputs, ...frontend.inputs];
     const report = JSON.stringify(licenses);
     mkdirSync(outDir, { recursive: true });

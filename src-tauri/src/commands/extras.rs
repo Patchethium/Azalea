@@ -1,12 +1,12 @@
 //! Optional downloads that keep the bundle small: the Noto Sans CJK fonts for
 //! the embedded-font setting, the e2k English reading models and the snfa
-//! aligner model for voice import. Only pinned
+//! and pydomino aligner models for voice import. Only pinned
 //! files are fetched; no URL or destination path crosses IPC.
 use super::downloads::{
   commit, directory, fetch_file, remove_owned_path, verified_file, FileCheck, VerifiedFiles,
 };
 use crate::async_job::JobCancellation;
-use crate::config::manager::{aligner_model_dir, english_models_dir, fonts_dir};
+use crate::config::manager::{aligner_model_dir, domino_model_dir, english_models_dir, fonts_dir};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::collections::HashMap;
@@ -21,6 +21,7 @@ pub enum ExtraPack {
   Fonts,
   EnglishModels,
   AlignerModel,
+  DominoModel,
 }
 
 pub(crate) struct ExtraFile {
@@ -87,11 +88,29 @@ pub(crate) const ALIGNER_MODEL_FILES: &[ExtraFile] = &[ExtraFile {
   sha256: "a1bd8eb1cc88ce77e50b86d88f3fde5042fc4c9ecb31fa56ece7fd66ac775075",
 }];
 
+/// pydomino's model and license at the commit its transition table
+/// (`voice_import/domino/transitions.txt`) was copied from.
+pub(crate) const DOMINO_MODEL_FILES: &[ExtraFile] = &[
+  ExtraFile {
+    name: "phoneme_transition_model.onnx",
+    url: "https://raw.githubusercontent.com/DwangoMediaVillage/pydomino/4930396642fdd85618884c7a209218a628fd3c34/onnx_model/phoneme_transition_model.onnx",
+    bytes: 21937113,
+    sha256: "ce3f5d7cb39e4fec08ed0380338f10193d5e00b9d032277485fa862075191710",
+  },
+  ExtraFile {
+    name: "LICENSE",
+    url: "https://raw.githubusercontent.com/DwangoMediaVillage/pydomino/4930396642fdd85618884c7a209218a628fd3c34/LICENSE",
+    bytes: 1071,
+    sha256: "76cec807d90b39e546e2fdc889c9cabb99edeab334c3b5ed30feedb50006640f",
+  },
+];
+
 impl ExtraPack {
-  const ALL: [ExtraPack; 3] = [
+  const ALL: [ExtraPack; 4] = [
     ExtraPack::Fonts,
     ExtraPack::EnglishModels,
     ExtraPack::AlignerModel,
+    ExtraPack::DominoModel,
   ];
 
   pub(crate) fn files(self) -> &'static [ExtraFile] {
@@ -99,6 +118,7 @@ impl ExtraPack {
       ExtraPack::Fonts => FONT_FILES,
       ExtraPack::EnglishModels => ENGLISH_MODEL_FILES,
       ExtraPack::AlignerModel => ALIGNER_MODEL_FILES,
+      ExtraPack::DominoModel => DOMINO_MODEL_FILES,
     }
   }
 
@@ -107,6 +127,7 @@ impl ExtraPack {
       ExtraPack::Fonts => fonts_dir(),
       ExtraPack::EnglishModels => english_models_dir(),
       ExtraPack::AlignerModel => aligner_model_dir(),
+      ExtraPack::DominoModel => domino_model_dir(),
     }
   }
 
@@ -376,6 +397,9 @@ mod tests {
       .iter()
       .all(|file| file.url.contains("/snfa/releases/download/rust-v0.1.0/")));
     assert!(include_str!("../../Cargo.toml").contains("tag = \"rust-v0.1.0\""));
+    assert!(DOMINO_MODEL_FILES.iter().all(|file| file
+      .url
+      .contains("/DwangoMediaVillage/pydomino/4930396642fdd85618884c7a209218a628fd3c34/")));
   }
 
   #[test]

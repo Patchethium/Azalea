@@ -2,6 +2,7 @@ import {
   commands,
   events,
   type LoadedVoice,
+  type VoiceAligner,
   type VoiceSegment,
 } from "$binding";
 import { pitchStructureSignature } from "$utils";
@@ -42,6 +43,8 @@ export type VoiceSession = {
   signature: string | null;
   /** Last requested structure, including failed attempts, to avoid retry loops. */
   requestedSignature: string | null;
+  /** The aligner last asked to time the voice; null until then. */
+  aligner: VoiceAligner | null;
   /** The block's pitches when the voice was attached, the fallback target. */
   basePitches: number[];
   mapping: PitchMapping;
@@ -75,7 +78,7 @@ const createVoiceImportStore = () => {
     markQueryPitchModified,
   } = useTextStore()!;
   const { metas } = useMetaStore()!;
-  const { range, voiceImportEnabled } = useConfigStore()!;
+  const { range, voiceAligner, voiceImportEnabled } = useConfigStore()!;
   const [sessions, setSessions] = createStore<Record<string, VoiceSession>>({});
   const [recording, setRecording] = createStore<{
     state: VoiceRecordingState | null;
@@ -176,15 +179,18 @@ const createVoiceImportStore = () => {
     const token = nextRequest(blockId);
     const snapshot = structuredClone(unwrap(phrases));
     const voiceId = session.voiceId;
-    // Record the structure before the result so a failure waits for an edit
-    // or a manual retry instead of repeatedly realigning.
+    const aligner = voiceAligner();
+    // Record the structure and aligner before the result so a failure waits
+    // for an edit, another aligner or a manual retry instead of repeatedly
+    // realigning.
     setSessions(blockId, {
       aligning: true,
       error: null,
       requestedSignature: pitchStructureSignature(snapshot),
+      aligner,
       playbackSegment: null,
     });
-    const result = await commands.alignVoice(voiceId, snapshot);
+    const result = await commands.alignVoice(voiceId, snapshot, aligner);
     if (!isCurrent(blockId, token) || sessions[blockId]?.voiceId !== voiceId)
       return;
     if (result.status === "error") return setError(blockId, result.error);
@@ -222,6 +228,7 @@ const createVoiceImportStore = () => {
       segments: null,
       signature: null,
       requestedSignature: null,
+      aligner: null,
       basePitches: moraPitches(textStore[index].query?.accent_phrases ?? []),
       // A copy: the store merges later mappings into this object.
       mapping: { ...DEFAULT_PITCH_MAPPING },
@@ -358,8 +365,10 @@ const createVoiceImportStore = () => {
     });
   });
 
-  // Accent and phoneme edits realign the voice; style changes remap it.
+  // Accent and phoneme edits and a change of aligner realign the voice; style
+  // changes remap it.
   createEffect(() => {
+    const aligner = voiceAligner();
     for (const [blockId, session] of Object.entries(sessions)) {
       const block = textStore[blockIndex(blockId)];
       const phrases = block?.query?.accent_phrases;
@@ -372,7 +381,10 @@ const createVoiceImportStore = () => {
         session.requestedSignature === null
       )
         continue;
-      if (pitchStructureSignature(phrases) !== session.requestedSignature) {
+      if (
+        pitchStructureSignature(phrases) !== session.requestedSignature ||
+        (session.aligner !== null && session.aligner !== aligner)
+      ) {
         untrack(() => void align(blockId));
       } else if (
         session.styleId !== null &&

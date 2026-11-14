@@ -297,7 +297,11 @@
     "reinitialize_core": "Reinitialize the core to apply changes",
     "auto": "Auto",
     "voice_import": "Voice Import",
-    "voice_import_description": "Times and pitches a text block from your own reading of it, recorded here or chosen from an audio file, in a Voice tab between the accent and tuning tabs."
+    "voice_import_description": "Times and pitches a text block from your own reading of it, recorded here or chosen from an audio file, in a Voice tab between the accent and tuning tabs. Choose the aligner that times the recording: snfa is small, pydomino is larger and more accurate on clean speech.",
+    "voice_import_none": "None",
+    "extra_confirm_message": "This will download {{ name }} ({{ size }}).",
+    "extra_confirm": "Confirm",
+    "extra_confirm_cancel": "Cancel"
   },
   "titlebar": {
     "minimize": "Minimize",

@@ -20,22 +20,31 @@ Their custom user dictionary is shared.
 ## Optional Downloads
 
 To keep the bundle small, the Noto Sans CJK fonts (`UIConfig.embedded_font`),
-the e2k English reading models and the snfa aligner model (voice import) are
-not bundled. `src-tauri/src/commands/extras.rs` downloads them as
-`ExtraPack`s (`Fonts`, `EnglishModels`, `AlignerModel`) from pinned URLs with
+the e2k English reading models and the snfa and pydomino aligner models
+(voice import) are not bundled. `src-tauri/src/commands/extras.rs` downloads
+them as `ExtraPack`s (`Fonts`, `EnglishModels`, `AlignerModel` for snfa,
+`DominoModel` for pydomino) from pinned URLs with
 fixed sizes and SHA-256 hashes, staging each file and moving it into place only
 after it verifies. They live next to the VOICEVOX downloads:
-`config_dev/{fonts,e2k,snfa}` in development and
-`dirs::data_local_dir()/{bundle_identifier}/{fonts,e2k,snfa}` in release. Unlike the
+`config_dev/{fonts,e2k,snfa,domino}` in development and
+`dirs::data_local_dir()/{bundle_identifier}/{fonts,e2k,snfa,domino}` in release. Unlike the
 VOICEVOX components, clearing the asset cache (`clear_assets`) also deletes
 them and `get_assets_size` counts them. When the e2k tag in `Cargo.toml`
 changes, update `ENGLISH_MODEL_FILES` to that tag's models; when the snfa tag
 changes, update `ALIGNER_MODEL_FILES` to that release's `jp.safetensors`.
+`DOMINO_MODEL_FILES` pins pydomino's model and license to one commit of
+[DwangoMediaVillage/pydomino](https://github.com/DwangoMediaVillage/pydomino),
+which publishes the model only in its repository; when moving to another
+commit, copy that commit's `src/phoneme_transitions.txt` into
+`src-tauri/src/voice_import/domino/transitions.txt` as well, since the table
+is the model's output order.
 
 Until a pack is installed, `ExtraDownloadButton` (`src/components/extraDownload/`)
 replaces the setting's control (the font toggle group, the "Transform English
 words" switch) with a Download button that shows progress and a cancel button;
-the control appears once the download verifies. Stored settings are preserved
+the control appears once the download verifies. Voice import instead lists
+its aligners in a select (see Voice Import) and shares the progress view
+(`ExtraDownloadProgress`). Stored settings are preserved
 either way. The frontend reads pack status through `createExtras`
 (`src/contexts/extras.ts`, exposed as `useConfigStore().extras`). Downloaded
 fonts are served to the webview by the `azalea-font` URI scheme, which only
@@ -203,17 +212,48 @@ changes the effective options (`englishReadingRevision`).
 
 Voice import turns the user's own reading of a block's text, recorded in the
 app or picked as an audio file, into that block's mora durations and pitches
-(a pseudo voice conversion: no waveform is converted). The aligner is
-[snfa](https://github.com/Patchethium/snfa)'s Rust crate, a git dependency
-pinned by tag whose `rust/` port matches the numpy implementation; its model
-is the `AlignerModel` pack (see Optional Downloads), loaded once per process
-on first use without caching failures (`voice_import::provide_aligner`
-supplies one in tests).
+(a pseudo voice conversion: no waveform is converted). The user chooses the
+aligner, `UIConfig.voice_aligner` (`VoiceAligner`: `Snfa` by default, or
+`Pydomino`):
 
-`UIConfig.voice_import` (default off, an experimental config-dialog switch
-that a download button stands in for until the model is installed) shows the
-Voice tab between the accent and tuning tabs; switching it off moves an open
-voice tab to tuning and forgets every voice. Tabs depend on each other in
+- [snfa](https://github.com/Patchethium/snfa)'s Rust crate, a git dependency
+  pinned by tag whose `rust/` port matches the numpy implementation; its model
+  is the `AlignerModel` pack (see Optional Downloads), loaded once per process
+  on first use without caching failures (`voice_import::provide_aligner`
+  supplies one in tests).
+- [pydomino](https://github.com/DwangoMediaVillage/pydomino)
+  (`src-tauri/src/voice_import/domino.rs`), larger and more accurate on clean
+  speech. Its ONNX model (the `DominoModel` pack) takes the 16 kHz waveform
+  and returns, per 10 ms frame, the log-probability of each phoneme transition
+  and of none. It runs on the VOICEVOX ONNX Runtime the core loaded, through
+  the `ort` crate at the revision the core fork pins (keep `Cargo.toml`'s
+  `ort` revision and API feature in step with the fork); Azalea never loads a
+  runtime for it, so alignment fails with a message until a voice setup is
+  loaded. The session is CPU-only, created on first use with the core's
+  `cpu_num_threads` and kept; failed loads are not cached
+  (`domino::provide_model` points tests at a model file). pydomino's
+  tokenizer and Viterbi decoder are ported to Rust: `domino/transitions.txt`
+  is its transition table, `domino/tokenizer.rs` maps VOICEVOX phonemes
+  (`kw`, `gw`, `ty` as `k`, `g`, `t`; devoiced `A`, `E`, `O` voiced; devoiced
+  `I`, `U` kept only where both of their transitions exist; a phoneme with no
+  transition from the one before it, such as a repeated `cl`, shares that
+  phoneme's span evenly) and `domino/viterbi.rs` places each transition with
+  at least 3 frames between two, fewer when the recording is short. Its MIT
+  license is `domino/LICENSE`, listed in the licenses dialog by
+  `scripts/licenses.mjs`.
+
+Both aligners take 16 kHz audio (`ALIGNER_SAMPLE_RATE`) and return segments
+with the same names, so everything after alignment is shared.
+
+`UIConfig.voice_import` (default off, experimental) shows the Voice tab
+between the accent and tuning tabs; switching it off moves an open voice tab
+to tuning and forgets every voice. The config dialog sets both settings with
+one select (`VoiceImportSetting`): None, snfa or pydomino. None only clears
+`voice_import`, keeping the stored aligner. An aligner whose model is not
+downloaded shows its size; choosing it asks for confirmation (`ConfirmDialog`)
+and downloads the pack, and the settings change only once it verifies. The
+feature counts as off (`voiceImportEnabled`) while the chosen aligner's model
+is missing. Tabs depend on each other in
 order, and the voice tab writes into the tuning content.
 
 Backend:
@@ -228,8 +268,9 @@ Backend:
   not `Send`), capped at 60 s, reporting the peak level every 50 ms. macOS
   reads `NSMicrophoneUsageDescription` from `src-tauri/Info.plist`.
 - `src-tauri/src/voice_import.rs`: `PreparedVoice::prepare` resamples to the
-  model's 16 kHz, trims silence like snfa's README and runs Harvest
-  (`world::harvest`, 71–800 Hz). `align` times the query's phonemes
+  models' 16 kHz, trims silence like snfa's README and runs Harvest
+  (`world::harvest`, 71–800 Hz), without loading either model. `align` takes
+  `AlignOptions` (the aligner and thread count) and times the query's phonemes
   (consonant, vowel, pause per mora; lowercased, `kw`/`gw` as `k`/`g`) as
   `VoiceSegment`s in seconds, with the edge pauses the aligner pads.
   `accent_phrases` validates segments against the text (same phonemes,
@@ -245,7 +286,8 @@ Backend:
   session only, by ID, in an LRU of 32: `start_voice_recording` (emits
   `VoiceRecordingLevelEvent`), `stop_voice_recording` and `load_voice_file`
   (both return a `LoadedVoice { voice_id, analysis }`),
-  `cancel_voice_recording`, `align_voice`, `voice_accent_phrases`,
+  `cancel_voice_recording`, `align_voice` (which takes the aligner from the
+  frontend), `voice_accent_phrases`,
   `play_voice` (the trimmed recording from a start time, through the shared
   `AudioPlayer`, finishing with `audio-playback-finished`) and
   `remove_voice`.
@@ -268,7 +310,9 @@ Frontend:
   flag. Accent and phoneme edits (a `pitchStructureSignature` change) realign
   the voice, dropping boundary adjustments; style changes remap it; pitch and
   duration edits do not touch it. Removing a voice keeps what it wrote, which
-  the tuning reset clears. Responses are matched per block by request, so a
+  the tuning reset clears. Changing the aligner realigns every attached voice
+  the same way; the aligner asked is recorded before the result so a failing
+  one is not retried. Responses are matched per block by request, so a
   late load, alignment or apply cannot overwrite a newer one.
 - The Voice tab (`src/layout/bottomPanel/voice/Panel.tsx`) draws the
   recording's spectrogram (`spectrogramBitmap`, shared with the post tab),
@@ -285,9 +329,12 @@ Frontend:
 
 `src-tauri/tests/voice_import.rs` imports VOICEVOX speech against its own
 query on the real core and checks the timing and pitch come back, and that
-adjusted segments are applied and mismatched ones rejected; it reads the
-model from `AZALEA_TEST_SNFA_MODEL` or `config_dev/snfa/jp.safetensors` and
-fails clearly without one.
+adjusted segments are applied and mismatched ones rejected, with both
+aligners; it reads snfa's model from `AZALEA_TEST_SNFA_MODEL` or
+`config_dev/snfa/jp.safetensors` and pydomino's from
+`AZALEA_TEST_DOMINO_MODEL` or
+`config_dev/domino/phoneme_transition_model.onnx`, and fails clearly without
+either.
 
 ## Project Files
 

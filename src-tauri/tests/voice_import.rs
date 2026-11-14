@@ -1,16 +1,21 @@
 //! Voice import on the real pipeline: VOICEVOX speech imported against its own
 //! query should come back with about the same timing and pitch.
 //!
-//! The aligner model is downloaded by the app; this test reads it from
-//! `AZALEA_TEST_SNFA_MODEL` or the development pack directory
-//! (`config_dev/snfa/jp.safetensors`).
+//! The aligner models are downloaded by the app; these tests read snfa's
+//! from `AZALEA_TEST_SNFA_MODEL` or the development pack directory
+//! (`config_dev/snfa/jp.safetensors`) and pydomino's from
+//! `AZALEA_TEST_DOMINO_MODEL` or
+//! `config_dev/domino/phoneme_transition_model.onnx`.
 
 use std::path::PathBuf;
 
 use azalea_lib::{
   audio::decode::decode_file,
+  config::types::VoiceAligner,
   core::Core,
-  voice_import::{import_voice, provide_aligner, PreparedVoice, MIN_PHONEME_SECONDS},
+  voice_import::{
+    domino, import_voice, provide_aligner, AlignOptions, PreparedVoice, MIN_PHONEME_SECONDS,
+  },
 };
 use voicevox_core::{AccentPhrase, StyleId};
 
@@ -34,6 +39,30 @@ fn provide_test_aligner() {
     )
   });
   provide_aligner(aligner);
+}
+
+fn provide_test_domino_model() {
+  let path = std::env::var_os("AZALEA_TEST_DOMINO_MODEL")
+    .map(PathBuf::from)
+    .unwrap_or_else(|| {
+      PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../config_dev/domino")
+        .join(domino::MODEL_FILE)
+    });
+  assert!(
+    path.is_file(),
+    "cannot find the pydomino model at {}; choose pydomino in the config dialog's voice import \
+     setting to download it or set AZALEA_TEST_DOMINO_MODEL",
+    path.display()
+  );
+  domino::provide_model(path);
+}
+
+fn options(aligner: VoiceAligner) -> AlignOptions {
+  AlignOptions {
+    aligner,
+    cpu_num_threads: 0,
+  }
 }
 
 /// Each phoneme's end time from the first phoneme's start, in seconds.
@@ -77,6 +106,18 @@ fn correlation(a: &[f64], b: &[f64]) -> f64 {
 #[test]
 fn real_core_voice_import_recovers_synthesized_timing_and_pitch() {
   provide_test_aligner();
+  recovers_synthesized_timing_and_pitch(VoiceAligner::Snfa, 0.04);
+}
+
+#[test]
+fn real_core_pydomino_voice_import_recovers_synthesized_timing_and_pitch() {
+  provide_test_domino_model();
+  // The same check twice: the second alignment reuses the session.
+  recovers_synthesized_timing_and_pitch(VoiceAligner::Pydomino, 0.03);
+  recovers_synthesized_timing_and_pitch(VoiceAligner::Pydomino, 0.03);
+}
+
+fn recovers_synthesized_timing_and_pitch(aligner: VoiceAligner, tolerance: f64) {
   let core = Core::init(&test_core_config()).expect("failed to initialize VOICEVOX Core");
   let mut style_ids: Vec<StyleId> = core.speaker_to_vvm.keys().copied().collect();
   style_ids.sort_unstable();
@@ -100,7 +141,7 @@ fn real_core_voice_import_recovers_synthesized_timing_and_pitch() {
     }
     mora.pitch = 5.0f32.try_into().unwrap();
   }
-  let imported = import_voice(&audio, flat).expect("voice import failed");
+  let imported = import_voice(&audio, flat, options(aligner)).expect("voice import failed");
 
   let expected = boundaries(&query.accent_phrases);
   let actual = boundaries(&imported);
@@ -111,8 +152,14 @@ fn real_core_voice_import_recovers_synthesized_timing_and_pitch() {
     .map(|(e, a)| (e - a).abs())
     .collect();
   let mean_error = errors.iter().sum::<f64>() / errors.len() as f64;
-  println!("mean boundary error {:.1} ms", mean_error * 1000.0);
-  assert!(mean_error < 0.04, "mean boundary error {mean_error:.3} s");
+  println!(
+    "{aligner:?}: mean boundary error {:.1} ms",
+    mean_error * 1000.0
+  );
+  assert!(
+    mean_error < tolerance,
+    "mean boundary error {mean_error:.3} s"
+  );
 
   // Unvoiced moras stay unvoiced, and voiced ones follow the synthesized contour.
   let expected = voiced_pitches(&query.accent_phrases);
@@ -140,6 +187,7 @@ fn real_core_voice_import_recovers_synthesized_timing_and_pitch() {
 #[test]
 fn real_core_voice_segments_can_be_adjusted_and_played() {
   provide_test_aligner();
+  provide_test_domino_model();
   let core = Core::init(&test_core_config()).expect("failed to initialize VOICEVOX Core");
   let mut style_ids: Vec<StyleId> = core.speaker_to_vvm.keys().copied().collect();
   style_ids.sort_unstable();
@@ -158,9 +206,25 @@ fn real_core_voice_segments_can_be_adjusted_and_played() {
   assert_eq!(played.spec().sample_rate, 16_000);
   assert_eq!(played.len() as f64, (voice.duration() * 16_000.0).round());
 
-  let mut segments = voice.align(&query.accent_phrases).unwrap();
-  assert_eq!(segments.first().unwrap().start, 0.0);
-  assert_eq!(segments.last().unwrap().end, voice.duration());
+  // Both aligners time the same phonemes over the whole recording.
+  let domino = voice
+    .align(&query.accent_phrases, options(VoiceAligner::Pydomino))
+    .unwrap();
+  let mut segments = voice
+    .align(&query.accent_phrases, options(VoiceAligner::Snfa))
+    .unwrap();
+  for aligned in [&domino, &segments] {
+    assert_eq!(aligned.first().unwrap().start, 0.0);
+    assert_eq!(aligned.last().unwrap().end, voice.duration());
+    assert!(aligned.windows(2).all(|pair| pair[0].end == pair[1].start));
+  }
+  let names = |aligned: &[azalea_lib::voice_import::VoiceSegment]| -> Vec<String> {
+    aligned.iter().map(|s| s.phoneme.clone()).collect()
+  };
+  assert_eq!(names(&domino), names(&segments));
+  voice
+    .accent_phrases(query.accent_phrases.clone(), &domino)
+    .expect("pydomino's segments must apply");
   // Move the boundary after the first phoneme 30 ms later.
   let boundary = segments[1].end + 0.03;
   segments[1].end = boundary;

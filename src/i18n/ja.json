@@ -331,7 +331,11 @@
     "reinitialize_core": "変更を適用するにはコアを再初期化",
     "auto": "自動",
     "voice_import": "音声インポート",
-    "voice_import_description": "自分で読み上げた音声（ここで録音、または音声ファイルを選択）から、テキストの長さと音高を設定します。アクセントタブと調整タブの間に音声タブが追加されます。"
+    "voice_import_description": "自分で読み上げた音声（ここで録音、または音声ファイルを選択）から、テキストの長さと音高を設定します。アクセントタブと調整タブの間に音声タブが追加されます。録音のタイミングを取るアライナーを選びます。snfa は小さく、pydomino は大きめですがクリアな音声でより正確です。",
+    "voice_import_none": "なし",
+    "extra_confirm_message": "{{ name }}（{{ size }}）をダウンロードします。",
+    "extra_confirm": "確認",
+    "extra_confirm_cancel": "キャンセル"
   },
   "titlebar": {
     "minimize": "最小化",

@@ -62,6 +62,8 @@ sys-locale = "0.3.2"
 tempfile = "3"
 e2k = { git = "https://github.com/Patchethium/e2k", tag = "v0.8.2" }
 snfa = { git = "https://github.com/Patchethium/snfa", tag = "rust-v0.1.0" }
+# The revision voicevox_core pins: pydomino runs on the runtime the core loads.
+ort = { git = "https://github.com/pykeio/ort.git", rev = "94417081c47f47f5a7d6a92ce94bb38fda10019f", default-features = false, features = ["std", "api-17", "load-dynamic"] }
 symphonia = { version = "0.6.1", default-features = false, features = ["wav", "pcm", "flac", "mp3", "vorbis", "ogg"] }
 rubato = "5.0.1"
 audioadapter-buffers = "5.2.0"

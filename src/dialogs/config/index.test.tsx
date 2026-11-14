@@ -259,11 +259,19 @@ describe("ConfigPage", () => {
     expect(appConfig.postProcessingEnabled()).toBe(true);
     expect(appConfig.config.ui.post_processing).toBe(true);
 
-    const voiceImport = screen.getByRole("switch", { name: "Voice Import" });
-    expect(voiceImport).not.toBeChecked();
-    fireEvent.click(voiceImport);
+    const voiceImport = screen.getByRole("button", {
+      name: "Voice Import None",
+    });
+    expect(voiceImport).toHaveTextContent("None");
+    // Kobalte opens the listbox on pointer events, not a bare click.
+    await userEvent.setup().click(voiceImport);
+    fireEvent.click(
+      await screen.findByRole("option", { name: "pydomino", hidden: true }),
+    );
     expect(appConfig.config.ui.voice_import).toBe(true);
+    expect(appConfig.config.ui.voice_aligner).toBe("Pydomino");
     expect(appConfig.voiceImportEnabled()).toBe(true);
+    expect(appConfig.voiceAligner()).toBe("Pydomino");
 
     const noise = screen.getByRole("switch", {
       name: "Noised pitch generation",

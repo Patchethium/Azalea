@@ -173,6 +173,7 @@ describe("Voice panel", () => {
     expect(commands.alignVoice).toHaveBeenCalledWith(
       "voice-1",
       audioQuery().accent_phrases,
+      "Snfa",
     );
     // One voiced mora lands on the style range's center, (4 + 6) / 2.
     await waitFor(() => expect(firstMora(view).pitch).toBeCloseTo(5));
@@ -384,6 +385,33 @@ describe("Voice panel", () => {
     expect(screen.queryByText(/Alignment failed/)).not.toBeInTheDocument();
   });
 
+  it("realigns with the newly chosen aligner and does not retry one that fails", async () => {
+    const view = await openVoiceTab();
+    await attachFile();
+    await waitFor(() => expect(firstMora(view).pitch).toBeCloseTo(5));
+    vi.mocked(commands.alignVoice).mockClear();
+    vi.mocked(commands.alignVoice).mockResolvedValueOnce({
+      status: "error",
+      error: "Load a voice setup before using the pydomino aligner",
+    });
+    view.getConfigStore().setConfig("ui", "voice_aligner", "Pydomino");
+    await waitFor(() =>
+      expect(commands.alignVoice).toHaveBeenCalledWith(
+        "voice-1",
+        expect.any(Array),
+        "Pydomino",
+      ),
+    );
+    await screen.findByText(
+      /Load a voice setup before using the pydomino aligner/,
+    );
+    expect(commands.alignVoice).toHaveBeenCalledTimes(1);
+
+    view.getConfigStore().setConfig("ui", "voice_aligner", "Snfa");
+    await waitFor(() => expect(commands.alignVoice).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(commands.alignVoice).mock.calls[1][2]).toBe("Snfa");
+  });
+
   it("records or chooses a voice from the empty state's buttons", async () => {
     await openVoiceTab();
     dialogs.open.mockResolvedValue("/voice.wav");
@@ -436,6 +464,7 @@ describe("Voice panel", () => {
     expect(commands.alignVoice).toHaveBeenCalledWith(
       "voice-2",
       expect.any(Array),
+      "Snfa",
     );
     await waitFor(() => expect(firstMora(view).pitch).toBeCloseTo(5));
   });

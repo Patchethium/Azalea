@@ -9,6 +9,7 @@ import {
   StyleId,
   ThemeMode,
   TitlebarStyle,
+  type VoiceAligner,
 } from "$binding";
 import { createContextProvider } from "@solid-primitives/context";
 import {
@@ -33,9 +34,10 @@ import {
   DEFAULT_STREAMING_SYNTHESIS,
   DEFAULT_POST_PROCESSING,
   DEFAULT_THEME_MODE,
+  DEFAULT_VOICE_ALIGNER,
   DEFAULT_VOICE_IMPORT,
 } from "$constants";
-import { createExtras } from "@contexts/extras";
+import { createExtras, voiceAlignerPack } from "@contexts/extras";
 import { useMetaStore } from "@contexts/meta";
 import { useUIStore } from "@contexts/ui";
 
@@ -133,10 +135,13 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
   const extras = createExtras();
   void extras.refresh();
   const englishModelsInstalled = () => extras.installed("EnglishModels");
-  const alignerModelInstalled = () => extras.installed("AlignerModel");
-  /** Whether the experimental voice import button is shown. */
+  /** The aligner voice import uses; kept while voice import is off. */
+  const voiceAligner = (): VoiceAligner =>
+    config.ui.voice_aligner ?? DEFAULT_VOICE_ALIGNER;
+  /** Whether the experimental voice tab is shown: on, with its aligner's model. */
   const voiceImportEnabled = () =>
-    (config.ui.voice_import ?? DEFAULT_VOICE_IMPORT) && alignerModelInstalled();
+    (config.ui.voice_import ?? DEFAULT_VOICE_IMPORT) &&
+    extras.installed(voiceAlignerPack(voiceAligner()));
   const fontsInstalled = () => extras.installed("Fonts");
   /** The English reading options the backend applies, null when disabled. */
   const englishReadingKey = () =>
@@ -359,7 +364,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     englishTurboModelEnabled,
     englishReadingRevision,
     englishModelsInstalled,
-    alignerModelInstalled,
+    voiceAligner,
     voiceImportEnabled,
     fontsInstalled,
     extras,
