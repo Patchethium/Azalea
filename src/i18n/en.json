@@ -296,7 +296,10 @@
     "reinitialize_core": "Reinitialize the core to apply changes",
     "auto": "Auto",
     "voice_import": "Voice Import",
-    "voice_import_description": "Times and pitches a text block from your own reading of it, recorded here or chosen from an audio file, in a Voice tab between the accent and tuning tabs."
+    "voice_import_description": "Times and pitches a text block from your own reading of it, recorded here or chosen from an audio file, in a Voice tab between the accent and tuning tabs.",
+    "updates": "Updates",
+    "auto_update_check": "Check for updates automatically",
+    "check_for_updates": "Check for updates"
   },
   "titlebar": {
     "minimize": "Minimize",
@@ -459,5 +462,27 @@
     "fit": "Fit to the voice",
     "offset": "Pitch offset (semitones)",
     "hint": "Drag a phoneme boundary to adjust the alignment."
+  },
+  "update": {
+    "title": "Update Available",
+    "close": "Close update dialog",
+    "message": "Azalea {{ version }} is available. You have {{ current }}.",
+    "manual": "This installation can't update itself. Download the new version from the release page.",
+    "release_notes": "Release notes",
+    "later": "Later",
+    "download": "Download",
+    "downloading": "Downloading update…",
+    "cancel": "Cancel",
+    "ready": "The update is downloaded. Restart Azalea to install it.",
+    "restart": "Restart and install",
+    "installing": "Installing the update…",
+    "open_release_page": "Open release page",
+    "download_failed": "Couldn't download the update.",
+    "install_failed": "Couldn't install the update.",
+    "check_now": "Check now",
+    "checking": "Checking…",
+    "show": "Azalea {{ version }} is available",
+    "up_to_date": "Azalea is up to date.",
+    "check_failed": "Couldn't check for updates."
   }
 }

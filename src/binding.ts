@@ -654,6 +654,50 @@ async removeVoice(voiceId: string) : Promise<Result<null, string>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+/**
+ * Whether this build can look for updates at all; development builds cannot.
+ */
+async updatesSupported() : Promise<boolean> {
+    return await TAURI_INVOKE("updates_supported");
+},
+/**
+ * Looks for a newer release. Resolves to `None` when Azalea is up to date.
+ */
+async checkForUpdate() : Promise<Result<AvailableUpdate | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("check_for_update") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Downloads the update found by the last check and returns whether the
+ * download was cancelled. The package is verified before this succeeds.
+ */
+async downloadUpdate(operationId: string) : Promise<Result<boolean, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("download_update", { operationId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async cancelUpdateDownload(operationId: string) : Promise<void> {
+    await TAURI_INVOKE("cancel_update_download", { operationId });
+},
+/**
+ * Installs the downloaded update and restarts into it. On Windows the
+ * installer takes over and the process exits without returning.
+ */
+async installUpdate() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("install_update") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -669,6 +713,7 @@ openProjectRequested: OpenProjectRequested,
 spectrogramColumnsEvent: SpectrogramColumnsEvent,
 spectrogramJobEvent: SpectrogramJobEvent,
 synthesisJobEvent: SynthesisJobEvent,
+updateDownloadProgressEvent: UpdateDownloadProgressEvent,
 voiceRecordingLevelEvent: VoiceRecordingLevelEvent
 }>({
 downloadProgressEvent: "download-progress-event",
@@ -679,6 +724,7 @@ openProjectRequested: "open-project-requested",
 spectrogramColumnsEvent: "spectrogram-columns-event",
 spectrogramJobEvent: "spectrogram-job-event",
 synthesisJobEvent: "synthesis-job-event",
+updateDownloadProgressEvent: "update-download-progress-event",
 voiceRecordingLevelEvent: "voice-recording-level-event"
 })
 
@@ -865,6 +911,12 @@ text: string | null;
  * Whether to write a `.lab` phoneme timing file for lip sync.
  */
 lab: boolean }
+export type AvailableUpdate = { version: string; current_version: string; 
+/**
+ * Whether Azalea can download and install the update itself. Otherwise the
+ * user installs it from `release_url`.
+ */
+installable: boolean; release_url: string }
 export type AzaleaConfig = { core: CoreConfig | null; setup_source?: SetupSource; downloaded_setup?: DownloadedSetupConfig; ui: UIConfig; system_presets?: Preset[] }
 /**
  * <i>キャラクター</i>のメタ情報。
@@ -1251,7 +1303,11 @@ english_ngram_filter?: boolean;
 /**
  * Transliterates English words with e2k's faster distilled model.
  */
-english_turbo_model?: boolean; playback_timeline?: boolean; pitch_scale?: PitchScale; pitch_ruler?: boolean; pitch_tuning_mode?: PitchTuningMode; 
+english_turbo_model?: boolean; playback_timeline?: boolean; 
+/**
+ * Looks for a newer release at startup and offers to install it.
+ */
+auto_update_check?: boolean; pitch_scale?: PitchScale; pitch_ruler?: boolean; pitch_tuning_mode?: PitchTuningMode; 
 /**
  * Relative slider range in semitones on either side of the prediction.
  */
@@ -1268,6 +1324,11 @@ export_lab?: boolean; last_exported_dir?: string | null;
  * Recently opened or saved project paths, most recent first.
  */
 recent_projects?: string[]; shortcuts?: KeyboardShortcuts }
+export type UpdateDownloadProgressEvent = { operation_id: string; completed_bytes: number; 
+/**
+ * Unknown when the server does not announce the size.
+ */
+total_bytes: number | null }
 /**
  * The microphone level while recording, about every 50 ms.
  */

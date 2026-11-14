@@ -28,6 +28,7 @@ import {
   DEFAULT_TITLEBAR_STYLE,
   DEFAULT_PITCH_NOISE_SIGMA,
   DEFAULT_PITCH_RULER,
+  DEFAULT_AUTO_UPDATE_CHECK,
   DEFAULT_PLAYBACK_TIMELINE,
   DEFAULT_SPECTROGRAM_PREVIEW,
   DEFAULT_STREAMING_SYNTHESIS,
@@ -36,6 +37,7 @@ import {
   DEFAULT_VOICE_IMPORT,
 } from "$constants";
 import { createExtras } from "@contexts/extras";
+import { createUpdater } from "@contexts/update";
 import { useMetaStore } from "@contexts/meta";
 import { useUIStore } from "@contexts/ui";
 
@@ -132,6 +134,11 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     config.ui.english_turbo_model ?? DEFAULT_ENGLISH_TURBO_MODEL;
   const extras = createExtras();
   void extras.refresh();
+  const updater = createUpdater(() =>
+    configInitialized()
+      ? (config.ui.auto_update_check ?? DEFAULT_AUTO_UPDATE_CHECK)
+      : undefined,
+  );
   const englishModelsInstalled = () => extras.installed("EnglishModels");
   const alignerModelInstalled = () => extras.installed("AlignerModel");
   /** Whether the experimental voice import button is shown. */
@@ -363,6 +370,7 @@ const [ConfigProvider, useConfigStore] = createContextProvider(() => {
     voiceImportEnabled,
     fontsInstalled,
     extras,
+    updater,
     setupChangePending,
     setupSwitchPending,
     setSetupSwitchPending,

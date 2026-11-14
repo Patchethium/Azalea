@@ -70,6 +70,9 @@ jobs:
       - name: Test license collector
         run: pnpm test:licenses
 
+      - name: Test update manifest checker
+        run: pnpm test:update-manifest
+
       - name: Check formatting and lint
         run: pnpm check
 

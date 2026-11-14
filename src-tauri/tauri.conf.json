@@ -25,6 +25,15 @@
       "csp": null
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEU5NDQ1NjYzRUUwNEU3NDAKUldSQTV3VHVZMVpFNmEyZW04MGZ6T2tPWFVSaVFvdVhSSHM1NjRlNUkvVnRXSWN2bFJQWFNxZzYK",
+      "endpoints": [
+        "https://github.com/Patchethium/Azalea/releases/latest/download/latest.json"
+      ],
+      "requireSignedVersion": true
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",

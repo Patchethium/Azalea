@@ -41,6 +41,11 @@ without running `voicevox_engine`.
      your VOICEVOX installation.
 3. Close config and start typing.
 
+Azalea looks for a newer release when it starts and offers to download and
+install it; **Interface → Updates** in config turns the check off or runs it
+on demand. Installations from the `.deb` or `.rpm` package ask for an
+administrator's password to install the update.
+
 ## Using Azalea from MCP clients
 
 Azalea can run as a local [MCP](https://modelcontextprotocol.io) server over
@@ -98,6 +103,11 @@ Azalea（アザレア）は、VOICEVOX向けの非公式デスクトップGUIで
      ダウンロードして**モデルを適用**を押します。ランタイムと辞書は自動で取得されます。
    - **VOICEVOX：** **選択**...から、VOICEVOXの`vv-engine`フォルダーを選びます。
 3. 設定を閉じれば準備完了です。
+
+起動時に新しいリリースを確認し、ダウンロードとインストールを案内します。設定の
+**インターフェース → アップデート**で確認を無効にしたり、手動で確認したりできます。`.deb`・
+`.rpm`パッケージからインストールした場合は、アップデートのインストール時に管理者
+パスワードを求められます。
 
 MCPサーバーは設定の「合成」で「MCPサーバー」を有効にし、表示される起動コマンドを
 クライアントに追加してください（[英語の手順](#using-azalea-from-mcp-clients)）。
@@ -160,6 +170,32 @@ from `AZALEA_TEST_CORE_DIR` if set, and fails without one.
   out a newer commit there and commit the pointer.
 - **Release builds:** the GitHub Actions workflows in `.github/workflows/` are
   triggered manually; run them from the Actions tab of your fork.
+
+### Releasing
+
+Installed copies update themselves from the latest published GitHub release,
+so a release needs signed updater packages:
+
+1. Bump `version` in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and
+   `package.json`.
+2. Run the **publish** workflow. It builds every platform with
+   `src-tauri/tauri.release.conf.json`, signs the updater packages, uploads
+   them with their manifest (`latest.json`) to a draft release, and fails if
+   the manifest is incomplete or signed with the wrong key.
+3. Edit the draft's notes and publish it. Installed copies find it from then
+   on; prereleases and drafts are never offered.
+
+The workflow signs with the `TAURI_SIGNING_PRIVATE_KEY` and
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` repository secrets; the matching public
+key is `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`. Keep the
+private key and its password backed up: without them, installed copies cannot
+be updated in place. To release a fork, generate your own pair with
+`pnpm tauri signer generate`, set both secrets, and replace the public key and
+the `endpoints` URL in `tauri.conf.json`.
+
+Local `pnpm tauri build` needs no key and creates no updater packages.
+Development builds do not look for updates unless
+`AZALEA_DEV_UPDATE_ENDPOINT` points at a test manifest, and never install one.
 
 ## Contributing
 

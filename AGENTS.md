@@ -45,6 +45,65 @@ are installed.
 
 The Rust backend is under `src-tauri/`. Tauri commands are grouped in `src-tauri/src/commands/`, configuration handling in `config/`, and audio code in `audio/`. Rust integration tests and fixtures live in `src-tauri/tests/`. Application icons are in `src-tauri/icons/`; project artwork is in `icon/`. Treat `src/binding.ts` as generated bindings and avoid hand-editing it.
 
+## Updates
+
+Azalea updates itself from the GitHub releases the publish workflow creates,
+through `tauri-plugin-updater`. `plugins.updater` in `src-tauri/tauri.conf.json`
+holds the public key, the endpoint
+(`releases/latest/download/latest.json`, which resolves only to the latest
+published release, never a draft or prerelease) and `requireSignedVersion`,
+which rejects a package whose signature was made for another version than the
+manifest announces. The plugin's own commands are not granted by any
+capability; the frontend goes through `src-tauri/src/commands/update.rs`:
+
+- `updates_supported`: false in development builds unless
+  `AZALEA_DEV_UPDATE_ENDPOINT` names a test manifest. Development builds never
+  check the real releases and never install.
+- `check_for_update` returns an `AvailableUpdate { version, current_version,
+  installable, release_url }` or null, and keeps the plugin's `Update` in
+  `UpdateState`. A newer release without a package for this platform is still
+  announced, as not installable.
+- `installable` is true for every packaged installation (`installable_as`):
+  an AppImage run from its image, the Windows MSI and NSIS installs, a macOS
+  binary inside an `.app` bundle, and `.deb` and `.rpm` installs, whose
+  package the plugin hands to `dpkg -i` or `rpm -U` through `pkexec` (falling
+  back to a zenity or kdialog password prompt, then `sudo`), so installing
+  asks for an administrator's password. Unbundled binaries are pointed at
+  `release_url` (`releases/tag/app-v{version}`) instead.
+- `download_update` (with `UpdateDownloadProgressEvent`s, cancelled by
+  `cancel_update_download`) keeps the package in memory once the plugin has
+  verified its signature; a later check of the same release keeps it.
+- `install_update` installs that package and restarts. On Windows the
+  installer takes over and the process exits inside the call.
+
+`UIConfig.auto_update_check` (default on) runs one check at startup, whose
+failure is only logged. `createUpdater` (`src/contexts/update.ts`, exposed as
+`useConfigStore().updater`) holds the state; `UpdateDialog`
+(`src/dialogs/Update.tsx`) offers the update in two steps, Download and then
+Restart and install, so unsaved changes are settled right before the restart
+through the `install_update` pending project action. Closing the dialog
+cancels a running download; an installation cannot be dismissed. The
+config dialog's Interface section shows the Updates rows (the switch and a
+Check now button, which becomes a button reopening the prompt once an update
+is known) only while updates are supported. The release notes shown are a
+link to the release page: the manifest's `notes` are the draft's boilerplate
+body, written before the notes are edited.
+
+Updater packages are created only with `src-tauri/tauri.release.conf.json`
+(`bundle.createUpdaterArtifacts`), which the publish workflow passes with
+`--config`, so local bundles need no signing key. The workflow signs with the
+`TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+repository secrets, and its `verify-update-manifest` job runs
+`scripts/update-manifest.mjs` against the draft's `latest.json`: every
+platform in `REQUIRED_PLATFORMS` must be present, downloaded from that
+release's tag, signed by the configured key and bound to the version. Update
+that list when the build matrix changes, and keep the release tag
+`app-v{version}`: the release page link and the manifest check depend on it.
+Rust tests use a throwaway key pair and signed package in
+`src-tauri/src/commands/update_fixtures/`, served from a loopback HTTP server;
+never call the plugin's `install` in a test, since it replaces the running
+executable.
+
 ## VOICEVOX Core Generative Noise
 
 The [Patchethium/voicevox_core fork](https://github.com/Patchethium/voicevox_core)
@@ -702,8 +761,9 @@ downloaded (see Optional Downloads). WAV files accumulate in
 - `pnpm test:run` runs the deterministic Vitest frontend suite once.
 - `pnpm test:coverage` runs the frontend suite with a V8 coverage report and
   enforces at least 90% statements, functions, and lines and 80% branches.
-- `pnpm test:all` runs frontend checks, the frontend build, coverage-gated
-  frontend tests, and every Rust test, including the real VOICEVOX pipeline.
+- `pnpm test:all` runs the script tests, frontend checks, the frontend build,
+  coverage-gated frontend tests, and every Rust test, including the real
+  VOICEVOX pipeline.
 - `cd src-tauri && cargo test --locked -- --test-threads=1` runs
   every Rust unit and integration test in one command, including the real
   VOICEVOX pipeline.

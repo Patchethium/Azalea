@@ -73,7 +73,7 @@ export function useSidebar() {
     setSuppressFocusBlockId,
     setPendingFocusPlacement,
   } = useTextStore()!;
-  const { config, setConfig, voicesReady, postProcessingEnabled } =
+  const { config, setConfig, voicesReady, postProcessingEnabled, updater } =
     useConfigStore()!;
   const { isApplicationShortcutAllowed, matchesShortcut } =
     useShortcutsStore()!;
@@ -274,6 +274,9 @@ export function useSidebar() {
           break;
         case "quit":
           await commands.quit();
+          break;
+        case "install_update":
+          await updater.install();
           break;
       }
     } catch (error) {

@@ -122,6 +122,11 @@ fn specta_builder() -> Builder<tauri::Wry> {
       voice_accent_phrases,
       play_voice,
       remove_voice,
+      updates_supported,
+      check_for_update,
+      download_update,
+      cancel_update_download,
+      install_update,
     ])
     .events(collect_events![
       InitializationEvent,
@@ -132,6 +137,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
       DownloadProgressEvent,
       ExtraDownloadProgressEvent,
       VoiceRecordingLevelEvent,
+      UpdateDownloadProgressEvent,
       OpenProjectRequested
     ])
 }
@@ -183,7 +189,8 @@ pub fn run() {
   ));
   let app = app
     .plugin(tauri_plugin_dialog::init())
-    .plugin(tauri_plugin_shell::init());
+    .plugin(tauri_plugin_shell::init())
+    .plugin(tauri_plugin_updater::Builder::new().build());
 
   #[cfg(not(debug_assertions))] // prevent default on release build
   let app = app.plugin(tauri_plugin_prevent_default::init());
@@ -206,6 +213,7 @@ pub fn run() {
       voice_recorder: Default::default(),
     })
     .manage(StartupProject::from_process())
+    .manage(UpdateState::default())
     .invoke_handler(builder.invoke_handler())
     .register_asynchronous_uri_scheme_protocol("azalea-font", |_, request, responder| {
       let path = request.uri().path().to_owned();
