@@ -2622,8 +2622,12 @@ describe("BottomPanel playback", () => {
     expect(drawn()).toEqual(
       Array.from({ length: 10 }, (_, index) => `mora-${index}`),
     );
-    // The timeline leaves room for the pitch ruler after the last mora.
-    expect(timeline).toHaveStyle({ width: "3664px" });
+    // Half the visible panel stays empty after the last mora, on the playback
+    // timeline too, so both scroll to the same end.
+    expect(timeline).toHaveStyle({ width: "3780px" });
+    expect(
+      container.querySelector("[data-playback-trailing-space]"),
+    ).toHaveStyle({ width: "180px" });
 
     tuningPanel.scrollLeft = 3300;
     fireEvent.scroll(tuningPanel);
@@ -2638,8 +2642,12 @@ describe("BottomPanel playback", () => {
       getTextStore().textStore[0].query!.accent_phrases[0].moras[92].pitch,
     ).toBeCloseTo(3.4 + 3.1 / 2);
 
+    // Zooming keeps the time at the left edge of the view in place.
     getConfigStore().setConfig("ui", "bottom_scale", 720);
-    expect(timeline).toHaveStyle({ width: "7264px" });
+    expect(timeline).toHaveStyle({ width: "7380px" });
+    expect(tuningPanel.scrollLeft).toBe(6600);
+    expect(drawn()[0]).toBe("mora-91");
+    expect(tuningScene().columns[0].x).toBeCloseTo(2 * (3276 - 3300));
     getTextStore().setTextStore(
       0,
       "query",
@@ -2650,7 +2658,9 @@ describe("BottomPanel playback", () => {
       "vowel_length",
       0.2,
     );
-    expect(timeline).toHaveStyle({ width: "7336px" });
+    expect(timeline).toHaveStyle({ width: "7452px" });
+    getConfigStore().setConfig("ui", "bottom_scale", 360);
+    expect(tuningPanel.scrollLeft).toBe(3300);
   });
 
   it("handles spectrogram failures and playback-triggered refreshes", async () => {

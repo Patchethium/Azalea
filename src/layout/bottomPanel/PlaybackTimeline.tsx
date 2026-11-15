@@ -1,4 +1,4 @@
-import { DEFAULT_BOTTOM_SCALE } from "$constants";
+import { DEFAULT_BOTTOM_SCALE, TUNING_TRAILING_SPACE_RATIO } from "$constants";
 import { Tooltip } from "@components/tooltip";
 import { useConfigStore } from "@contexts/config";
 import { usei18n } from "@contexts/i18n";
@@ -52,7 +52,17 @@ export function PlaybackTimeline(props: {
       ...props.phrases.flatMap((phrase) => [phrase.duration, phrase.moraCount]),
     ].join(":");
 
+  const [viewportWidth, setViewportWidth] = createSignal(0);
+  /**
+   * The tuning panel's empty room after the last mora. Without the same room
+   * here, this timeline would clamp the shared scroll position and pull the
+   * panel back, for example on every zoom.
+   */
+  const trailingSpace = () =>
+    Math.round(viewportWidth() * TUNING_TRAILING_SPACE_RATIO);
+
   const updateOverflowIndicator = () => {
+    setViewportWidth(scrollAreaRef.clientWidth);
     const anchorIndex = props.anchorIndex;
     if (anchorIndex === null || scrollAreaRef.clientWidth <= 0) {
       setOverflowDirection(null);
@@ -107,6 +117,7 @@ export function PlaybackTimeline(props: {
   });
 
   onMount(() => {
+    setViewportWidth(scrollAreaRef.clientWidth);
     const resizeObserver = new ResizeObserver(updateOverflowIndicator);
     resizeObserver.observe(scrollAreaRef);
     onCleanup(() => resizeObserver.disconnect());
@@ -173,6 +184,13 @@ export function PlaybackTimeline(props: {
           </For>
           <Show when={uiStore.bottomPanel === "accent"}>
             <div class="w-2 flex-none" />
+          </Show>
+          <Show when={uiStore.bottomPanel === "tuning"}>
+            <div
+              class="flex-none"
+              style={{ width: `${trailingSpace()}px` }}
+              data-playback-trailing-space
+            />
           </Show>
         </div>
       </div>

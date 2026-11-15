@@ -1,6 +1,7 @@
 import {
   DEFAULT_BOTTOM_DURATION_HEIGHT,
   DEFAULT_PRIMARY_COLOR,
+  TUNING_TRAILING_SPACE_RATIO,
 } from "$constants";
 import { useConfigStore } from "@contexts/config";
 import { usei18n } from "@contexts/i18n";
@@ -13,6 +14,7 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  on,
   onCleanup,
   onMount,
   Show,
@@ -136,6 +138,19 @@ export function TuningPanel(props: {
     });
   });
 
+  // Zooming keeps the time at the left edge of the view where it is. This runs
+  // before the drawing effect, so the canvas never shows the old offset.
+  createEffect(
+    on(panel.scale, (scale, previous) => {
+      if (previous === undefined || !panel.queryExists()) return;
+      scrollElement.scrollLeft = (scrollElement.scrollLeft * scale) / previous;
+      setScrollLeft(scrollElement.scrollLeft);
+      // The playback timeline follows the shared position without waiting
+      // for the scroll event.
+      panel.syncScroll(scrollElement.scrollLeft);
+    }),
+  );
+
   const columns = createMemo(() =>
     tuningColumns(
       panel.currentText()?.query?.accent_phrases ?? [],
@@ -148,6 +163,15 @@ export function TuningPanel(props: {
     driftScale: panel.tuningMode() === "Relative" ? panel.driftScale() : null,
   }));
   const hasPitchSpan = () => panel.pitchScale().max > panel.pitchScale().min;
+  /**
+   * Empty room after the last mora: half the visible panel, so the end of the
+   * timeline can be scrolled to its middle, and never less than the ruler.
+   */
+  const trailingSpace = () =>
+    Math.max(
+      Math.round(viewportWidth() * TUNING_TRAILING_SPACE_RATIO),
+      hasPitchSpan() ? PITCH_RULER_WIDTH : 0,
+    );
   /** Height of the pitch area above the duration strip. */
   const plotHeight = () =>
     isWhisper(mapping()) ? 0 : Math.max(0, timelineHeight() - durationHeight());
@@ -269,8 +293,7 @@ export function TuningPanel(props: {
             }}
             class="flex-1 min-h-0 relative"
             style={{
-              // Room after the last mora keeps it clear of the pitch ruler.
-              width: `${Math.round(contentWidth()) + (hasPitchSpan() ? PITCH_RULER_WIDTH : 0)}px`,
+              width: `${Math.round(contentWidth()) + trailingSpace()}px`,
               "min-width": "100%",
             }}
             data-tuning-timeline

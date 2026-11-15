@@ -392,9 +392,14 @@ regenerated. Rust validation rejects modified flags without a query.
 
 The tuning panel (`src/layout/bottomPanel/tuning/Panel.tsx`) draws moras on
 one viewport-sized `role="img"` canvas that stays in place (`sticky`) while
-the timeline, as wide as the moras plus room for the pitch ruler, scrolls
-under it; the spectrogram preview stays its own canvas below it. Editing is
-pointer-only, like the post and voice tabs; there are no per-mora sliders or
+the timeline scrolls under it. The timeline is as wide as the moras plus
+trailing room of half the visible panel width (never less than the pitch
+ruler), so its end can be scrolled to the middle of the view, and a zoom
+change rescales the scroll offset so the time at the left edge stays put.
+`PlaybackTimeline` adds the same trailing room (`TUNING_TRAILING_SPACE_RATIO`)
+on the tuning tab; without it that timeline clamps the shared
+`bottom_scroll_pos` and pulls the panel back. The spectrogram preview stays
+its own canvas below the tuning canvas. Editing is pointer-only, like the post and voice tabs; there are no per-mora sliders or
 keyboard pitch controls. The duration-height separator, zoom slider and pitch
 ruler remain DOM.
 

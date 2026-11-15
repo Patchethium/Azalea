@@ -4,6 +4,11 @@ export const DEFAULT_TITLEBAR_STYLE = "Custom";
 export const DEFAULT_PRIMARY_COLOR = "#3b82f6";
 export const PRIMARY_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
 export const DEFAULT_BOTTOM_SCALE = 360;
+/**
+ * Share of the visible bottom-panel width left empty after the last mora of
+ * the tuning timeline, so its end can be scrolled to the middle of the view.
+ */
+export const TUNING_TRAILING_SPACE_RATIO = 0.5;
 export const DEFAULT_BOTTOM_RATIO = 0.3;
 export const DEFAULT_BOTTOM_DURATION_HEIGHT = 48;
 export const DEFAULT_SIDEBAR_WIDTH = 200;

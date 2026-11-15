@@ -855,6 +855,12 @@ export function useTuningPanel(
     setScale(_.clamp(scale() + (event.deltaY > 0 ? -50 : 50), 100, maxScale));
   };
 
+  /** Shares the panel's scroll position with the playback timeline. */
+  const syncScroll = (scrollLeft: number) => {
+    if (uiStore.bottom_scroll_pos !== scrollLeft) {
+      setUIStore("bottom_scroll_pos", scrollLeft);
+    }
+  };
   createEffect(() => {
     const scrollLeft = uiStore.bottom_scroll_pos;
     if (scrollAreaRef && scrollAreaRef.scrollLeft !== scrollLeft) {
@@ -898,12 +904,9 @@ export function useTuningPanel(
     handleDragFinish,
     handleDragging,
     handleWheel,
-    handleScroll: (event: Event & { currentTarget: HTMLDivElement }) => {
-      const scrollLeft = event.currentTarget.scrollLeft;
-      if (uiStore.bottom_scroll_pos !== scrollLeft) {
-        setUIStore("bottom_scroll_pos", scrollLeft);
-      }
-    },
+    handleScroll: (event: Event & { currentTarget: HTMLDivElement }) =>
+      syncScroll(event.currentTarget.scrollLeft),
+    syncScroll,
     minScale,
     maxScale,
     scale,
