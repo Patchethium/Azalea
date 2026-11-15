@@ -60,7 +60,7 @@
     "reset_accent_edits": "重置重音短语编辑（音高和时长也会重置）",
     "reset_tuning_edits": "重置音高和时长编辑",
     "reset_voice_alignment": "重新对齐音频与音素",
-    "pitch_drift_value": "{{ value }} 个半音",
+    "tuning_canvas": "音高与时长编辑器。跨音拍拖动以绘制音高，右键拖动恢复为预测音高，拖动辅音或元音以调整时长。",
     "tuning_options": "调整选项",
     "post": "后处理",
     "post_canvas": "逐帧音高与时间编辑器。拖动绘制，右键拖动恢复为分析值。",

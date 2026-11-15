@@ -788,32 +788,44 @@ export function useTuningPanel(
       { defer: true },
     ),
   );
-  const setPitch = (i: number, j: number, value: number) => {
+  /**
+   * Writes several mora pitches as one edit. Completion keeps every pitch
+   * through `through`, the last mora in timeline order the edit must
+   * preserve, which a stroke painted leftwards sets to its right-most mora.
+   */
+  const setPitches = (
+    edits: readonly { i: number; j: number; value: number }[],
+    through: { i: number; j: number },
+  ) => {
     const index = selectedIdx();
-    if (index === null) return;
+    if (index === null || edits.length === 0) return;
     ++pitchCompletionRevision;
     completePitch.clear();
     batch(() => {
-      setTextStore(
-        index,
-        "query",
-        "accent_phrases",
-        i,
-        "moras",
-        j,
-        "pitch",
-        value,
-      );
+      for (const { i, j, value } of edits) {
+        setTextStore(
+          index,
+          "query",
+          "accent_phrases",
+          i,
+          "moras",
+          j,
+          "pitch",
+          value,
+        );
+      }
       markQueryPitchModified(index);
     });
-    if (pitchCompletionActive()) completePitch(index, i, j);
+    if (pitchCompletionActive()) completePitch(index, through.i, through.j);
   };
+  const setPitch = (i: number, j: number, value: number) =>
+    setPitches([{ i, j, value }], { i, j });
 
   const handleDragFinish = () => {
     setDraggingData(null);
     setStartX(null);
   };
-  const handleDragging = (event: MouseEvent) => {
+  const handleDragging = (event: { clientX: number }) => {
     const dragging = draggingData();
     const startX = dragStartX();
     if (dragging === null || startX === null) return;
@@ -881,6 +893,7 @@ export function useTuningPanel(
     setDraggingData,
     setStartX,
     setPitch,
+    setPitches,
     setPauseLength,
     handleDragFinish,
     handleDragging,

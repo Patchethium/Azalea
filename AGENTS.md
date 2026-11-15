@@ -388,12 +388,47 @@ the flags are persisted per block and optional in the generated bindings.
 regeneration; it does not mark a project dirty when an unedited query is
 regenerated. Rust validation rejects modified flags without a query.
 
+## Tuning Canvas
+
+The tuning panel (`src/layout/bottomPanel/tuning/Panel.tsx`) draws moras on
+one viewport-sized `role="img"` canvas that stays in place (`sticky`) while
+the timeline, as wide as the moras plus room for the pitch ruler, scrolls
+under it; the spectrogram preview stays its own canvas below it. Editing is
+pointer-only, like the post and voice tabs; there are no per-mora sliders or
+keyboard pitch controls. The duration-height separator, zoom slider and pitch
+ruler remain DOM.
+
+- `tuning/layout.ts` is the pure geometry: `tuningColumns` flattens moras and
+  pause moras into pixel columns, `hitTest` tells the pitch area from the
+  consonant and vowel cells, and the pitch mapping (`pitchPosition`,
+  `positionToPitch`, `pitchBadge`, `resetTarget`) covers both tuning modes.
+- `tuning/scene.ts` turns the visible columns into a `TuningScene`
+  (`buildScene`) that `drawScene` paints with the theme's colors
+  (`readSceneColors`, re-read when the root element's class or style
+  changes). jsdom cannot read a canvas, so tests assert on the scene: unit
+  tests on `buildScene`, panel tests on the scene passed to a wrapped
+  `drawScene`.
+- A left press in the pitch area starts a stroke that sets every voiced mora
+  the pointer crosses: the moras under the pointer take its height, and moras
+  skipped between two pointer events take the interpolated height at their
+  center (`strokePositions`). A stroke is written with `setPitches`, whose
+  pitch completion preserves everything through the right-most mora painted
+  so far, so painting leftwards never lets completion overwrite the stroke.
+  Unvoiced moras and pauses are skipped.
+- A secondary-button press or drag resets the moras it crosses to their
+  baseline (a no-op where the pitch is already there). The context menu is
+  suppressed only over a voiced mora with a baseline.
+- The duration strip shows each mora's text and, on the hovered mora, its
+  consonant and vowel cells; dragging a cell horizontally changes that length
+  (at least 10 ms; pause cells fill their column and may reach 0). Pitch
+  changes are drawn immediately, without transitions.
+
 ## Relative Pitch Tuning
 
 `UIConfig.pitch_tuning_mode` (`Absolute` by default, or `Relative`) only
-changes how tuning-panel pitch sliders map values; both modes edit the same
+changes how the tuning canvas maps pitches to heights; both modes edit the same
 `mora.pitch` through the existing `setPitch` path, so modified flags, resets,
-completion and persistence are unchanged. In relative mode each voiced slider
+completion and persistence are unchanged. In relative mode each voiced mora
 is centered on the predicted pitch and spans ±`UIConfig.pitch_drift_range`
 semitones (default 12, valid 1–24; one semitone is `ln 2 / 12` in log pitch).
 Switch modes from the config dialog, where the drift-range row is shown only
@@ -402,14 +437,12 @@ in relative mode, or from the tuning-options menu (`TuningMenu`, an
 only on the tuning panel). That menu also holds the absolute pitch scale
 (hidden in relative mode) and the pitch-ruler toggle, so it stays reachable
 when the ruler is hidden; the ruler itself has no context menu.
-Right-clicking a slider resets that mora to its baseline through `setPitch` (a
-no-op when already there) in both absolute and relative modes;
-secondary-button pointerdowns are stopped in the capture phase when a reset is
-available so Kobalte does not move the value first. Without a baseline, the
-native context-menu behavior remains. Relative mode also draws a faint per-mora
+A secondary-button press or drag resets the moras it crosses to their baseline
+(a no-op when already there) in both absolute and relative modes. Without a
+baseline, the native context-menu behavior remains. Relative mode also draws a faint per-mora
 ghost line at the current absolute pitch mapped through the shared pitch scale,
 so the absolute contour stays readable behind the
-drift-based sliders; it follows pitch edits, ignores prediction-only changes,
+drift-based pitch lines; it follows pitch edits, ignores prediction-only changes,
 stays pinned to the nearest edge with a small top/bottom arrow when the pitch
 lies beyond the scale, and is absent while the absolute fallback or a spanless
 scale is active. Absolute mode instead draws the predicted baseline as a
@@ -420,7 +453,7 @@ The baseline is never persisted. Cache it in `PitchBaselineProvider`
 by block, style, seed, noise settings, core revision and a phoneme/accent
 signature that excludes pitch and duration so tuning edits never refetch.
 When `pitch_is_modified` is unset, the current pitches are the seeded
-prediction: they are the baseline directly, so relative sliders start centered
+prediction: they are the baseline directly, so relative pitches start centered
 and absolute mode shows the baseline ghost without a request. Snapshot them
 into the cache every time they change while no generated query is pending,
 overwriting earlier snapshots for the key: a seed or noise change switches the
@@ -430,9 +463,8 @@ uses. Only pitch-edited blocks without a cached baseline request one with
 `replace_mora_pitch`, passing the block's noise seed and the noise strength
 from the key (`pitchNoiseSigma`, null without noise) rather than relying on
 the backend's saved config, which can lag behind a change; until it arrives
-or if it fails, relative sliders fall back to the absolute mapping.
-Mapping changes (baseline arrival, mode switch, drift range) reposition sliders
-without the pitch transition. Pitch completion does not rebase the baseline:
+or if it fails, relative pitches fall back to the absolute mapping.
+Pitch completion does not rebase the baseline:
 completed moras show their drift from the seeded prediction.
 
 ## Audio File Export
@@ -460,7 +492,7 @@ write behavior with Rust temporary-directory tests.
 
 ## Spectrogram Preview
 
-The pitch-tuning panel in `src/components/BottomPanel.tsx` renders a mel spectrogram on a canvas behind the pitch controls. Do not show it in the accent panel. Its width follows the editable mora-duration timeline; configured leading and trailing silence is cropped from the preview so the image remains aligned with that timeline.
+The pitch-tuning panel renders a mel spectrogram (`SpectrogramCanvas` in `src/layout/bottomPanel/tuning/Timeline.tsx`) on its own canvas behind the tuning canvas. Do not show it in the accent panel. Its width follows the editable mora-duration timeline; configured leading and trailing silence is cropped from the preview so the image remains aligned with that timeline.
 
 `request_spectrogram_preview` in `src-tauri/src/commands/core.rs` queues work
 through the same reusable latest-generation job abstraction as buffered

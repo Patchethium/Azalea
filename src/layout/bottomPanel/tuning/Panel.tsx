@@ -1,49 +1,64 @@
-import type { Mora } from "$binding";
-import { DEFAULT_BOTTOM_DURATION_HEIGHT } from "$constants";
+import {
+  DEFAULT_BOTTOM_DURATION_HEIGHT,
+  DEFAULT_PRIMARY_COLOR,
+} from "$constants";
 import { useConfigStore } from "@contexts/config";
 import { usei18n } from "@contexts/i18n";
 import { Slider } from "@kobalte/core/slider";
-import {
-  SpectrogramCanvas,
-  TuningItem,
-} from "@layout/bottomPanel/tuning/Timeline";
-import { PITCH_RULER_WIDTH, PitchRuler } from "./PitchRuler";
+import { primaryRgb } from "@layout/bottomPanel/spectrogramBitmap";
+import { SpectrogramCanvas } from "@layout/bottomPanel/tuning/Timeline";
 import { useTuningPanel } from "@layout/bottomPanel/tuning/usePanel";
-import type {
-  DraggingMode,
-  WaveformSynthesisNotice,
-} from "@layout/bottomPanel/types";
+import type { WaveformSynthesisNotice } from "@layout/bottomPanel/types";
 import {
   createEffect,
   createMemo,
   createSignal,
-  For,
-  on,
   onCleanup,
+  onMount,
   Show,
 } from "solid-js";
-import { createVirtualizer, observeElementRect } from "@tanstack/solid-virtual";
+import {
+  hitTest,
+  isWhisper,
+  type PitchMapping,
+  positionToPitch,
+  resetTarget,
+  type StrokePoint,
+  strokePositions,
+  type TuningColumn,
+  timelineWidth,
+  tuningColumns,
+} from "./layout";
+import { PITCH_RULER_WIDTH, PitchRuler } from "./PitchRuler";
+import {
+  buildScene,
+  drawScene,
+  readSceneColors,
+  type TuningHover,
+} from "./scene";
 
 const MIN_DURATION_HEIGHT = 24;
 const MIN_PITCH_HEIGHT = 48;
 const DURATION_RESIZE_STEP = 8;
 
-type TuningTimelineItem = {
-  mora: Mora;
-  phraseIndex: number;
-  moraIndex: number;
-  isPause: boolean;
-};
+/** What the pointer is doing between a press on the canvas and its release. */
+type Gesture =
+  | {
+      /** Painting pitches, or resetting them to the prediction. */
+      kind: "paint" | "reset";
+      last: StrokePoint;
+      /** The right-most mora edited so far, which completion preserves. */
+      through: TuningColumn | null;
+    }
+  | { kind: "duration" };
 
 export function TuningPanel(props: {
   waveformSynthesisNotice: WaveformSynthesisNotice | null;
 }) {
   const { t1 } = usei18n()!;
-  const { config, setConfig, pitchRulerEnabled } = useConfigStore()!;
+  const { config, setConfig, pitchRulerEnabled, spectrogramPreviewEnabled } =
+    useConfigStore()!;
   const panel = useTuningPanel(() => props.waveformSynthesisNotice);
-  const [scrollElement, setScrollElement] = createSignal<HTMLDivElement | null>(
-    null,
-  );
   const durationHeight = () =>
     config.ui.bottom_duration_height ?? DEFAULT_BOTTOM_DURATION_HEIGHT;
   const setDurationHeight = (height: number) =>
@@ -51,10 +66,21 @@ export function TuningPanel(props: {
   const [maxDurationHeight, setMaxDurationHeight] =
     createSignal(durationHeight());
   const [timelineHeight, setTimelineHeight] = createSignal(0);
+  const [viewportWidth, setViewportWidth] = createSignal(0);
+  const [scrollLeft, setScrollLeft] = createSignal(0);
+  const [canvasElement, setCanvasElement] = createSignal<HTMLCanvasElement>();
+  const [hover, setHover] = createSignal<TuningHover>(null, {
+    equals: (a, b) => a?.index === b?.index && a?.part === b?.part,
+  });
+  // Bumped when the theme, primary color or fonts change under the canvas.
+  const [styleRevision, setStyleRevision] = createSignal(0);
+  let scrollElement!: HTMLDivElement;
   let timelineElement!: HTMLDivElement;
   let resizingDuration = false;
+  let gesture: Gesture | null = null;
 
   const updateDurationBounds = () => {
+    setViewportWidth(scrollElement.clientWidth);
     setTimelineHeight(timelineElement.clientHeight);
     if (timelineElement.clientHeight === 0) return maxDurationHeight();
     const max = Math.max(
@@ -85,72 +111,144 @@ export function TuningPanel(props: {
 
   createEffect(() => {
     if (!panel.queryExists()) return;
+    updateDurationBounds();
+    setScrollLeft(scrollElement.scrollLeft);
     const observer = new ResizeObserver(updateDurationBounds);
+    observer.observe(scrollElement);
     observer.observe(timelineElement);
     onCleanup(() => observer.disconnect());
   });
-  const timelineItems = createMemo<TuningTimelineItem[]>(() =>
-    (panel.currentText()?.query?.accent_phrases ?? []).flatMap(
-      (phrase, phraseIndex) => [
-        ...phrase.moras.map((mora, moraIndex) => ({
-          mora,
-          phraseIndex,
-          moraIndex,
-          isPause: false,
-        })),
-        ...(phrase.pause_mora === null
-          ? []
-          : [
-              {
-                mora: phrase.pause_mora,
-                phraseIndex,
-                moraIndex: -1,
-                isPause: true,
-              },
-            ]),
-      ],
-    ),
-  );
-  const itemSizes = createMemo(() =>
-    timelineItems().map(
-      ({ mora }) =>
-        ((mora.consonant_length ?? 0) + mora.vowel_length) * panel.scale(),
-    ),
-  );
-  const virtualizer = createVirtualizer<HTMLDivElement, HTMLDivElement>({
-    get count() {
-      return timelineItems().length;
-    },
-    getScrollElement: scrollElement,
-    estimateSize: (index) => itemSizes()[index] ?? 0,
-    horizontal: true,
-    overscan: 5,
-    initialRect: { width: 1, height: 1 },
-    observeElementRect: (instance, callback) =>
-      observeElementRect(instance, (rect) => {
-        if (rect.width > 0) callback(rect);
-      }),
+
+  onMount(() => {
+    const restyle = () => setStyleRevision((revision) => revision + 1);
+    const observer = new MutationObserver(restyle);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class", "style"],
+    });
+    onCleanup(() => observer.disconnect());
+    let mounted = true;
+    onCleanup(() => {
+      mounted = false;
+    });
+    void document.fonts?.ready.then(() => {
+      if (mounted) restyle();
+    });
   });
 
-  createEffect(
-    on(
-      itemSizes,
-      () => {
-        virtualizer.measure();
-      },
-      { defer: true },
+  const columns = createMemo(() =>
+    tuningColumns(
+      panel.currentText()?.query?.accent_phrases ?? [],
+      panel.scale(),
     ),
   );
+  const contentWidth = () => timelineWidth(columns());
+  const mapping = createMemo<PitchMapping>(() => ({
+    pitchScale: panel.pitchScale(),
+    driftScale: panel.tuningMode() === "Relative" ? panel.driftScale() : null,
+  }));
+  const hasPitchSpan = () => panel.pitchScale().max > panel.pitchScale().min;
+  /** Height of the pitch area above the duration strip. */
+  const plotHeight = () =>
+    isWhisper(mapping()) ? 0 : Math.max(0, timelineHeight() - durationHeight());
+  const baselineFor = (column: TuningColumn) =>
+    column.isPause
+      ? null
+      : panel.baselineFor(column.phraseIndex, column.moraIndex);
+
+  createEffect(() => {
+    const canvas = canvasElement();
+    const width = viewportWidth();
+    const height = timelineHeight();
+    if (canvas === undefined || width === 0 || height === 0) return;
+    styleRevision();
+    const ratio = window.devicePixelRatio || 1;
+    const pixelWidth = Math.round(width * ratio);
+    const pixelHeight = Math.round(height * ratio);
+    if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
+    if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
+    const context = canvas.getContext("2d");
+    if (context === null) return;
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    drawScene(
+      context,
+      buildScene({
+        columns: columns(),
+        scrollLeft: scrollLeft(),
+        width,
+        height,
+        durationHeight: durationHeight(),
+        mapping: mapping(),
+        baselineFor,
+        hover: hover(),
+      }),
+      readSceneColors(
+        canvas,
+        primaryRgb(config.ui.primary_color ?? DEFAULT_PRIMARY_COLOR),
+        spectrogramPreviewEnabled(),
+      ),
+    );
+  });
+
+  /** The timeline position under a pointer event on the canvas. */
+  const pointAt = (event: PointerEvent | MouseEvent): StrokePoint => {
+    const rect = canvasElement()!.getBoundingClientRect();
+    return {
+      x: event.clientX - rect.left + scrollLeft(),
+      y: event.clientY - rect.top,
+    };
+  };
+  const hitAt = (point: StrokePoint) =>
+    hitTest(columns(), point.x, point.y, plotHeight(), isWhisper(mapping()));
+
+  /** Edits every voiced mora between two pointer positions of a stroke. */
+  const paint = (
+    stroke: Extract<Gesture, { kind: "paint" | "reset" }>,
+    to: StrokePoint,
+  ) => {
+    const edits: { i: number; j: number; value: number }[] = [];
+    for (const { column, position } of strokePositions(
+      columns(),
+      stroke.last,
+      to,
+      plotHeight(),
+    )) {
+      const baseline = baselineFor(column);
+      const value =
+        stroke.kind === "reset"
+          ? resetTarget(baseline)
+          : positionToPitch(position, baseline, mapping());
+      if (value === null) continue;
+      if (stroke.through === null || column.index > stroke.through.index) {
+        stroke.through = column;
+      }
+      if (value !== column.mora.pitch) {
+        edits.push({ i: column.phraseIndex, j: column.moraIndex, value });
+      }
+    }
+    stroke.last = to;
+    if (edits.length === 0 || stroke.through === null) return;
+    const { phraseIndex, moraIndex } = stroke.through;
+    panel.setPitches(edits, { i: phraseIndex, j: moraIndex });
+  };
+
+  const finishGesture = () => {
+    if (gesture?.kind === "duration") panel.handleDragFinish();
+    gesture = null;
+  };
 
   return (
     <div class="relative size-full">
       <div
         ref={(element) => {
+          scrollElement = element;
           panel.setScrollAreaRef(element);
-          setScrollElement(element);
         }}
         onWheel={panel.handleWheel}
-        onScroll={panel.handleScroll}
+        onScroll={(event) => {
+          setScrollLeft(event.currentTarget.scrollLeft);
+          panel.handleScroll(event);
+        }}
         data-bottom-panel-scroll="tuning"
         class="size-full relative flex flex-col left-0 top-0 overflow-x-auto overflow-y-hidden cursor-default"
         classList={{
@@ -169,16 +267,13 @@ export function TuningPanel(props: {
             ref={(element) => {
               timelineElement = element;
             }}
-            class="flex-1 relative"
-            onMouseDown={(event) => panel.setStartX(event.clientX)}
-            onMouseUp={panel.handleDragFinish}
-            onMouseLeave={panel.handleDragFinish}
-            onMouseMove={panel.handleDragging}
+            class="flex-1 min-h-0 relative"
             style={{
-              width: `${virtualizer.getTotalSize()}px`,
+              // Room after the last mora keeps it clear of the pitch ruler.
+              width: `${Math.round(contentWidth()) + (hasPitchSpan() ? PITCH_RULER_WIDTH : 0)}px`,
               "min-width": "100%",
             }}
-            data-tuning-virtualizer
+            data-tuning-timeline
           >
             <Show when={panel.spectrogram()}>
               {(preview) => (
@@ -196,81 +291,89 @@ export function TuningPanel(props: {
                 />
               )}
             </Show>
-            <For each={virtualizer.getVirtualItems()}>
-              {(virtualItem) => {
-                const item = () => timelineItems()[virtualItem.index];
-                return (
-                  <Show when={item()}>
-                    {(currentItem) => (
-                      <div
-                        class="absolute inset-y-0 left-0"
-                        style={{
-                          width: `${virtualItem.size}px`,
-                          transform: `translateX(${virtualItem.start}px)`,
-                        }}
-                        data-index={virtualItem.index}
-                        data-tuning-item
-                      >
-                        <TuningItem
-                          mora={currentItem().mora}
-                          startDraggingDur={(
-                            origin: number,
-                            mode: DraggingMode,
-                          ) => {
-                            panel.setDraggingData({
-                              apIndex: currentItem().phraseIndex,
-                              moraIndex: currentItem().moraIndex,
-                              originData: origin,
-                              mode: currentItem().isPause ? "pause" : mode,
-                            });
-                          }}
-                          setPitch={(pitch) => {
-                            if (currentItem().isPause) {
-                              panel.setPauseLength(
-                                currentItem().phraseIndex,
-                                pitch,
-                              );
-                            } else if (panel.draggingData() === null) {
-                              panel.setPitch(
-                                currentItem().phraseIndex,
-                                currentItem().moraIndex,
-                                pitch,
-                              );
-                            }
-                          }}
-                          pitchScale={panel.pitchScale()}
-                          driftScale={
-                            panel.tuningMode() === "Relative"
-                              ? panel.driftScale()
-                              : undefined
-                          }
-                          baseline={
-                            currentItem().isPause
-                              ? null
-                              : panel.baselineFor(
-                                  currentItem().phraseIndex,
-                                  currentItem().moraIndex,
-                                )
-                          }
-                          durationHeight={durationHeight()}
-                          isPause={currentItem().isPause}
-                        />
-                      </div>
-                    )}
-                  </Show>
-                );
-              }}
-            </For>
-            <Show when={panel.pitchScale().max > panel.pitchScale().min}>
-              <div
-                class="pointer-events-none absolute inset-y-0"
+            {/* Out of flow, so the canvas's height never props the panel open. */}
+            <div class="absolute inset-0">
+              <canvas
+                ref={setCanvasElement}
+                role="img"
+                aria-label={t1("bottom.tuning_canvas")}
+                data-tuning-canvas
+                class="sticky left-0 block touch-none select-none"
                 style={{
-                  left: `${virtualizer.getTotalSize()}px`,
-                  width: `${PITCH_RULER_WIDTH}px`,
+                  width: `${viewportWidth()}px`,
+                  height: `${timelineHeight()}px`,
                 }}
-                data-tuning-ghost
+                onContextMenu={(event) => {
+                  const hit = hitAt(pointAt(event));
+                  if (
+                    hit?.part === "pitch" &&
+                    hit.column.mora.pitch !== 0 &&
+                    resetTarget(baselineFor(hit.column)) !== null
+                  ) {
+                    event.preventDefault();
+                  }
+                }}
+                onPointerDown={(event) => {
+                  if (event.button !== 0 && event.button !== 2) return;
+                  const point = pointAt(event);
+                  const hit = hitAt(point);
+                  if (
+                    hit === null ? point.y < plotHeight() : hit.part === "pitch"
+                  ) {
+                    const stroke: Gesture = {
+                      kind: event.button === 2 ? "reset" : "paint",
+                      last: point,
+                      through: null,
+                    };
+                    gesture = stroke;
+                    paint(stroke, point);
+                  } else if (hit !== null && event.button === 0) {
+                    const { column, part } = hit;
+                    gesture = { kind: "duration" };
+                    setHover({ index: column.index, part });
+                    panel.setDraggingData({
+                      apIndex: column.phraseIndex,
+                      moraIndex: column.moraIndex,
+                      originData:
+                        part === "consonant"
+                          ? (column.mora.consonant_length ?? 0)
+                          : column.mora.vowel_length,
+                      mode: column.isPause
+                        ? "pause"
+                        : part === "consonant"
+                          ? "consonant"
+                          : "vowel",
+                    });
+                    panel.setStartX(event.clientX);
+                  } else {
+                    return;
+                  }
+                  if (event.button === 0) event.preventDefault();
+                  event.currentTarget.setPointerCapture?.(event.pointerId);
+                }}
+                onPointerMove={(event) => {
+                  // A release that never arrived must not leave a stroke going.
+                  if (gesture !== null && event.buttons === 0) finishGesture();
+                  if (gesture?.kind === "duration") {
+                    panel.handleDragging(event);
+                    return;
+                  }
+                  const point = pointAt(event);
+                  if (gesture !== null) paint(gesture, point);
+                  const hit = hitAt(point);
+                  setHover(
+                    hit === null || (gesture !== null && hit.part !== "pitch")
+                      ? null
+                      : { index: hit.column.index, part: hit.part },
+                  );
+                }}
+                onPointerUp={finishGesture}
+                onLostPointerCapture={finishGesture}
+                onPointerLeave={() => {
+                  if (gesture === null) setHover(null);
+                }}
               />
-            </Show>
+            </div>
             <button
               type="button"
               role="separator"
@@ -343,13 +446,7 @@ export function TuningPanel(props: {
           </Slider>
         </Show>
       </div>
-      <Show
-        when={
-          pitchRulerEnabled() &&
-          panel.queryExists() &&
-          panel.pitchScale().max > panel.pitchScale().min
-        }
-      >
+      <Show when={pitchRulerEnabled() && panel.queryExists() && hasPitchSpan()}>
         <PitchRuler
           scale={panel.pitchScale()}
           driftScale={

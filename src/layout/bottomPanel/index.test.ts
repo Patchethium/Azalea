@@ -13,12 +13,12 @@ import {
 } from "@layout/bottomPanel/testUtils";
 import { unwrap } from "solid-js/store";
 import * as scheduled from "@solid-primitives/scheduled";
-import { fireEvent, screen, waitFor, within } from "@solidjs/testing-library";
+import { fireEvent, screen, waitFor } from "@solidjs/testing-library";
 import userEvent from "@testing-library/user-event";
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
-import { SEMITONE } from "$constants";
-import { describe, expect, it, vi } from "vitest";
+import { DEFAULT_BOTTOM_DURATION_HEIGHT, SEMITONE } from "$constants";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   audioQuery,
   mora,
@@ -26,7 +26,87 @@ import {
   preset,
   spectrogram,
 } from "../../test/fixtures";
-import tuningStyles from "./tuning/Timeline.module.css";
+
+import { drawScene } from "./tuning/scene";
+
+// The canvas is not readable in jsdom, so tests inspect the scene it is given.
+vi.mock("./tuning/scene", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./tuning/scene")>();
+  return { ...actual, drawScene: vi.fn(actual.drawScene) };
+});
+
+// jsdom lacks PointerEvent, so testing-library would dispatch plain Events.
+class PointerEventStub extends MouseEvent {
+  readonly pointerId: number;
+
+  constructor(type: string, init: PointerEventInit = {}) {
+    super(type, init);
+    this.pointerId = init.pointerId ?? 0;
+  }
+}
+
+const CANVAS_WIDTH = 800;
+/** Height of the tuning canvas's pitch area in sized tests. */
+const PLOT_HEIGHT = 200;
+
+/** Gives the tuning canvas a size and pointer events, which jsdom lacks. */
+const sizeTuningCanvas = (width = CANVAS_WIDTH, plotHeight = PLOT_HEIGHT) => {
+  vi.stubGlobal("PointerEvent", PointerEventStub);
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(width);
+  vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(
+    plotHeight + DEFAULT_BOTTOM_DURATION_HEIGHT,
+  );
+};
+
+const findTuningCanvas = async () =>
+  (await screen.findByRole("img", {
+    name: /Pitch and duration editor/,
+  })) as HTMLCanvasElement;
+
+const openTuningCanvas = async () => {
+  fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+  return findTuningCanvas();
+};
+
+/** The scene most recently drawn on the tuning canvas. */
+const tuningScene = () => vi.mocked(drawScene).mock.lastCall![1];
+const sceneColumn = (text: string) =>
+  tuningScene().columns.find(({ column }) => column.mora.text === text)!;
+/** The canvas y of a position between the bottom (0) and top (1) of the pitch area. */
+const yOf = (position: number) => (1 - position) * PLOT_HEIGHT;
+/** A y inside the duration strip below the pitch area. */
+const STRIP_Y = PLOT_HEIGHT + 20;
+
+const drag = (
+  canvas: HTMLCanvasElement,
+  button: number,
+  points: [number, number][],
+) => {
+  const [[x0, y0], ...rest] = points;
+  const buttons = button === 2 ? 2 : button === 1 ? 4 : 1;
+  fireEvent.pointerDown(canvas, {
+    button,
+    buttons,
+    clientX: x0,
+    clientY: y0,
+    pointerId: 1,
+  });
+  for (const [x, y] of rest) {
+    fireEvent.pointerMove(canvas, {
+      buttons,
+      clientX: x,
+      clientY: y,
+      pointerId: 1,
+    });
+  }
+  fireEvent.pointerUp(canvas, { pointerId: 1 });
+};
+const press = (canvas: HTMLCanvasElement, x: number, y: number, button = 0) =>
+  drag(canvas, button, [[x, y]]);
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 const emitCompletedSpectrogram = (
   request: SpectrogramJobRequest,
@@ -56,7 +136,9 @@ describe("SpectrogramCanvas", () => {
       melBins: 2,
       durationSeconds: 4,
     });
-    const canvas = container.querySelector("canvas")!;
+    const canvas = container.querySelector<HTMLCanvasElement>(
+      "[data-spectrogram-canvas]",
+    )!;
 
     expect(canvas.width).toBe(2);
     expect(canvas.height).toBe(2);
@@ -110,7 +192,9 @@ describe("SpectrogramCanvas", () => {
       },
       true,
     );
-    const canvas = container.querySelector("canvas")!;
+    const canvas = container.querySelector<HTMLCanvasElement>(
+      "[data-spectrogram-canvas]",
+    )!;
 
     expect(canvas.width).toBe(0);
     expect(canvas.height).toBe(0);
@@ -140,13 +224,17 @@ describe("SpectrogramCanvas", () => {
       },
     ]) {
       const { container, unmount } = renderCanvas(preview);
-      expect(container.querySelector("canvas")).toHaveAttribute("width", "0");
+      expect(
+        container.querySelector<HTMLCanvasElement>("[data-spectrogram-canvas]"),
+      ).toHaveAttribute("width", "0");
       unmount();
     }
 
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
     const { container } = renderCanvas(spectrogram);
-    expect(container.querySelector("canvas")).toHaveAttribute("width", "1");
+    expect(
+      container.querySelector<HTMLCanvasElement>("[data-spectrogram-canvas]"),
+    ).toHaveAttribute("width", "1");
   });
 });
 
@@ -1025,9 +1113,13 @@ describe("BottomPanel playback", () => {
       spectrogram,
     );
     await waitFor(() =>
-      expect(container.querySelector("canvas")).toBeInTheDocument(),
+      expect(
+        container.querySelector<HTMLCanvasElement>("[data-spectrogram-canvas]"),
+      ).toBeInTheDocument(),
     );
-    expect(container.querySelector("canvas")).not.toHaveClass("opacity-55");
+    expect(
+      container.querySelector<HTMLCanvasElement>("[data-spectrogram-canvas]"),
+    ).not.toHaveClass("opacity-55");
 
     await emit("audio-playback-finished");
     getTextStore().setTextStore(
@@ -1044,19 +1136,25 @@ describe("BottomPanel playback", () => {
       await screen.findByRole("button", { name: "Play selected cell" }),
     );
     await waitFor(() => expect(requestPreview).toHaveBeenCalledTimes(2));
-    expect(container.querySelector("canvas")).toHaveClass("opacity-55");
+    expect(
+      container.querySelector<HTMLCanvasElement>("[data-spectrogram-canvas]"),
+    ).toHaveClass("opacity-55");
 
     await emitCompletedSpectrogram(requestPreview.mock.calls[1][0], {
       ...spectrogram,
       values: [255, 128, 64, 0],
     });
     await waitFor(() =>
-      expect(container.querySelector("canvas")).not.toHaveClass("opacity-55"),
+      expect(
+        container.querySelector<HTMLCanvasElement>("[data-spectrogram-canvas]"),
+      ).not.toHaveClass("opacity-55"),
     );
 
     getConfigStore().setSpectrogramPreviewEnabled(false);
     await waitFor(() =>
-      expect(container.querySelector("canvas")).not.toBeInTheDocument(),
+      expect(
+        container.querySelector<HTMLCanvasElement>("[data-spectrogram-canvas]"),
+      ).not.toBeInTheDocument(),
     );
   });
 
@@ -1076,7 +1174,8 @@ describe("BottomPanel playback", () => {
       buffer_render: true,
       synthesis_delay_ms: 0,
     });
-    const canvas = () => container.querySelector("canvas");
+    const canvas = () =>
+      container.querySelector<HTMLCanvasElement>("[data-spectrogram-canvas]");
     const emitColumns = (
       request: SpectrogramJobRequest,
       columns: number[],
@@ -1199,7 +1298,10 @@ describe("BottomPanel playback", () => {
       durationSeconds: 1,
     });
     await waitFor(() =>
-      expect(container.querySelector("canvas")?.width).toBe(3),
+      expect(
+        container.querySelector<HTMLCanvasElement>("[data-spectrogram-canvas]")
+          ?.width,
+      ).toBe(3),
     );
 
     await emitCompletedSpectrogram(firstRequest, {
@@ -1209,7 +1311,10 @@ describe("BottomPanel playback", () => {
       durationSeconds: 1,
     });
     await Promise.resolve();
-    expect(container.querySelector("canvas")?.width).toBe(3);
+    expect(
+      container.querySelector<HTMLCanvasElement>("[data-spectrogram-canvas]")
+        ?.width,
+    ).toBe(3);
   });
 
   it("coalesces rapid waveform and spectrogram requests onto matching cache keys", async () => {
@@ -2315,11 +2420,12 @@ describe("BottomPanel playback", () => {
     expect(getUiStore().uiStore.bottom_scroll_pos).toBe(77);
   });
 
-  it("renders consonantless and pause tuning items", async () => {
+  it("draws consonantless and pause moras and drags the pause length", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
-    const { container, getConfigStore, getTextStore } = renderPanel({
+    sizeTuningCanvas();
+    const { getConfigStore, getTextStore } = renderPanel({
       spectrogram_preview: false,
     });
     await screen.findByText("コ");
@@ -2355,21 +2461,67 @@ describe("BottomPanel playback", () => {
       }),
     );
 
-    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-    expect(await screen.findAllByText("ア")).toHaveLength(2);
-    const durationTargets = container.querySelectorAll("div.invisible");
-    expect(durationTargets).toHaveLength(2);
-    expect(durationTargets[1].parentElement).toHaveClass("h-full");
-    fireEvent.mouseDown(durationTargets[0], { clientX: 10 });
-    fireEvent.mouseDown(durationTargets[1], { clientX: 20 });
-    fireEvent.mouseMove(container.querySelector("[data-tuning-virtualizer]")!, {
-      clientX: 56,
+    const canvas = await openTuningCanvas();
+    // ア spans 43.2 px and the pause the 108 px after it.
+    expect(tuningScene().columns).toHaveLength(2);
+    expect(tuningScene().columns[0]).toMatchObject({
+      pitch: null,
+      moraLabel: "ア",
+      stripTop: PLOT_HEIGHT,
+      cells: null,
     });
+    // The pause cell fills its whole column and has no text.
+    expect(tuningScene().columns[1]).toMatchObject({
+      x: expect.closeTo(43.2),
+      pitch: null,
+      moraLabel: null,
+      stripTop: 0,
+    });
+
+    // Hovering the duration strip swaps the mora text for its cells.
+    fireEvent.pointerMove(canvas, { clientX: 10, clientY: STRIP_Y });
+    expect(tuningScene().columns[0]).toMatchObject({
+      moraLabel: null,
+      cells: { consonant: null, vowel: { label: "a", hovered: true } },
+    });
+    fireEvent.pointerLeave(canvas);
+    expect(tuningScene().columns[0].cells).toBeNull();
+
+    // Unvoiced moras and pauses have no pitch to paint.
+    drag(canvas, 0, [
+      [10, 100],
+      [30, 20],
+    ]);
+    drag(canvas, 2, [
+      [10, 100],
+      [30, 20],
+    ]);
+    expect(getTextStore().textStore[0].pitch_is_modified).toBe(false);
+
+    // Dragging the pause cell at any height changes the pause length.
+    fireEvent.pointerDown(canvas, {
+      button: 0,
+      buttons: 1,
+      clientX: 60,
+      clientY: 20,
+    });
+    expect(
+      document.querySelector('[data-bottom-panel-scroll="tuning"]'),
+    ).toHaveClass("!cursor-ew-resize");
+    fireEvent.pointerMove(canvas, { buttons: 1, clientX: 96, clientY: 20 });
+    expect(tuningScene().columns[1].cells?.vowel).toMatchObject({
+      label: null,
+      hovered: true,
+    });
+    fireEvent.pointerUp(canvas);
+    expect(
+      document.querySelector('[data-bottom-panel-scroll="tuning"]'),
+    ).not.toHaveClass("!cursor-ew-resize");
     expect(
       getTextStore().textStore[0].query?.accent_phrases[0].pause_mora
         ?.vowel_length,
     ).toBeCloseTo(0.4);
-    expect(container.querySelectorAll('[role="slider"]')).toHaveLength(1);
+    expect(getTextStore().textStore[0].duration_is_modified).toBe(true);
   });
 
   it("resizes the duration area by pointer and keyboard", async () => {
@@ -2386,7 +2538,7 @@ describe("BottomPanel playback", () => {
       name: "Resize duration area",
     });
     const timeline = container.querySelector<HTMLElement>(
-      "[data-tuning-virtualizer]",
+      "[data-tuning-timeline]",
     )!;
     Object.defineProperty(timeline, "clientHeight", { value: 200 });
     vi.spyOn(timeline, "getBoundingClientRect").mockReturnValue({
@@ -2394,7 +2546,7 @@ describe("BottomPanel playback", () => {
     } as DOMRect);
     handle.setPointerCapture = vi.fn();
 
-    expect(screen.getByText("k").parentElement).toHaveStyle({ height: "64px" });
+    expect(handle).toHaveStyle({ bottom: "64px" });
 
     handle.dispatchEvent(
       new MouseEvent("pointerdown", { bubbles: true, button: 0, clientY: 152 }),
@@ -2404,7 +2556,7 @@ describe("BottomPanel playback", () => {
     );
     handle.dispatchEvent(new Event("lostpointercapture", { bubbles: true }));
 
-    expect(screen.getByText("k").parentElement).toHaveStyle({ height: "80px" });
+    expect(handle).toHaveStyle({ bottom: "80px" });
     expect(handle).toHaveAttribute("aria-valuemax", "152");
     expect(handle).toHaveAttribute("aria-valuenow", "80");
     expect(getConfigStore().config.ui.bottom_duration_height).toBe(80);
@@ -2417,46 +2569,16 @@ describe("BottomPanel playback", () => {
     expect(ruler.querySelectorAll("[data-pitch] span").length).toBeLessThan(7);
 
     fireEvent.keyDown(handle, { key: "ArrowUp" });
-    expect(screen.getByText("k").parentElement).toHaveStyle({ height: "88px" });
+    expect(handle).toHaveStyle({ bottom: "88px" });
     expect(getConfigStore().config.ui.bottom_duration_height).toBe(88);
     expect(ruler).toHaveStyle({ height: "112px" });
   });
 
-  it("mounts only tuning items near the horizontal viewport", async () => {
-    const resizeObservers = new Map<
-      Element,
-      {
-        callback: ResizeObserverCallback;
-        observer: ResizeObserver;
-      }
-    >();
-    class ResizeObserverTestMock {
-      constructor(callback: ResizeObserverCallback) {
-        this.callback = callback;
-      }
-
-      private readonly callback: ResizeObserverCallback;
-
-      observe(target: Element) {
-        resizeObservers.set(target, {
-          callback: this.callback,
-          observer: this as unknown as ResizeObserver,
-        });
-      }
-
-      unobserve(target: Element) {
-        resizeObservers.delete(target);
-      }
-
-      disconnect() {}
-    }
-    Object.defineProperty(globalThis, "ResizeObserver", {
-      configurable: true,
-      value: ResizeObserverTestMock,
-    });
+  it("draws only the moras in the horizontal viewport", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
+    sizeTuningCanvas(360, 120);
     const { container, getConfigStore, getTextStore } = renderPanel({
       spectrogram_preview: false,
     });
@@ -2482,62 +2604,42 @@ describe("BottomPanel playback", () => {
       }),
     );
 
-    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
+    const canvas = await openTuningCanvas();
     const tuningPanel = container.querySelector<HTMLElement>(
       '[data-bottom-panel-scroll="tuning"]',
     )!;
-    const virtualTimeline = tuningPanel.querySelector<HTMLElement>(
-      "[data-tuning-virtualizer]",
+    const timeline = tuningPanel.querySelector<HTMLElement>(
+      "[data-tuning-timeline]",
     )!;
     const ruler = screen.getByRole("group", { name: "Pitch ruler" });
     expect(tuningPanel).not.toContainElement(ruler);
     expect(tuningPanel.parentElement).toContainElement(ruler);
 
-    expect(within(tuningPanel).getByText("mora-0")).toBeInTheDocument();
-    expect(within(tuningPanel).queryByText("mora-99")).not.toBeInTheDocument();
-    expect(
-      tuningPanel.querySelectorAll("[data-tuning-item]").length,
-    ).toBeLessThan(100);
-    expect(virtualTimeline).toHaveStyle({ width: "3600px" });
-    const ghost = virtualTimeline.querySelector<HTMLElement>(
-      "[data-tuning-ghost]",
-    )!;
-    expect(ghost).toHaveStyle({ left: "3600px", width: "64px" });
-
-    // The virtualizer measures the scroll element's client box on resize.
-    Object.defineProperties(tuningPanel, {
-      clientWidth: { configurable: true, value: 360 },
-      clientHeight: { configurable: true, value: 120 },
-    });
-    const resizeObserver = resizeObservers.get(tuningPanel)!;
-    resizeObserver.callback(
-      [
-        {
-          target: tuningPanel,
-          borderBoxSize: [{ inlineSize: 360, blockSize: 120 }],
-        } as unknown as ResizeObserverEntry,
-      ],
-      resizeObserver.observer,
+    // The canvas covers the viewport while the timeline scrolls under it.
+    expect(canvas).toHaveStyle({ width: "360px", height: "168px" });
+    const drawn = () =>
+      tuningScene().columns.map(({ column }) => column.mora.text);
+    expect(drawn()).toEqual(
+      Array.from({ length: 10 }, (_, index) => `mora-${index}`),
     );
-    await waitFor(() =>
-      expect(
-        tuningPanel.querySelectorAll("[data-tuning-item]").length,
-      ).toBeGreaterThan(6),
-    );
+    // The timeline leaves room for the pitch ruler after the last mora.
+    expect(timeline).toHaveStyle({ width: "3664px" });
 
     tuningPanel.scrollLeft = 3300;
     fireEvent.scroll(tuningPanel);
-    await waitFor(() =>
-      expect(within(tuningPanel).queryByText("mora-0")).not.toBeInTheDocument(),
-    );
-    expect(within(tuningPanel).getByText("mora-99")).toBeInTheDocument();
+    expect(drawn()[0]).toBe("mora-91");
+    expect(drawn()[drawn().length - 1]).toBe("mora-99");
+    expect(tuningScene().columns[0].x).toBeCloseTo(3276 - 3300);
     expect(screen.getByRole("group", { name: "Pitch ruler" })).toBe(ruler);
 
+    // Pointer positions follow the scroll offset.
+    press(canvas, 30, 60);
+    expect(
+      getTextStore().textStore[0].query!.accent_phrases[0].moras[92].pitch,
+    ).toBeCloseTo(3.4 + 3.1 / 2);
+
     getConfigStore().setConfig("ui", "bottom_scale", 720);
-    await waitFor(() =>
-      expect(virtualTimeline).toHaveStyle({ width: "7200px" }),
-    );
-    await waitFor(() => expect(ghost).toHaveStyle({ left: "7200px" }));
+    expect(timeline).toHaveStyle({ width: "7264px" });
     getTextStore().setTextStore(
       0,
       "query",
@@ -2548,9 +2650,7 @@ describe("BottomPanel playback", () => {
       "vowel_length",
       0.2,
     );
-    await waitFor(() =>
-      expect(virtualTimeline).toHaveStyle({ width: "7272px" }),
-    );
+    expect(timeline).toHaveStyle({ width: "7336px" });
   });
 
   it("handles spectrogram failures and playback-triggered refreshes", async () => {
@@ -2643,10 +2743,11 @@ describe("BottomPanel playback", () => {
     );
   });
 
-  it("maps pointer and keyboard edits through the density scale and announces pitch", async () => {
+  it("maps pointer edits through the density scale", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
+    sizeTuningCanvas();
     const { getConfigStore, getTextStore } = renderPanel({
       spectrogram_preview: false,
     });
@@ -2663,69 +2764,54 @@ describe("BottomPanel playback", () => {
       },
     });
     getConfigStore().setConfig("ui", "pitch_scale", "DensityAware");
-    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-    const slider = await screen.findByRole("slider", { name: "コ" });
+    const canvas = await openTuningCanvas();
     const ruler = screen.getByRole("group", { name: "Pitch ruler" });
     const middleTick = () =>
       ruler.querySelector<HTMLElement>('[data-pitch="5"]')!;
     expect(Number.parseFloat(middleTick().style.bottom)).toBeCloseTo(82);
-    const track = slider.parentElement!;
-    vi.spyOn(track, "getBoundingClientRect").mockReturnValue({
-      top: 0,
-      left: 0,
-      width: 100,
-      height: 100,
-    } as DOMRect);
-    Object.assign(track, {
-      setPointerCapture: vi.fn(),
-      hasPointerCapture: () => true,
-      releasePointerCapture: vi.fn(),
-    });
-    getConfigStore().setConfig("ui", "pitch_scale", "Optimal");
-    expect(
-      getTextStore().textStore[0].query!.accent_phrases[0].moras[0].pitch,
-    ).toBe(5.4);
-    expect(getTextStore().textStore[0].pitch_is_modified).toBe(false);
-    expect(Number(slider.getAttribute("aria-valuenow"))).toBeCloseTo(0.7);
-    expect(Number.parseFloat(middleTick().style.bottom)).toBeCloseTo(50);
-    fireEvent(
-      track,
-      new MouseEvent("pointerdown", { bubbles: true, clientY: 50 }),
-    );
-    fireEvent(
-      track,
-      new MouseEvent("pointerup", { bubbles: true, clientY: 50 }),
-    );
-    expect(
-      getTextStore().textStore[0].query!.accent_phrases[0].moras[0].pitch,
-    ).toBe(5);
-    getConfigStore().setConfig("ui", "pitch_scale", "DensityAware");
-    expect(Number(slider.getAttribute("aria-valuenow"))).toBeCloseTo(0.82);
-    expect(Number.parseFloat(middleTick().style.bottom)).toBeCloseTo(82);
-    fireEvent(
-      track,
-      new MouseEvent("pointerdown", { bubbles: true, clientY: 50 }),
-    );
-    fireEvent(
-      track,
-      new MouseEvent("pointerup", { bubbles: true, clientY: 50 }),
-    );
     const pitch = () =>
       getTextStore().textStore[0].query!.accent_phrases[0].moras[0].pitch;
+
+    getConfigStore().setConfig("ui", "pitch_scale", "Optimal");
+    expect(pitch()).toBe(5.4);
+    expect(getTextStore().textStore[0].pitch_is_modified).toBe(false);
+    expect(sceneColumn("コ").pitch!.y).toBeCloseTo(yOf(0.7));
+    expect(Number.parseFloat(middleTick().style.bottom)).toBeCloseTo(50);
+    press(canvas, 10, 100);
+    expect(pitch()).toBe(5);
+
+    getConfigStore().setConfig("ui", "pitch_scale", "DensityAware");
+    expect(sceneColumn("コ").pitch!.y).toBeCloseTo(yOf(0.82));
+    expect(Number.parseFloat(middleTick().style.bottom)).toBeCloseTo(82);
+    press(canvas, 10, 100);
     // The lower half has 90% of samples: 0.8 * 0.9 + 0.2 * 0.5 = 0.82 of the track.
     expect(pitch()).toBeCloseTo(4 + 0.5 / 0.82, 6);
-    expect(slider).toHaveAttribute("aria-valuetext", pitch().toFixed(4));
     expect(getTextStore().textStore[0].pitch_is_modified).toBe(true);
-    fireEvent.keyDown(slider, { key: "ArrowUp" });
-    expect(pitch()).toBeCloseTo(4 + 0.501 / 0.82, 6);
-    fireEvent.keyDown(slider, { key: "End" });
+
+    // A captured pointer stays on the scale beyond the pitch area.
+    drag(canvas, 0, [
+      [10, 100],
+      [10, -40],
+    ]);
     expect(pitch()).toBe(6);
-    fireEvent.keyDown(slider, { key: "Home" });
+    drag(canvas, 0, [
+      [10, 100],
+      [10, 400],
+    ]);
     expect(pitch()).toBe(4);
+    expect(sceneColumn("コ").pitch!.y).toBe(PLOT_HEIGHT);
+
     getConfigStore().setRange(null);
     expect(
       screen.queryByRole("group", { name: "Pitch ruler" }),
     ).not.toBeInTheDocument();
+    // Without a range the style has no pitch area: the strip fills the column.
+    expect(tuningScene().columns[0]).toMatchObject({
+      pitch: null,
+      stripTop: 0,
+    });
+    press(canvas, 10, 100);
+    expect(pitch()).toBe(4);
   });
 
   it("changes the pitch scale and toggles the ruler from the toolbar menu", async () => {
@@ -2785,7 +2871,10 @@ describe("BottomPanel playback", () => {
         screen.queryByRole("group", { name: "Pitch ruler" }),
       ).not.toBeInTheDocument(),
     );
-    expect(document.querySelector("[data-tuning-ghost]")).not.toBeNull();
+    // The room kept for the ruler stays while it is hidden.
+    expect(document.querySelector("[data-tuning-timeline]")).toHaveStyle({
+      width: "136px",
+    });
 
     // The menu stays reachable to show the hidden ruler again.
     await waitFor(() =>
@@ -2802,17 +2891,25 @@ describe("BottomPanel playback", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows the two-digit pitch value on the slider indicator while hovered", async () => {
+  it("shows the two-digit pitch value on the hovered mora", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
+    sizeTuningCanvas();
     const { getTextStore } = renderPanel({ spectrogram_preview: false });
-    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-    const slider = await screen.findByRole("slider", { name: "コ" });
-    const badge = within(slider).getByText("5.40");
-    expect(badge).toHaveAttribute("aria-hidden", "true");
-    expect(badge).toHaveClass("invisible", "group-hover:visible", "bg-surface");
-    expect(badge).not.toHaveClass("bg-slate-4", "text-white", "border");
+    const canvas = await openTuningCanvas();
+    expect(sceneColumn("コ").pitch).toMatchObject({
+      hovered: false,
+      fill: null,
+      badge: null,
+    });
+
+    fireEvent.pointerMove(canvas, { clientX: 10, clientY: 100 });
+    expect(sceneColumn("コ").pitch).toMatchObject({
+      hovered: true,
+      fill: { top: expect.closeTo(yOf(2 / 3.1)), bottom: PLOT_HEIGHT },
+      badge: "5.40",
+    });
 
     getTextStore().setTextStore(
       0,
@@ -2824,9 +2921,14 @@ describe("BottomPanel playback", () => {
       "pitch",
       5.678,
     );
-    await waitFor(() =>
-      expect(within(slider).getByText("5.68")).toBeInTheDocument(),
-    );
+    expect(sceneColumn("コ").pitch!.badge).toBe("5.68");
+
+    // Past the last mora nothing is hovered.
+    fireEvent.pointerMove(canvas, { clientX: 300, clientY: 100 });
+    expect(sceneColumn("コ").pitch!.badge).toBeNull();
+    fireEvent.pointerMove(canvas, { clientX: 10, clientY: 100 });
+    fireEvent.pointerLeave(canvas);
+    expect(sceneColumn("コ").pitch!.hovered).toBe(false);
   });
 
   it("resets accent phrase edits from the control bar on the accent panel", async () => {
@@ -3339,65 +3441,63 @@ describe("BottomPanel playback", () => {
     );
   });
 
-  it("dims the slider fill but not the thumb when the spectrogram preview is enabled", async () => {
+  it("dims the hovered pitch span when the spectrogram preview is enabled", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
+    sizeTuningCanvas();
     const { getConfigStore } = renderPanel({ spectrogram_preview: false });
-    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-    const slider = await screen.findByRole("slider", { name: "コ" });
-    const fill = slider.parentElement!.firstElementChild!;
-    expect(fill).not.toHaveClass("opacity-60");
+    await openTuningCanvas();
+    const colors = () => vi.mocked(drawScene).mock.lastCall![2];
+    expect(colors().fillAlpha).toBe(1);
 
     getConfigStore().setConfig("ui", "spectrogram_preview", true);
-    await waitFor(() => expect(fill).toHaveClass("opacity-60"));
-    expect(slider).not.toHaveClass("opacity-60");
+    await waitFor(() => expect(colors().fillAlpha).toBe(0.6));
   });
 
   it("hides the pitch value badge when the mora column is too narrow", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
+    sizeTuningCanvas();
     const { getConfigStore } = renderPanel({ spectrogram_preview: false });
-    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-    const slider = await screen.findByRole("slider", { name: "コ" });
-    expect(within(slider).getByText("5.40")).toBeInTheDocument();
+    const canvas = await openTuningCanvas();
+    fireEvent.pointerMove(canvas, { clientX: 10, clientY: 100 });
+    expect(sceneColumn("コ").pitch!.badge).toBe("5.40");
 
     getConfigStore().setConfig("ui", "bottom_scale", 100);
-    await waitFor(() =>
-      expect(
-        within(screen.getByRole("slider", { name: "コ" })).queryByText("5.40"),
-      ).not.toBeInTheDocument(),
-    );
+    expect(sceneColumn("コ").pitch!.badge).toBeNull();
 
     getConfigStore().setConfig("ui", "bottom_scale", 360);
-    await waitFor(() =>
-      expect(
-        within(screen.getByRole("slider", { name: "コ" })).getByText("5.40"),
-      ).toBeInTheDocument(),
-    );
+    expect(sceneColumn("コ").pitch!.badge).toBe("5.40");
   });
 
   it("hides duration labels that do not fit their columns", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
+    sizeTuningCanvas();
     const { getConfigStore, getTextStore } = renderPanel({
       spectrogram_preview: false,
     });
-    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-    const slider = await screen.findByRole("slider", { name: "コ" });
-    const item = slider.closest<HTMLElement>("[data-tuning-item]")!;
-    expect(within(item).getByText("コ")).toBeInTheDocument();
-    expect(within(item).getByText("k")).toBeInTheDocument();
-    expect(within(item).getByText("o")).toBeInTheDocument();
+    const canvas = await openTuningCanvas();
+    expect(sceneColumn("コ")).toMatchObject({ moraLabel: "コ", cells: null });
+    fireEvent.pointerMove(canvas, { clientX: 10, clientY: STRIP_Y });
+    expect(sceneColumn("コ")).toMatchObject({
+      moraLabel: null,
+      cells: {
+        consonant: { label: "k", hovered: true },
+        vowel: { label: "o", hovered: false },
+      },
+    });
 
     getConfigStore().setConfig("ui", "bottom_scale", 100);
-    await waitFor(() =>
-      expect(within(item).queryByText("k")).not.toBeInTheDocument(),
-    );
-    expect(within(item).getByText("コ")).toBeInTheDocument();
-    expect(within(item).getByText("o")).toBeInTheDocument();
+    expect(sceneColumn("コ").cells).toMatchObject({
+      consonant: { label: null },
+      vowel: { label: "o" },
+    });
+    fireEvent.pointerLeave(canvas);
+    expect(sceneColumn("コ").moraLabel).toBe("コ");
 
     getTextStore().setTextStore(
       0,
@@ -3419,16 +3519,19 @@ describe("BottomPanel playback", () => {
       "vowel_length",
       0.02,
     );
-    await waitFor(() =>
-      expect(within(item).queryByText("コ")).not.toBeInTheDocument(),
-    );
-    expect(within(item).queryByText("o")).not.toBeInTheDocument();
+    expect(sceneColumn("コ").moraLabel).toBeNull();
+    fireEvent.pointerMove(canvas, { clientX: 3, clientY: STRIP_Y });
+    expect(sceneColumn("コ").cells).toMatchObject({
+      consonant: { label: null },
+      vowel: { label: null, hovered: true },
+    });
   });
 
-  it("edits pitch and duration and plays while the pitch slider stays focused", async () => {
+  it("edits pitch and duration on the canvas and plays the edits", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
+    sizeTuningCanvas();
     const play = vi
       .spyOn(commands, "playAudio")
       .mockResolvedValue({ status: "ok", data: null });
@@ -3437,46 +3540,82 @@ describe("BottomPanel playback", () => {
       .mockResolvedValue({ status: "ok", data: null });
     const { getTextStore } = renderPanel({ spectrogram_preview: false });
 
-    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-    const consonant = await screen.findByText("k");
-    const timeline = consonant.parentElement!.parentElement!.parentElement!;
-
-    const pitch = screen
-      .getAllByRole("slider")
-      .find((slider) => slider.getAttribute("aria-orientation") === "vertical");
-    expect(pitch).toBeDefined();
-    pitch!.focus();
-    fireEvent.keyDown(pitch!, { key: "ArrowUp" });
-    await waitFor(() =>
-      expect(
-        getTextStore().textStore[0].query?.accent_phrases[0].moras[0].pitch,
-      ).toBeCloseTo(5.4026, 4),
-    );
+    const canvas = await openTuningCanvas();
+    press(canvas, 10, 50);
+    expect(
+      getTextStore().textStore[0].query?.accent_phrases[0].moras[0].pitch,
+    ).toBeCloseTo(3.4 + 0.75 * 3.1);
     expect(getTextStore().textStore[0].pitch_is_modified).toBe(true);
+    expect(getTextStore().textStore[0].duration_is_modified).toBe(false);
 
-    fireEvent.keyDown(pitch!, { key: " " });
+    fireEvent.keyDown(canvas, { key: " " });
     await waitFor(() => expect(play).toHaveBeenCalledOnce());
     expect(play.mock.calls[0][0].accent_phrases[0].moras[0].pitch).toBeCloseTo(
-      5.4026,
-      4,
+      3.4 + 0.75 * 3.1,
     );
 
     await emit("audio-playback-finished");
-    fireEvent.mouseDown(consonant, { clientX: 100 });
-    fireEvent.mouseMove(timeline, { clientX: 136 });
-    fireEvent.mouseUp(timeline, { clientX: 136 });
+    // The consonant cell covers the first 28.8 px of the strip.
+    drag(canvas, 0, [
+      [10, STRIP_Y],
+      [46, STRIP_Y],
+    ]);
     expect(
       getTextStore().textStore[0].query?.accent_phrases[0].moras[0]
         .consonant_length,
     ).toBeCloseTo(0.18);
-    expect(pitch).toHaveFocus();
-    fireEvent.keyDown(pitch!, { key: " " });
+    // The vowel cell follows it; lengths never drop below 10 ms.
+    drag(canvas, 0, [
+      [100, STRIP_Y],
+      [-400, STRIP_Y],
+    ]);
+    expect(
+      getTextStore().textStore[0].query?.accent_phrases[0].moras[0]
+        .vowel_length,
+    ).toBeCloseTo(0.01);
+    expect(getTextStore().textStore[0].duration_is_modified).toBe(true);
+    // A move without a held button ends a stroke whose release was lost.
+    fireEvent.pointerDown(canvas, {
+      button: 0,
+      buttons: 1,
+      clientX: 10,
+      clientY: 50,
+    });
+    fireEvent.pointerMove(canvas, { buttons: 0, clientX: 10, clientY: 150 });
+    expect(
+      getTextStore().textStore[0].query?.accent_phrases[0].moras[0].pitch,
+    ).toBeCloseTo(3.4 + 0.75 * 3.1);
+    // Releasing ends the drag: later moves only hover.
+    fireEvent.pointerMove(canvas, { clientX: 200, clientY: STRIP_Y });
+    expect(
+      getTextStore().textStore[0].query?.accent_phrases[0].moras[0]
+        .vowel_length,
+    ).toBeCloseTo(0.01);
+    // Other buttons do nothing on the strip.
+    drag(canvas, 2, [
+      [10, STRIP_Y],
+      [46, STRIP_Y],
+    ]);
+    drag(canvas, 1, [
+      [10, 50],
+      [46, 80],
+    ]);
+    expect(
+      getTextStore().textStore[0].query?.accent_phrases[0].moras[0]
+        .consonant_length,
+    ).toBeCloseTo(0.18);
+
+    fireEvent.keyDown(canvas, { key: " " });
     await waitFor(() => expect(play).toHaveBeenCalledTimes(2));
     expect(
       play.mock.calls[1][0].accent_phrases[0].moras[0].consonant_length,
     ).toBeCloseTo(0.18);
 
     await emit("audio-playback-finished");
+    // No mora has a slider of its own; the zoom slider still plays on Space.
+    expect(
+      screen.queryByRole("slider", { name: "コ" }),
+    ).not.toBeInTheDocument();
     const zoom = screen
       .getAllByRole("slider")
       .find(
@@ -3491,79 +3630,81 @@ describe("BottomPanel playback", () => {
 });
 
 describe("Pitch completion", () => {
-  it("keeps sliders mounted while completion moves the changed suffix pitches", async () => {
+  it("paints across moras and redraws the suffix completion changes", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
-    vi.spyOn(commands, "completeMoraPitch").mockImplementation(
-      async (phrases) => {
+    sizeTuningCanvas();
+    const complete = vi
+      .spyOn(commands, "completeMoraPitch")
+      .mockImplementation(async (phrases) => {
         const data = structuredClone(phrases);
-        data[0].moras[1].pitch = 5.9;
+        data[0].moras[3].pitch = 5.9;
         return { status: "ok", data };
-      },
-    );
-    const { getTextStore, getConfigStore } = renderPanel({
+      });
+    const { getTextStore } = renderPanel({
       spectrogram_preview: false,
       pitch_completion_enabled: true,
     });
     const query = audioQuery();
+    // Each mora is 72 px wide; ッ is unvoiced.
     query.accent_phrases[0].moras.push(
       { ...mora, text: "ン", pitch: 5.2 },
+      { ...mora, text: "ッ", pitch: 0 },
       { ...mora, text: "ニ", pitch: 5.3 },
     );
     getTextStore().setTextStore(0, "query", query);
-    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-    const edited = await screen.findByRole("slider", { name: "コ" });
-    const changed = screen.getByRole("slider", { name: "ン" });
-    const unchanged = screen.getByRole("slider", { name: "ニ" });
-    const sliderRoot = changed.closest('[role="group"]')!;
-    expect(sliderRoot).toHaveClass(tuningStyles.pitchSlider);
-    expect(changed).toHaveClass(tuningStyles.pitchThumb);
-    expect(
-      changed.parentElement!.querySelector(`.${tuningStyles.pitchFill}`),
-    ).toBeInTheDocument();
-    const originalBottom = changed.style.bottom;
-    const unchangedBottom = unchanged.style.bottom;
-    edited.focus();
-    vi.useFakeTimers();
-    fireEvent.keyDown(edited, { key: "ArrowUp" });
-    const editedBottom = edited.style.bottom;
-    await vi.advanceTimersByTimeAsync(100);
-    expect(screen.getByRole("slider", { name: "コ" })).toBe(edited);
-    expect(screen.getByRole("slider", { name: "ン" })).toBe(changed);
-    expect(screen.getByRole("slider", { name: "ニ" })).toBe(unchanged);
-    expect(edited).toHaveFocus();
-    expect(edited.style.bottom).toBe(editedBottom);
-    expect(changed.style.bottom).not.toBe(originalBottom);
-    expect(changed).toHaveAttribute("aria-valuetext", "5.9000");
-    expect(unchanged.style.bottom).toBe(unchangedBottom);
-    // JSDOM does not run CSS transitions; dispatch their browser lifecycle events.
-    const transition = (type: string, propertyName = "bottom") =>
-      fireEvent(
-        changed,
-        Object.assign(new Event(type, { bubbles: true }), { propertyName }),
+    const canvas = await openTuningCanvas();
+    const pitches = () =>
+      getTextStore().textStore[0].query!.accent_phrases[0].moras.map(
+        (item) => item.pitch,
       );
-    transition("transitionrun", "top");
-    expect(changed).not.toHaveClass("!bg-accent");
-    transition("transitionrun");
-    expect(changed).toHaveClass("!bg-accent");
-    expect(edited).not.toHaveClass("!bg-accent");
-    expect(unchanged).not.toHaveClass("!bg-accent");
-    transition("transitionend", "top");
-    expect(changed).toHaveClass("!bg-accent");
-    transition("transitionend");
-    expect(changed).not.toHaveClass("!bg-accent");
-    transition("transitionrun");
-    transition("transitioncancel");
-    expect(changed).not.toHaveClass("!bg-accent");
-    getConfigStore().setConfig("ui", "pitch_completion_enabled", false);
-    expect(sliderRoot).toHaveClass(tuningStyles.pitchSlider);
+    const unchangedY = sceneColumn("ニ").pitch!.y;
+    vi.useFakeTimers();
+
+    // A stroke from ン leftwards to コ sets both and skips nothing voiced.
+    drag(canvas, 0, [
+      [100, 100],
+      [10, 50],
+    ]);
+    expect(pitches()[0]).toBeCloseTo(3.4 + 0.75 * 3.1);
+    expect(pitches()[1]).toBeCloseTo(3.4 + 0.5 * 3.1);
+    expect(pitches().slice(2)).toEqual([0, 5.3]);
+    expect(sceneColumn("コ").pitch!.y).toBeCloseTo(50);
+    expect(sceneColumn("ン").pitch!.y).toBeCloseTo(100);
+    expect(sceneColumn("ッ").pitch).toBeNull();
+
+    await vi.advanceTimersByTimeAsync(100);
+    // Completion keeps every pitch through ン, the right-most painted mora.
+    expect(complete).toHaveBeenCalledOnce();
+    expect(complete.mock.calls[0][2]).toEqual([pitches()[0], pitches()[1]]);
+    expect(pitches()[3]).toBe(5.9);
+    expect(sceneColumn("ニ").pitch!.y).not.toBe(unchangedY);
+    expect(sceneColumn("ニ").pitch!.y).toBeCloseTo(yOf(2.5 / 3.1));
+    expect(sceneColumn("コ").pitch!.y).toBeCloseTo(50);
+
+    // Moras between two pointer positions take the interpolated height.
+    complete.mockClear();
+    drag(canvas, 0, [
+      [10, 40],
+      [250, 160],
+    ]);
+    expect(pitches()[0]).toBeCloseTo(3.4 + 0.8 * 3.1);
+    // ン's center at 108 px lies 98 / 240 of the way along the stroke.
+    expect(pitches()[1]).toBeCloseTo(3.4 + (1 - (40 + 49) / 200) * 3.1);
+    expect(pitches()[2]).toBe(0);
+    expect(pitches()[3]).toBeCloseTo(3.4 + 0.2 * 3.1);
+    const painted = pitches();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(complete).toHaveBeenCalledOnce();
+    expect(complete.mock.calls[0][2]).toEqual(painted);
   });
 
-  it("keeps pitch transitions available for query regeneration and reset with completion disabled", async () => {
+  it("redraws regenerated and reset pitches with completion disabled", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
+    sizeTuningCanvas();
     const complete = vi.spyOn(commands, "completeMoraPitch");
     vi.spyOn(commands, "replaceMora").mockResolvedValue({
       status: "ok",
@@ -3573,29 +3714,20 @@ describe("Pitch completion", () => {
       spectrogram_preview: false,
       pitch_completion_enabled: false,
     });
-    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-    const slider = await screen.findByRole("slider", { name: "コ" });
-    const root = slider.closest('[role="group"]')!;
-    const originalBottom = slider.style.bottom;
-    expect(root).toHaveClass(tuningStyles.pitchSlider);
+    await openTuningCanvas();
+    const originalY = sceneColumn("コ").pitch!.y;
+    expect(originalY).toBeCloseTo(yOf(2 / 3.1));
     const regenerated = audioQuery();
     regenerated.accent_phrases[0].moras[0].pitch = 5.9;
     getTextStore().setTextStore(0, "query", regenerated);
-    expect(screen.getByRole("slider", { name: "コ" })).toBe(slider);
-    expect(slider.style.bottom).not.toBe(originalBottom);
-    expect(slider).toHaveAttribute("aria-valuetext", "5.9000");
+    expect(sceneColumn("コ").pitch!.y).toBeCloseTo(yOf(2.5 / 3.1));
     getTextStore().markQueryPitchModified(0);
     const reset = screen.getByRole("button", {
       name: "Reset pitch and duration edits",
     });
     reset.focus();
     fireEvent.click(reset);
-    await waitFor(() =>
-      expect(slider).toHaveAttribute("aria-valuetext", "5.4000"),
-    );
-    expect(screen.getByRole("slider", { name: "コ" })).toBe(slider);
-    expect(slider.style.bottom).toBe(originalBottom);
-    expect(root).toHaveClass(tuningStyles.pitchSlider);
+    await waitFor(() => expect(sceneColumn("コ").pitch!.y).toBe(originalY));
     expect(complete).not.toHaveBeenCalled();
   });
 
@@ -3663,7 +3795,7 @@ describe("Pitch completion", () => {
       });
       fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
       const toggle = screen.getByRole("button", { name: "Pitch completion" });
-      const pitch = screen.getByRole("slider", { name: "コ" });
+      const pitch = await findTuningCanvas();
       fireEvent.pointerEnter(toggle.parentElement!, { pointerType: "mouse" });
       await waitFor(() =>
         expect(screen.getByRole("tooltip")).toHaveTextContent(
@@ -3999,22 +4131,6 @@ describe("Relative pitch tuning", () => {
       moras: phrase.moras.map((item) => ({ ...item, pitch })),
     })),
   });
-  const mockTrack = (slider: HTMLElement) => {
-    const track = slider.parentElement!;
-    vi.spyOn(track, "getBoundingClientRect").mockReturnValue({
-      top: 0,
-      left: 0,
-      width: 100,
-      height: 100,
-    } as DOMRect);
-    Object.assign(track, {
-      setPointerCapture: vi.fn(),
-      hasPointerCapture: () => true,
-      releasePointerCapture: vi.fn(),
-    });
-    return track;
-  };
-
   // Edited pitches are not the prediction, so the baseline must be requested.
   const markPitchEdited = async (
     getTextStore: ReturnType<typeof renderPanel>["getTextStore"],
@@ -4027,6 +4143,7 @@ describe("Relative pitch tuning", () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
+    sizeTuningCanvas();
     const replace = vi
       .spyOn(commands, "replaceMoraPitch")
       .mockImplementation(predicted(5));
@@ -4034,32 +4151,24 @@ describe("Relative pitch tuning", () => {
       spectrogram_preview: false,
       pitch_tuning_mode: "Relative",
     });
-    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-    const slider = await screen.findByRole("slider", { name: "コ" });
-    expect(slider).toHaveAttribute("aria-valuetext", "0 semitones");
-    expect(Number(slider.getAttribute("aria-valuenow"))).toBe(0.5);
-    const track = mockTrack(slider);
-    fireEvent(
-      track,
-      new MouseEvent("pointerdown", { bubbles: true, clientY: 25 }),
-    );
-    fireEvent(
-      track,
-      new MouseEvent("pointerup", { bubbles: true, clientY: 25 }),
-    );
+    const canvas = await openTuningCanvas();
+    expect(sceneColumn("コ").pitch).toMatchObject({
+      y: yOf(0.5),
+      baselineY: yOf(0.5),
+    });
+    press(canvas, 10, 50);
     const pitch = () =>
       getTextStore().textStore[0].query!.accent_phrases[0].moras[0].pitch;
     // The edit drifts from the snapshot taken before it.
     expect(pitch()).toBeCloseTo(5.4 + 6 * SEMITONE, 6);
-    expect(slider).toHaveAttribute("aria-valuetext", "+6.00 semitones");
+    expect(sceneColumn("コ").pitch!.y).toBeCloseTo(50);
 
-    // The cached snapshot survives remounting the tuning panel.
+    // The snapshot is kept while another tab is open.
     fireEvent.click(screen.getByRole("tab", { name: "Accent" }));
-    fireEvent.click(screen.getByRole("tab", { name: "Tuning" }));
-    expect(await screen.findByRole("slider", { name: "コ" })).toHaveAttribute(
-      "aria-valuetext",
-      "+6.00 semitones",
-    );
+    const remounted = await openTuningCanvas();
+    expect(sceneColumn("コ").pitch!.y).toBeCloseTo(50);
+    fireEvent.pointerMove(remounted, { clientX: 10, clientY: 100 });
+    expect(sceneColumn("コ").pitch!.badge).toBe("+6.0");
     await Promise.resolve();
     expect(replace).not.toHaveBeenCalled();
   });
@@ -4072,6 +4181,7 @@ describe("Relative pitch tuning", () => {
       mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
         shouldMockEvents: true,
       });
+      sizeTuningCanvas();
       const replace = vi
         .spyOn(commands, "replaceMoraPitch")
         .mockImplementation(predicted(5));
@@ -4080,8 +4190,7 @@ describe("Relative pitch tuning", () => {
         pitch_tuning_mode: "Relative",
         pitch_noise_enabled: true,
       });
-      fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-      const slider = await screen.findByRole("slider", { name: "コ" });
+      const canvas = await openTuningCanvas();
       if (input === "pitch_noise_seed")
         getTextStore().setTextStore(0, "pitch_noise_seed", 7);
       else getConfigStore().setConfig("ui", "pitch_noise_sigma", 0.2);
@@ -4096,21 +4205,13 @@ describe("Relative pitch tuning", () => {
         "pitch",
         5,
       );
-      expect(slider).toHaveAttribute("aria-valuetext", "0 semitones");
+      expect(sceneColumn("コ").pitch!.y).toBe(yOf(0.5));
 
-      const track = mockTrack(slider);
-      fireEvent(
-        track,
-        new MouseEvent("pointerdown", { bubbles: true, clientY: 25 }),
-      );
-      fireEvent(
-        track,
-        new MouseEvent("pointerup", { bubbles: true, clientY: 25 }),
-      );
+      press(canvas, 10, 50);
       expect(
         getTextStore().textStore[0].query!.accent_phrases[0].moras[0].pitch,
       ).toBeCloseTo(5 + 6 * SEMITONE, 6);
-      expect(slider).toHaveAttribute("aria-valuetext", "+6.00 semitones");
+      expect(sceneColumn("コ").pitch!.y).toBeCloseTo(50);
       expect(replace).not.toHaveBeenCalled();
     },
   );
@@ -4134,7 +4235,7 @@ describe("Relative pitch tuning", () => {
     });
     await markPitchEdited(getTextStore);
     fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-    await screen.findByRole("slider", { name: "コ" });
+    await findTuningCanvas();
     await waitFor(() => expect(replace).toHaveBeenCalledTimes(1));
     expect(replace.mock.calls[0].slice(1)).toEqual([1, 0, 0.3]);
 
@@ -4143,47 +4244,54 @@ describe("Relative pitch tuning", () => {
     expect(replace.mock.calls[1].slice(1)).toEqual([1, 0, null]);
   });
 
-  it("resets pitch to the prediction on right click", async () => {
+  it("resets pitch to the prediction with the secondary button", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
+    sizeTuningCanvas();
     const { getConfigStore, getTextStore } = renderPanel({
       spectrogram_preview: false,
       pitch_tuning_mode: "Relative",
     });
-    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-    const slider = await screen.findByRole("slider", { name: "コ" });
-    const track = mockTrack(slider);
+    const query = audioQuery();
+    // Each mora is 72 px wide; ッ is unvoiced.
+    query.accent_phrases[0].moras.push(
+      { ...mora, text: "ッ", pitch: 0 },
+      { ...mora, text: "ン", pitch: 5.2 },
+    );
+    getTextStore().setTextStore(0, "query", query);
+    const canvas = await openTuningCanvas();
     const block = () => getTextStore().textStore[0];
-    const pitch = () => block().query!.accent_phrases[0].moras[0].pitch;
+    const pitches = () =>
+      block().query!.accent_phrases[0].moras.map((item) => item.pitch);
+    const menu = (x: number, y: number) =>
+      fireEvent.contextMenu(canvas, { clientX: x, clientY: y });
 
-    // Resetting a centered slider is not an edit.
-    expect(fireEvent.contextMenu(slider)).toBe(false);
+    // Resetting a pitch that sits on the prediction is not an edit.
+    press(canvas, 10, 20, 2);
+    expect(menu(10, 20)).toBe(false);
     expect(block().pitch_is_modified).toBe(false);
+    // Unvoiced moras and the duration strip keep the native menu.
+    expect(menu(100, 20)).toBe(true);
+    expect(menu(10, STRIP_Y)).toBe(true);
+    expect(menu(400, 20)).toBe(true);
 
-    fireEvent(
-      track,
-      new MouseEvent("pointerdown", { bubbles: true, clientY: 25 }),
-    );
-    fireEvent(
-      track,
-      new MouseEvent("pointerup", { bubbles: true, clientY: 25 }),
-    );
-    expect(slider).toHaveAttribute("aria-valuetext", "+6.00 semitones");
+    drag(canvas, 0, [
+      [10, 50],
+      [200, 50],
+    ]);
+    expect(pitches()[0]).toBeCloseTo(5.4 + 6 * SEMITONE, 6);
+    expect(pitches()[2]).toBeCloseTo(5.2 + 6 * SEMITONE, 6);
 
-    // The secondary button does not move the slider before the reset.
-    fireEvent(
-      track,
-      new MouseEvent("pointerdown", { bubbles: true, button: 2, clientY: 0 }),
-    );
-    expect(slider).toHaveAttribute("aria-valuetext", "+6.00 semitones");
-    expect(fireEvent.contextMenu(track)).toBe(false);
-    expect(pitch()).toBe(5.4);
-    expect(slider).toHaveAttribute("aria-valuetext", "0 semitones");
+    // The secondary button resets where it is pressed instead of painting.
+    press(canvas, 10, 0, 2);
+    expect(pitches()[0]).toBe(5.4);
+    expect(pitches()[2]).toBeCloseTo(5.2 + 6 * SEMITONE, 6);
+    expect(sceneColumn("コ").pitch!.y).toBe(yOf(0.5));
     expect(block().pitch_is_modified).toBe(true);
     expect(block().accent_is_modified).toBe(false);
 
-    // Absolute sliders reset to the same prediction.
+    // Absolute mode resets to the same prediction, across a right drag.
     getConfigStore().setConfig("ui", "pitch_tuning_mode", "Absolute");
     getTextStore().setTextStore(
       0,
@@ -4195,70 +4303,20 @@ describe("Relative pitch tuning", () => {
       "pitch",
       6,
     );
-    expect(slider).toHaveAttribute("aria-valuetext", "6.0000");
-    // The secondary button does not move the absolute slider before the reset.
-    fireEvent(
-      track,
-      new MouseEvent("pointerdown", { bubbles: true, button: 2, clientY: 0 }),
-    );
-    expect(slider).toHaveAttribute("aria-valuetext", "6.0000");
-    expect(fireEvent.contextMenu(track)).toBe(false);
-    expect(pitch()).toBe(5.4);
-    expect(slider).toHaveAttribute("aria-valuetext", "5.4000");
+    expect(sceneColumn("コ").pitch!.y).toBeCloseTo(yOf(2.6 / 3.1));
+    drag(canvas, 2, [
+      [10, 0],
+      [200, 180],
+    ]);
+    expect(pitches()).toEqual([5.4, 0, 5.2]);
+    expect(menu(200, 180)).toBe(false);
   });
 
-  it("moves sliders without a transition when the baseline arrives", async () => {
+  it("maps pitches to semitone drift from the seeded prediction", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
-    const frames: FrameRequestCallback[] = [];
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
-      frames.push(callback);
-      return frames.length;
-    });
-    const cancel = vi.spyOn(window, "cancelAnimationFrame");
-    let resolve!: (pitch: number) => void;
-    vi.spyOn(commands, "replaceMoraPitch").mockImplementation(
-      (phrases) =>
-        new Promise((done) => {
-          resolve = (pitch) => done(predicted(pitch)(phrases) as never);
-        }),
-    );
-    const { getConfigStore, getTextStore, unmount } = renderPanel({
-      spectrogram_preview: false,
-      pitch_tuning_mode: "Relative",
-    });
-    await markPitchEdited(getTextStore);
-    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-    const slider = await screen.findByRole("slider", { name: "コ" });
-    const root = slider.closest('[role="group"]')!;
-    expect(root).not.toHaveClass(tuningStyles.instantPitch);
-    await waitFor(() => expect(resolve).toBeDefined());
-    resolve(5);
-    await waitFor(() =>
-      expect(slider).toHaveAttribute("aria-valuetext", "+6.92 semitones"),
-    );
-    expect(root).toHaveClass(tuningStyles.instantPitch);
-    const pending = frames.length;
-    frames[pending - 1](0);
-    expect(root).toHaveClass(tuningStyles.instantPitch);
-    frames[frames.length - 1](0);
-    expect(root).not.toHaveClass(tuningStyles.instantPitch);
-
-    // A mode switch is instant too; unmounting cancels the pending frame.
-    getConfigStore().setConfig("ui", "pitch_tuning_mode", "Absolute");
-    expect(root).toHaveClass(tuningStyles.instantPitch);
-    getConfigStore().setConfig("ui", "pitch_tuning_mode", "Relative");
-    expect(cancel).toHaveBeenCalled();
-    cancel.mockClear();
-    unmount();
-    expect(cancel).toHaveBeenCalled();
-  });
-
-  it("maps sliders to semitone drift from the seeded prediction", async () => {
-    mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
-      shouldMockEvents: true,
-    });
+    sizeTuningCanvas();
     const replace = vi
       .spyOn(commands, "replaceMoraPitch")
       .mockImplementation(predicted(5));
@@ -4267,60 +4325,40 @@ describe("Relative pitch tuning", () => {
       pitch_tuning_mode: "Relative",
     });
     await markPitchEdited(getTextStore);
-    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-    const slider = await screen.findByRole("slider", { name: "コ" });
+    const canvas = await openTuningCanvas();
+    const drawn = () => sceneColumn("コ").pitch!;
     // 5.4 - 5.0 = 0.4 log pitch = 6.92 semitones above the prediction.
     await waitFor(() =>
-      expect(slider).toHaveAttribute("aria-valuetext", "+6.92 semitones"),
+      expect(drawn().y).toBeCloseTo(yOf((0.4 / SEMITONE + 12) / 24)),
     );
     expect(replace).toHaveBeenCalledTimes(1);
     expect(replace.mock.calls[0][1]).toBe(1);
     expect(replace.mock.calls[0][2]).toBe(0);
-    expect(within(slider).getByText("+6.9")).toBeInTheDocument();
-    expect(Number(slider.getAttribute("aria-valuenow"))).toBeCloseTo(
-      (0.4 / SEMITONE + 12) / 24,
-    );
-    expect(document.querySelector("[data-pitch-baseline]")).not.toBeNull();
-    const ghost = () =>
-      document.querySelector<HTMLElement>("[data-pitch-ghost]")!;
-    const ghostBottom = () => Number.parseFloat(ghost().style.bottom);
+    // The dashed prediction sits in the middle.
+    expect(drawn().baselineY).toBe(yOf(0.5));
     // The ghost marks the current pitch on the shared absolute scale.
-    expect(ghostBottom()).toBeCloseTo(((5.4 - 3.4) / 3.1) * 100);
-    const fill = slider.parentElement!.querySelector<HTMLElement>(
-      `.${tuningStyles.pitchFill}`,
-    )!;
-    expect(fill.style.bottom).toBe("50%");
+    expect(drawn().ghost!.y).toBeCloseTo(yOf((5.4 - 3.4) / 3.1));
+    expect(drawn().ghost!.outOfRange).toBeNull();
+    // The hovered span runs from the prediction to the pitch.
+    fireEvent.pointerMove(canvas, { clientX: 10, clientY: 100 });
+    expect(drawn().badge).toBe("+6.9");
+    expect(drawn().fill).toEqual({ top: drawn().y, bottom: yOf(0.5) });
 
-    const track = mockTrack(slider);
-    fireEvent(
-      track,
-      new MouseEvent("pointerdown", { bubbles: true, clientY: 75 }),
-    );
-    fireEvent(
-      track,
-      new MouseEvent("pointerup", { bubbles: true, clientY: 75 }),
-    );
+    press(canvas, 10, 150);
     const pitch = () =>
       getTextStore().textStore[0].query!.accent_phrases[0].moras[0].pitch;
     expect(pitch()).toBeCloseTo(5 - 6 * SEMITONE, 6);
-    expect(slider).toHaveAttribute("aria-valuetext", "-6.00 semitones");
-    expect(ghostBottom()).toBeCloseTo(((5 - 6 * SEMITONE - 3.4) / 3.1) * 100);
-    expect(Number.parseFloat(fill.style.bottom)).toBeCloseTo(25);
-    expect(fill.style.top).toBe("50%");
+    expect(drawn().y).toBeCloseTo(150);
+    expect(drawn().badge).toBe("-6.0");
+    expect(drawn().ghost!.y).toBeCloseTo(yOf((5 - 6 * SEMITONE - 3.4) / 3.1));
+    expect(drawn().fill).toEqual({ top: yOf(0.5), bottom: drawn().y });
     expect(getTextStore().textStore[0].pitch_is_modified).toBe(true);
     expect(getTextStore().textStore[0].accent_is_modified).toBe(false);
-    fireEvent(
-      track,
-      new MouseEvent("pointerdown", { bubbles: true, clientY: 50 }),
-    );
-    fireEvent(
-      track,
-      new MouseEvent("pointerup", { bubbles: true, clientY: 50 }),
-    );
+    press(canvas, 10, 100);
     expect(pitch()).toBe(5);
-    expect(slider).toHaveAttribute("aria-valuetext", "0 semitones");
-    const centeredGhost = ghostBottom();
-    expect(centeredGhost).toBeCloseTo(((5 - 3.4) / 3.1) * 100);
+    expect(drawn().badge).toBe("0");
+    const centeredGhost = drawn().ghost!.y;
+    expect(centeredGhost).toBeCloseTo(yOf((5 - 3.4) / 3.1));
 
     // Pitch and duration edits keep the same prediction.
     getTextStore().setTextStore(
@@ -4336,66 +4374,53 @@ describe("Relative pitch tuning", () => {
     await Promise.resolve();
     expect(replace).toHaveBeenCalledTimes(1);
 
-    // The drift range only changes the slider mapping, not the ghost.
+    // The drift range only changes the pitch mapping, not the ghost.
     getConfigStore().setConfig("ui", "pitch_drift_range", 6);
-    expect(Number(slider.getAttribute("aria-valuenow"))).toBeCloseTo(0.5);
-    expect(ghostBottom()).toBe(centeredGhost);
+    expect(drawn().y).toBe(yOf(0.5));
+    expect(drawn().ghost!.y).toBe(centeredGhost);
 
     getConfigStore().setConfig("ui", "pitch_tuning_mode", "Absolute");
-    expect(slider).toHaveAttribute("aria-valuetext", "5.0000");
-    const absoluteBaseline = document.querySelector<HTMLElement>(
-      "[data-pitch-baseline]",
-    )!;
-    expect(absoluteBaseline).toHaveClass("b-dashed");
-    expect(Number.parseFloat(absoluteBaseline.style.bottom)).toBeCloseTo(
-      ((5 - 3.4) / 3.1) * 100,
-    );
-    expect(document.querySelector("[data-pitch-ghost]")).toBeNull();
+    expect(drawn().y).toBeCloseTo(yOf((5 - 3.4) / 3.1));
+    expect(drawn().badge).toBe("5.00");
+    expect(drawn().baselineY).toBeCloseTo(yOf((5 - 3.4) / 3.1));
+    expect(drawn().ghost).toBeNull();
     expect(pitch()).toBe(5);
 
     // Returning to a cached prediction does not request it again.
     getConfigStore().setConfig("ui", "pitch_tuning_mode", "Relative");
-    expect(slider).toHaveAttribute("aria-valuetext", "0 semitones");
-    expect(ghostBottom()).toBeCloseTo(centeredGhost);
-    expect(
-      Number.parseFloat(
-        document.querySelector<HTMLElement>("[data-pitch-baseline]")!.style
-          .bottom,
-      ),
-    ).toBeCloseTo(50);
+    expect(drawn().y).toBe(yOf(0.5));
+    expect(drawn().ghost!.y).toBeCloseTo(centeredGhost);
+    expect(drawn().baselineY).toBe(yOf(0.5));
     expect(replace).toHaveBeenCalledTimes(1);
 
-    // Accent edits change the prediction.
+    // Accent edits change the prediction: 0.2 log pitch = 3.46 semitones.
     replace.mockImplementation(predicted(4.8));
     getTextStore().setTextStore(0, "query", "accent_phrases", 0, "accent", 2);
     await waitFor(() => expect(replace).toHaveBeenCalledTimes(2));
     await waitFor(() =>
-      expect(slider).toHaveAttribute("aria-valuetext", "+3.46 semitones"),
+      expect(drawn().y).toBeCloseTo(yOf((0.2 / SEMITONE + 6) / 12)),
     );
     // The ghost follows the current pitch, not the prediction.
-    expect(ghostBottom()).toBe(centeredGhost);
+    expect(drawn().ghost!.y).toBe(centeredGhost);
 
     // A degenerate absolute range leaves no shared scale to reference.
     getConfigStore().setRange({
       1: { ...pitchRange(), histogram_min: 5, histogram_max: 5 },
     });
-    expect(document.querySelector("[data-pitch-ghost]")).toBeNull();
+    expect(drawn().ghost).toBeNull();
   });
 
   it("marks absolute pitches beyond the shared scale with edge arrows", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
+    sizeTuningCanvas();
     const { getTextStore } = renderPanel({
       spectrogram_preview: false,
       pitch_tuning_mode: "Relative",
     });
-    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-    await screen.findByRole("slider", { name: "コ" });
-    const ghost = () =>
-      document.querySelector<HTMLElement>("[data-pitch-ghost]")!;
-    const arrow = () =>
-      document.querySelector<HTMLElement>("[data-pitch-ghost-arrow]");
+    await openTuningCanvas();
+    const ghost = () => sceneColumn("コ").pitch!.ghost!;
     const setPitch = (pitch: number) =>
       getTextStore().setTextStore(
         0,
@@ -4408,29 +4433,24 @@ describe("Relative pitch tuning", () => {
         pitch,
       );
 
-    expect(Number.parseFloat(ghost().style.bottom)).toBeCloseTo(
-      ((5.4 - 3.4) / 3.1) * 100,
-    );
-    expect(arrow()).toBeNull();
+    expect(ghost().y).toBeCloseTo(yOf((5.4 - 3.4) / 3.1));
+    expect(ghost().outOfRange).toBeNull();
 
     setPitch(7);
-    expect(ghost().style.bottom).toBe("100%");
-    expect(arrow()).toHaveAttribute("data-pitch-ghost-arrow", "above");
-    expect(arrow()).toHaveClass("i-lucide:chevron-up", "top-0");
+    expect(ghost()).toEqual({ y: 0, outOfRange: "above" });
 
     setPitch(3);
-    expect(ghost().style.bottom).toBe("0%");
-    expect(arrow()).toHaveAttribute("data-pitch-ghost-arrow", "below");
-    expect(arrow()).toHaveClass("i-lucide:chevron-down", "bottom-0");
+    expect(ghost()).toEqual({ y: PLOT_HEIGHT, outOfRange: "below" });
 
     setPitch(5.4);
-    expect(arrow()).toBeNull();
+    expect(ghost().outOfRange).toBeNull();
   });
 
   it("uses the newest prediction when an earlier response arrives late", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
+    sizeTuningCanvas();
     const pending: Array<(pitch: number) => void> = [];
     vi.spyOn(commands, "replaceMoraPitch").mockImplementation(
       (phrases) =>
@@ -4443,29 +4463,29 @@ describe("Relative pitch tuning", () => {
       pitch_tuning_mode: "Relative",
     });
     await markPitchEdited(getTextStore);
-    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-    const slider = await screen.findByRole("slider", { name: "コ" });
+    await openTuningCanvas();
+    const drawn = () => sceneColumn("コ").pitch!;
     await waitFor(() => expect(pending).toHaveLength(1));
     // Loading falls back to the absolute mapping.
-    expect(slider).toHaveAttribute("aria-valuetext", "5.4000");
-    expect(document.querySelector("[data-pitch-ghost]")).toBeNull();
+    expect(drawn().y).toBeCloseTo(yOf(2 / 3.1));
+    expect(drawn().ghost).toBeNull();
     getTextStore().setTextStore(0, "query", "accent_phrases", 0, "accent", 2);
     await waitFor(() => expect(pending).toHaveLength(2));
     pending[1](5.2);
-    await waitFor(() =>
-      expect(slider).toHaveAttribute("aria-valuetext", "+3.46 semitones"),
-    );
-    expect(document.querySelector("[data-pitch-ghost]")).not.toBeNull();
+    const drifted = yOf((0.2 / SEMITONE + 12) / 24);
+    await waitFor(() => expect(drawn().y).toBeCloseTo(drifted));
+    expect(drawn().ghost).not.toBeNull();
     pending[0](5);
     await Promise.resolve();
     await Promise.resolve();
-    expect(slider).toHaveAttribute("aria-valuetext", "+3.46 semitones");
+    expect(drawn().y).toBeCloseTo(drifted);
   });
 
-  it("falls back to absolute sliders when prediction fails", async () => {
+  it("falls back to the absolute mapping when prediction fails", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
+    sizeTuningCanvas();
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const replace = vi
       .spyOn(commands, "replaceMoraPitch")
@@ -4476,16 +4496,24 @@ describe("Relative pitch tuning", () => {
       pitch_tuning_mode: "Relative",
     });
     await markPitchEdited(getTextStore);
-    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-    const slider = await screen.findByRole("slider", { name: "コ" });
+    const canvas = await openTuningCanvas();
+    const drawn = () => sceneColumn("コ").pitch!;
     await waitFor(() =>
       expect(error).toHaveBeenCalledWith(
         "Failed to predict pitch baseline:",
         "no model",
       ),
     );
-    expect(slider).toHaveAttribute("aria-valuetext", "5.4000");
-    expect(document.querySelector("[data-pitch-baseline]")).toBeNull();
+    expect(drawn().y).toBeCloseTo(yOf(2 / 3.1));
+    expect(drawn().baselineY).toBeNull();
+    // Without a prediction there is nothing to reset to.
+    press(canvas, 10, 20, 2);
+    expect(fireEvent.contextMenu(canvas, { clientX: 10, clientY: 20 })).toBe(
+      true,
+    );
+    expect(
+      getTextStore().textStore[0].query!.accent_phrases[0].moras[0].pitch,
+    ).toBe(5.4);
     getTextStore().setTextStore(0, "query", "accent_phrases", 0, "accent", 2);
     await waitFor(() => expect(replace).toHaveBeenCalledTimes(2));
     await waitFor(() =>
@@ -4494,7 +4522,7 @@ describe("Relative pitch tuning", () => {
         expect.any(Error),
       ),
     );
-    expect(slider).toHaveAttribute("aria-valuetext", "5.4000");
+    expect(drawn().y).toBeCloseTo(yOf(2 / 3.1));
   });
 
   it("ignores predictions that settle after unmounting", async () => {
@@ -4515,7 +4543,7 @@ describe("Relative pitch tuning", () => {
     });
     await markPitchEdited(getTextStore);
     fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-    await screen.findByRole("slider", { name: "コ" });
+    await findTuningCanvas();
     await waitFor(() => expect(fail).toBeDefined());
     unmount();
     fail(new Error("late"));
@@ -4582,6 +4610,7 @@ describe("Absolute pitch tuning baseline ghost", () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
+    sizeTuningCanvas();
     const replace = vi
       .spyOn(commands, "replaceMoraPitch")
       .mockImplementation(async (phrases) => ({
@@ -4596,24 +4625,20 @@ describe("Absolute pitch tuning baseline ghost", () => {
     });
     await screen.findByRole("tab", { name: "Tuning" });
     getTextStore().setTextStore(0, "pitch_is_modified", true);
-    fireEvent.click(screen.getByRole("tab", { name: "Tuning" }));
-    const slider = await screen.findByRole("slider", { name: "コ" });
-    expect(slider).toHaveAttribute("aria-valuetext", "5.4000");
-    const baseline = () =>
-      document.querySelector<HTMLElement>("[data-pitch-baseline]")!;
+    await openTuningCanvas();
+    const drawn = () => sceneColumn("コ").pitch!;
+    expect(drawn().y).toBeCloseTo(yOf(2 / 3.1));
 
     // Absolute mode still resolves the seeded prediction for its ghost.
     await waitFor(() => expect(replace).toHaveBeenCalledTimes(1));
     await waitFor(() =>
-      expect(Number.parseFloat(baseline().style.bottom)).toBeCloseTo(
-        ((5 - 3.4) / 3.1) * 100,
-      ),
+      expect(drawn().baselineY).toBeCloseTo(yOf((5 - 3.4) / 3.1)),
     );
-    expect(baseline()).toHaveClass("b-dashed");
-    // Receiving the prediction does not switch the slider to relative drift.
-    expect(slider).toHaveAttribute("aria-valuetext", "5.4000");
+    // Receiving the prediction does not switch the pitch to relative drift.
+    expect(drawn().y).toBeCloseTo(yOf(2 / 3.1));
+    expect(drawn().ghost).toBeNull();
 
-    // The ghost stays at the prediction while the thumb shows the edit.
+    // The ghost stays at the prediction while the pitch shows the edit.
     getTextStore().setTextStore(
       0,
       "query",
@@ -4622,64 +4647,52 @@ describe("Absolute pitch tuning baseline ghost", () => {
       "moras",
       0,
       "pitch",
-      5.4,
+      5.6,
     );
-    expect(slider).toHaveAttribute("aria-valuetext", "5.4000");
-    expect(Number.parseFloat(baseline().style.bottom)).toBeCloseTo(
-      ((5 - 3.4) / 3.1) * 100,
-    );
+    expect(drawn().y).toBeCloseTo(yOf(2.2 / 3.1));
+    expect(drawn().baselineY).toBeCloseTo(yOf((5 - 3.4) / 3.1));
 
     // A degenerate absolute range leaves no shared scale to reference.
     getConfigStore().setRange({
       1: { ...pitchRange(), histogram_min: 5, histogram_max: 5 },
     });
-    expect(document.querySelector("[data-pitch-baseline]")).toBeNull();
+    expect(drawn().baselineY).toBeNull();
   });
 
   it("rebuilds the baseline after a seed's query settles", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
+    sizeTuningCanvas();
     const { getTextStore } = renderPanel({ spectrogram_preview: false });
-    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-    await screen.findByRole("slider", { name: "コ" });
-    const baselineBottom = () =>
-      Number.parseFloat(
-        document.querySelector<HTMLElement>("[data-pitch-baseline]")!.style
-          .bottom,
-      );
+    await openTuningCanvas();
+    const baselineY = () => sceneColumn("コ").pitch!.baselineY;
 
-    expect(baselineBottom()).toBeCloseTo(((5.4 - 3.4) / 3.1) * 100);
+    expect(baselineY()).toBeCloseTo(yOf((5.4 - 3.4) / 3.1));
 
     // Randomizing the seed starts a query refresh while the old pitches are
     // still visible, matching the text block's generated-query lifecycle.
     const update = getTextStore().beginQueryUpdate("first-block");
     getTextStore().setTextStore(0, "pitch_noise_seed", 42);
     // The stale prediction stays visible but must not be cached for seed 42.
-    expect(baselineBottom()).toBeCloseTo(((5.4 - 3.4) / 3.1) * 100);
+    expect(baselineY()).toBeCloseTo(yOf((5.4 - 3.4) / 3.1));
 
     const query = audioQuery();
     query.accent_phrases[0].moras[0].pitch = 5;
     getTextStore().setTextStore(0, "query", query);
     update.finish();
 
-    await waitFor(() =>
-      expect(baselineBottom()).toBeCloseTo(((5 - 3.4) / 3.1) * 100),
-    );
+    await waitFor(() => expect(baselineY()).toBeCloseTo(yOf((5 - 3.4) / 3.1)));
   });
 
   it("waits for a query refresh begun after the seed change in the same update", async () => {
     mockIPC((cmd) => (cmd === "get_os" ? "Linux" : null), {
       shouldMockEvents: true,
     });
+    sizeTuningCanvas();
     const { getTextStore } = renderPanel({ spectrogram_preview: false });
-    fireEvent.click(await screen.findByRole("tab", { name: "Tuning" }));
-    await screen.findByRole("slider", { name: "コ" });
-    const baselineBottom = () =>
-      Number.parseFloat(
-        document.querySelector<HTMLElement>("[data-pitch-baseline]")!.style
-          .bottom,
-      );
+    await openTuningCanvas();
+    const baselineY = () => sceneColumn("コ").pitch!.baselineY;
 
     // The text block's effect may begin the refresh after the tuning panel
     // has already seen the new seed, so the old pitches must not be cached.
@@ -4692,8 +4705,6 @@ describe("Absolute pitch tuning baseline ghost", () => {
     getTextStore().setTextStore(0, "query", query);
     update.finish();
 
-    await waitFor(() =>
-      expect(baselineBottom()).toBeCloseTo(((5 - 3.4) / 3.1) * 100),
-    );
+    await waitFor(() => expect(baselineY()).toBeCloseTo(yOf((5 - 3.4) / 3.1)));
   });
 });

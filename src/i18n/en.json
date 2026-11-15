@@ -60,7 +60,7 @@
     "reset_accent_edits": "Reset accent phrase edits (also resets pitch and duration)",
     "reset_tuning_edits": "Reset pitch and duration edits",
     "reset_voice_alignment": "Realign audio with phonemes",
-    "pitch_drift_value": "{{ value }} semitones",
+    "tuning_canvas": "Pitch and duration editor. Drag across moras to draw their pitch; right-drag to restore the predicted pitch; drag a consonant or vowel to change its length.",
     "tuning_options": "Tuning options",
     "post": "Post",
     "post_canvas": "Frame-level pitch and timing editor. Drag to draw; right-drag to restore the analyzed pitch.",
