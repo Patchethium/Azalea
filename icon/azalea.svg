@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#fff"/>
+  <!-- bottom: long diagonal -->
+  <polygon points="446.1,147.2 424.8,180.6 780.9,892.8 802.2,859.4" fill="#2d758d"/>
+  <!-- middle: crossbar, blank shadow on its lower side -->
+  <polygon points="146.1,806.9 175.9,825.3 762.9,523.1 733.1,504.7" fill="#fff" transform="translate(6.4 12.4)"/>
+  <polygon points="146.1,806.9 175.9,825.3 762.9,523.1 733.1,504.7" fill="#2d758d"/>
+  <!-- top: thick stroke, blank shadow on its right side -->
+  <polygon points="336.6,794.6 401.9,776.9 549.4,257.4 484.1,275.1" fill="#fff" transform="translate(13.5 3.8)"/>
+  <polygon points="336.6,794.6 401.9,776.9 549.4,257.4 484.1,275.1" fill="#2d758d"/>
+</svg>
