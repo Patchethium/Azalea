@@ -7,43 +7,18 @@ import { Show } from "solid-js";
 import { useConfigStore } from "@contexts/config";
 import { usei18n } from "@contexts/i18n";
 
-const formatMegabytes = (bytes: number) =>
+export const formatMegabytes = (bytes: number) =>
   `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(bytes / 1024 / 1024)} MB`;
 
-/**
- * Stands in for a setting's control until its optional download is in place,
- * showing progress and a cancel button while it downloads.
- */
-export function ExtraDownloadButton(props: { pack: ExtraPack; label: string }) {
+/** A pack's download progress with a cancel button; empty while it is idle. */
+export function ExtraDownloadProgress(props: {
+  pack: ExtraPack;
+  label: string;
+}) {
   const { extras } = useConfigStore()!;
-  const { t1, t2 } = usei18n()!;
-  const toasts = useToasts();
-  const downloadLabel = () =>
-    t2("config.extra_download", {
-      size: formatMegabytes(extras.status[props.pack]?.bytes ?? 0),
-    });
-
-  const start = async () => {
-    const error = await extras.download(props.pack);
-    if (error !== null) toasts.error(t1("config.extra_download_failed"), error);
-  };
-
+  const { t1 } = usei18n()!;
   return (
-    <Show
-      when={extras.progress[props.pack]}
-      fallback={
-        <AppButton
-          size="sm"
-          aria-label={`${props.label}: ${downloadLabel()}`}
-          disabled={extras.status[props.pack] === undefined}
-          onClick={() => void start()}
-          class="shrink-0 flex items-center gap1"
-        >
-          <div aria-hidden="true" class="i-lucide:download size-4" />
-          {downloadLabel()}
-        </AppButton>
-      }
-    >
+    <Show when={extras.progress[props.pack]}>
       {(progress) => (
         <div class="flex items-center gap2">
           <Progress
@@ -66,6 +41,43 @@ export function ExtraDownloadButton(props: { pack: ExtraPack; label: string }) {
           />
         </div>
       )}
+    </Show>
+  );
+}
+
+/**
+ * Stands in for a setting's control until its optional download is in place,
+ * showing progress and a cancel button while it downloads.
+ */
+export function ExtraDownloadButton(props: { pack: ExtraPack; label: string }) {
+  const { extras } = useConfigStore()!;
+  const { t1, t2 } = usei18n()!;
+  const toasts = useToasts();
+  const downloadLabel = () =>
+    t2("config.extra_download", {
+      size: formatMegabytes(extras.status[props.pack]?.bytes ?? 0),
+    });
+
+  const start = async () => {
+    const error = await extras.download(props.pack);
+    if (error !== null) toasts.error(t1("config.extra_download_failed"), error);
+  };
+
+  return (
+    <Show
+      when={!extras.downloading(props.pack)}
+      fallback={<ExtraDownloadProgress pack={props.pack} label={props.label} />}
+    >
+      <AppButton
+        size="sm"
+        aria-label={`${props.label}: ${downloadLabel()}`}
+        disabled={extras.status[props.pack] === undefined}
+        onClick={() => void start()}
+        class="shrink-0 flex items-center gap1"
+      >
+        <div aria-hidden="true" class="i-lucide:download size-4" />
+        {downloadLabel()}
+      </AppButton>
     </Show>
   );
 }

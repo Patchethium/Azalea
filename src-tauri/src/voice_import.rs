@@ -2,14 +2,17 @@
 //! that block's mora durations and pitches.
 //!
 //! A recording is prepared once ([`PreparedVoice`]): resampled for the
-//! aligner, trimmed, and analyzed with WORLD's Harvest. The snfa forced
-//! aligner (its model downloaded as
-//! [`ExtraPack::AlignerModel`](crate::commands::ExtraPack)) then times each
+//! aligner, trimmed, and analyzed with WORLD's Harvest. The chosen forced
+//! aligner ([`VoiceAligner`]: snfa, its model downloaded as
+//! [`ExtraPack::AlignerModel`](crate::commands::ExtraPack), or pydomino, see
+//! [`domino`]) then times each
 //! phoneme of the block's own query as [`VoiceSegment`]s, which the user may
 //! adjust, and [`PreparedVoice::accent_phrases`] turns the segments into mora
 //! lengths and pitches: each voiced mora takes the mean log f0 over its
 //! vowel. The pitches are the speaker's own; the frontend maps them into the
 //! style's range before applying them.
+
+pub mod domino;
 
 use std::sync::OnceLock;
 
@@ -19,10 +22,13 @@ use voicevox_core::AccentPhrase;
 use crate::audio::decode::{resample, MonoAudio};
 use crate::audio::world::{self, F0Range, FRAME_PERIOD_MS};
 use crate::config::manager::aligner_model_dir;
+use crate::config::types::VoiceAligner;
 use crate::post::{display_spectrogram, f0_analysis, PostF0Analysis};
 
 /// The model file in the aligner pack.
 const MODEL_FILE: &str = "jp.safetensors";
+/// The sample rate both aligners' models take.
+pub const ALIGNER_SAMPLE_RATE: u32 = 16_000;
 /// Silence trimming before alignment, as snfa's README suggests.
 const TRIM_TOP_DB: f64 = 20.0;
 const TRIM_FRAME_LENGTH: usize = 2048;
@@ -37,9 +43,24 @@ const VOICE_F0_RANGE: F0Range = F0Range {
 
 static ALIGNER: OnceLock<snfa::Aligner> = OnceLock::new();
 
-/// Whether the downloaded aligner model is in place.
-pub fn model_available() -> bool {
-  crate::commands::pack_present(crate::commands::ExtraPack::AlignerModel)
+/// Which aligner to use and how many threads it may take (0 for the
+/// runtime's default), as the core's `cpu_num_threads`. snfa ignores the
+/// thread count.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct AlignOptions {
+  pub aligner: VoiceAligner,
+  pub cpu_num_threads: u16,
+}
+
+/// Whether `aligner`'s downloaded model is in place.
+pub fn model_available(aligner: VoiceAligner) -> bool {
+  match aligner {
+    VoiceAligner::Snfa => {
+      ALIGNER.get().is_some()
+        || crate::commands::pack_present(crate::commands::ExtraPack::AlignerModel)
+    }
+    VoiceAligner::Pydomino => domino::model_available(),
+  }
 }
 
 /// Supplies an already loaded aligner in place of the downloaded file, for
@@ -54,11 +75,17 @@ fn aligner() -> Result<&'static snfa::Aligner, String> {
   if let Some(aligner) = ALIGNER.get() {
     return Ok(aligner);
   }
-  if !model_available() {
-    return Err("The voice import model is not downloaded".into());
+  if !model_available(VoiceAligner::Snfa) {
+    return Err("The snfa model is not downloaded".into());
   }
   let aligner = snfa::Aligner::from_path(aligner_model_dir()?.join(MODEL_FILE))
-    .map_err(|e| format!("Failed to load the voice import model: {e}"))?;
+    .map_err(|e| format!("Failed to load the snfa model: {e}"))?;
+  if aligner.sample_rate() != ALIGNER_SAMPLE_RATE {
+    return Err(format!(
+      "The snfa model expects {} Hz audio",
+      aligner.sample_rate()
+    ));
+  }
   Ok(ALIGNER.get_or_init(|| aligner))
 }
 
@@ -87,22 +114,31 @@ fn snfa_phoneme(phoneme: &str) -> String {
   }
 }
 
-/// The phonemes to align, in order: each mora's consonant and vowel, then the
-/// phrase's pause.
-fn transcript(phrases: &[AccentPhrase]) -> Vec<String> {
+/// VOICEVOX's phonemes to align, in order: each mora's consonant and vowel,
+/// then the phrase's pause.
+fn voicevox_transcript(phrases: &[AccentPhrase]) -> Vec<String> {
   let mut phonemes = Vec::new();
   for phrase in phrases {
     for mora in &phrase.moras {
       if let Some(consonant) = &mora.consonant {
-        phonemes.push(snfa_phoneme(&consonant.to_string()));
+        phonemes.push(consonant.to_string());
       }
-      phonemes.push(snfa_phoneme(&mora.vowel.to_string()));
+      phonemes.push(mora.vowel.to_string());
     }
     if phrase.pause_mora.is_some() {
       phonemes.push("pau".into());
     }
   }
   phonemes
+}
+
+/// The names segments carry, whichever aligner timed them: snfa's phonemes
+/// for [`voicevox_transcript`].
+fn transcript(phrases: &[AccentPhrase]) -> Vec<String> {
+  voicevox_transcript(phrases)
+    .iter()
+    .map(|phoneme| snfa_phoneme(phoneme))
+    .collect()
 }
 
 fn length(segment: &VoiceSegment) -> Result<PositiveFinite<f32>, String> {
@@ -267,9 +303,8 @@ pub struct PreparedVoice {
 
 impl PreparedVoice {
   pub fn prepare(audio: &MonoAudio) -> Result<Self, String> {
-    let aligner = aligner()?;
     audio.check_length()?;
-    let audio = resample(audio, aligner.sample_rate())?;
+    let audio = resample(audio, ALIGNER_SAMPLE_RATE)?;
     let range = snfa::trim_audio(
       &audio.samples,
       TRIM_TOP_DB,
@@ -338,10 +373,54 @@ impl PreparedVoice {
 
   /// Times the phonemes of `phrases` in the recording, with an edge pause
   /// before and after them.
-  pub fn align(&self, phrases: &[AccentPhrase]) -> Result<Vec<VoiceSegment>, String> {
+  pub fn align(
+    &self,
+    phrases: &[AccentPhrase],
+    options: AlignOptions,
+  ) -> Result<Vec<VoiceSegment>, String> {
     if phrases.iter().all(|phrase| phrase.moras.is_empty()) {
       return Err("The text has nothing to read".into());
     }
+    let mut segments = match options.aligner {
+      VoiceAligner::Snfa => self.align_snfa(phrases)?,
+      VoiceAligner::Pydomino => self.align_domino(phrases, options.cpu_num_threads)?,
+    };
+    // The aligner's frames can end short of the last samples.
+    let duration = self.duration();
+    if let Some(last) = segments.last_mut() {
+      last.end = last.end.max(duration);
+    }
+    Ok(segments)
+  }
+
+  fn align_domino(
+    &self,
+    phrases: &[AccentPhrase],
+    cpu_num_threads: u16,
+  ) -> Result<Vec<VoiceSegment>, String> {
+    let mut phonemes = vec!["pau".to_string()];
+    phonemes.extend(voicevox_transcript(phrases));
+    phonemes.push("pau".into());
+    let spans = domino::align(&self.samples, &phonemes, cpu_num_threads)?;
+    let mut names = vec!["pau".to_string()];
+    names.extend(transcript(phrases));
+    names.push("pau".into());
+    // The model's frames can run a little past the last samples.
+    let duration = self.duration();
+    Ok(
+      names
+        .into_iter()
+        .zip(spans)
+        .map(|(phoneme, (start, end))| VoiceSegment {
+          phoneme,
+          start: start.min(duration),
+          end: end.min(duration),
+        })
+        .collect(),
+    )
+  }
+
+  fn align_snfa(&self, phrases: &[AccentPhrase]) -> Result<Vec<VoiceSegment>, String> {
     let segments = aligner()?
       .align(&self.samples, &transcript(phrases), true)
       .map_err(|e| match e {
@@ -350,20 +429,16 @@ impl PreparedVoice {
         }
         e => format!("Failed to align the recording: {e}"),
       })?;
-    let duration = self.duration();
-    let mut segments: Vec<VoiceSegment> = segments
-      .into_iter()
-      .map(|segment| VoiceSegment {
-        phoneme: segment.phoneme,
-        start: f64::from(segment.start_ms) / 1000.0,
-        end: f64::from(segment.end_ms) / 1000.0,
-      })
-      .collect();
-    // The aligner's frames can end short of the last samples.
-    if let Some(last) = segments.last_mut() {
-      last.end = last.end.max(duration);
-    }
-    Ok(segments)
+    Ok(
+      segments
+        .into_iter()
+        .map(|segment| VoiceSegment {
+          phoneme: segment.phoneme,
+          start: f64::from(segment.start_ms) / 1000.0,
+          end: f64::from(segment.end_ms) / 1000.0,
+        })
+        .collect(),
+    )
   }
 
   /// `phrases` with the lengths of `segments` and the speaker's pitch.
@@ -384,9 +459,10 @@ impl PreparedVoice {
 pub fn import_voice(
   audio: &MonoAudio,
   phrases: Vec<AccentPhrase>,
+  options: AlignOptions,
 ) -> Result<Vec<AccentPhrase>, String> {
   let voice = PreparedVoice::prepare(audio)?;
-  let segments = voice.align(&phrases)?;
+  let segments = voice.align(&phrases, options)?;
   voice.accent_phrases(phrases, &segments)
 }
 

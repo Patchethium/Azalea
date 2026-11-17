@@ -609,11 +609,11 @@ async loadVoiceFile(path: string) : Promise<Result<LoadedVoice, string>> {
 },
 /**
  * Times the phonemes of `accent_phrases` (a block's current query) in the
- * voice, with an edge pause before and after them.
+ * voice with `aligner`, with an edge pause before and after them.
  */
-async alignVoice(voiceId: string, accentPhrases: AccentPhrase[]) : Promise<Result<VoiceSegment[], string>> {
+async alignVoice(voiceId: string, accentPhrases: AccentPhrase[], aligner: VoiceAligner) : Promise<Result<VoiceSegment[], string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("align_voice", { voiceId, accentPhrases }) };
+    return { status: "ok", data: await TAURI_INVOKE("align_voice", { voiceId, accentPhrases, aligner }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -921,7 +921,7 @@ export type DownloadSetup = { directory: string; components: DownloadComponent[]
 loaded_models: string[] | null }
 export type DownloadedSetupConfig = { cache_size?: number; cpu_num_threads?: number }
 export type ExtraDownloadProgressEvent = { operation_id: string; pack: ExtraPack; completed_bytes: number; total_bytes: number }
-export type ExtraPack = "Fonts" | "EnglishModels" | "AlignerModel"
+export type ExtraPack = "Fonts" | "EnglishModels" | "AlignerModel" | "DominoModel"
 export type ExtraStatus = { pack: ExtraPack; bytes: number; installed: boolean }
 export type FrontendReadyEvent = null
 export type InitializationEvent = { config: AzaleaConfig | null; core_initialized: boolean; metas: CharacterMeta[] | null; range: ([StyleId, PitchRange])[]; error: string | null; resolved_core?: CoreConfig | null; active_setup_source?: SetupSource | null; 
@@ -1233,6 +1233,10 @@ post_processing?: boolean;
  */
 voice_import?: boolean; 
 /**
+ * The aligner voice import uses; kept while voice import is off.
+ */
+voice_aligner?: VoiceAligner; 
+/**
  * Lets MCP clients use the voices through `azalea --mcp`. The server reads it on every
  * call and refuses tools while it is off.
  */
@@ -1269,6 +1273,18 @@ export_lab?: boolean; last_exported_dir?: string | null;
  * Recently opened or saved project paths, most recent first.
  */
 recent_projects?: string[]; shortcuts?: KeyboardShortcuts }
+/**
+ * The forced aligner voice import times a recording with.
+ */
+export type VoiceAligner = 
+/**
+ * snfa, a small model run by its own Rust crate.
+ */
+"Snfa" | 
+/**
+ * pydomino's phoneme-transition model, run on VOICEVOX ONNX Runtime.
+ */
+"Pydomino"
 /**
  * The microphone level while recording, about every 50 ms.
  */

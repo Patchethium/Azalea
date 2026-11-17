@@ -1,8 +1,19 @@
-// Optional downloads (fonts and English reading models) kept out of the bundle.
+// Optional downloads (fonts, English reading models and voice import
+// aligner models) kept out of the bundle.
 
-import { commands, events, type ExtraPack, type ExtraStatus } from "$binding";
+import {
+  commands,
+  events,
+  type ExtraPack,
+  type ExtraStatus,
+  type VoiceAligner,
+} from "$binding";
 import { onCleanup } from "solid-js";
 import { createStore } from "solid-js/store";
+
+/** The pack holding a voice import aligner's model. */
+export const voiceAlignerPack = (aligner: VoiceAligner): ExtraPack =>
+  aligner === "Pydomino" ? "DominoModel" : "AlignerModel";
 
 export interface ExtraProgress {
   completed: number;

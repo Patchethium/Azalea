@@ -34,7 +34,7 @@ mod tests {
   use super::*;
 
   #[test]
-  fn embedded_notices_include_dependencies_and_world_verbatim() {
+  fn embedded_notices_include_dependencies_world_and_pydomino_verbatim() {
     let licenses = get_dependency_licenses();
     assert!(licenses
       .iter()
@@ -49,6 +49,14 @@ mod tests {
     assert_eq!(
       world.text,
       include_str!("../../third_party/world/LICENSE.txt").replace("\r\n", "\n")
+    );
+    let pydomino = licenses
+      .iter()
+      .find(|license| license.packages.iter().any(|pkg| pkg.name == "pydomino"))
+      .expect("pydomino must be included manually");
+    assert_eq!(
+      pydomino.text,
+      include_str!("../../third_party/pydomino/LICENSE").replace("\r\n", "\n")
     );
     assert!(licenses
       .iter()

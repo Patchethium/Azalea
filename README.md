@@ -115,8 +115,9 @@ MCPサーバーは設定の「合成」で「MCPサーバー」を有効にし�
 ### Setup
 
 ```sh
-git clone --recurse-submodules --shallow-submodules https://github.com/Patchethium/Azalea.git
-cd Azalea              # in an existing clone: git submodule update --init
+git clone https://github.com/Patchethium/Azalea.git
+cd Azalea
+git submodule update --init   # WORLD and pydomino, shallow; not --recursive
 pnpm install --frozen-lockfile
 pnpm tauri dev         # development build
 pnpm tauri build       # production build

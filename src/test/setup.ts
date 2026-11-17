@@ -58,6 +58,7 @@ beforeEach(async () => {
       { pack: "Fonts", bytes: 23187805, installed: true },
       { pack: "EnglishModels", bytes: 7887840, installed: true },
       { pack: "AlignerModel", bytes: 1248924, installed: true },
+      { pack: "DominoModel", bytes: 21938184, installed: true },
     ],
   });
   Object.defineProperty(window, "matchMedia", {

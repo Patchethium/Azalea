@@ -343,6 +343,7 @@ dependencies = [
  "hound",
  "lru",
  "ndarray",
+ "ort",
  "png 0.18.1",
  "rayon",
  "reqwest 0.12.28",

@@ -2,3 +2,7 @@
 	path = src-tauri/third_party/world
 	url = https://github.com/mmorise/World
 	shallow = true
+[submodule "src-tauri/third_party/pydomino"]
+	path = src-tauri/third_party/pydomino
+	url = https://github.com/DwangoMediaVillage/pydomino
+	shallow = true

@@ -15,8 +15,9 @@ use voicevox_core::AccentPhrase;
 use crate::audio::decode::{decode_file, MonoAudio};
 use crate::audio::record::Recording;
 use crate::audio::AudioPlayer;
+use crate::config::types::VoiceAligner;
 use crate::post::PostF0Analysis;
-use crate::voice_import::{PreparedVoice, VoiceSegment};
+use crate::voice_import::{AlignOptions, PreparedVoice, VoiceSegment};
 use crate::AppState;
 
 /// Voices kept at once; the least recently used one is dropped beyond it.
@@ -167,16 +168,27 @@ pub async fn load_voice_file(
 }
 
 /// Times the phonemes of `accent_phrases` (a block's current query) in the
-/// voice, with an edge pause before and after them.
+/// voice with `aligner`, with an edge pause before and after them.
 #[tauri::command]
 #[specta::specta]
 pub async fn align_voice(
   state: State<'_, AppState>,
   voice_id: String,
   accent_phrases: Vec<AccentPhrase>,
+  aligner: VoiceAligner,
 ) -> Result<Vec<VoiceSegment>, String> {
   let voice = voice(&state, &voice_id)?;
-  tauri::async_runtime::spawn_blocking(move || voice.align(&accent_phrases))
+  let cpu_num_threads = state
+    .core
+    .read()
+    .await
+    .as_ref()
+    .map_or(0, |core| core.config.cpu_num_threads);
+  let options = AlignOptions {
+    aligner,
+    cpu_num_threads,
+  };
+  tauri::async_runtime::spawn_blocking(move || voice.align(&accent_phrases, options))
     .await
     .map_err(|e| e.to_string())?
 }

@@ -97,6 +97,11 @@ pub(crate) fn aligner_model_dir() -> Result<PathBuf, String> {
   Ok(local_data_dir()?.join("snfa"))
 }
 
+/// Downloaded pydomino aligner model for voice import.
+pub(crate) fn domino_model_dir() -> Result<PathBuf, String> {
+  Ok(local_data_dir()?.join("domino"))
+}
+
 pub(crate) fn assets_dir() -> PathBuf {
   config_dir().join("assets")
 }

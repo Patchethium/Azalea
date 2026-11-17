@@ -130,6 +130,16 @@ pub enum PitchTuningMode {
   Relative,
 }
 
+/// The forced aligner voice import times a recording with.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize, Type)]
+pub enum VoiceAligner {
+  /// snfa, a small model run by its own Rust crate.
+  #[default]
+  Snfa,
+  /// pydomino's phoneme-transition model, run on VOICEVOX ONNX Runtime.
+  Pydomino,
+}
+
 #[derive(Clone, Deserialize, Serialize, Type)]
 pub struct UIConfig {
   #[serde(default)]
@@ -186,6 +196,9 @@ pub struct UIConfig {
   /// the user's own reading of it.
   #[serde(default)]
   pub voice_import: bool,
+  /// The aligner voice import uses; kept while voice import is off.
+  #[serde(default)]
+  pub voice_aligner: VoiceAligner,
   /// Lets MCP clients use the voices through `azalea --mcp`. The server reads it on every
   /// call and refuses tools while it is off.
   #[serde(default)]
@@ -266,6 +279,7 @@ impl Default for UIConfig {
       streaming_synthesis: streaming_synthesis_default(),
       post_processing: false,
       voice_import: false,
+      voice_aligner: Default::default(),
       mcp_enabled: false,
       english_transform: english_transform_default(),
       english_accent_prediction: english_transform_default(),
@@ -811,6 +825,19 @@ mod tests {
     for range in ["0.5", "24.5", "-1.0", "nan", "inf"] {
       assert!(toml::from_str::<UIConfig>(&format!("pitch_drift_range = {range}")).is_err());
     }
+  }
+
+  #[test]
+  fn voice_aligner_defaults_to_snfa_and_round_trips() {
+    let config: UIConfig = toml::from_str("voice_import = true").unwrap();
+    assert!(config.voice_import);
+    assert_eq!(config.voice_aligner, super::VoiceAligner::Snfa);
+
+    let config: UIConfig = toml::from_str("voice_aligner = \"Pydomino\"").unwrap();
+    assert!(!config.voice_import);
+    let loaded: UIConfig = toml::from_str(&toml::to_string(&config).unwrap()).unwrap();
+    assert_eq!(loaded.voice_aligner, super::VoiceAligner::Pydomino);
+    assert!(toml::from_str::<UIConfig>("voice_aligner = \"Julius\"").is_err());
   }
 
   #[test]
