@@ -4,7 +4,7 @@ import { Link } from "@kobalte/core/link";
 import { getVersion } from "@tauri-apps/api/app";
 import { open as openExternal } from "@tauri-apps/plugin-shell";
 import { createResource } from "solid-js";
-import azaleaLogo from "../../icon/azalea.png";
+import azaleaLogo from "../../icon/azalea.svg";
 import { usei18n } from "@contexts/i18n";
 
 interface AboutDialogProps {
