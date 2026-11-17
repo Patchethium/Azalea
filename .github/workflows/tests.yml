@@ -192,13 +192,15 @@ jobs:
 
       - name: Download snfa aligner model
         if: steps.snfa_model.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
-          mkdir -p "$RUNNER_TEMP/snfa"
-          curl --fail --location --retry 3 \
-            --output "$RUNNER_TEMP/snfa/jp.safetensors" \
-            https://github.com/Patchethium/snfa/releases/download/rust-v0.1.0/jp.safetensors
+          gh release download rust-v0.1.0 \
+            --repo Patchethium/snfa \
+            --pattern jp.safetensors \
+            --dir "$RUNNER_TEMP/snfa"
           echo "a1bd8eb1cc88ce77e50b86d88f3fde5042fc4c9ecb31fa56ece7fd66ac775075  $RUNNER_TEMP/snfa/jp.safetensors" \
             | sha256sum --check
 
