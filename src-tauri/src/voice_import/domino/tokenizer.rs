@@ -1,22 +1,36 @@
 //! Turns VOICEVOX phonemes into pydomino's phoneme-transition tokens.
 //!
 //! The model scores, per frame, each transition between two phonemes of
-//! pydomino's set. `transitions.txt` lists them in the model's output order
-//! and is copied from pydomino (MIT, see `LICENSE` beside it) at the commit
-//! the model is downloaded from.
+//! pydomino's set. pydomino's `src/phoneme_transitions.txt` lists them in the
+//! model's output order; it is read from the `third_party/pydomino` submodule
+//! (MIT), pinned to the commit the model is downloaded from.
 
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-/// `from to` per line; the line number is the token ID.
-const TRANSITIONS: &str = include_str!("transitions.txt");
+/// pydomino's table, a C++ raw string literal (`R"(...)"`) holding one
+/// `from to` pair per line.
+const TRANSITIONS_SOURCE: &str =
+  include_str!("../../../third_party/pydomino/src/phoneme_transitions.txt");
 
 /// Number of transition tokens, the model's output width.
 pub(super) const TRANSITION_COUNT: usize = 557;
 
-static TOKEN_IDS: LazyLock<HashMap<(&'static str, &'static str), usize>> = LazyLock::new(|| {
-  TRANSITIONS
+/// The `from to` pairs; the line number is the token ID.
+fn transitions() -> impl Iterator<Item = &'static str> {
+  let table = TRANSITIONS_SOURCE.trim_start_matches('\u{feff}');
+  let table = table
+    .strip_prefix("R\"(")
+    .and_then(|table| table.trim_end().strip_suffix(")\""))
+    .expect("pydomino's transition table is a C++ raw string literal");
+  table
     .lines()
+    .map(|line| line.trim_end_matches('\r'))
+    .filter(|line| !line.is_empty())
+}
+
+static TOKEN_IDS: LazyLock<HashMap<(&'static str, &'static str), usize>> = LazyLock::new(|| {
+  transitions()
     .enumerate()
     .map(|(id, line)| {
       let (from, to) = line
@@ -131,7 +145,7 @@ mod tests {
 
   #[test]
   fn the_table_lists_every_token_once() {
-    assert_eq!(TRANSITIONS.lines().count(), TRANSITION_COUNT);
+    assert_eq!(transitions().count(), TRANSITION_COUNT);
     assert_eq!(TOKEN_IDS.len(), TRANSITION_COUNT);
     assert_eq!(token("ry", "a"), Some(0));
     assert_eq!(token("pau", "cl"), Some(TRANSITION_COUNT - 1));

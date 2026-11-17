@@ -32,12 +32,14 @@ VOICEVOX components, clearing the asset cache (`clear_assets`) also deletes
 them and `get_assets_size` counts them. When the e2k tag in `Cargo.toml`
 changes, update `ENGLISH_MODEL_FILES` to that tag's models; when the snfa tag
 changes, update `ALIGNER_MODEL_FILES` to that release's `jp.safetensors`.
-`DOMINO_MODEL_FILES` pins pydomino's model and license to one commit of
-[DwangoMediaVillage/pydomino](https://github.com/DwangoMediaVillage/pydomino),
-which publishes the model only in its repository; when moving to another
-commit, copy that commit's `src/phoneme_transitions.txt` into
-`src-tauri/src/voice_import/domino/transitions.txt` as well, since the table
-is the model's output order.
+`DOMINO_MODEL_FILES` pins pydomino's model and license to the commit of
+[DwangoMediaVillage/pydomino](https://github.com/DwangoMediaVillage/pydomino)
+that the `src-tauri/third_party/pydomino` submodule is checked out at
+(pydomino publishes the model only in its repository). The aligner compiles
+in the submodule's transition table, which is the model's output order, so
+update both together: check out the new commit in the submodule, commit the
+pointer and change the URLs, sizes and hashes; a unit test compares them with
+the submodule's files.
 
 Until a pack is installed, `ExtraDownloadButton` (`src/components/extraDownload/`)
 replaces the setting's control (the font toggle group, the "Transform English
@@ -232,15 +234,19 @@ aligner, `UIConfig.voice_aligner` (`VoiceAligner`: `Snfa` by default, or
   loaded. The session is CPU-only, created on first use with the core's
   `cpu_num_threads` and kept; failed loads are not cached
   (`domino::provide_model` points tests at a model file). pydomino's
-  tokenizer and Viterbi decoder are ported to Rust: `domino/transitions.txt`
-  is its transition table, `domino/tokenizer.rs` maps VOICEVOX phonemes
+  tokenizer and Viterbi decoder are ported to Rust: `domino/tokenizer.rs`
+  compiles in its transition table (`src/phoneme_transitions.txt` of the
+  `src-tauri/third_party/pydomino` git submodule, shallow and pinned by
+  commit like WORLD; `build.rs` fails with a hint when it is not checked out,
+  and its own nested submodules are not needed) and maps VOICEVOX phonemes
   (`kw`, `gw`, `ty` as `k`, `g`, `t`; devoiced `A`, `E`, `O` voiced; devoiced
   `I`, `U` kept only where both of their transitions exist; a phoneme with no
   transition from the one before it, such as a repeated `cl`, shares that
   phoneme's span evenly) and `domino/viterbi.rs` places each transition with
   at least 3 frames between two, fewer when the recording is short. Its MIT
-  license is `domino/LICENSE`, listed in the licenses dialog by
-  `scripts/licenses.mjs`.
+  license is the submodule's `LICENSE`, listed in the licenses dialog by
+  `scripts/licenses.mjs`. The submodule also holds the model, which the
+  tests use, but the app still downloads it rather than bundling it.
 
 Both aligners take 16 kHz audio (`ALIGNER_SAMPLE_RATE`) and return segments
 with the same names, so everything after alignment is shared.
@@ -332,9 +338,8 @@ query on the real core and checks the timing and pitch come back, and that
 adjusted segments are applied and mismatched ones rejected, with both
 aligners; it reads snfa's model from `AZALEA_TEST_SNFA_MODEL` or
 `config_dev/snfa/jp.safetensors` and pydomino's from
-`AZALEA_TEST_DOMINO_MODEL` or
-`config_dev/domino/phoneme_transition_model.onnx`, and fails clearly without
-either.
+`AZALEA_TEST_DOMINO_MODEL` or the pydomino submodule, and fails clearly
+without either.
 
 ## Project Files
 
@@ -623,8 +628,11 @@ WORLD is the `src-tauri/third_party/world` git submodule (upstream
 [mmorise/World](https://github.com/mmorise/World), pinned by commit and
 cloned shallow); `build.rs` compiles its Harvest, CheapTrick, D4C and
 Synthesis sources with `cc` and fails with a hint when the submodule is not
-checked out. Run `git submodule update --init` after cloning; CI and release
-checkouts fetch submodules. Update WORLD by checking out a newer commit in
+checked out. Run `git submodule update --init` after cloning (it fetches WORLD and
+pydomino, shallow as `.gitmodules` recommends; see Voice Import). Do not
+recurse (`--recursive`, or `git clone --recurse-submodules`): pydomino's own
+submodules are not needed. CI and release checkouts fetch submodules without
+recursing. Update WORLD by checking out a newer commit in
 the submodule and committing the new pointer; do not copy its sources into
 the repository.
 `src-tauri/src/audio/world.rs` binds it by hand and validates every input

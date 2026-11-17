@@ -4,8 +4,8 @@
 //! The aligner models are downloaded by the app; these tests read snfa's
 //! from `AZALEA_TEST_SNFA_MODEL` or the development pack directory
 //! (`config_dev/snfa/jp.safetensors`) and pydomino's from
-//! `AZALEA_TEST_DOMINO_MODEL` or
-//! `config_dev/domino/phoneme_transition_model.onnx`.
+//! `AZALEA_TEST_DOMINO_MODEL` or the `third_party/pydomino` submodule, which
+//! holds the model the app downloads.
 
 use std::path::PathBuf;
 
@@ -46,13 +46,13 @@ fn provide_test_domino_model() {
     .map(PathBuf::from)
     .unwrap_or_else(|| {
       PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../config_dev/domino")
+        .join("third_party/pydomino/onnx_model")
         .join(domino::MODEL_FILE)
     });
   assert!(
     path.is_file(),
-    "cannot find the pydomino model at {}; choose pydomino in the config dialog's voice import \
-     setting to download it or set AZALEA_TEST_DOMINO_MODEL",
+    "cannot find the pydomino model at {}; run `git submodule update --init` or set \
+     AZALEA_TEST_DOMINO_MODEL",
     path.display()
   );
   domino::provide_model(path);

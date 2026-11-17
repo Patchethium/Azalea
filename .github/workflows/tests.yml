@@ -202,31 +202,11 @@ jobs:
           echo "a1bd8eb1cc88ce77e50b86d88f3fde5042fc4c9ecb31fa56ece7fd66ac775075  $RUNNER_TEMP/snfa/jp.safetensors" \
             | sha256sum --check
 
-      - name: Restore pydomino aligner model
-        id: domino_model
-        uses: actions/cache@v5
-        with:
-          path: ${{ runner.temp }}/domino
-          key: pydomino-4930396-phoneme-transition-model-0
-
-      - name: Download pydomino aligner model
-        if: steps.domino_model.outputs.cache-hit != 'true'
-        run: |
-          set -euo pipefail
-
-          mkdir -p "$RUNNER_TEMP/domino"
-          curl --fail --location --retry 3 \
-            --output "$RUNNER_TEMP/domino/phoneme_transition_model.onnx" \
-            https://raw.githubusercontent.com/DwangoMediaVillage/pydomino/4930396642fdd85618884c7a209218a628fd3c34/onnx_model/phoneme_transition_model.onnx
-          echo "ce3f5d7cb39e4fec08ed0380338f10193d5e00b9d032277485fa862075191710  $RUNNER_TEMP/domino/phoneme_transition_model.onnx" \
-            | sha256sum --check
-
       - name: Run all Rust tests
         working-directory: src-tauri
         env:
           AZALEA_TEST_CORE_DIR: ${{ runner.temp }}/voicevox-core
           AZALEA_TEST_SNFA_MODEL: ${{ runner.temp }}/snfa/jp.safetensors
-          AZALEA_TEST_DOMINO_MODEL: ${{ runner.temp }}/domino/phoneme_transition_model.onnx
         run: cargo test --locked -- --test-threads=1
 
       - name: Verify generated TypeScript bindings

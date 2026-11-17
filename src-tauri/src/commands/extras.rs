@@ -88,8 +88,8 @@ pub(crate) const ALIGNER_MODEL_FILES: &[ExtraFile] = &[ExtraFile {
   sha256: "a1bd8eb1cc88ce77e50b86d88f3fde5042fc4c9ecb31fa56ece7fd66ac775075",
 }];
 
-/// pydomino's model and license at the commit its transition table
-/// (`voice_import/domino/transitions.txt`) was copied from.
+/// pydomino's model and license at the commit the `third_party/pydomino`
+/// submodule, whose transition table the aligner compiles in, is pinned to.
 pub(crate) const DOMINO_MODEL_FILES: &[ExtraFile] = &[
   ExtraFile {
     name: "phoneme_transition_model.onnx",
@@ -400,6 +400,26 @@ mod tests {
     assert!(DOMINO_MODEL_FILES.iter().all(|file| file
       .url
       .contains("/DwangoMediaVillage/pydomino/4930396642fdd85618884c7a209218a628fd3c34/")));
+  }
+
+  #[test]
+  fn the_pydomino_download_matches_the_submodule() {
+    // The transition table comes from the submodule, so the downloaded model
+    // must be the one at the same commit.
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("third_party/pydomino");
+    for (file, path) in DOMINO_MODEL_FILES
+      .iter()
+      .zip(["onnx_model/phoneme_transition_model.onnx", "LICENSE"])
+    {
+      assert!(file.url.ends_with(path), "{}", file.url);
+      let bytes = fs::read(root.join(path)).unwrap();
+      assert_eq!(bytes.len() as u64, file.bytes, "{path}");
+      assert_eq!(
+        format!("{:x}", Sha256::digest(&bytes)),
+        file.sha256,
+        "{path}"
+      );
+    }
   }
 
   #[test]

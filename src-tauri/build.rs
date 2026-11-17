@@ -1,6 +1,7 @@
 fn main() {
   collect_licenses();
   build_world();
+  check_pydomino();
   tauri_build::build()
 }
 
@@ -34,6 +35,18 @@ fn compress_licenses() {
     encoder.finish().unwrap(),
   )
   .expect("Failed to write the compressed license report");
+}
+
+/// Checks that the pydomino submodule, whose transition table the voice
+/// import aligner compiles in, is checked out.
+fn check_pydomino() {
+  let table = "third_party/pydomino/src/phoneme_transitions.txt";
+  if !std::path::Path::new(table).is_file() {
+    panic!(
+      "The pydomino submodule is missing; run `git submodule update --init` in the repository root"
+    );
+  }
+  println!("cargo:rerun-if-changed={table}");
 }
 
 /// Compiles the WORLD vocoder (the `third_party/world` submodule) used by the post-processing

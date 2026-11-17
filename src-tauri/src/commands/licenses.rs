@@ -56,7 +56,7 @@ mod tests {
       .expect("pydomino must be included manually");
     assert_eq!(
       pydomino.text,
-      include_str!("../voice_import/domino/LICENSE").replace("\r\n", "\n")
+      include_str!("../../third_party/pydomino/LICENSE").replace("\r\n", "\n")
     );
     assert!(licenses
       .iter()
