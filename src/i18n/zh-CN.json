@@ -297,7 +297,7 @@
     "reinitialize_core": "应用更改需重新初始化核心",
     "auto": "自动",
     "voice_import": "语音导入",
-    "voice_import_description": "根据你自己朗读的录音（在此录制或选择音频文件）设置文本块的时长和音高。会在重音与调音标签页之间添加语音标签页。选择为录音对齐的对齐器：snfa 体积小，pydomino 体积较大，但对清晰语音更准确。",
+    "voice_import_description": "根据你自己朗读的录音（在此录制或选择音频文件）设置文本块的时长和音高。会在重音与调音标签页之间添加语音标签页。",
     "voice_import_none": "无",
     "extra_confirm_message": "将下载 {{ name }}（{{ size }}）。",
     "extra_confirm": "确认",
